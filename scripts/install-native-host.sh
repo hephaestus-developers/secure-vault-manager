@@ -2,7 +2,7 @@
 # ==============================================================================
 # @file scripts/install-native-host.sh
 # @brief Script cài đặt Native Messaging Host manifest cho trình duyệt trên Linux/macOS.
-# @author Hephaestus Developers <engineering@hephaestus.io>
+# @author Hai Pham Ngoc <ngochai285nd@gmail.com>
 # @copyright (c) 2026 Hephaestus Developers. All rights reserved.
 # ==============================================================================
 

@@ -2,7 +2,7 @@
 # ==============================================================================
 # @file scripts/format.sh
 # @brief Script tự động định dạng mã nguồn Rust, C/C++ và Web/TS.
-# @author Hephaestus Developers <engineering@hephaestus.io>
+# @author Hai Pham Ngoc <ngochai285nd@gmail.com>
 # @copyright (c) 2026 Hephaestus Developers. All rights reserved.
 # ==============================================================================
 

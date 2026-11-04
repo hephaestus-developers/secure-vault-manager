@@ -2,7 +2,7 @@
 # ==============================================================================
 # @file scripts/run.sh
 # @brief Script khởi chạy ứng dụng Desktop hoặc công cụ CLI của SVM.
-# @author Hephaestus Developers <engineering@hephaestus.io>
+# @author Hai Pham Ngoc <ngochai285nd@gmail.com>
 # @copyright (c) 2026 Hephaestus Developers. All rights reserved.
 # ==============================================================================
 

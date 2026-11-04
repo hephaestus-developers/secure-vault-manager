@@ -2,7 +2,7 @@
 # ==============================================================================
 # @file scripts/lint.sh
 # @brief Script kiểm tra tĩnh (linter & static analysis) cho toàn bộ dự án.
-# @author Hephaestus Developers <engineering@hephaestus.io>
+# @author Hai Pham Ngoc <ngochai285nd@gmail.com>
 # @copyright (c) 2026 Hephaestus Developers. All rights reserved.
 # ==============================================================================
 
@@ -21,7 +21,7 @@ cargo doc --manifest-path core/Cargo.toml --workspace --no-deps
 
 echo "==> [SVM Lint] Kiểm tra phụ thuộc và bản quyền (cargo-deny nếu có)..."
 if command -v cargo-deny >/dev/null 2>&1; then
-    (cd core && cargo-deny check)
+    (cd core && (cargo-deny check 2>/dev/null || cargo-deny --offline check))
 else
     echo "  [Bỏ qua] cargo-deny chưa được cài đặt."
 fi

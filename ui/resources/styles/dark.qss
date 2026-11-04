@@ -1,0 +1,313 @@
+/* ==============================================================================
+ * Secure Vault Manager - Dark Theme (Catppuccin Mocha)
+ * ============================================================================== */
+
+/* Cửa sổ gốc & font hệ thống */
+QMainWindow, QDialog {
+    background-color: #1e1e2e;
+    color: #cdd6f4;
+}
+
+/* Toàn bộ nhãn văn bản mặc định trong suốt */
+QLabel {
+    background: transparent;
+    color: #cdd6f4;
+}
+
+/* Khung cửa sổ chính */
+#CentralWidget {
+    background-color: #1e1e2e;
+    border: 1px solid #313244;
+}
+
+/* ==============================================================================
+ * Thanh Tiêu Đề Tích Hợp (UnifiedHeaderBar)
+ * ============================================================================== */
+#UnifiedHeaderBar {
+    background-color: #181825;
+    border-bottom: 1px solid #313244;
+}
+
+#HeaderLogo {
+    background: transparent;
+}
+
+/* Tiêu đề tài liệu / cửa sổ căn giữa */
+#HeaderTitleLabel {
+    color: #cdd6f4;
+    font-size: 13px;
+    font-weight: 500;
+    background: transparent;
+}
+
+/* Thanh Menu nhúng trực tiếp trên HeaderBar */
+#EmbeddedMenuBar {
+    background: transparent;
+    color: #cdd6f4;
+}
+
+#EmbeddedMenuBar::item {
+    background: transparent;
+    padding: 4px 8px;
+    border-radius: 4px;
+    color: #cdd6f4;
+}
+
+#EmbeddedMenuBar::item:selected,
+#EmbeddedMenuBar::item:pressed {
+    background-color: #313244;
+    color: #ffffff;
+}
+
+/* Menu xổ xuống (QMenu) cho Dark Theme */
+QMenu {
+    background-color: #1e1e2e;
+    color: #cdd6f4;
+    border: 1px solid #313244;
+    border-radius: 6px;
+    padding: 4px 2px;
+}
+
+QMenu::item {
+    background-color: transparent;
+    padding: 6px 24px 6px 30px;
+    border-radius: 4px;
+    margin: 1px 2px;
+}
+
+QMenu::item:selected {
+    background-color: #313244;
+    color: #ffffff;
+}
+
+QMenu::item:disabled {
+    color: #585b70;
+}
+
+QMenu::separator {
+    height: 1px;
+    background-color: #313244;
+    margin: 4px 6px;
+}
+
+/* Dấu tích checkbox/radio tùy biến cho QMenu */
+QMenu::indicator {
+    width: 14px;
+    height: 14px;
+    left: 8px;
+}
+
+QMenu::indicator:checked {
+    image: url(:/icons/menu_check_dark.svg);
+}
+
+QMenu::indicator:unchecked {
+    image: none;
+}
+
+/* ==============================================================================
+ * Các Nút Điều Khiển Cửa Sổ (Window Controls)
+ * ============================================================================== */
+#WinMinBtn, #WinMaxBtn {
+    background: transparent;
+    border: none;
+    border-radius: 0px;
+}
+
+#WinMinBtn:hover, #WinMaxBtn:hover {
+    background-color: #313244;
+}
+
+#WinMinBtn:pressed, #WinMaxBtn:pressed {
+    background-color: #45475a;
+}
+
+/* Nút Close: Màu đỏ chuẩn với icon dấu X trắng nổi bật khi hover/pressed */
+#WinCloseBtn {
+    background: transparent;
+    border: none;
+    border-radius: 0px;
+}
+
+#WinCloseBtn:hover {
+    background-color: #e81123;
+    qproperty-icon: url(:/icons/win_close_white.svg);
+}
+
+#WinCloseBtn:pressed {
+    background-color: #c40e1d;
+    qproperty-icon: url(:/icons/win_close_white.svg);
+}
+
+/* ==============================================================================
+ * Vùng Chứa Nội Dung (ContentArea) & Khung Thẻ (Cards)
+ * ============================================================================== */
+#ContentArea {
+    background-color: #1e1e2e;
+}
+
+#CardWidget {
+    background-color: #181825;
+    border: 1px solid #313244;
+    border-radius: 8px;
+    padding: 24px;
+}
+
+#CardWidget QLabel {
+    background: transparent;
+}
+
+#CardTitleLabel {
+    color: #ffffff;
+    font-size: 18px;
+    font-weight: bold;
+    background: transparent;
+}
+
+#CardDescLabel {
+    color: #a6adc8;
+    font-size: 13px;
+    background: transparent;
+}
+
+/* ==============================================================================
+ * Các Nút Bấm Thao Tác (Buttons)
+ * ============================================================================== */
+QPushButton {
+    background-color: #313244;
+    color: #cdd6f4;
+    border: 1px solid #45475a;
+    border-radius: 5px;
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+QPushButton:hover {
+    background-color: #45475a;
+    color: #ffffff;
+}
+
+QPushButton:pressed {
+    background-color: #585b70;
+}
+
+QPushButton#PrimaryButton {
+    background-color: #89b4fa;
+    color: #11111b;
+    border: 1px solid #89b4fa;
+    font-weight: bold;
+}
+
+QPushButton#PrimaryButton:hover {
+    background-color: #b4befe;
+    border-color: #b4befe;
+}
+
+QPushButton#PrimaryButton:pressed {
+    background-color: #74c7ec;
+    border-color: #74c7ec;
+}
+
+QPushButton#DangerButton {
+    background-color: #24273a;
+    color: #f38ba8;
+    border: 1px solid #45475a;
+}
+
+QPushButton#DangerButton:hover {
+    background-color: #313244;
+    border-color: #f38ba8;
+}
+
+QPushButton#DangerButton:pressed {
+    background-color: #45475a;
+}
+
+/* ==============================================================================
+ * Ô Nhập Liệu (Input Fields)
+ * ============================================================================== */
+QLineEdit, QTextEdit, QPlainTextEdit {
+    background-color: #181825;
+    color: #cdd6f4;
+    border: 1px solid #313244;
+    border-radius: 5px;
+    padding: 6px 10px;
+    font-size: 13px;
+}
+
+QLineEdit:focus, QTextEdit:focus, QPlainTextEdit:focus {
+    border: 1px solid #89b4fa;
+    background-color: #1e1e2e;
+}
+
+/* ==============================================================================
+ * Thanh Cuộn Tối Giản (QScrollBar)
+ * ============================================================================== */
+QScrollBar:vertical {
+    background-color: #1e1e2e;
+    width: 8px;
+    margin: 0;
+    border-radius: 4px;
+}
+
+QScrollBar:handle:vertical {
+    background-color: #313244;
+    min-height: 24px;
+    border-radius: 4px;
+}
+
+QScrollBar:handle:vertical:hover {
+    background-color: #45475a;
+}
+
+QScrollBar:add-line:vertical, QScrollBar:sub-line:vertical,
+QScrollBar:add-page:vertical, QScrollBar:sub-page:vertical {
+    background: none;
+    border: none;
+}
+
+QScrollBar:horizontal {
+    background-color: #1e1e2e;
+    height: 8px;
+    margin: 0;
+    border-radius: 4px;
+}
+
+QScrollBar:handle:horizontal {
+    background-color: #313244;
+    min-width: 24px;
+    border-radius: 4px;
+}
+
+QScrollBar:handle:horizontal:hover {
+    background-color: #45475a;
+}
+
+QScrollBar:add-line:horizontal, QScrollBar:sub-line:horizontal,
+QScrollBar:add-page:horizontal, QScrollBar:sub-page:horizontal {
+    background: none;
+    border: none;
+}
+
+/* ==============================================================================
+ * Thanh Trạng Thái (StatusBar)
+ * ============================================================================== */
+#StatusBar, QStatusBar {
+    background-color: #181825;
+    border-top: 1px solid #313244;
+    color: #a6adc8;
+    font-size: 11px;
+    min-height: 24px;
+}
+
+QStatusBar::item {
+    border: none;
+}
+
+#StatusBar QLabel {
+    color: #6c7086;
+    font-size: 11px;
+    padding: 2px 4px;
+    background: transparent;
+}

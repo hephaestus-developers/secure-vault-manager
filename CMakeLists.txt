@@ -7,5 +7,5 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Rust Core C-ABI library
 add_subdirectory(core)
 
-# UI layer will be added when Qt6 UI scaffold is connected:
-# add_subdirectory(ui)
+# UI layer Qt6 Widgets
+add_subdirectory(ui)

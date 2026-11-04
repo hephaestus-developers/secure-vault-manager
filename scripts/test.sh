@@ -2,7 +2,7 @@
 # ==============================================================================
 # @file scripts/test.sh
 # @brief Script chạy kiểm thử toàn bộ hệ thống Secure Vault Manager (SVM).
-# @author Hephaestus Developers <engineering@hephaestus.io>
+# @author Hai Pham Ngoc <ngochai285nd@gmail.com>
 # @copyright (c) 2026 Hephaestus Developers. All rights reserved.
 # ==============================================================================
 

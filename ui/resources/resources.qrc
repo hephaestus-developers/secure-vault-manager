@@ -1,0 +1,34 @@
+<RCC>
+    <qresource prefix="/">
+        <!-- Window Controls Dark & Light -->
+        <file>icons/win_min_dark.svg</file>
+        <file>icons/win_max_dark.svg</file>
+        <file>icons/win_restore_dark.svg</file>
+        <file>icons/win_close_dark.svg</file>
+        <file>icons/win_min_light.svg</file>
+        <file>icons/win_max_light.svg</file>
+        <file>icons/win_restore_light.svg</file>
+        <file>icons/win_close_light.svg</file>
+        <file>icons/win_close_white.svg</file>
+        <file>icons/menu_check_dark.svg</file>
+        <file>icons/menu_check_light.svg</file>
+
+        <!-- Brand & Security -->
+        <file>icons/app_logo.svg</file>
+        <file>icons/shield_check.svg</file>
+        <file>icons/lock.svg</file>
+        <file>icons/unlock.svg</file>
+        <file>icons/status_dot_green.svg</file>
+        <file>icons/status_dot_red.svg</file>
+
+        <!-- Common Actions & States -->
+        <file>icons/search.svg</file>
+        <file>icons/plus.svg</file>
+        <file>icons/folder_empty.svg</file>
+        <file>icons/folder_open.svg</file>
+
+        <!-- Stylesheets -->
+        <file>styles/dark.qss</file>
+        <file>styles/light.qss</file>
+    </qresource>
+</RCC>

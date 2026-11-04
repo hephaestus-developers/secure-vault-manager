@@ -2,7 +2,7 @@
 # ==============================================================================
 # @file scripts/clean.sh
 # @brief Script dọn dẹp các tệp build, cache và artifact sinh ra trong quá trình phát triển.
-# @author Hephaestus Developers <engineering@hephaestus.io>
+# @author Hai Pham Ngoc <ngochai285nd@gmail.com>
 # @copyright (c) 2026 Hephaestus Developers. All rights reserved.
 # ==============================================================================
 

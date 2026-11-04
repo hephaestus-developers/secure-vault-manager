@@ -2,7 +2,7 @@
 # ==============================================================================
 # @file scripts/build-extension.sh
 # @brief Script đóng gói WebExtension (MV3) cho Chrome/Firefox.
-# @author Hephaestus Developers <engineering@hephaestus.io>
+# @author Hai Pham Ngoc <ngochai285nd@gmail.com>
 # @copyright (c) 2026 Hephaestus Developers. All rights reserved.
 # ==============================================================================
 

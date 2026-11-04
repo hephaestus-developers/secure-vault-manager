@@ -2,7 +2,7 @@
 # ==============================================================================
 # @file scripts/gen-header.sh
 # @brief Script sinh và kiểm tra tệp C-ABI header (svm_core.h) bằng cbindgen.
-# @author Hephaestus Developers <engineering@hephaestus.io>
+# @author Hai Pham Ngoc <ngochai285nd@gmail.com>
 # @copyright (c) 2026 Hephaestus Developers. All rights reserved.
 # ==============================================================================
 
