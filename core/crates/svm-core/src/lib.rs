@@ -28,8 +28,9 @@ pub struct SvmBuffer {
 }
 
 /// Con trỏ hàm callback nhận sự kiện từ Rust Core gửi lên giao diện người dùng.
-pub type SvmEventCallback =
-    Option<unsafe extern "C" fn(kind: i32, payload_json: *const c_char, user_data: *mut std::ffi::c_void)>;
+pub type SvmEventCallback = Option<
+    unsafe extern "C" fn(kind: i32, payload_json: *const c_char, user_data: *mut std::ffi::c_void),
+>;
 
 /// Ngữ cảnh hoàn chỉnh của ứng dụng đại diện cho một phiên làm việc runtime.
 pub struct SvmContext {
@@ -92,7 +93,10 @@ pub unsafe extern "C" fn svm_context_new(data_dir: *const c_char) -> *mut SvmCon
     let dir = if data_dir.is_null() {
         None
     } else {
-        CStr::from_ptr(data_dir).to_str().ok().map(|s| s.to_string())
+        CStr::from_ptr(data_dir)
+            .to_str()
+            .ok()
+            .map(|s| s.to_string())
     };
 
     let ctx = Box::new(SvmContext {
@@ -420,11 +424,7 @@ pub unsafe extern "C" fn svm_vault_change_password(
 /// # Safety
 /// `ctx` có thể là NULL (bỏ qua an toàn).
 #[no_mangle]
-pub unsafe extern "C" fn svm_vault_report_idle(ctx: *mut SvmContext, _idle_ms: u64) {
-    if ctx.is_null() {
-        return;
-    }
-}
+pub unsafe extern "C" fn svm_vault_report_idle(_ctx: *mut SvmContext, _idle_ms: u64) {}
 
 /* ========================================================================= */
 /* 3.4. Quản Lý Mục Dữ Liệu & Lịch Sử (Items, Folders & History)             */

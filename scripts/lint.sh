@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# ==============================================================================
+# @file scripts/lint.sh
+# @brief Script kiểm tra tĩnh (linter & static analysis) cho toàn bộ dự án.
+# @author Hephaestus Developers <engineering@hephaestus.io>
+# @copyright (c) 2026 Hephaestus Developers. All rights reserved.
+# ==============================================================================
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+cd "${ROOT_DIR}"
+
+echo "==> [SVM Lint] Kiểm tra mã nguồn Rust bằng Clippy..."
+cargo clippy --manifest-path core/Cargo.toml --workspace --all-targets -- -D warnings
+
+echo "==> [SVM Lint] Kiểm tra tài liệu Rustdoc..."
+cargo doc --manifest-path core/Cargo.toml --workspace --no-deps
+
+echo "==> [SVM Lint] Kiểm tra phụ thuộc và bản quyền (cargo-deny nếu có)..."
+if command -v cargo-deny >/dev/null 2>&1; then
+    (cd core && cargo-deny check)
+else
+    echo "  [Bỏ qua] cargo-deny chưa được cài đặt."
+fi
+
+echo "==> [SVM Lint] Kiểm tra tĩnh hoàn tất không phát hiện lỗi!"
