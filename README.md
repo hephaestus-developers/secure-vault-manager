@@ -38,3 +38,26 @@ Toàn bộ đặc tả nghiệp vụ, kiến trúc phần mềm, giao thức nh�
 | **08** | [08. SSH Agent Protocol.md](docs/08.%20SSH%20Agent%20Protocol.md) | Giao thức nhị phân OpenSSH Agent, cơ chế kiểm tra `SO_PEERCRED` và quy trình phê duyệt ký số. |
 | **09** | [09. Threat Model.md](docs/09.%20Threat%20Model.md) | Phân tích rủi ro theo mô hình STRIDE, các ranh giới tin cậy (Trust Boundaries) và giới hạn bảo mật. |
 | **10** | [10. Domain Data Schemas.md](docs/10.%20Domain%20Data%20Schemas.md) | Đặc tả JSON Schema cho `VaultItem`, Trường tùy biến (Custom Fields), 9 danh mục chuyên biệt, `ItemFilter`, `Prompt` và `AppSettings`. |
+
+---
+
+## Cấu Trúc Dự Án (Project Layout)
+
+Dự án được tổ chức theo mô hình Monorepo chuẩn hóa với các phân hệ độc lập:
+
+```text
+secure-vault-manager/
+├── CMakeLists.txt                         # Root build script tích hợp core và ui
+├── CMakePresets.json                      # Cấu hình preset Ninja/Clang/GCC/MSVC
+├── docs/                                  # 10 tài liệu đặc tả kiến trúc & kỹ thuật chi tiết
+├── core/                                  # Rust Core workspace (15 crates, C-ABI shared library)
+├── ui/                                    # Ứng dụng Desktop Qt6 Widgets (C++17 MVC architecture)
+├── extension/                             # Tiện ích mở rộng trình duyệt WebExtension Manifest V3
+├── shared-ts/                             # Gói TypeScript dùng chung giữa extension & frontend
+├── packaging/                             # Bộ script đóng gói phân phối Linux, macOS, Windows
+├── scripts/                               # Tiện ích phát triển: build, test, format, lint, WASM
+├── .agents/skills/                        # Bộ kỹ năng hướng dẫn phát triển agentic coding
+└── .github/workflows/                     # CI/CD tự động hóa kiểm thử và phát hành
+```
+
+> Chi tiết toàn bộ cây thư mục tệp tin (scaffold layout) và vai trò của từng thành phần mã nguồn được đặc tả chi tiết tại [03. SAD - Software Architecture Document.md](docs/03.%20SAD%20-%20Software%20Architecture%20Document.md#3-cấu-trúc-thư-mục--phân-hệ-toàn-dự-án-repository-scaffold-architecture).
