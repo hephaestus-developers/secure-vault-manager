@@ -1,0 +1,23 @@
+[package]
+name = "svm-core"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[lib]
+name = "svm_core"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+svm-domain = { path = "../svm-domain" }
+svm-crypto = { path = "../svm-crypto" }
+svm-storage = { path = "../svm-storage" }
+svm-vault = { path = "../svm-vault" }
+svm-totp = { path = "../svm-totp" }
+svm-webauthn = { path = "../svm-webauthn" }
+svm-ssh-agent = { path = "../svm-ssh-agent" }
+svm-ipc = { path = "../svm-ipc" }
+svm-bridge = { path = "../svm-bridge" }
+svm-system = { path = "../svm-system" }
+svm-transfer = { path = "../svm-transfer" }

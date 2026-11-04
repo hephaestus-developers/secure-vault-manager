@@ -1,0 +1,12 @@
+[package]
+name = "svm-bridge"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+svm-domain = { path = "../svm-domain" }
+svm-crypto = { path = "../svm-crypto" }
+svm-ipc = { path = "../svm-ipc" }
+svm-vault = { path = "../svm-vault" }

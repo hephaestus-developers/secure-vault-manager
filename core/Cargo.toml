@@ -1,0 +1,26 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/svm-domain",
+    "crates/svm-crypto",
+    "crates/svm-storage",
+    "crates/svm-vault",
+    "crates/svm-totp",
+    "crates/svm-webauthn",
+    "crates/svm-ssh-agent",
+    "crates/svm-ipc",
+    "crates/svm-bridge",
+    "crates/svm-system",
+    "crates/svm-transfer",
+    "crates/svm-core",
+    "crates/svm-native-host",
+    "crates/svm-wasm",
+    "crates/svm-cli",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Hephaestus Developers <engineering@hephaestus.io>"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/hephaestus-studio/secure-vault-manager"

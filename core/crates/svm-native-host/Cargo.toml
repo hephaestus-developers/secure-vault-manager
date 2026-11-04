@@ -1,0 +1,14 @@
+[package]
+name = "svm-native-host"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "svm-native-host"
+path = "src/main.rs"
+
+[dependencies]
+svm-domain = { path = "../svm-domain" }
+svm-ipc = { path = "../svm-ipc" }

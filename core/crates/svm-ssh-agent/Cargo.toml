@@ -1,0 +1,10 @@
+[package]
+name = "svm-ssh-agent"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+svm-domain = { path = "../svm-domain" }
+svm-crypto = { path = "../svm-crypto" }

@@ -1,0 +1,13 @@
+[package]
+name = "svm-wasm"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+svm-domain = { path = "../svm-domain" }
+svm-crypto = { path = "../svm-crypto" }

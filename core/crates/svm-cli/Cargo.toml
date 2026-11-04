@@ -1,0 +1,14 @@
+[package]
+name = "svm-cli"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "svm-cli"
+path = "src/main.rs"
+
+[dependencies]
+svm-domain = { path = "../svm-domain" }
+svm-vault = { path = "../svm-vault" }
