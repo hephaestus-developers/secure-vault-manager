@@ -26,6 +26,17 @@
         <file>icons/plus.svg</file>
         <file>icons/folder_empty.svg</file>
         <file>icons/folder_open.svg</file>
+        <file>icons/win_close.svg</file>
+
+        <!-- Categories -->
+        <file>icons/category_all.svg</file>
+        <file>icons/category_login.svg</file>
+        <file>icons/category_note.svg</file>
+        <file>icons/category_card.svg</file>
+        <file>icons/category_passkey.svg</file>
+        <file>icons/category_ssh.svg</file>
+        <file>icons/category_settings.svg</file>
+        <file>icons/category_trash.svg</file>
 
         <!-- Stylesheets -->
         <file>styles/dark.qss</file>

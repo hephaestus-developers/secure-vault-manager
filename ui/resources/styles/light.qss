@@ -311,3 +311,129 @@ QStatusBar::item {
     padding: 2px 4px;
     background: transparent;
 }
+
+/* ==============================================================================
+ * Tray Launcher (Quick Launcher Popup)
+ * ============================================================================== */
+#TrayLauncherContainer {
+    background-color: #eff1f5;
+    border: 1px solid #ccd0da;
+    border-radius: 12px;
+}
+
+#TrayLauncherHeader {
+    background-color: #e6e9ef;
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+    border-bottom: 1px solid #ccd0da;
+    padding: 8px 14px;
+}
+
+#TrayLauncherTitle {
+    color: #4c4f69;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+#TrayLauncherStatusBadge {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 500;
+}
+
+#TrayLauncherStatusBadge[locked="true"] {
+    background-color: rgba(210, 15, 57, 0.12);
+    color: #d20f39;
+    border: 1px solid rgba(210, 15, 57, 0.25);
+}
+
+#TrayLauncherStatusBadge[locked="false"] {
+    background-color: rgba(64, 160, 43, 0.12);
+    color: #40a02b;
+    border: 1px solid rgba(64, 160, 43, 0.25);
+}
+
+#TrayLauncherKeyBadge {
+    background-color: #ccd0da;
+    color: #6c6f85;
+    font-size: 10px;
+    font-weight: 600;
+    border-radius: 4px;
+    padding: 2px 6px;
+}
+
+#TrayLauncherSearchBox {
+    background-color: #e6e9ef;
+    border: 1px solid #ccd0da;
+    border-radius: 8px;
+    margin: 10px 14px 4px 14px;
+    padding: 2px 8px;
+}
+
+#TrayLauncherSearchBox:focus-within {
+    border: 1px solid #1e66f5;
+}
+
+#TrayLauncherSearchEdit {
+    background: transparent;
+    border: none;
+    color: #4c4f69;
+    font-size: 13px;
+    padding: 6px 4px;
+}
+
+#TrayLauncherSearchEdit:focus {
+    border: none;
+    background: transparent;
+}
+
+#TrayLauncherList {
+    background: transparent;
+    border: none;
+    outline: none;
+    margin: 4px 8px;
+}
+
+#TrayLauncherList::item {
+    border-radius: 6px;
+    padding: 6px 10px;
+    margin: 2px 4px;
+    background: transparent;
+    color: #4c4f69;
+}
+
+#TrayLauncherList::item:selected {
+    background-color: #ccd0da;
+    color: #1e1e2e;
+}
+
+#TrayLauncherList::item:hover:!selected {
+    background-color: #dce0e8;
+}
+
+#TrayLauncherItemTitle {
+    color: #4c4f69;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+#TrayLauncherItemSub {
+    color: #6c6f85;
+    font-size: 11px;
+}
+
+#TrayLauncherFooter {
+    background-color: #e6e9ef;
+    border-bottom-left-radius: 12px;
+    border-bottom-right-radius: 12px;
+    border-top: 1px solid #ccd0da;
+    padding: 6px 14px;
+    color: #9ca0b0;
+    font-size: 11px;
+}
+
+#TrayLauncherFooter QLabel {
+    color: #9ca0b0;
+    font-size: 11px;
+}

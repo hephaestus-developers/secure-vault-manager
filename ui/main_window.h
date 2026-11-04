@@ -11,6 +11,10 @@
 #include <QLabel>
 #include <QMainWindow>
 
+namespace svm::app {
+class TrayManager;
+} // namespace svm::app
+
 namespace svm::components {
 class AppMenuBar;
 class UnifiedHeaderBar;
@@ -26,13 +30,17 @@ public:
   explicit MainWindow(QWidget *parent = nullptr);
   ~MainWindow() override = default;
 
+  void setTrayManager(app::TrayManager *trayManager);
+
 protected:
   void resizeEvent(QResizeEvent *event) override;
   void changeEvent(QEvent *event) override;
+  void closeEvent(QCloseEvent *event) override;
 
 private:
   void setupUI();
 
+  app::TrayManager *m_trayManager{nullptr};
   components::AppMenuBar *m_menuBar{nullptr};
   components::UnifiedHeaderBar *m_headerBar{nullptr};
   components::WindowResizeHandler *m_resizeHandler{nullptr};

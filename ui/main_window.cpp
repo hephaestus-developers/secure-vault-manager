@@ -8,11 +8,14 @@
 
 #include "main_window.h"
 #include "app/theme_manager.h"
+#include "app/tray_manager.h"
 #include "components/menubar/app_menu_bar.h"
 #include "components/unified_header_bar.h"
 #include "components/window_resize_handler.h"
 #include "core/core_bridge.h"
 
+#include <QApplication>
+#include <QCloseEvent>
 #include <QEvent>
 #include <QHBoxLayout>
 #include <QIcon>
@@ -116,8 +119,20 @@ void MainWindow::setupUI() {
             }
           });
 
-  connect(m_menuBar, &components::AppMenuBar::exitRequested, this,
-          &QMainWindow::close);
+  connect(m_menuBar, &components::AppMenuBar::quickLauncherRequested, this,
+          [this]() {
+            if (m_trayManager) {
+              m_trayManager->showTrayLauncher();
+            }
+          });
+  connect(m_menuBar, &components::AppMenuBar::lockVaultRequested, this,
+          [this]() {
+            if (m_trayManager) {
+              m_trayManager->toggleVaultLock();
+            }
+          });
+  connect(m_menuBar, &components::AppMenuBar::exitRequested, qApp,
+          &QApplication::quit);
   connect(m_menuBar, &components::AppMenuBar::toggleThemeRequested, this,
           [this]() {
             auto &tm = app::ThemeManager::instance();
@@ -137,6 +152,19 @@ void MainWindow::setupUI() {
                        "All rights reserved.</p>")
             .arg(ver));
   });
+}
+
+void MainWindow::setTrayManager(app::TrayManager *trayManager) {
+  m_trayManager = trayManager;
+}
+
+void MainWindow::closeEvent(QCloseEvent *event) {
+  if (m_trayManager && m_trayManager->isSystemTrayAvailable()) {
+    hide();
+    event->ignore();
+  } else {
+    event->accept();
+  }
 }
 
 void MainWindow::resizeEvent(QResizeEvent *event) {
