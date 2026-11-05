@@ -49,12 +49,11 @@ void ItemCardDelegate::paint(QPainter *painter,
   cardPath.addRoundedRect(rect, 8, 8);
 
   if (isSelected) {
-    painter->fillPath(cardPath,
-                      isLight ? QColor(0x1E, 0x66, 0xF5, 0x1A)
-                              : QColor(0x89, 0xB4, 0xFA, 0x24)); // Accent tint
-    painter->setPen(QPen(isLight ? QColor(0x1E, 0x66, 0xF5, 0x88)
+    painter->fillPath(cardPath, isLight ? QColor(0xFF, 0xFF, 0xFF)
+                                        : QColor(0x89, 0xB4, 0xFA, 0x24));
+    painter->setPen(QPen(isLight ? QColor(0x2F, 0x35, 0x40)
                                  : QColor(0x89, 0xB4, 0xFA, 0x88),
-                         1.2));
+                         1.5));
     painter->drawPath(cardPath);
   } else if (isHovered) {
     painter->fillPath(cardPath, isLight ? QColor(0xF4, 0xF5, 0xF8)
@@ -65,7 +64,7 @@ void ItemCardDelegate::paint(QPainter *painter,
   } else {
     painter->fillPath(cardPath, isLight ? QColor(0xFF, 0xFF, 0xFF)
                                         : QColor(0x23, 0x26, 0x34, 0x88));
-    painter->setPen(QPen(isLight ? QColor(0xDC, 0xE0, 0xE8)
+    painter->setPen(QPen(isLight ? QColor(0xCC, 0xD0, 0xDA)
                                  : QColor(0x36, 0x3A, 0x4F, 0x88),
                          1));
     painter->drawPath(cardPath);
@@ -74,7 +73,7 @@ void ItemCardDelegate::paint(QPainter *painter,
   // 2. Icon danh mục bên trái (36x36 container)
   const int catInt = index.data(ItemListModel::CategoryRole).toInt();
   const auto cat = static_cast<models::ItemCategory>(catInt);
-  const QString iconPath = models::categoryIconPath(cat);
+  const QString iconPath = models::categoryIconPath(cat, isLight);
   const QRect iconRect(rect.left() + 12, rect.top() + (rect.height() - 36) / 2,
                        36, 36);
 
@@ -116,7 +115,7 @@ void ItemCardDelegate::paint(QPainter *painter,
   // Dòng 1: Title (Rút gọn tự động với dấu ... trước mép badge)
   painter->setPen(
       isLight
-          ? (isSelected ? QColor(0x1E, 0x66, 0xF5) : QColor(0x31, 0x32, 0x44))
+          ? (isSelected ? QColor(0x1E, 0x1E, 0x2E) : QColor(0x31, 0x32, 0x44))
           : (isSelected ? QColor(0xFF, 0xFF, 0xFF) : QColor(0xCD, 0xD6, 0xF4)));
   QFont titleFont = option.font;
   titleFont.setBold(true);
@@ -150,7 +149,9 @@ void ItemCardDelegate::paint(QPainter *painter,
     if (isFav) {
       const QRect starRect(badgeX - 16, rect.top() + (rect.height() - 16) / 2,
                            16, 16);
-      const QIcon starIcon(QStringLiteral(":/icons/star_filled.svg"));
+      const QIcon starIcon(
+          isLight ? QStringLiteral(":/icons/star_filled_light.svg")
+                  : QStringLiteral(":/icons/star_filled_dark.svg"));
       starIcon.paint(painter, starRect);
       badgeX -= 22;
     }
@@ -182,7 +183,8 @@ void ItemCardDelegate::paint(QPainter *painter,
     painter->setPen(
         QPen(isLight ? QColor(0xCC, 0xD0, 0xDA) : QColor(0x45, 0x47, 0x5A), 1));
     painter->drawPath(btnPassPath);
-    QIcon(QStringLiteral(":/icons/lock.svg"))
+    QIcon(isLight ? QStringLiteral(":/icons/lock_light.svg")
+                  : QStringLiteral(":/icons/lock_dark.svg"))
         .paint(painter, copyPassRect.adjusted(5, 5, -5, -5));
 
     QPainterPath btnUserPath;
@@ -192,7 +194,8 @@ void ItemCardDelegate::paint(QPainter *painter,
     painter->setPen(
         QPen(isLight ? QColor(0xCC, 0xD0, 0xDA) : QColor(0x45, 0x47, 0x5A), 1));
     painter->drawPath(btnUserPath);
-    QIcon(QStringLiteral(":/icons/copy.svg"))
+    QIcon(isLight ? QStringLiteral(":/icons/copy_light.svg")
+                  : QStringLiteral(":/icons/copy_dark.svg"))
         .paint(painter, copyUserRect.adjusted(5, 5, -5, -5));
   }
 

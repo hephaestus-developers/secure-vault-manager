@@ -46,15 +46,15 @@ void TrayManager::setupContextMenu() {
   m_trayMenu = new QMenu();
   m_trayMenu->setObjectName(QStringLiteral("TrayContextMenu"));
 
-  m_openAction =
-      m_trayMenu->addAction(QIcon(QStringLiteral(":/icons/app_logo.svg")),
-                            tr("Open Secure Vault Manager"), this, [this]() {
-                              if (m_mainWindow) {
-                                m_mainWindow->showNormal();
-                                m_mainWindow->raise();
-                                m_mainWindow->activateWindow();
-                              }
-                            });
+  m_openAction = m_trayMenu->addAction(
+      ThemeManager::instance().icon(QStringLiteral("app_logo")),
+      tr("Open Secure Vault Manager"), this, [this]() {
+        if (m_mainWindow) {
+          m_mainWindow->showNormal();
+          m_mainWindow->raise();
+          m_mainWindow->activateWindow();
+        }
+      });
   QFont font = m_openAction->font();
   font.setBold(true);
   m_openAction->setFont(font);
@@ -62,11 +62,11 @@ void TrayManager::setupContextMenu() {
   m_trayMenu->addSeparator();
 
   m_lockAction = m_trayMenu->addAction(
-      QIcon(QStringLiteral(":/icons/lock.svg")), tr("Lock Vault"), this,
-      &TrayManager::toggleVaultLock);
+      ThemeManager::instance().icon(QStringLiteral("lock")), tr("Lock Vault"),
+      this, &TrayManager::toggleVaultLock);
 
   m_themeAction = m_trayMenu->addAction(
-      QIcon(QStringLiteral(":/icons/category_settings.svg")),
+      ThemeManager::instance().icon(QStringLiteral("category_settings")),
       tr("Toggle Theme"), this, [this]() {
         auto &tm = ThemeManager::instance();
         auto next = (tm.currentMode() == ThemeMode::Dark) ? ThemeMode::Light
@@ -76,9 +76,9 @@ void TrayManager::setupContextMenu() {
 
   m_trayMenu->addSeparator();
 
-  m_quitAction =
-      m_trayMenu->addAction(QIcon(QStringLiteral(":/icons/win_close.svg")),
-                            tr("Quit Application"), qApp, &QApplication::quit);
+  m_quitAction = m_trayMenu->addAction(
+      ThemeManager::instance().icon(QStringLiteral("win_close")),
+      tr("Quit Application"), qApp, &QApplication::quit);
 
   m_trayIcon->setContextMenu(m_trayMenu);
 }
@@ -98,9 +98,8 @@ void TrayManager::updateTrayTooltipAndIcon() {
   if (m_lockAction) {
     m_lockAction->setText(m_isVaultLocked ? tr("Unlock Vault")
                                           : tr("Lock Vault"));
-    m_lockAction->setIcon(QIcon(m_isVaultLocked
-                                    ? QStringLiteral(":/icons/unlock.svg")
-                                    : QStringLiteral(":/icons/lock.svg")));
+    m_lockAction->setIcon(ThemeManager::instance().icon(
+        m_isVaultLocked ? QStringLiteral("unlock") : QStringLiteral("lock")));
   }
 }
 

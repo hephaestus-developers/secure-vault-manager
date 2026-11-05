@@ -18,7 +18,8 @@ namespace svm::views {
 ItemListView::ItemListView(QWidget *parent) : QWidget(parent) {
   setObjectName(QStringLiteral("ItemListView"));
   setAttribute(Qt::WA_StyledBackground, true);
-  setMinimumWidth(260);
+  setMinimumWidth(280);
+  setMaximumWidth(460);
 
   setupUI();
 }
@@ -39,8 +40,9 @@ void ItemListView::setupUI() {
   m_searchEdit->setPlaceholderText(tr("Search vault... (Ctrl+F)"));
   m_searchEdit->setClearButtonEnabled(true);
   m_searchEdit->setFixedHeight(30);
-  m_searchEdit->addAction(QIcon(QStringLiteral(":/icons/search.svg")),
-                          QLineEdit::LeadingPosition);
+  auto *searchAction = m_searchEdit->addAction(
+      app::ThemeManager::instance().icon(QStringLiteral("search")),
+      QLineEdit::LeadingPosition);
   connect(m_searchEdit, &QLineEdit::textChanged, this,
           &ItemListView::onSearchTextChanged);
   topBarLayout->addWidget(m_searchEdit, 1);
@@ -72,6 +74,7 @@ void ItemListView::setupUI() {
   m_sortCombo = new QComboBox(toolContainer);
   m_sortCombo->setObjectName(QStringLiteral("ItemListSortCombo"));
   m_sortCombo->setFixedHeight(26);
+  m_sortCombo->setView(new QListView(m_sortCombo));
   m_sortCombo->addItem(
       tr("Recently Updated"),
       static_cast<int>(ItemSortFilterProxy::SortOption::UpdatedDesc));
@@ -112,8 +115,10 @@ void ItemListView::setupUI() {
   updateNewBtnIcon();
 
   connect(&app::ThemeManager::instance(), &app::ThemeManager::themeChanged,
-          this, [this, updateNewBtnIcon]() {
+          this, [this, searchAction, updateNewBtnIcon]() {
             updateNewBtnIcon();
+            searchAction->setIcon(
+                app::ThemeManager::instance().icon(QStringLiteral("search")));
             if (m_listView && m_listView->viewport()) {
               m_listView->viewport()->update();
             }

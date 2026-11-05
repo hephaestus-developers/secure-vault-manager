@@ -47,6 +47,7 @@ private slots:
 private:
   void setupUI();
   void updateDisplay();
+  void updateThemeIcons();
 
   QString m_label;
   FieldType m_type{FieldType::Text};

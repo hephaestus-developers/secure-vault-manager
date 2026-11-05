@@ -7,6 +7,7 @@
  */
 
 #include "detail_inspector_view.h"
+#include "app/theme_manager.h"
 
 #include <QHBoxLayout>
 #include <QLabel>
@@ -27,7 +28,7 @@ static QFrame *createDivider(QWidget *parent) {
 DetailInspectorView::DetailInspectorView(QWidget *parent) : QWidget(parent) {
   setObjectName(QStringLiteral("DetailInspectorView"));
   setAttribute(Qt::WA_StyledBackground, true);
-  setMinimumWidth(360);
+  setMinimumWidth(400);
 
   setupUI();
   clearItem();
@@ -146,13 +147,20 @@ void DetailInspectorView::setupUI() {
   // Nút thiết lập 2FA chủ động cho Primary Credentials
   m_addTotpBtn = new QPushButton(m_primaryCard);
   m_addTotpBtn->setObjectName(QStringLiteral("AddTotpBtn"));
-  m_addTotpBtn->setIcon(QIcon(QStringLiteral(":/icons/plus.svg")));
+  m_addTotpBtn->setIcon(
+      app::ThemeManager::instance().icon(QStringLiteral("plus")));
   m_addTotpBtn->setIconSize(QSize(14, 14));
   m_addTotpBtn->setText(tr(" Set Up 2FA (One-Time Code)"));
   m_addTotpBtn->setFixedHeight(32);
   m_addTotpBtn->setCursor(Qt::PointingHandCursor);
   m_addTotpBtn->hide();
   m_primaryLayout->addWidget(m_addTotpBtn);
+
+  connect(&app::ThemeManager::instance(), &app::ThemeManager::themeChanged,
+          this, [this]() {
+            m_addTotpBtn->setIcon(
+                app::ThemeManager::instance().icon(QStringLiteral("plus")));
+          });
 
   connect(m_addTotpBtn, &QPushButton::clicked, this, [this]() {
     m_isTotpActive = true;

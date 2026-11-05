@@ -47,6 +47,7 @@ private slots:
 private:
   void setupUI();
   void updateDisplay();
+  void updateThemeIcons();
 
   models::UiCustomField m_field;
   bool m_isEditMode{false};

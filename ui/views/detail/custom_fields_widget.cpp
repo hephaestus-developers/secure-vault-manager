@@ -6,6 +6,7 @@
  */
 
 #include "custom_fields_widget.h"
+#include "app/theme_manager.h"
 
 #include <QFrame>
 #include <QHBoxLayout>
@@ -47,7 +48,8 @@ void CustomFieldsWidget::setupUI() {
   // 4. Nút Thêm trường
   m_addFieldBtn = new QPushButton(this);
   m_addFieldBtn->setObjectName(QStringLiteral("CustomFieldAddBtn"));
-  m_addFieldBtn->setIcon(QIcon(QStringLiteral(":/icons/plus.svg")));
+  m_addFieldBtn->setIcon(
+      app::ThemeManager::instance().icon(QStringLiteral("plus")));
   m_addFieldBtn->setIconSize(QSize(14, 14));
   m_addFieldBtn->setText(tr(" Add Field"));
   m_addFieldBtn->setFixedHeight(32);
@@ -55,6 +57,11 @@ void CustomFieldsWidget::setupUI() {
   m_addFieldBtn->setToolTip(tr("Add a custom field (Text or Concealed)"));
   connect(m_addFieldBtn, &QPushButton::clicked, this,
           &CustomFieldsWidget::onAddFieldClicked);
+  connect(&app::ThemeManager::instance(), &app::ThemeManager::themeChanged,
+          this, [this]() {
+            m_addFieldBtn->setIcon(
+                app::ThemeManager::instance().icon(QStringLiteral("plus")));
+          });
   rootLayout->addWidget(m_addFieldBtn);
 
   setEditMode(false);

@@ -45,6 +45,7 @@ private slots:
 
 private:
   void setupUI();
+  void updateThemeIcons();
 
   bool m_isEditMode{false};
   bool m_isFavorite{false};

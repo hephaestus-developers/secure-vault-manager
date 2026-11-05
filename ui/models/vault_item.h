@@ -30,30 +30,40 @@ enum class ItemCategory {
 };
 
 /**
- * @brief Chuyển đổi ItemCategory sang chuỗi định danh icon SVG tài nguyên.
+ * @brief Lấy tên định danh cơ bản của icon danh mục.
  */
-inline QString categoryIconPath(ItemCategory cat) {
+inline QString categoryIconName(ItemCategory cat) {
   switch (cat) {
   case ItemCategory::Login:
-    return QStringLiteral(":/icons/category_login.svg");
+    return QStringLiteral("category_login");
   case ItemCategory::Passkey:
-    return QStringLiteral(":/icons/category_passkey.svg");
+    return QStringLiteral("category_passkey");
   case ItemCategory::Card:
-    return QStringLiteral(":/icons/category_card.svg");
+    return QStringLiteral("category_card");
   case ItemCategory::Identity:
-    return QStringLiteral(":/icons/category_identity.svg");
+    return QStringLiteral("category_identity");
   case ItemCategory::SecureNote:
-    return QStringLiteral(":/icons/category_note.svg");
+    return QStringLiteral("category_note");
   case ItemCategory::SshKey:
-    return QStringLiteral(":/icons/category_ssh.svg");
+    return QStringLiteral("category_ssh");
   case ItemCategory::Database:
-    return QStringLiteral(":/icons/category_database.svg");
+    return QStringLiteral("category_database");
   case ItemCategory::Server:
-    return QStringLiteral(":/icons/category_server.svg");
+    return QStringLiteral("category_server");
   case ItemCategory::Wifi:
-    return QStringLiteral(":/icons/category_wifi.svg");
+    return QStringLiteral("category_wifi");
   }
-  return QStringLiteral(":/icons/category_all.svg");
+  return QStringLiteral("category_all");
+}
+
+/**
+ * @brief Chuyển đổi ItemCategory sang chuỗi định danh icon SVG tài nguyên theo
+ * chủ đề.
+ */
+inline QString categoryIconPath(ItemCategory cat, bool isLight = false) {
+  const QString suffix =
+      isLight ? QStringLiteral("_light.svg") : QStringLiteral("_dark.svg");
+  return QStringLiteral(":/icons/") + categoryIconName(cat) + suffix;
 }
 
 /**

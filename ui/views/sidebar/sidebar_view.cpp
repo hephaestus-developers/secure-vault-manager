@@ -21,7 +21,7 @@ namespace svm::views {
 SidebarView::SidebarView(QWidget *parent) : QWidget(parent) {
   setObjectName(QStringLiteral("SidebarView"));
   setAttribute(Qt::WA_StyledBackground, true);
-  setMinimumWidth(230);
+  setMinimumWidth(200);
   setMaximumWidth(320);
 
   setupUI();
@@ -45,6 +45,7 @@ void SidebarView::setupUI() {
 
   connect(&app::ThemeManager::instance(), &app::ThemeManager::themeChanged,
           this, [this]() {
+            updateThemeIcons();
             if (m_navList && m_navList->viewport()) {
               m_navList->viewport()->update();
             }
@@ -92,12 +93,12 @@ void SidebarView::setupExpandedUI() {
   m_vaultTitleLabel->setObjectName(QStringLiteral("VaultTitleLabel"));
   vaultBtnLayout->addWidget(m_vaultTitleLabel, 1);
 
-  auto *chevronLabel = new QLabel(m_vaultProfileBtn);
-  chevronLabel->setObjectName(QStringLiteral("VaultChevronLabel"));
-  chevronLabel->setFixedSize(12, 12);
-  chevronLabel->setPixmap(
+  m_chevronLabel = new QLabel(m_vaultProfileBtn);
+  m_chevronLabel->setObjectName(QStringLiteral("VaultChevronLabel"));
+  m_chevronLabel->setFixedSize(12, 12);
+  m_chevronLabel->setPixmap(
       QIcon(QStringLiteral(":/icons/chevron_down.svg")).pixmap(12, 12));
-  vaultBtnLayout->addWidget(chevronLabel);
+  vaultBtnLayout->addWidget(m_chevronLabel);
 
   m_vaultMenu = new QMenu(m_vaultProfileBtn);
   m_vaultMenu->setObjectName(QStringLiteral("VaultSwitchMenu"));
@@ -131,7 +132,7 @@ void SidebarView::setupExpandedUI() {
   // Nút Collapse Sidebar
   m_collapseBtn = new QPushButton(headerWidget);
   m_collapseBtn->setObjectName(QStringLiteral("SidebarToggleBtn"));
-  m_collapseBtn->setIcon(QIcon(QStringLiteral(":/icons/sidebar_toggle.svg")));
+  m_collapseBtn->setIcon(QIcon(QStringLiteral(":/icons/sidebar_collapse.svg")));
   m_collapseBtn->setIconSize(QSize(18, 18));
   m_collapseBtn->setFixedSize(32, 32);
   m_collapseBtn->setToolTip(tr("Collapse Sidebar (Ctrl+B)"));
@@ -171,23 +172,18 @@ void SidebarView::setupExpandedUI() {
   m_lockBtn->setToolTip(tr("Lock vault immediately (Ctrl+L)"));
 
   auto *lockBtnLayout = new QHBoxLayout(m_lockBtn);
-  lockBtnLayout->setContentsMargins(8, 0, 8, 0);
+  lockBtnLayout->setContentsMargins(11, 0, 11, 0);
   lockBtnLayout->setSpacing(10);
 
-  auto *lockIconLabel = new QLabel(m_lockBtn);
-  lockIconLabel->setFixedSize(16, 16);
-  lockIconLabel->setPixmap(
-      QIcon(QStringLiteral(":/icons/lock.svg")).pixmap(16, 16));
-  lockBtnLayout->addWidget(lockIconLabel);
+  m_lockIconLabel = new QLabel(m_lockBtn);
+  m_lockIconLabel->setFixedSize(18, 18);
+  m_lockIconLabel->setPixmap(
+      QIcon(QStringLiteral(":/icons/lock.svg")).pixmap(18, 18));
+  lockBtnLayout->addWidget(m_lockIconLabel);
 
   auto *lockTextLabel = new QLabel(tr("Lock Vault"), m_lockBtn);
   lockTextLabel->setObjectName(QStringLiteral("LockBtnText"));
   lockBtnLayout->addWidget(lockTextLabel, 1);
-
-  auto *shortcutBadge = new QLabel(QStringLiteral("Ctrl+L"), m_lockBtn);
-  shortcutBadge->setObjectName(QStringLiteral("LockShortcutBadge"));
-  shortcutBadge->setAlignment(Qt::AlignCenter);
-  lockBtnLayout->addWidget(shortcutBadge);
 
   connect(m_lockBtn, &QPushButton::clicked, this,
           &SidebarView::lockVaultRequested);
@@ -202,29 +198,29 @@ void SidebarView::setupCollapsedUI() {
   m_collapsedWidget->setAttribute(Qt::WA_StyledBackground, true);
 
   auto *layout = new QVBoxLayout(m_collapsedWidget);
-  layout->setContentsMargins(6, 12, 6, 10);
-  layout->setSpacing(8);
+  layout->setContentsMargins(0, 12, 0, 10);
+  layout->setSpacing(6);
   layout->setAlignment(Qt::AlignHCenter);
 
-  // 1. Expand Toggle Button
+  // 1. Expand Toggle Button (36x36, icon 18x18)
   m_expandBtn = new QPushButton(m_collapsedWidget);
   m_expandBtn->setObjectName(QStringLiteral("SidebarToggleBtn"));
-  m_expandBtn->setIcon(QIcon(QStringLiteral(":/icons/sidebar_toggle.svg")));
+  m_expandBtn->setIcon(QIcon(QStringLiteral(":/icons/sidebar_expand.svg")));
   m_expandBtn->setIconSize(QSize(18, 18));
-  m_expandBtn->setFixedSize(36, 32);
+  m_expandBtn->setFixedSize(36, 36);
   m_expandBtn->setToolTip(tr("Expand Sidebar (Ctrl+B)"));
   m_expandBtn->setCursor(Qt::PointingHandCursor);
   connect(m_expandBtn, &QPushButton::clicked, this,
           &SidebarView::toggleCollapsed);
   layout->addWidget(m_expandBtn, 0, Qt::AlignHCenter);
 
-  // 2. Vault Icon Button
+  // 2. Vault Icon Button (36x36, icon 18x18)
   m_collapsedVaultBtn = new QPushButton(m_collapsedWidget);
   m_collapsedVaultBtn->setObjectName(QStringLiteral("SidebarCompactVaultBtn"));
   m_collapsedVaultBtn->setIcon(
       QIcon(QStringLiteral(":/icons/folder_open.svg")));
   m_collapsedVaultBtn->setIconSize(QSize(18, 18));
-  m_collapsedVaultBtn->setFixedSize(36, 32);
+  m_collapsedVaultBtn->setFixedSize(36, 36);
   m_collapsedVaultBtn->setToolTip(m_currentVaultName);
   m_collapsedVaultBtn->setCursor(Qt::PointingHandCursor);
   connect(m_collapsedVaultBtn, &QPushButton::clicked, this,
@@ -234,22 +230,24 @@ void SidebarView::setupCollapsedUI() {
   // 3. Compact Navigation Icon List
   m_compactList = new QListWidget(m_collapsedWidget);
   m_compactList->setObjectName(QStringLiteral("SidebarCompactList"));
-  m_compactList->setViewMode(QListView::ListMode);
-  m_compactList->setIconSize(QSize(18, 18));
-  m_compactList->setSpacing(4);
-  m_compactList->setUniformItemSizes(true);
+  m_compactList->setFixedWidth(60);
+  m_compactList->setFrameShape(QFrame::NoFrame);
+  m_compactList->setUniformItemSizes(false);
   m_compactList->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
   m_compactList->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
+  m_compactDelegate = new CompactSidebarDelegate(this);
+  m_compactList->setItemDelegate(m_compactDelegate);
+
   connect(m_compactList, &QListWidget::itemClicked, this,
           &SidebarView::onCompactItemClicked);
-  layout->addWidget(m_compactList, 1);
+  layout->addWidget(m_compactList, 1, Qt::AlignHCenter);
 
-  // 4. Bottom Collapsed Lock Button
+  // 4. Bottom Collapsed Lock Button (36x36, icon 18x18)
   m_collapsedLockBtn = new QPushButton(m_collapsedWidget);
   m_collapsedLockBtn->setObjectName(QStringLiteral("SidebarCompactLockBtn"));
   m_collapsedLockBtn->setIcon(QIcon(QStringLiteral(":/icons/lock.svg")));
-  m_collapsedLockBtn->setIconSize(QSize(16, 16));
+  m_collapsedLockBtn->setIconSize(QSize(18, 18));
   m_collapsedLockBtn->setFixedSize(36, 36);
   m_collapsedLockBtn->setToolTip(tr("Lock Vault (Ctrl+L)"));
   m_collapsedLockBtn->setCursor(Qt::PointingHandCursor);
@@ -269,6 +267,11 @@ void SidebarView::populateNavItems() {
     auto *header = new QListWidgetItem(title, m_navList);
     header->setFlags(Qt::NoItemFlags);
     header->setData(SidebarItemDelegate::IsHeaderRole, true);
+
+    auto *compactDivider = new QListWidgetItem(m_compactList);
+    compactDivider->setFlags(Qt::NoItemFlags);
+    compactDivider->setData(SidebarItemDelegate::IsHeaderRole, true);
+    compactDivider->setSizeHint(QSize(60, 16));
   };
 
   auto addNavItem = [this](const QIcon &icon, const QString &text,
@@ -289,7 +292,7 @@ void SidebarView::populateNavItems() {
                                int categoryInt = -1) -> QListWidgetItem * {
     auto *item = new QListWidgetItem(icon, QString(), m_compactList);
     item->setToolTip(tooltip);
-    item->setSizeHint(QSize(36, 36));
+    item->setSizeHint(QSize(60, 38));
     item->setData(Qt::UserRole, static_cast<int>(filterType));
     if (categoryInt >= 0) {
       item->setData(Qt::UserRole + 1, categoryInt);
@@ -363,6 +366,92 @@ void SidebarView::populateNavItems() {
           m_compactFilterItems.value(SidebarFilterType::AllItems, nullptr)) {
     m_compactList->setCurrentItem(allCompact);
   }
+
+  updateThemeIcons();
+}
+
+void SidebarView::updateThemeIcons() {
+  const bool isLight =
+      (app::ThemeManager::instance().currentMode() == app::ThemeMode::Light);
+  auto &tm = app::ThemeManager::instance();
+
+  if (m_vaultIconLabel) {
+    m_vaultIconLabel->setPixmap(
+        tm.icon(QStringLiteral("folder_open")).pixmap(16, 16));
+  }
+  if (m_collapsedVaultBtn) {
+    m_collapsedVaultBtn->setIcon(tm.icon(QStringLiteral("folder_open")));
+  }
+  if (m_chevronLabel) {
+    m_chevronLabel->setPixmap(
+        tm.icon(QStringLiteral("chevron_down")).pixmap(12, 12));
+  }
+  if (m_lockIconLabel) {
+    m_lockIconLabel->setPixmap(tm.icon(QStringLiteral("lock")).pixmap(18, 18));
+  }
+  if (m_collapsedLockBtn) {
+    m_collapsedLockBtn->setIcon(tm.icon(QStringLiteral("lock")));
+  }
+
+  if (m_collapseBtn) {
+    m_collapseBtn->setIcon(tm.icon(QStringLiteral("sidebar_collapse")));
+  }
+  if (m_expandBtn) {
+    m_expandBtn->setIcon(tm.icon(QStringLiteral("sidebar_expand")));
+  }
+
+  const QIcon allIcon = tm.icon(QStringLiteral("category_all"));
+  if (m_allItem) {
+    m_allItem->setIcon(allIcon);
+  }
+  if (auto *ci =
+          m_compactFilterItems.value(SidebarFilterType::AllItems, nullptr)) {
+    ci->setIcon(allIcon);
+  }
+
+  const QIcon favIcon = tm.icon(QStringLiteral("star_filled"));
+  if (m_favItem) {
+    m_favItem->setIcon(favIcon);
+  }
+  if (auto *ci =
+          m_compactFilterItems.value(SidebarFilterType::Favorites, nullptr)) {
+    ci->setIcon(favIcon);
+  }
+
+  const QIcon trashIcon = tm.icon(QStringLiteral("category_trash"));
+  if (m_trashItem) {
+    m_trashItem->setIcon(trashIcon);
+  }
+  if (auto *ci =
+          m_compactFilterItems.value(SidebarFilterType::Trash, nullptr)) {
+    ci->setIcon(trashIcon);
+  }
+
+  for (auto it = m_categoryItems.begin(); it != m_categoryItems.end(); ++it) {
+    const QIcon catIcon(models::categoryIconPath(it.key(), isLight));
+    it.value()->setIcon(catIcon);
+    if (auto *ci = m_compactCategoryItems.value(it.key(), nullptr)) {
+      ci->setIcon(catIcon);
+    }
+  }
+
+  const QIcon weakIcon = tm.icon(QStringLiteral("watchtower_weak"));
+  if (m_weakPassItem) {
+    m_weakPassItem->setIcon(weakIcon);
+  }
+  if (auto *ci = m_compactFilterItems.value(SidebarFilterType::WatchtowerWeak,
+                                            nullptr)) {
+    ci->setIcon(weakIcon);
+  }
+
+  const QIcon expIcon = tm.icon(QStringLiteral("watchtower_expiring"));
+  if (m_expiringItem) {
+    m_expiringItem->setIcon(expIcon);
+  }
+  if (auto *ci = m_compactFilterItems.value(
+          SidebarFilterType::WatchtowerExpiring, nullptr)) {
+    ci->setIcon(expIcon);
+  }
 }
 
 void SidebarView::setCollapsed(bool collapsed) {
@@ -373,10 +462,13 @@ void SidebarView::setCollapsed(bool collapsed) {
 
   if (m_isCollapsed) {
     setFixedWidth(60);
+    m_expandBtn->setIcon(QIcon(QStringLiteral(":/icons/sidebar_expand.svg")));
     m_stackedWidget->setCurrentIndex(1);
   } else {
-    setMinimumWidth(230);
+    setMinimumWidth(200);
     setMaximumWidth(320);
+    m_collapseBtn->setIcon(
+        QIcon(QStringLiteral(":/icons/sidebar_collapse.svg")));
     m_stackedWidget->setCurrentIndex(0);
   }
 
@@ -404,7 +496,7 @@ void SidebarView::onListItemClicked(QListWidgetItem *item) {
 }
 
 void SidebarView::onCompactItemClicked(QListWidgetItem *item) {
-  if (!item) {
+  if (!item || item->data(SidebarItemDelegate::IsHeaderRole).toBool()) {
     return;
   }
 

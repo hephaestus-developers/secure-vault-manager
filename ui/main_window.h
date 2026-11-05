@@ -38,6 +38,9 @@ public:
   ~MainWindow() override = default;
 
   void setTrayManager(app::TrayManager *trayManager);
+  [[nodiscard]] views::SidebarView *sidebarView() const {
+    return m_sidebarView;
+  }
 
 protected:
   void resizeEvent(QResizeEvent *event) override;

@@ -43,6 +43,7 @@ private slots:
 private:
   void setupUI();
   void updateCodeAndTimer();
+  void updateThemeIcons();
 
   bool m_isEditMode{false};
   bool m_isSecretRevealed{false};

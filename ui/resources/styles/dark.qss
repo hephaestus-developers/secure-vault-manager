@@ -380,17 +380,10 @@ QStatusBar::item {
 }
 
 #SidebarCompactList::item {
-    border-radius: 6px;
-    padding: 6px;
-    margin: 2px 0;
-}
-
-#SidebarCompactList::item:hover {
-    background-color: #232634;
-}
-
-#SidebarCompactList::item:selected {
-    background-color: #313244;
+    background: transparent;
+    border: none;
+    padding: 0;
+    margin: 0;
 }
 
 #SidebarCompactLockBtn {
@@ -484,16 +477,6 @@ QStatusBar::item {
     border-color: #f38ba8;
 }
 
-#LockShortcutBadge {
-    background-color: #232634;
-    border: 1px solid #313244;
-    border-radius: 4px;
-    padding: 1px 6px;
-    color: #6c7086;
-    font-size: 10px;
-    font-weight: bold;
-}
-
 /* 2. Cột 2: ItemListView */
 #ItemListView {
     background-color: #1e1e2e;
@@ -526,10 +509,45 @@ QStatusBar::item {
 #ItemListSortCombo {
     background-color: #181825;
     border: 1px solid #313244;
-    border-radius: 4px;
-    padding: 2px 8px;
+    border-radius: 6px;
+    padding: 2px 20px 2px 8px;
     color: #a6adc8;
     font-size: 11px;
+}
+
+#ItemListSortCombo:hover {
+    border-color: #89b4fa;
+    color: #cdd6f4;
+}
+
+QComboBox {
+    background-color: #181825;
+    border: 1px solid #313244;
+    border-radius: 6px;
+    padding: 2px 20px 2px 8px;
+    color: #cdd6f4;
+    font-size: 11px;
+}
+
+QComboBox:hover {
+    border-color: #89b4fa;
+}
+
+QComboBox:focus {
+    border-color: #89b4fa;
+}
+
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 18px;
+    border-left: none;
+}
+
+QComboBox::down-arrow {
+    image: url(:/icons/chevron_down_dark.svg);
+    width: 10px;
+    height: 10px;
 }
 
 QComboBox QAbstractItemView {
@@ -541,6 +559,19 @@ QComboBox QAbstractItemView {
     border-radius: 6px;
     padding: 4px;
     outline: none;
+}
+
+QComboBox QAbstractItemView::item {
+    min-height: 24px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    color: #cdd6f4;
+}
+
+QComboBox QAbstractItemView::item:selected,
+QComboBox QAbstractItemView::item:hover {
+    background-color: #313244;
+    color: #ffffff;
 }
 
 #ItemListNewBtn {
@@ -647,7 +678,7 @@ QComboBox QAbstractItemView {
 }
 
 #DetailCategoryCombo::down-arrow {
-    image: url(:/icons/chevron_down.svg);
+    image: url(:/icons/chevron_down_dark.svg);
     width: 10px;
     height: 10px;
 }

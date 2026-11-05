@@ -7,9 +7,11 @@
 
 #include "custom_field_row_widget.h"
 #include "app/clipboard_manager.h"
+#include "app/theme_manager.h"
 
 #include <QHBoxLayout>
 #include <QIcon>
+#include <QListView>
 #include <QUuid>
 #include <QVBoxLayout>
 
@@ -109,6 +111,7 @@ void CustomFieldRowWidget::setupUI() {
   m_kindCombo = new QComboBox(this);
   m_kindCombo->setObjectName(QStringLiteral("CustomFieldKindCombo"));
   m_kindCombo->setFixedHeight(30);
+  m_kindCombo->setView(new QListView(m_kindCombo));
   m_kindCombo->addItem(tr("Text"),
                        static_cast<int>(models::CustomFieldKind::Text));
   m_kindCombo->addItem(tr("Concealed"),
@@ -151,10 +154,12 @@ void CustomFieldRowWidget::setupUI() {
   connect(m_editRevealBtn, &QPushButton::clicked, this, [this]() {
     if (m_valueEdit->echoMode() == QLineEdit::Password) {
       m_valueEdit->setEchoMode(QLineEdit::Normal);
-      m_editRevealBtn->setIcon(QIcon(QStringLiteral(":/icons/eye_off.svg")));
+      m_editRevealBtn->setIcon(
+          app::ThemeManager::instance().icon(QStringLiteral("eye_off")));
     } else {
       m_valueEdit->setEchoMode(QLineEdit::Password);
-      m_editRevealBtn->setIcon(QIcon(QStringLiteral(":/icons/eye.svg")));
+      m_editRevealBtn->setIcon(
+          app::ThemeManager::instance().icon(QStringLiteral("eye")));
     }
   });
   valLayout->addWidget(m_editRevealBtn);
@@ -162,7 +167,31 @@ void CustomFieldRowWidget::setupUI() {
   editLayout->addWidget(editValRow);
   rootLayout->addWidget(m_editContainer);
 
+  connect(&app::ThemeManager::instance(), &app::ThemeManager::themeChanged,
+          this, [this]() { updateThemeIcons(); });
+
+  updateThemeIcons();
   setEditMode(false);
+}
+
+void CustomFieldRowWidget::updateThemeIcons() {
+  auto &tm = app::ThemeManager::instance();
+  if (m_revealBtn) {
+    m_revealBtn->setIcon(tm.icon(m_isRevealed ? QStringLiteral("eye_off")
+                                              : QStringLiteral("eye")));
+  }
+  if (m_copyBtn) {
+    m_copyBtn->setIcon(tm.icon(QStringLiteral("copy")));
+  }
+  if (m_deleteBtn) {
+    m_deleteBtn->setIcon(tm.icon(QStringLiteral("trash")));
+  }
+  if (m_editRevealBtn) {
+    const bool isPassword =
+        (m_valueEdit && m_valueEdit->echoMode() == QLineEdit::Password);
+    m_editRevealBtn->setIcon(tm.icon(isPassword ? QStringLiteral("eye")
+                                                : QStringLiteral("eye_off")));
+  }
 }
 
 void CustomFieldRowWidget::setField(const models::UiCustomField &field) {
@@ -222,7 +251,8 @@ void CustomFieldRowWidget::onKindChanged(int index) {
   m_valueEdit->setEchoMode(isConcealed ? QLineEdit::Password
                                        : QLineEdit::Normal);
   m_editRevealBtn->setVisible(isConcealed);
-  m_editRevealBtn->setIcon(QIcon(QStringLiteral(":/icons/eye.svg")));
+  m_editRevealBtn->setIcon(
+      app::ThemeManager::instance().icon(QStringLiteral("eye")));
   m_revealBtn->setVisible(isConcealed);
 
   updateDisplay();
@@ -231,10 +261,12 @@ void CustomFieldRowWidget::onKindChanged(int index) {
 void CustomFieldRowWidget::onToggleReveal() {
   m_isRevealed = !m_isRevealed;
   if (m_isRevealed) {
-    m_revealBtn->setIcon(QIcon(QStringLiteral(":/icons/eye_off.svg")));
+    m_revealBtn->setIcon(
+        app::ThemeManager::instance().icon(QStringLiteral("eye_off")));
     m_autoHideTimer.start();
   } else {
-    m_revealBtn->setIcon(QIcon(QStringLiteral(":/icons/eye.svg")));
+    m_revealBtn->setIcon(
+        app::ThemeManager::instance().icon(QStringLiteral("eye")));
     m_autoHideTimer.stop();
   }
   updateDisplay();

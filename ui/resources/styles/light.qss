@@ -193,20 +193,20 @@ QPushButton:pressed {
 }
 
 QPushButton#PrimaryButton {
-    background-color: #1e66f5;
+    background-color: #1e1e2e;
     color: #ffffff;
-    border: 1px solid #1e66f5;
-    font-weight: bold;
+    border: 1px solid #1e1e2e;
+    font-weight: 600;
 }
 
 QPushButton#PrimaryButton:hover {
-    background-color: #04a5e5;
-    border-color: #04a5e5;
+    background-color: #2f3540;
+    border-color: #2f3540;
 }
 
 QPushButton#PrimaryButton:pressed {
-    background-color: #0050d8;
-    border-color: #0050d8;
+    background-color: #11111b;
+    border-color: #11111b;
 }
 
 QPushButton#DangerButton {
@@ -237,7 +237,7 @@ QLineEdit, QTextEdit, QPlainTextEdit {
 }
 
 QLineEdit:focus, QTextEdit:focus, QPlainTextEdit:focus {
-    border: 1px solid #1e66f5;
+    border: 1px solid #2f3540;
     background-color: #ffffff;
 }
 
@@ -325,7 +325,7 @@ QStatusBar::item {
 }
 
 #MainThreeColumnSplitter::handle:hover {
-    background-color: #1e66f5;
+    background-color: #4c4f69;
 }
 
 /* Header Action Buttons */
@@ -358,7 +358,7 @@ QStatusBar::item {
 
 #SidebarToggleBtn:hover {
     background-color: #ccd0da;
-    border-color: #1e66f5;
+    border-color: #4c4f69;
 }
 
 #SidebarCompactVaultBtn {
@@ -370,7 +370,7 @@ QStatusBar::item {
 
 #SidebarCompactVaultBtn:hover {
     background-color: #dce0e8;
-    border-color: #1e66f5;
+    border-color: #4c4f69;
 }
 
 #SidebarCompactList {
@@ -380,17 +380,10 @@ QStatusBar::item {
 }
 
 #SidebarCompactList::item {
-    border-radius: 6px;
-    padding: 6px;
-    margin: 2px 0;
-}
-
-#SidebarCompactList::item:hover {
-    background-color: #dce0e8;
-}
-
-#SidebarCompactList::item:selected {
-    background-color: #ccd0da;
+    background: transparent;
+    border: none;
+    padding: 0;
+    margin: 0;
 }
 
 #SidebarCompactLockBtn {
@@ -421,7 +414,7 @@ QStatusBar::item {
 
 #VaultProfileBtn:hover {
     background-color: #dce0e8;
-    border-color: #1e66f5;
+    border-color: #4c4f69;
 }
 
 #VaultProfileBtn::menu-indicator {
@@ -484,16 +477,6 @@ QStatusBar::item {
     border-color: #d20f39;
 }
 
-#LockShortcutBadge {
-    background-color: #e6e9ef;
-    border: 1px solid #ccd0da;
-    border-radius: 4px;
-    padding: 1px 6px;
-    color: #7c7f93;
-    font-size: 10px;
-    font-weight: bold;
-}
-
 /* 2. Cột 2: ItemListView */
 #ItemListView {
     background-color: #eff1f5;
@@ -513,7 +496,7 @@ QStatusBar::item {
 }
 
 #ItemListSearchEdit:focus {
-    border-color: #1e66f5;
+    border-color: #2f3540;
     background-color: #ffffff;
 }
 
@@ -526,21 +509,69 @@ QStatusBar::item {
 #ItemListSortCombo {
     background-color: #ffffff;
     border: 1px solid #ccd0da;
-    border-radius: 4px;
-    padding: 2px 8px;
+    border-radius: 6px;
+    padding: 2px 20px 2px 8px;
     color: #5c5f77;
     font-size: 11px;
+}
+
+#ItemListSortCombo:hover {
+    border-color: #4c4f69;
+    color: #1e1e2e;
+}
+
+QComboBox {
+    background-color: #ffffff;
+    border: 1px solid #ccd0da;
+    border-radius: 6px;
+    padding: 2px 20px 2px 8px;
+    color: #4c4f69;
+    font-size: 11px;
+}
+
+QComboBox:hover {
+    border-color: #4c4f69;
+}
+
+QComboBox:focus {
+    border-color: #2f3540;
+}
+
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 18px;
+    border-left: none;
+}
+
+QComboBox::down-arrow {
+    image: url(:/icons/chevron_down_light.svg);
+    width: 10px;
+    height: 10px;
 }
 
 QComboBox QAbstractItemView {
     background-color: #ffffff;
     color: #4c4f69;
     selection-background-color: #dce0e8;
-    selection-color: #1e66f5;
+    selection-color: #1e1e2e;
     border: 1px solid #ccd0da;
     border-radius: 6px;
     padding: 4px;
     outline: none;
+}
+
+QComboBox QAbstractItemView::item {
+    min-height: 24px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    color: #4c4f69;
+}
+
+QComboBox QAbstractItemView::item:selected,
+QComboBox QAbstractItemView::item:hover {
+    background-color: #dce0e8;
+    color: #1e1e2e;
 }
 
 #ItemListNewBtn {
@@ -556,12 +587,12 @@ QComboBox QAbstractItemView {
 
 #ItemListNewBtn:hover {
     background-color: #dce0e8;
-    border-color: #1e66f5;
+    border-color: #4c4f69;
 }
 
 #ItemListNewBtn:pressed {
     background-color: #bcc0cc;
-    border-color: #1e66f5;
+    border-color: #2f3540;
 }
 
 #ItemCardListView {
@@ -609,17 +640,18 @@ QComboBox QAbstractItemView {
 
 #DetailHeaderTitleInput {
     background-color: #ffffff;
-    border: 1px solid #1e66f5;
+    border: 1px solid #2f3540;
     border-radius: 6px;
     padding: 4px 8px;
-    color: #4c4f69;
+    color: #1e1e2e;
     font-size: 16px;
     font-weight: bold;
 }
 
 #DetailCategoryBadge {
-    background-color: #dce0e8;
-    color: #1e66f5;
+    background-color: #e6e9ef;
+    color: #4c4f69;
+    border: 1px solid #ccd0da;
     border-radius: 4px;
     padding: 2px 8px;
     font-size: 11px;
@@ -631,13 +663,13 @@ QComboBox QAbstractItemView {
     border: 1px solid #ccd0da;
     border-radius: 4px;
     padding: 2px 6px;
-    color: #1e66f5;
+    color: #4c4f69;
     font-size: 11px;
     font-weight: 600;
 }
 
 #DetailCategoryCombo:hover, #DetailCategoryCombo:focus {
-    border-color: #1e66f5;
+    border-color: #2f3540;
 }
 
 #DetailCategoryCombo::drop-down {
@@ -646,7 +678,7 @@ QComboBox QAbstractItemView {
 }
 
 #DetailCategoryCombo::down-arrow {
-    image: url(:/icons/chevron_down.svg);
+    image: url(:/icons/chevron_down_light.svg);
     width: 10px;
     height: 10px;
 }
@@ -667,7 +699,7 @@ QComboBox QAbstractItemView {
 
 #DetailHeaderFavBtn:hover, #DetailHeaderEditBtn:hover {
     background-color: #dce0e8;
-    border-color: #1e66f5;
+    border-color: #4c4f69;
 }
 
 #DetailHeaderCancelBtn {
@@ -682,23 +714,28 @@ QComboBox QAbstractItemView {
 
 #DetailHeaderCancelBtn:hover {
     background-color: #f2f3f7;
-    border-color: #1e66f5;
-    color: #1e66f5;
+    border-color: #4c4f69;
+    color: #1e1e2e;
 }
 
 #DetailHeaderSaveBtn {
-    background-color: #1e66f5;
+    background-color: #1e1e2e;
     color: #ffffff;
-    border: 1px solid #1e66f5;
+    border: 1px solid #1e1e2e;
     border-radius: 6px;
     padding: 6px 16px;
     font-size: 13px;
-    font-weight: bold;
+    font-weight: 600;
 }
 
 #DetailHeaderSaveBtn:hover {
-    background-color: #04a5e5;
-    border-color: #04a5e5;
+    background-color: #2f3540;
+    border-color: #2f3540;
+}
+
+#DetailHeaderSaveBtn:pressed {
+    background-color: #11111b;
+    border-color: #11111b;
 }
 
 #TotpFieldWidget {
@@ -735,7 +772,7 @@ QComboBox QAbstractItemView {
 
 #TotpCopyBtn:hover {
     background-color: #dce0e8;
-    border-color: #1e66f5;
+    border-color: #4c4f69;
 }
 
 #TotpProgressBar {
@@ -755,7 +792,7 @@ QComboBox QAbstractItemView {
 }
 
 #DetailSectionHeader {
-    color: #1e66f5;
+    color: #5c5f77;
     font-size: 11px;
     font-weight: bold;
     letter-spacing: 0.8px;
@@ -798,7 +835,7 @@ QComboBox QAbstractItemView {
 }
 
 #FieldRowInput:focus {
-    border-color: #1e66f5;
+    border-color: #2f3540;
     background-color: #ffffff;
 }
 
@@ -811,7 +848,7 @@ QComboBox QAbstractItemView {
 
 #FieldRowActionBtn:hover {
     background-color: #dce0e8;
-    border-color: #1e66f5;
+    border-color: #4c4f69;
 }
 
 #CustomFieldKindCombo {
@@ -824,7 +861,7 @@ QComboBox QAbstractItemView {
 }
 
 #CustomFieldKindCombo:focus {
-    border-color: #1e66f5;
+    border-color: #2f3540;
 }
 
 #CustomFieldDeleteBtn {
@@ -840,18 +877,18 @@ QComboBox QAbstractItemView {
 }
 
 #CustomFieldAddBtn, #AddTotpBtn {
-    background-color: #eff1f5;
+    background-color: #ffffff;
     border: 1px dashed #bcc0cc;
     border-radius: 6px;
-    color: #1e66f5;
+    color: #4c4f69;
     font-weight: 600;
     font-size: 12px;
 }
 
 #CustomFieldAddBtn:hover, #AddTotpBtn:hover {
     background-color: #e6e9ef;
-    border-color: #1e66f5;
-    color: #04a5e5;
+    border-color: #4c4f69;
+    color: #1e1e2e;
 }
 
 /* 4. Command Palette Dialog */
@@ -871,7 +908,7 @@ QComboBox QAbstractItemView {
 }
 
 #PaletteSearchInput:focus {
-    border-color: #1e66f5;
+    border-color: #2f3540;
 }
 
 #PaletteResultList {

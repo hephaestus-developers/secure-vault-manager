@@ -27,4 +27,17 @@ public:
                                const QModelIndex &index) const override;
 };
 
+class CompactSidebarDelegate : public QStyledItemDelegate {
+  Q_OBJECT
+
+public:
+  explicit CompactSidebarDelegate(QObject *parent = nullptr);
+  ~CompactSidebarDelegate() override = default;
+
+  void paint(QPainter *painter, const QStyleOptionViewItem &option,
+             const QModelIndex &index) const override;
+  [[nodiscard]] QSize sizeHint(const QStyleOptionViewItem &option,
+                               const QModelIndex &index) const override;
+};
+
 } // namespace svm::views

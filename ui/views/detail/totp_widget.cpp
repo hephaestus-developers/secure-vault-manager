@@ -7,6 +7,7 @@
 
 #include "totp_widget.h"
 #include "app/clipboard_manager.h"
+#include "app/theme_manager.h"
 
 #include <QDateTime>
 #include <QHBoxLayout>
@@ -131,7 +132,26 @@ void TotpWidget::setupUI() {
   editLayout->addLayout(inputRow);
   layout->addWidget(m_editContainer);
 
+  connect(&app::ThemeManager::instance(), &app::ThemeManager::themeChanged,
+          this, [this]() { updateThemeIcons(); });
+
+  updateThemeIcons();
   m_editContainer->hide();
+}
+
+void TotpWidget::updateThemeIcons() {
+  auto &tm = app::ThemeManager::instance();
+  if (m_copyBtn) {
+    m_copyBtn->setIcon(tm.icon(QStringLiteral("copy")));
+  }
+  if (m_revealSecretBtn) {
+    m_revealSecretBtn->setIcon(tm.icon(m_isSecretRevealed
+                                           ? QStringLiteral("eye_off")
+                                           : QStringLiteral("eye")));
+  }
+  if (m_removeBtn) {
+    m_removeBtn->setIcon(tm.icon(QStringLiteral("trash")));
+  }
 }
 
 void TotpWidget::setTotpSecret(const QString &secret) {
@@ -204,10 +224,12 @@ void TotpWidget::onToggleRevealSecret() {
   m_isSecretRevealed = !m_isSecretRevealed;
   if (m_isSecretRevealed) {
     m_secretInput->setEchoMode(QLineEdit::Normal);
-    m_revealSecretBtn->setIcon(QIcon(QStringLiteral(":/icons/eye_off.svg")));
+    m_revealSecretBtn->setIcon(
+        app::ThemeManager::instance().icon(QStringLiteral("eye_off")));
   } else {
     m_secretInput->setEchoMode(QLineEdit::Password);
-    m_revealSecretBtn->setIcon(QIcon(QStringLiteral(":/icons/eye.svg")));
+    m_revealSecretBtn->setIcon(
+        app::ThemeManager::instance().icon(QStringLiteral("eye")));
   }
 }
 

@@ -59,6 +59,11 @@ int main(int argc, char *argv[]) {
     } else if (arg == QStringLiteral("--minimized") ||
                arg == QStringLiteral("--tray")) {
       startMinimized = true;
+    } else if (arg == QStringLiteral("--collapsed") ||
+               arg == QStringLiteral("--collapse-sidebar")) {
+      if (mainWindow.sidebarView()) {
+        mainWindow.sidebarView()->setCollapsed(true);
+      }
     }
   }
 

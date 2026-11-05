@@ -6,9 +6,11 @@
  */
 
 #include "detail_header_widget.h"
+#include "app/theme_manager.h"
 
 #include <QHBoxLayout>
 #include <QIcon>
+#include <QListView>
 #include <QVBoxLayout>
 
 namespace svm::views {
@@ -62,6 +64,7 @@ void DetailHeaderWidget::setupUI() {
   m_categoryCombo = new QComboBox(this);
   m_categoryCombo->setObjectName(QStringLiteral("DetailCategoryCombo"));
   m_categoryCombo->setFixedHeight(26);
+  m_categoryCombo->setView(new QListView(m_categoryCombo));
   m_categoryCombo->setCursor(Qt::PointingHandCursor);
 
   const std::array<models::ItemCategory, 9> allCategories = {
@@ -135,6 +138,37 @@ void DetailHeaderWidget::setupUI() {
   connect(m_saveBtn, &QPushButton::clicked, this,
           &DetailHeaderWidget::saveRequested);
   layout->addWidget(m_saveBtn);
+
+  connect(&app::ThemeManager::instance(), &app::ThemeManager::themeChanged,
+          this, [this]() { updateThemeIcons(); });
+
+  updateThemeIcons();
+}
+
+void DetailHeaderWidget::updateThemeIcons() {
+  const bool isLight =
+      (app::ThemeManager::instance().currentMode() == app::ThemeMode::Light);
+  auto &tm = app::ThemeManager::instance();
+
+  if (m_iconLabel) {
+    m_iconLabel->setPixmap(
+        QIcon(models::categoryIconPath(m_category, isLight)).pixmap(32, 32));
+  }
+  if (m_favBtn) {
+    m_favBtn->setIcon(tm.icon(m_isFavorite ? QStringLiteral("star_filled")
+                                           : QStringLiteral("star")));
+  }
+  if (m_editBtn) {
+    m_editBtn->setIcon(tm.icon(QStringLiteral("edit")));
+  }
+  if (m_categoryCombo) {
+    for (int i = 0; i < m_categoryCombo->count(); ++i) {
+      const auto cat = static_cast<models::ItemCategory>(
+          m_categoryCombo->itemData(i).toInt());
+      m_categoryCombo->setItemIcon(
+          i, QIcon(models::categoryIconPath(cat, isLight)));
+    }
+  }
 }
 
 void DetailHeaderWidget::setItem(const models::UiVaultItem &item) {
@@ -153,16 +187,19 @@ void DetailHeaderWidget::setItem(const models::UiVaultItem &item) {
     m_updatedLabel->setText(tr("New record"));
   }
 
-  m_favBtn->setIcon(QIcon(m_isFavorite
-                              ? QStringLiteral(":/icons/star_filled.svg")
-                              : QStringLiteral(":/icons/star.svg")));
+  const bool isLight =
+      (app::ThemeManager::instance().currentMode() == app::ThemeMode::Light);
+  m_favBtn->setIcon(app::ThemeManager::instance().icon(
+      m_isFavorite ? QStringLiteral("star_filled") : QStringLiteral("star")));
   setEditMode(false);
 }
 
 void DetailHeaderWidget::setCategory(models::ItemCategory cat) {
   m_category = cat;
+  const bool isLight =
+      (app::ThemeManager::instance().currentMode() == app::ThemeMode::Light);
   m_iconLabel->setPixmap(
-      QIcon(models::categoryIconPath(m_category)).pixmap(32, 32));
+      QIcon(models::categoryIconPath(m_category, isLight)).pixmap(32, 32));
   m_categoryBadge->setText(models::categoryDisplayName(m_category));
 
   for (int i = 0; i < m_categoryCombo->count(); ++i) {
@@ -182,8 +219,10 @@ void DetailHeaderWidget::onCategoryIndexChanged(int index) {
       m_categoryCombo->itemData(index).toInt());
   if (newCat != m_category) {
     m_category = newCat;
+    const bool isLight =
+        (app::ThemeManager::instance().currentMode() == app::ThemeMode::Light);
     m_iconLabel->setPixmap(
-        QIcon(models::categoryIconPath(m_category)).pixmap(32, 32));
+        QIcon(models::categoryIconPath(m_category, isLight)).pixmap(32, 32));
     m_categoryBadge->setText(models::categoryDisplayName(m_category));
     emit categoryChanged(m_category);
   }

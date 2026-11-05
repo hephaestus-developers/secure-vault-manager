@@ -62,8 +62,9 @@ void CommandPaletteDialog::setupUI() {
   m_searchEdit->setObjectName(QStringLiteral("PaletteSearchInput"));
   m_searchEdit->setPlaceholderText(tr("Type a name or keyword to search..."));
   m_searchEdit->setClearButtonEnabled(true);
-  m_searchEdit->addAction(QIcon(QStringLiteral(":/icons/search.svg")),
-                          QLineEdit::LeadingPosition);
+  auto *searchAction = m_searchEdit->addAction(
+      app::ThemeManager::instance().icon(QStringLiteral("search")),
+      QLineEdit::LeadingPosition);
   connect(m_searchEdit, &QLineEdit::textChanged, this,
           &CommandPaletteDialog::onSearchTextChanged);
   layout->addWidget(m_searchEdit);
@@ -90,7 +91,7 @@ void CommandPaletteDialog::setupUI() {
     const bool isLight =
         (app::ThemeManager::instance().currentMode() == app::ThemeMode::Light);
     const QString accentColor =
-        isLight ? QStringLiteral("#1E66F5") : QStringLiteral("#38BDF8");
+        isLight ? QStringLiteral("#2F3540") : QStringLiteral("#38BDF8");
     const QString subColor =
         isLight ? QStringLiteral("#6C6F85") : QStringLiteral("#94A3B8");
     hintLabel->setText(tr("<span style='color:%1;'><b>[Enter]</b></span> Copy "
@@ -103,8 +104,10 @@ void CommandPaletteDialog::setupUI() {
   updateHint();
 
   connect(&app::ThemeManager::instance(), &app::ThemeManager::themeChanged,
-          this, [this, updateHint]() {
+          this, [this, searchAction, updateHint]() {
             updateHint();
+            searchAction->setIcon(
+                app::ThemeManager::instance().icon(QStringLiteral("search")));
             if (m_resultList && m_resultList->viewport()) {
               m_resultList->viewport()->update();
             }

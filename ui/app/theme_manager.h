@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <QIcon>
 #include <QObject>
 #include <QString>
 
@@ -35,6 +36,16 @@ public:
    * @brief Lấy chế độ Theme hiện tại.
    */
   [[nodiscard]] ThemeMode currentMode() const;
+
+  /**
+   * @brief Lấy đường dẫn tài nguyên QRC của icon tương ứng với chủ đề hiện tại.
+   */
+  [[nodiscard]] QString iconPath(const QString &baseName) const;
+
+  /**
+   * @brief Tạo đối tượng QIcon từ iconPath theo chủ đề hiện tại.
+   */
+  [[nodiscard]] QIcon icon(const QString &baseName) const;
 
 signals:
   void themeChanged(ThemeMode newMode);

@@ -54,6 +54,7 @@ private:
   void setupExpandedUI();
   void setupCollapsedUI();
   void populateNavItems();
+  void updateThemeIcons();
   void syncSelectionToCompact(SidebarFilterType type,
                               models::ItemCategory category);
   void syncSelectionToList(SidebarFilterType type,
@@ -69,11 +70,13 @@ private:
   QPushButton *m_vaultProfileBtn{nullptr};
   QLabel *m_vaultIconLabel{nullptr};
   QLabel *m_vaultTitleLabel{nullptr};
+  QLabel *m_chevronLabel{nullptr};
   QMenu *m_vaultMenu{nullptr};
   QPushButton *m_collapseBtn{nullptr};
   QListWidget *m_navList{nullptr};
   SidebarItemDelegate *m_itemDelegate{nullptr};
   QPushButton *m_lockBtn{nullptr};
+  QLabel *m_lockIconLabel{nullptr};
 
   QListWidgetItem *m_allItem{nullptr};
   QListWidgetItem *m_favItem{nullptr};
@@ -87,6 +90,7 @@ private:
   QPushButton *m_expandBtn{nullptr};
   QPushButton *m_collapsedVaultBtn{nullptr};
   QListWidget *m_compactList{nullptr};
+  CompactSidebarDelegate *m_compactDelegate{nullptr};
   QPushButton *m_collapsedLockBtn{nullptr};
 
   QMap<SidebarFilterType, QListWidgetItem *> m_compactFilterItems;

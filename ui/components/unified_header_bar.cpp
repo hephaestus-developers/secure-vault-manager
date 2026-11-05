@@ -104,6 +104,12 @@ UnifiedHeaderBar::UnifiedHeaderBar(AppMenuBar *menuBar, QWidget *parent)
   // Áp dụng biểu tượng theo chủ đề hiện tại
   updateThemeIcons(m_darkMode);
 
+  // Tự động đồng bộ biểu tượng khi chuyển đổi chủ đề sáng / tối
+  connect(&app::ThemeManager::instance(), &app::ThemeManager::themeChanged,
+          this, [this](app::ThemeMode mode) {
+            updateThemeIcons(mode == app::ThemeMode::Dark);
+          });
+
   // Kết nối các tín hiệu nút bấm
   connect(m_minBtn, &QPushButton::clicked, this,
           &UnifiedHeaderBar::minimizeRequested);
@@ -185,6 +191,12 @@ void UnifiedHeaderBar::updateThemeIcons(bool darkMode) {
   }
   m_closeBtn->setIcon(
       QIcon(QStringLiteral(":/icons/win_close_%1.svg").arg(suffix)));
+
+  if (m_paletteBtn) {
+    m_paletteBtn->setIcon(
+        QIcon(darkMode ? QStringLiteral(":/icons/search_dark.svg")
+                       : QStringLiteral(":/icons/search_light.svg")));
+  }
 }
 
 void UnifiedHeaderBar::mousePressEvent(QMouseEvent *event) {

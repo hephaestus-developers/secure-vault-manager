@@ -1,13 +1,17 @@
 <RCC>
     <qresource prefix="/">
         <!-- Window Controls Dark & Light -->
+        <file>icons/win_min.svg</file>
         <file>icons/win_min_dark.svg</file>
-        <file>icons/win_max_dark.svg</file>
-        <file>icons/win_restore_dark.svg</file>
-        <file>icons/win_close_dark.svg</file>
         <file>icons/win_min_light.svg</file>
+        <file>icons/win_max.svg</file>
+        <file>icons/win_max_dark.svg</file>
         <file>icons/win_max_light.svg</file>
+        <file>icons/win_restore.svg</file>
+        <file>icons/win_restore_dark.svg</file>
         <file>icons/win_restore_light.svg</file>
+        <file>icons/win_close.svg</file>
+        <file>icons/win_close_dark.svg</file>
         <file>icons/win_close_light.svg</file>
         <file>icons/win_close_white.svg</file>
         <file>icons/menu_check_dark.svg</file>
@@ -15,48 +19,119 @@
 
         <!-- Brand & Security -->
         <file>icons/app_logo.svg</file>
+        <file>icons/app_logo_dark.svg</file>
+        <file>icons/app_logo_light.svg</file>
         <file>icons/shield_check.svg</file>
+        <file>icons/shield_check_dark.svg</file>
+        <file>icons/shield_check_light.svg</file>
         <file>icons/lock.svg</file>
+        <file>icons/lock_dark.svg</file>
+        <file>icons/lock_light.svg</file>
         <file>icons/unlock.svg</file>
+        <file>icons/unlock_dark.svg</file>
+        <file>icons/unlock_light.svg</file>
         <file>icons/status_dot_green.svg</file>
+        <file>icons/status_dot_green_dark.svg</file>
+        <file>icons/status_dot_green_light.svg</file>
         <file>icons/status_dot_red.svg</file>
+        <file>icons/status_dot_red_dark.svg</file>
+        <file>icons/status_dot_red_light.svg</file>
 
         <!-- Common Actions & States -->
         <file>icons/search.svg</file>
+        <file>icons/search_dark.svg</file>
+        <file>icons/search_light.svg</file>
         <file>icons/plus.svg</file>
         <file>icons/plus_dark.svg</file>
         <file>icons/plus_light.svg</file>
         <file>icons/folder_empty.svg</file>
+        <file>icons/folder_empty_dark.svg</file>
+        <file>icons/folder_empty_light.svg</file>
         <file>icons/folder_open.svg</file>
-        <file>icons/win_close.svg</file>
+        <file>icons/folder_open_dark.svg</file>
+        <file>icons/folder_open_light.svg</file>
 
         <!-- Categories -->
         <file>icons/category_all.svg</file>
+        <file>icons/category_all_dark.svg</file>
+        <file>icons/category_all_light.svg</file>
         <file>icons/category_login.svg</file>
+        <file>icons/category_login_dark.svg</file>
+        <file>icons/category_login_light.svg</file>
         <file>icons/category_note.svg</file>
+        <file>icons/category_note_dark.svg</file>
+        <file>icons/category_note_light.svg</file>
         <file>icons/category_card.svg</file>
+        <file>icons/category_card_dark.svg</file>
+        <file>icons/category_card_light.svg</file>
         <file>icons/category_passkey.svg</file>
+        <file>icons/category_passkey_dark.svg</file>
+        <file>icons/category_passkey_light.svg</file>
         <file>icons/category_ssh.svg</file>
+        <file>icons/category_ssh_dark.svg</file>
+        <file>icons/category_ssh_light.svg</file>
         <file>icons/category_database.svg</file>
+        <file>icons/category_database_dark.svg</file>
+        <file>icons/category_database_light.svg</file>
         <file>icons/category_server.svg</file>
+        <file>icons/category_server_dark.svg</file>
+        <file>icons/category_server_light.svg</file>
         <file>icons/category_wifi.svg</file>
+        <file>icons/category_wifi_dark.svg</file>
+        <file>icons/category_wifi_light.svg</file>
         <file>icons/category_identity.svg</file>
+        <file>icons/category_identity_dark.svg</file>
+        <file>icons/category_identity_light.svg</file>
         <file>icons/category_settings.svg</file>
+        <file>icons/category_settings_dark.svg</file>
+        <file>icons/category_settings_light.svg</file>
         <file>icons/category_trash.svg</file>
+        <file>icons/category_trash_dark.svg</file>
+        <file>icons/category_trash_light.svg</file>
 
         <!-- Action Icons -->
         <file>icons/copy.svg</file>
+        <file>icons/copy_dark.svg</file>
+        <file>icons/copy_light.svg</file>
         <file>icons/eye.svg</file>
+        <file>icons/eye_dark.svg</file>
+        <file>icons/eye_light.svg</file>
         <file>icons/eye_off.svg</file>
+        <file>icons/eye_off_dark.svg</file>
+        <file>icons/eye_off_light.svg</file>
         <file>icons/sidebar_toggle.svg</file>
+        <file>icons/sidebar_toggle_dark.svg</file>
+        <file>icons/sidebar_toggle_light.svg</file>
+        <file>icons/sidebar_collapse.svg</file>
+        <file>icons/sidebar_collapse_dark.svg</file>
+        <file>icons/sidebar_collapse_light.svg</file>
+        <file>icons/sidebar_expand.svg</file>
+        <file>icons/sidebar_expand_dark.svg</file>
+        <file>icons/sidebar_expand_light.svg</file>
         <file>icons/star.svg</file>
+        <file>icons/star_dark.svg</file>
+        <file>icons/star_light.svg</file>
         <file>icons/star_filled.svg</file>
+        <file>icons/star_filled_dark.svg</file>
+        <file>icons/star_filled_light.svg</file>
         <file>icons/edit.svg</file>
+        <file>icons/edit_dark.svg</file>
+        <file>icons/edit_light.svg</file>
         <file>icons/chevron_down.svg</file>
+        <file>icons/chevron_down_dark.svg</file>
+        <file>icons/chevron_down_light.svg</file>
         <file>icons/watchtower_weak.svg</file>
+        <file>icons/watchtower_weak_dark.svg</file>
+        <file>icons/watchtower_weak_light.svg</file>
         <file>icons/watchtower_expiring.svg</file>
+        <file>icons/watchtower_expiring_dark.svg</file>
+        <file>icons/watchtower_expiring_light.svg</file>
         <file>icons/external_link.svg</file>
+        <file>icons/external_link_dark.svg</file>
+        <file>icons/external_link_light.svg</file>
         <file>icons/trash.svg</file>
+        <file>icons/trash_dark.svg</file>
+        <file>icons/trash_light.svg</file>
 
         <!-- Stylesheets -->
         <file>styles/dark.qss</file>

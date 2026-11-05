@@ -29,7 +29,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
   // Cấu hình cờ cửa sổ Frameless sử dụng UnifiedHeaderBar làm Title Bar
   setWindowFlags(Qt::Window | Qt::FramelessWindowHint);
   setAttribute(Qt::WA_TranslucentBackground, false);
-  setMinimumSize(840, 520);
+  setMinimumSize(900, 560);
   resize(1120, 680);
   setWindowTitle(QStringLiteral("Secure Vault Manager"));
 
@@ -69,6 +69,7 @@ void MainWindow::setupUI() {
   // Thiết lập tỷ lệ kích thước khởi tạo: Sidebar (240px) | ItemList (300px) |
   // Detail (phần còn lại)
   m_mainSplitter->setSizes({240, 300, 580});
+  m_mainSplitter->setChildrenCollapsible(false);
   m_mainSplitter->setCollapsible(0, false);
   m_mainSplitter->setCollapsible(1, false);
   m_mainSplitter->setCollapsible(2, false);

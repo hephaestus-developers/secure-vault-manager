@@ -7,6 +7,7 @@
 
 #include "field_row_widget.h"
 #include "app/clipboard_manager.h"
+#include "app/theme_manager.h"
 
 #include <QDesktopServices>
 #include <QHBoxLayout>
@@ -126,6 +127,25 @@ void FieldRowWidget::setupUI() {
   valLayout->addWidget(m_copyBtn);
 
   layout->addWidget(valContainer);
+
+  connect(&app::ThemeManager::instance(), &app::ThemeManager::themeChanged,
+          this, [this]() { updateThemeIcons(); });
+
+  updateThemeIcons();
+}
+
+void FieldRowWidget::updateThemeIcons() {
+  auto &tm = app::ThemeManager::instance();
+  if (m_revealBtn) {
+    m_revealBtn->setIcon(tm.icon(m_isRevealed ? QStringLiteral("eye_off")
+                                              : QStringLiteral("eye")));
+  }
+  if (m_openUrlBtn) {
+    m_openUrlBtn->setIcon(tm.icon(QStringLiteral("external_link")));
+  }
+  if (m_copyBtn) {
+    m_copyBtn->setIcon(tm.icon(QStringLiteral("copy")));
+  }
 }
 
 void FieldRowWidget::setValue(const QString &value) {
@@ -201,10 +221,12 @@ void FieldRowWidget::setEditMode(bool editable) {
 void FieldRowWidget::onToggleReveal() {
   m_isRevealed = !m_isRevealed;
   if (m_isRevealed) {
-    m_revealBtn->setIcon(QIcon(QStringLiteral(":/icons/eye_off.svg")));
+    m_revealBtn->setIcon(
+        app::ThemeManager::instance().icon(QStringLiteral("eye_off")));
     m_autoHideTimer.start();
   } else {
-    m_revealBtn->setIcon(QIcon(QStringLiteral(":/icons/eye.svg")));
+    m_revealBtn->setIcon(
+        app::ThemeManager::instance().icon(QStringLiteral("eye")));
     m_autoHideTimer.stop();
   }
   updateDisplay();

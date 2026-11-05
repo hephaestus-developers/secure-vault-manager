@@ -40,4 +40,19 @@ void ThemeManager::applyTheme(ThemeMode mode) {
 
 ThemeMode ThemeManager::currentMode() const { return m_currentMode; }
 
+QString ThemeManager::iconPath(const QString &baseName) const {
+  const QString suffix = (m_currentMode == ThemeMode::Dark)
+                             ? QStringLiteral("_dark.svg")
+                             : QStringLiteral("_light.svg");
+  const QString themed = QStringLiteral(":/icons/") + baseName + suffix;
+  if (QFile::exists(themed)) {
+    return themed;
+  }
+  return QStringLiteral(":/icons/") + baseName + QStringLiteral(".svg");
+}
+
+QIcon ThemeManager::icon(const QString &baseName) const {
+  return QIcon(iconPath(baseName));
+}
+
 } // namespace svm::app
