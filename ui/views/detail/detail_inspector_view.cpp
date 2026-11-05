@@ -51,6 +51,7 @@ void DetailInspectorView::setupUI() {
   m_scrollArea->setObjectName(QStringLiteral("DetailScrollArea"));
   m_scrollArea->setWidgetResizable(true);
   m_scrollArea->setFrameShape(QFrame::NoFrame);
+  m_scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
   m_scrollArea->viewport()->setObjectName(
       QStringLiteral("DetailScrollViewport"));
   m_scrollArea->viewport()->setAttribute(Qt::WA_StyledBackground, true);

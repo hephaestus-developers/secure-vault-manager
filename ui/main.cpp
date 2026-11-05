@@ -9,6 +9,9 @@
 #include <QApplication>
 #include <QDebug>
 #include <QPixmap>
+#include <QPushButton>
+#include <QScrollArea>
+#include <QScrollBar>
 #include <QTimer>
 
 #include "app/theme_manager.h"
@@ -64,6 +67,13 @@ int main(int argc, char *argv[]) {
       if (mainWindow.sidebarView()) {
         mainWindow.sidebarView()->setCollapsed(true);
       }
+    } else if (arg == QStringLiteral("--edit")) {
+      QTimer::singleShot(50, [&mainWindow]() {
+        if (auto *editBtn = mainWindow.findChild<QPushButton *>(
+                QStringLiteral("DetailHeaderEditBtn"))) {
+          editBtn->click();
+        }
+      });
     }
   }
 
@@ -71,11 +81,26 @@ int main(int argc, char *argv[]) {
     mainWindow.show();
   }
 
+  bool scrollBottom = false;
+  for (int i = 1; i < argc; ++i) {
+    if (QString::fromLatin1(argv[i]) == QStringLiteral("--scroll-bottom")) {
+      scrollBottom = true;
+    }
+  }
+
   for (int i = 1; i < argc; ++i) {
     if (QString::fromLatin1(argv[i]) == QStringLiteral("--screenshot") &&
         i + 1 < argc) {
       QString path = QString::fromLocal8Bit(argv[++i]);
-      QTimer::singleShot(400, [&mainWindow, path, &app]() {
+      QTimer::singleShot(400, [&mainWindow, path, scrollBottom, &app]() {
+        if (scrollBottom) {
+          for (auto *sa : mainWindow.findChildren<QScrollArea *>()) {
+            if (sa->verticalScrollBar()) {
+              sa->verticalScrollBar()->setValue(
+                  sa->verticalScrollBar()->maximum());
+            }
+          }
+        }
         QPixmap pix = mainWindow.grab();
         pix.save(path);
         qInfo() << "[Main] Screenshot saved to:" << path;

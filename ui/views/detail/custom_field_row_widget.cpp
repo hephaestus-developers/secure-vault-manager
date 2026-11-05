@@ -8,10 +8,13 @@
 #include "custom_field_row_widget.h"
 #include "app/clipboard_manager.h"
 #include "app/theme_manager.h"
+#include "components/combobox_popup_helper.h"
 
+#include <QCalendarWidget>
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QListView>
+#include <QTextCharFormat>
 #include <QUuid>
 #include <QVBoxLayout>
 
@@ -111,18 +114,23 @@ void CustomFieldRowWidget::setupUI() {
   m_kindCombo = new QComboBox(this);
   m_kindCombo->setObjectName(QStringLiteral("CustomFieldKindCombo"));
   m_kindCombo->setFixedHeight(30);
-  m_kindCombo->setView(new QListView(m_kindCombo));
+  svm::ui::setupFramelessComboBoxPopup(m_kindCombo, 130);
   m_kindCombo->addItem(tr("Text"),
                        static_cast<int>(models::CustomFieldKind::Text));
   m_kindCombo->addItem(tr("Concealed"),
                        static_cast<int>(models::CustomFieldKind::Concealed));
+  m_kindCombo->addItem(tr("Boolean"),
+                       static_cast<int>(models::CustomFieldKind::Boolean));
+  m_kindCombo->addItem(tr("Date"),
+                       static_cast<int>(models::CustomFieldKind::Date));
   connect(m_kindCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
           this, &CustomFieldRowWidget::onKindChanged);
   headerRowLayout->addWidget(m_kindCombo, 0);
 
   m_deleteBtn = new QPushButton(this);
   m_deleteBtn->setObjectName(QStringLiteral("CustomFieldDeleteBtn"));
-  m_deleteBtn->setIcon(QIcon(QStringLiteral(":/icons/trash.svg")));
+  m_deleteBtn->setIcon(
+      app::ThemeManager::instance().icon(QStringLiteral("trash")));
   m_deleteBtn->setIconSize(QSize(15, 15));
   m_deleteBtn->setFixedSize(30, 30);
   m_deleteBtn->setCursor(Qt::PointingHandCursor);
@@ -143,6 +151,32 @@ void CustomFieldRowWidget::setupUI() {
   m_valueEdit->setObjectName(QStringLiteral("FieldRowInput"));
   m_valueEdit->setPlaceholderText(tr("Field Value"));
   valLayout->addWidget(m_valueEdit, 1);
+
+  m_boolEdit = new QCheckBox(tr("No / False"), this);
+  m_boolEdit->setObjectName(QStringLiteral("CustomFieldBoolEdit"));
+  m_boolEdit->setCursor(Qt::PointingHandCursor);
+  m_boolEdit->hide();
+  connect(m_boolEdit, &QCheckBox::toggled, this, [this](bool checked) {
+    m_boolEdit->setText(checked ? tr("Yes / True") : tr("No / False"));
+  });
+  valLayout->addWidget(m_boolEdit, 1);
+
+  m_dateEdit = new QDateEdit(this);
+  m_dateEdit->setObjectName(QStringLiteral("CustomFieldDateEdit"));
+  m_dateEdit->setDisplayFormat(QStringLiteral("yyyy-MM-dd"));
+  m_dateEdit->setCalendarPopup(true);
+  m_dateEdit->setDate(QDate::currentDate());
+  m_dateEdit->setFixedHeight(32);
+  m_dateEdit->hide();
+
+  if (auto *calendar = m_dateEdit->calendarWidget()) {
+    calendar->setVerticalHeaderFormat(QCalendarWidget::NoVerticalHeader);
+    calendar->setGridVisible(false);
+    calendar->setMinimumWidth(260);
+  }
+  updateCalendarTheme();
+
+  valLayout->addWidget(m_dateEdit, 1);
 
   m_editRevealBtn = new QPushButton(this);
   m_editRevealBtn->setObjectName(QStringLiteral("FieldRowActionBtn"));
@@ -168,7 +202,10 @@ void CustomFieldRowWidget::setupUI() {
   rootLayout->addWidget(m_editContainer);
 
   connect(&app::ThemeManager::instance(), &app::ThemeManager::themeChanged,
-          this, [this]() { updateThemeIcons(); });
+          this, [this]() {
+            updateThemeIcons();
+            updateCalendarTheme();
+          });
 
   updateThemeIcons();
   setEditMode(false);
@@ -194,6 +231,41 @@ void CustomFieldRowWidget::updateThemeIcons() {
   }
 }
 
+void CustomFieldRowWidget::updateCalendarTheme() {
+  if (!m_dateEdit) {
+    return;
+  }
+  auto *calendar = m_dateEdit->calendarWidget();
+  if (!calendar) {
+    return;
+  }
+
+  const bool isLight =
+      (app::ThemeManager::instance().currentMode() == app::ThemeMode::Light);
+
+  QTextCharFormat defaultFmt;
+  defaultFmt.setForeground(isLight ? QColor(0x2F, 0x35, 0x40)
+                                   : QColor(0xCD, 0xD6, 0xF4));
+  calendar->setWeekdayTextFormat(Qt::Monday, defaultFmt);
+  calendar->setWeekdayTextFormat(Qt::Tuesday, defaultFmt);
+  calendar->setWeekdayTextFormat(Qt::Wednesday, defaultFmt);
+  calendar->setWeekdayTextFormat(Qt::Thursday, defaultFmt);
+  calendar->setWeekdayTextFormat(Qt::Friday, defaultFmt);
+
+  // Cuối tuần: dùng màu dịu mắt thay vì màu đỏ gắt mặc định của hệ thống
+  QTextCharFormat weekendFmt;
+  weekendFmt.setForeground(isLight ? QColor(0xD2, 0x0F, 0x39)
+                                   : QColor(0xF3, 0x8B, 0xA8));
+  calendar->setWeekdayTextFormat(Qt::Saturday, weekendFmt);
+  calendar->setWeekdayTextFormat(Qt::Sunday, weekendFmt);
+
+  QTextCharFormat headerFmt;
+  headerFmt.setForeground(isLight ? QColor(0x5C, 0x5F, 0x77)
+                                  : QColor(0xA6, 0xAD, 0xC8));
+  headerFmt.setFontWeight(QFont::Bold);
+  calendar->setHeaderTextFormat(headerFmt);
+}
+
 void CustomFieldRowWidget::setField(const models::UiCustomField &field) {
   m_field = field;
   m_isRevealed = false;
@@ -201,7 +273,25 @@ void CustomFieldRowWidget::setField(const models::UiCustomField &field) {
   m_labelEdit->setText(field.label);
   m_valueEdit->setText(field.value);
 
-  const int idx = (field.kind == models::CustomFieldKind::Concealed) ? 1 : 0;
+  if (field.kind == models::CustomFieldKind::Boolean) {
+    const bool checked =
+        (field.value.trimmed().compare(QStringLiteral("true"),
+                                       Qt::CaseInsensitive) == 0 ||
+         field.value.trimmed() == QStringLiteral("1"));
+    m_boolEdit->setChecked(checked);
+    m_boolEdit->setText(checked ? tr("Yes / True") : tr("No / False"));
+  } else if (field.kind == models::CustomFieldKind::Date) {
+    QDate d = QDate::fromString(field.value.trimmed(), Qt::ISODate);
+    if (!d.isValid()) {
+      d = QDate::currentDate();
+    }
+    m_dateEdit->setDate(d);
+  }
+
+  int idx = m_kindCombo->findData(static_cast<int>(field.kind));
+  if (idx < 0) {
+    idx = 0;
+  }
   m_kindCombo->setCurrentIndex(idx);
   onKindChanged(idx);
 
@@ -212,9 +302,16 @@ models::UiCustomField CustomFieldRowWidget::field() const {
   models::UiCustomField f = m_field;
   if (m_isEditMode) {
     f.label = m_labelEdit->text().trimmed();
-    f.value = m_valueEdit->text();
     f.kind = static_cast<models::CustomFieldKind>(
         m_kindCombo->currentData().toInt());
+    if (f.kind == models::CustomFieldKind::Boolean) {
+      f.value = m_boolEdit->isChecked() ? QStringLiteral("true")
+                                        : QStringLiteral("false");
+    } else if (f.kind == models::CustomFieldKind::Date) {
+      f.value = m_dateEdit->date().toString(Qt::ISODate);
+    } else {
+      f.value = m_valueEdit->text();
+    }
   }
   return f;
 }
@@ -228,9 +325,16 @@ void CustomFieldRowWidget::setEditMode(bool editable) {
   } else {
     // Lưu các thay đổi hiện thời
     m_field.label = m_labelEdit->text().trimmed();
-    m_field.value = m_valueEdit->text();
     m_field.kind = static_cast<models::CustomFieldKind>(
         m_kindCombo->currentData().toInt());
+    if (m_field.kind == models::CustomFieldKind::Boolean) {
+      m_field.value = m_boolEdit->isChecked() ? QStringLiteral("true")
+                                              : QStringLiteral("false");
+    } else if (m_field.kind == models::CustomFieldKind::Date) {
+      m_field.value = m_dateEdit->date().toString(Qt::ISODate);
+    } else {
+      m_field.value = m_valueEdit->text();
+    }
 
     m_editContainer->hide();
     m_viewContainer->show();
@@ -247,6 +351,12 @@ void CustomFieldRowWidget::onKindChanged(int index) {
   const auto kind = static_cast<models::CustomFieldKind>(
       m_kindCombo->itemData(index).toInt());
   const bool isConcealed = (kind == models::CustomFieldKind::Concealed);
+  const bool isBoolean = (kind == models::CustomFieldKind::Boolean);
+  const bool isDate = (kind == models::CustomFieldKind::Date);
+
+  m_valueEdit->setVisible(!isBoolean && !isDate);
+  m_boolEdit->setVisible(isBoolean);
+  m_dateEdit->setVisible(isDate);
 
   m_valueEdit->setEchoMode(isConcealed ? QLineEdit::Password
                                        : QLineEdit::Normal);
@@ -289,6 +399,8 @@ void CustomFieldRowWidget::updateDisplay() {
   m_labelView->setText(m_field.label.isEmpty() ? tr("CUSTOM FIELD")
                                                : m_field.label.toUpper());
 
+  m_revealBtn->setVisible(m_field.kind == models::CustomFieldKind::Concealed);
+
   if (m_field.value.isEmpty()) {
     m_valueView->setText(tr("(empty)"));
     m_valueView->setStyleSheet(
@@ -304,6 +416,16 @@ void CustomFieldRowWidget::updateDisplay() {
     } else {
       m_valueView->setText(QStringLiteral("••••••••••••"));
     }
+  } else if (m_field.kind == models::CustomFieldKind::Boolean) {
+    const bool isTrue =
+        (m_field.value.trimmed().compare(QStringLiteral("true"),
+                                         Qt::CaseInsensitive) == 0 ||
+         m_field.value.trimmed() == QStringLiteral("1"));
+    m_valueView->setText(isTrue ? tr("✓ Yes (True)") : tr("✕ No (False)"));
+  } else if (m_field.kind == models::CustomFieldKind::Date) {
+    const QDate d = QDate::fromString(m_field.value.trimmed(), Qt::ISODate);
+    m_valueView->setText(d.isValid() ? d.toString(QStringLiteral("yyyy-MM-dd"))
+                                     : m_field.value);
   } else {
     m_valueView->setText(m_field.value);
   }

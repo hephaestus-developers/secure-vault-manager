@@ -47,6 +47,8 @@ set(UI_HEADERS
     components/menubar/app_menu_bar.h
     components/unified_header_bar.h
     components/window_resize_handler.h
+    components/elided_label.h
+    components/combobox_popup_helper.h
     views/sidebar/sidebar_types.h
     views/sidebar/sidebar_item_delegate.h
     views/sidebar/sidebar_view.h

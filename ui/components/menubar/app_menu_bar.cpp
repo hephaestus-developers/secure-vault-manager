@@ -30,15 +30,7 @@ void AppMenuBar::setupMenus() {
   m_exitAct->setShortcut(QKeySequence::Quit);
   connect(m_exitAct, &QAction::triggered, this, &AppMenuBar::exitRequested);
 
-  // 2. Menu Hiển Thị (View)
-  m_viewMenu = addMenu(tr("&View"));
-
-  m_themeAct = m_viewMenu->addAction(tr("Toggle &Theme (Dark/Light)"));
-  m_themeAct->setShortcut(QKeySequence(QStringLiteral("Ctrl+T")));
-  connect(m_themeAct, &QAction::triggered, this,
-          &AppMenuBar::toggleThemeRequested);
-
-  // 3. Menu Trợ Giúp (Help)
+  // 2. Menu Trợ Giúp (Help)
   m_helpMenu = addMenu(tr("&Help"));
 
   m_aboutAct = m_helpMenu->addAction(tr("&About Secure Vault Manager..."));

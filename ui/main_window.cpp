@@ -99,6 +99,14 @@ void MainWindow::setupUI() {
           &MainWindow::close);
   connect(m_headerBar, &components::UnifiedHeaderBar::commandPaletteRequested,
           this, &MainWindow::openCommandPalette);
+  connect(m_headerBar, &components::UnifiedHeaderBar::themeToggleRequested,
+          this, []() {
+            auto &tm = app::ThemeManager::instance();
+            const auto nextMode = (tm.currentMode() == app::ThemeMode::Dark)
+                                      ? app::ThemeMode::Light
+                                      : app::ThemeMode::Dark;
+            tm.applyTheme(nextMode);
+          });
 
   // 5. Kết nối tín hiệu giữa các Cột
   connect(m_sidebarView, &views::SidebarView::collapsedChanged, this,
@@ -131,13 +139,6 @@ void MainWindow::setupUI() {
           &MainWindow::onDetailCancelRequested);
 
   // 6. Kết nối MenuBar Actions
-  connect(m_menuBar, &components::AppMenuBar::toggleThemeRequested, this, []() {
-    auto &tm = app::ThemeManager::instance();
-    const auto nextMode = (tm.currentMode() == app::ThemeMode::Dark)
-                              ? app::ThemeMode::Light
-                              : app::ThemeMode::Dark;
-    tm.applyTheme(nextMode);
-  });
   connect(m_menuBar, &components::AppMenuBar::aboutRequested, this, [this]() {
     const QString version = core::CoreBridge::instance().coreVersion();
     QMessageBox::about(this, tr("About Secure Vault Manager"),
@@ -156,6 +157,16 @@ void MainWindow::setupShortcuts() {
       new QShortcut(QKeySequence(QStringLiteral("Ctrl+B")), this);
   connect(m_toggleSidebarShortcut, &QShortcut::activated, this,
           &MainWindow::toggleSidebar);
+
+  m_toggleThemeShortcut =
+      new QShortcut(QKeySequence(QStringLiteral("Ctrl+T")), this);
+  connect(m_toggleThemeShortcut, &QShortcut::activated, this, []() {
+    auto &tm = app::ThemeManager::instance();
+    const auto nextMode = (tm.currentMode() == app::ThemeMode::Dark)
+                              ? app::ThemeMode::Light
+                              : app::ThemeMode::Dark;
+    tm.applyTheme(nextMode);
+  });
 
   m_commandPaletteShortcut =
       new QShortcut(QKeySequence(QStringLiteral("Ctrl+K")), this);
@@ -282,6 +293,20 @@ void MainWindow::populateMockData() {
   gitField2.value = QStringLiteral("Core Infrastructure & Security");
   gitField2.kind = models::CustomFieldKind::Text;
   git.customFields.append(gitField2);
+
+  models::UiCustomField gitField3;
+  gitField3.id = QStringLiteral("cf-git-3");
+  gitField3.label = QStringLiteral("Hardware Key (FIDO2) Required");
+  gitField3.value = QStringLiteral("true");
+  gitField3.kind = models::CustomFieldKind::Boolean;
+  git.customFields.append(gitField3);
+
+  models::UiCustomField gitField4;
+  gitField4.id = QStringLiteral("cf-git-4");
+  gitField4.label = QStringLiteral("Token Expiration Date");
+  gitField4.value = QStringLiteral("2026-12-31");
+  gitField4.kind = models::CustomFieldKind::Date;
+  git.customFields.append(gitField4);
 
   items.append(git);
 

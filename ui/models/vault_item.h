@@ -98,8 +98,10 @@ inline QString categoryDisplayName(ItemCategory cat) {
  * @brief Kiểu dữ liệu của trường tùy biến động do người dùng định nghĩa.
  */
 enum class CustomFieldKind {
-  Text,     // Văn bản thông thường
-  Concealed // Trường bảo mật (Mật khẩu phụ, Token, PIN, Recovery Code)
+  Text,      // Văn bản thông thường
+  Concealed, // Trường bảo mật (Mật khẩu phụ, Token, PIN, Recovery Code)
+  Boolean,   // Cờ logic đúng/sai (Yes/No, Bật/Tắt)
+  Date       // Ngày tháng định dạng ISO 8601 (YYYY-MM-DD)
 };
 
 /**

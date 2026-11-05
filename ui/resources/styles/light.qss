@@ -329,14 +329,14 @@ QStatusBar::item {
 }
 
 /* Header Action Buttons */
-#HeaderSidebarToggleBtn, #HeaderCommandPaletteBtn {
+#HeaderSidebarToggleBtn, #HeaderCommandPaletteBtn, #HeaderThemeToggleBtn {
     background: transparent;
     border: none;
     border-radius: 4px;
     padding: 4px;
 }
 
-#HeaderSidebarToggleBtn:hover, #HeaderCommandPaletteBtn:hover {
+#HeaderSidebarToggleBtn:hover, #HeaderCommandPaletteBtn:hover, #HeaderThemeToggleBtn:hover {
     background-color: #ccd0da;
 }
 
@@ -510,9 +510,10 @@ QStatusBar::item {
     background-color: #ffffff;
     border: 1px solid #ccd0da;
     border-radius: 6px;
-    padding: 2px 20px 2px 8px;
-    color: #5c5f77;
-    font-size: 11px;
+    padding: 2px 22px 2px 8px;
+    color: #4c4f69;
+    font-size: 12px;
+    font-weight: 500;
 }
 
 #ItemListSortCombo:hover {
@@ -520,13 +521,18 @@ QStatusBar::item {
     color: #1e1e2e;
 }
 
+#ItemListSortCombo:focus {
+    border-color: #2f3540;
+}
+
 QComboBox {
     background-color: #ffffff;
     border: 1px solid #ccd0da;
     border-radius: 6px;
-    padding: 2px 20px 2px 8px;
+    padding: 2px 22px 2px 8px;
     color: #4c4f69;
-    font-size: 11px;
+    font-size: 12px;
+    font-weight: 500;
 }
 
 QComboBox:hover {
@@ -550,27 +556,34 @@ QComboBox::down-arrow {
     height: 10px;
 }
 
+QComboBoxPrivateContainer {
+    background-color: transparent;
+    border: none;
+}
+
 QComboBox QAbstractItemView {
     background-color: #ffffff;
     color: #4c4f69;
-    selection-background-color: #dce0e8;
+    selection-background-color: #eaeff5;
     selection-color: #1e1e2e;
     border: 1px solid #ccd0da;
-    border-radius: 6px;
-    padding: 4px;
+    border-radius: 8px;
+    padding: 6px;
     outline: none;
 }
 
 QComboBox QAbstractItemView::item {
-    min-height: 24px;
-    padding: 3px 8px;
-    border-radius: 4px;
+    min-height: 28px;
+    padding: 4px 10px;
+    border-radius: 6px;
     color: #4c4f69;
+    font-size: 12px;
+    font-weight: 500;
 }
 
 QComboBox QAbstractItemView::item:selected,
 QComboBox QAbstractItemView::item:hover {
-    background-color: #dce0e8;
+    background-color: #eaeff5;
     color: #1e1e2e;
 }
 
@@ -640,20 +653,27 @@ QComboBox QAbstractItemView::item:hover {
 
 #DetailHeaderTitleInput {
     background-color: #ffffff;
-    border: 1px solid #2f3540;
+    border: 1px solid #ccd0da;
     border-radius: 6px;
-    padding: 4px 8px;
+    padding: 4px 10px;
     color: #1e1e2e;
-    font-size: 16px;
-    font-weight: bold;
+    font-size: 15px;
+    font-weight: 600;
+    selection-background-color: #2f3540;
+    selection-color: #ffffff;
+}
+
+#DetailHeaderTitleInput:focus {
+    border-color: #2f3540;
+    background-color: #ffffff;
 }
 
 #DetailCategoryBadge {
     background-color: #e6e9ef;
     color: #4c4f69;
     border: 1px solid #ccd0da;
-    border-radius: 4px;
-    padding: 2px 8px;
+    border-radius: 6px;
+    padding: 3px 10px;
     font-size: 11px;
     font-weight: 600;
 }
@@ -661,20 +681,25 @@ QComboBox QAbstractItemView::item:hover {
 #DetailCategoryCombo {
     background-color: #ffffff;
     border: 1px solid #ccd0da;
-    border-radius: 4px;
-    padding: 2px 6px;
+    border-radius: 6px;
+    padding: 2px 22px 2px 8px;
     color: #4c4f69;
-    font-size: 11px;
-    font-weight: 600;
+    font-size: 12px;
+    font-weight: 500;
 }
 
-#DetailCategoryCombo:hover, #DetailCategoryCombo:focus {
+#DetailCategoryCombo:hover {
+    border-color: #4c4f69;
+    background-color: #f6f8fa;
+}
+
+#DetailCategoryCombo:focus {
     border-color: #2f3540;
 }
 
 #DetailCategoryCombo::drop-down {
     border: none;
-    width: 14px;
+    width: 18px;
 }
 
 #DetailCategoryCombo::down-arrow {
@@ -688,18 +713,33 @@ QComboBox QAbstractItemView::item:hover {
     font-size: 11px;
 }
 
-#DetailHeaderFavBtn, #DetailHeaderEditBtn {
+#DetailHeaderFavBtn {
     background-color: #e6e9ef;
     border: 1px solid #ccd0da;
     border-radius: 6px;
-    padding: 6px 12px;
+    padding: 0;
     color: #4c4f69;
+}
+
+#DetailHeaderFavBtn:hover {
+    background-color: #dce0e8;
+    border-color: #4c4f69;
+}
+
+#DetailHeaderEditBtn {
+    background-color: #e6e9ef;
+    border: 1px solid #ccd0da;
+    border-radius: 6px;
+    padding: 0 14px;
+    color: #4c4f69;
+    font-size: 13px;
     font-weight: 500;
 }
 
-#DetailHeaderFavBtn:hover, #DetailHeaderEditBtn:hover {
+#DetailHeaderEditBtn:hover {
     background-color: #dce0e8;
     border-color: #4c4f69;
+    color: #1e1e2e;
 }
 
 #DetailHeaderCancelBtn {
@@ -707,7 +747,7 @@ QComboBox QAbstractItemView::item:hover {
     color: #4c4f69;
     border: 1px solid #ccd0da;
     border-radius: 6px;
-    padding: 6px 14px;
+    padding: 0 16px;
     font-size: 13px;
     font-weight: 500;
 }
@@ -723,7 +763,7 @@ QComboBox QAbstractItemView::item:hover {
     color: #ffffff;
     border: 1px solid #1e1e2e;
     border-radius: 6px;
-    padding: 6px 16px;
+    padding: 0 18px;
     font-size: 13px;
     font-weight: 600;
 }
@@ -762,12 +802,10 @@ QComboBox QAbstractItemView::item:hover {
 }
 
 #TotpCopyBtn {
-    background-color: #e6e9ef;
-    border: 1px solid #ccd0da;
+    background: transparent;
+    border: 1px solid #dce0e8;
     border-radius: 6px;
-    padding: 5px 12px;
-    color: #4c4f69;
-    font-weight: 500;
+    padding: 4px;
 }
 
 #TotpCopyBtn:hover {
@@ -862,6 +900,198 @@ QComboBox QAbstractItemView::item:hover {
 
 #CustomFieldKindCombo:focus {
     border-color: #2f3540;
+}
+
+#CustomFieldBoolEdit {
+    color: #2f3540;
+    font-size: 13px;
+    font-weight: 500;
+    spacing: 8px;
+    padding: 2px 4px;
+}
+
+#CustomFieldBoolEdit::indicator {
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    border: 1px solid #ccd0da;
+    background-color: #ffffff;
+}
+
+#CustomFieldBoolEdit::indicator:hover {
+    border-color: #2f3540;
+}
+
+#CustomFieldBoolEdit::indicator:checked {
+    background-color: #1e1e2e;
+    border-color: #1e1e2e;
+    image: url(:/icons/checkbox_check_light.svg);
+}
+
+#CustomFieldDateEdit {
+    background-color: #ffffff;
+    border: 1px solid #ccd0da;
+    border-radius: 6px;
+    padding: 4px 10px;
+    color: #2f3540;
+    font-size: 13px;
+}
+
+#CustomFieldDateEdit:focus {
+    border-color: #2f3540;
+}
+
+#CustomFieldDateEdit::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 24px;
+    border-left: none;
+}
+
+#CustomFieldDateEdit::down-arrow {
+    image: url(:/icons/chevron_down_light.svg);
+    width: 12px;
+    height: 12px;
+}
+
+/* QCalendarWidget Theme (Light Neutral Slate) */
+QCalendarWidget {
+    background-color: #ffffff;
+    border: 1px solid #ccd0da;
+    border-radius: 8px;
+    min-width: 260px;
+}
+
+QCalendarWidget QWidget#qt_calendar_navigationbar {
+    background-color: #ffffff;
+    border-bottom: 1px solid #e6e9ef;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    min-height: 34px;
+    padding: 2px 4px;
+}
+
+QCalendarWidget QToolButton {
+    background-color: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: #2f3540;
+    font-size: 12px;
+    font-weight: 600;
+    margin: 2px;
+    padding: 2px 6px;
+}
+
+QCalendarWidget QToolButton:hover {
+    background-color: #eef1f5;
+    border-color: #ccd0da;
+    color: #1e1e2e;
+}
+
+QCalendarWidget QToolButton:pressed {
+    background-color: #dce0e8;
+}
+
+QCalendarWidget #qt_calendar_prevmonth {
+    qproperty-icon: url(:/icons/chevron_left_light.svg);
+    icon-size: 12px 12px;
+    min-width: 24px;
+    max-width: 24px;
+    min-height: 24px;
+    max-height: 24px;
+}
+
+QCalendarWidget #qt_calendar_nextmonth {
+    qproperty-icon: url(:/icons/chevron_right_light.svg);
+    icon-size: 12px 12px;
+    min-width: 24px;
+    max-width: 24px;
+    min-height: 24px;
+    max-height: 24px;
+}
+
+QCalendarWidget #qt_calendar_monthbutton,
+QCalendarWidget #qt_calendar_yearbutton {
+    color: #2f3540;
+    font-weight: 600;
+    font-size: 12px;
+    padding: 2px 8px;
+}
+
+QCalendarWidget QSpinBox {
+    background-color: #ffffff;
+    color: #2f3540;
+    border: 1px solid #ccd0da;
+    border-radius: 4px;
+    padding: 2px 4px;
+    font-size: 12px;
+    selection-background-color: #1e1e2e;
+    selection-color: #ffffff;
+}
+
+QCalendarWidget QMenu {
+    background-color: #ffffff;
+    border: 1px solid #ccd0da;
+    border-radius: 6px;
+    padding: 4px;
+    color: #2f3540;
+}
+
+QCalendarWidget QMenu::item {
+    padding: 4px 12px;
+    border-radius: 4px;
+}
+
+QCalendarWidget QMenu::item:selected {
+    background-color: #eaeff5;
+    color: #1e1e2e;
+}
+
+QCalendarWidget QTableView {
+    background-color: #ffffff;
+    selection-background-color: #1e1e2e;
+    selection-color: #ffffff;
+    border: none;
+    outline: none;
+    alternate-background-color: #ffffff;
+}
+
+QCalendarWidget QTableView:enabled {
+    color: #2f3540;
+}
+
+QCalendarWidget QTableView:disabled {
+    color: #9ca3af;
+}
+
+QCalendarWidget QTableView::item {
+    border-radius: 4px;
+    padding: 2px;
+}
+
+QCalendarWidget QTableView::item:hover {
+    background-color: #eef1f5;
+    color: #1e1e2e;
+}
+
+QCalendarWidget QTableView::item:selected {
+    background-color: #1e1e2e;
+    color: #ffffff;
+    font-weight: bold;
+}
+
+QCalendarWidget QHeaderView {
+    background-color: #ffffff;
+    border: none;
+}
+
+QCalendarWidget QHeaderView::section {
+    background-color: #ffffff;
+    color: #5c5f77;
+    border: none;
+    padding: 4px;
+    font-size: 11px;
+    font-weight: 600;
 }
 
 #CustomFieldDeleteBtn {

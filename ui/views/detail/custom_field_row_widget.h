@@ -10,7 +10,9 @@
 
 #include "models/vault_item.h"
 
+#include <QCheckBox>
 #include <QComboBox>
+#include <QDateEdit>
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
@@ -48,6 +50,7 @@ private:
   void setupUI();
   void updateDisplay();
   void updateThemeIcons();
+  void updateCalendarTheme();
 
   models::UiCustomField m_field;
   bool m_isEditMode{false};
@@ -65,6 +68,8 @@ private:
   QLineEdit *m_labelEdit{nullptr};
   QComboBox *m_kindCombo{nullptr};
   QLineEdit *m_valueEdit{nullptr};
+  QCheckBox *m_boolEdit{nullptr};
+  QDateEdit *m_dateEdit{nullptr};
   QPushButton *m_deleteBtn{nullptr};
   QPushButton *m_editRevealBtn{nullptr};
 

@@ -63,7 +63,9 @@ void TotpWidget::setupUI() {
   m_copyBtn = new QPushButton(m_viewContainer);
   m_copyBtn->setObjectName(QStringLiteral("TotpCopyBtn"));
   m_copyBtn->setIcon(QIcon(QStringLiteral(":/icons/copy.svg")));
-  m_copyBtn->setText(tr("Copy"));
+  m_copyBtn->setIconSize(QSize(16, 16));
+  m_copyBtn->setFixedSize(28, 28);
+  m_copyBtn->setToolTip(tr("Copy one-time code"));
   m_copyBtn->setCursor(Qt::PointingHandCursor);
   connect(m_copyBtn, &QPushButton::clicked, this, [this]() {
     const QString cleanCode = m_currentCode.trimmed().remove(QLatin1Char(' '));
@@ -120,7 +122,8 @@ void TotpWidget::setupUI() {
 
   m_removeBtn = new QPushButton(m_editContainer);
   m_removeBtn->setObjectName(QStringLiteral("CustomFieldDeleteBtn"));
-  m_removeBtn->setIcon(QIcon(QStringLiteral(":/icons/trash.svg")));
+  m_removeBtn->setIcon(
+      app::ThemeManager::instance().icon(QStringLiteral("trash")));
   m_removeBtn->setIconSize(QSize(16, 16));
   m_removeBtn->setFixedSize(28, 28);
   m_removeBtn->setCursor(Qt::PointingHandCursor);

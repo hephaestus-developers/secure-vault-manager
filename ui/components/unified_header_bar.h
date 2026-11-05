@@ -45,6 +45,7 @@ signals:
   void maximizeRestoreRequested();
   void closeRequested();
   void commandPaletteRequested();
+  void themeToggleRequested();
 
 protected:
   void paintEvent(QPaintEvent *event) override;
@@ -59,6 +60,7 @@ private:
 
   QLabel *m_logoLabel{nullptr};
   QPushButton *m_paletteBtn{nullptr};
+  QPushButton *m_themeToggleBtn{nullptr};
   AppMenuBar *m_menuBar{nullptr};
   QLabel *m_titleLabel{nullptr};
   QPushButton *m_minBtn{nullptr};

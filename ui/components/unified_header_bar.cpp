@@ -61,10 +61,23 @@ UnifiedHeaderBar::UnifiedHeaderBar(AppMenuBar *menuBar, QWidget *parent)
   m_paletteBtn->setIconSize(QSize(14, 14));
   m_paletteBtn->setFixedSize(28, 28);
   m_paletteBtn->setFlat(true);
+  m_paletteBtn->setCursor(Qt::PointingHandCursor);
   m_paletteBtn->setToolTip(tr("Command Palette (Ctrl+K)"));
   connect(m_paletteBtn, &QPushButton::clicked, this,
           &UnifiedHeaderBar::commandPaletteRequested);
   layout->addWidget(m_paletteBtn, 0, Qt::AlignVCenter);
+
+  // Nút Chuyển đổi Theme (Dark / Light)
+  m_themeToggleBtn = new QPushButton(this);
+  m_themeToggleBtn->setObjectName(QStringLiteral("HeaderThemeToggleBtn"));
+  m_themeToggleBtn->setIconSize(QSize(15, 15));
+  m_themeToggleBtn->setFixedSize(28, 28);
+  m_themeToggleBtn->setFlat(true);
+  m_themeToggleBtn->setCursor(Qt::PointingHandCursor);
+  m_themeToggleBtn->setShortcut(QKeySequence(QStringLiteral("Ctrl+T")));
+  connect(m_themeToggleBtn, &QPushButton::clicked, this,
+          &UnifiedHeaderBar::themeToggleRequested);
+  layout->addWidget(m_themeToggleBtn, 0, Qt::AlignVCenter);
 
   // 3. Nhãn tiêu đề căn giữa toàn bộ cửa sổ (Center Title Label Overlay)
   m_titleLabel = new QLabel(QStringLiteral("Secure Vault Manager"), this);
@@ -135,7 +148,10 @@ void UnifiedHeaderBar::repositionTitleOverlay() {
                                 : m_logoLabel->geometry().right()) +
                      12;
   int rightOccupied =
-      (m_minBtn ? (width() - m_minBtn->geometry().left()) : 46 * 3) + 12;
+      (m_paletteBtn
+           ? (width() - m_paletteBtn->geometry().left())
+           : (m_minBtn ? (width() - m_minBtn->geometry().left()) : 46 * 3)) +
+      12;
   int sideMargin = qMax(leftOccupied, rightOccupied);
 
   int availWidth = width() - (sideMargin * 2);
@@ -196,6 +212,18 @@ void UnifiedHeaderBar::updateThemeIcons(bool darkMode) {
     m_paletteBtn->setIcon(
         QIcon(darkMode ? QStringLiteral(":/icons/search_dark.svg")
                        : QStringLiteral(":/icons/search_light.svg")));
+  }
+
+  if (m_themeToggleBtn) {
+    if (darkMode) {
+      m_themeToggleBtn->setIcon(
+          QIcon(QStringLiteral(":/icons/theme_toggle_dark.svg")));
+      m_themeToggleBtn->setToolTip(tr("Switch to Light theme (Ctrl+T)"));
+    } else {
+      m_themeToggleBtn->setIcon(
+          QIcon(QStringLiteral(":/icons/theme_toggle_light.svg")));
+      m_themeToggleBtn->setToolTip(tr("Switch to Dark theme (Ctrl+T)"));
+    }
   }
 }
 

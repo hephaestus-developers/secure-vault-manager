@@ -7,6 +7,7 @@
 
 #include "detail_header_widget.h"
 #include "app/theme_manager.h"
+#include "components/combobox_popup_helper.h"
 
 #include <QHBoxLayout>
 #include <QIcon>
@@ -22,49 +23,123 @@ DetailHeaderWidget::DetailHeaderWidget(QWidget *parent) : QWidget(parent) {
 }
 
 void DetailHeaderWidget::setupUI() {
-  auto *layout = new QHBoxLayout(this);
-  layout->setContentsMargins(18, 16, 18, 16);
-  layout->setSpacing(14);
+  auto *rootLayout = new QHBoxLayout(this);
+  rootLayout->setContentsMargins(18, 14, 18, 14);
+  rootLayout->setSpacing(14);
+  rootLayout->setAlignment(Qt::AlignVCenter);
 
   // 1. Icon lớn (48x48)
   m_iconLabel = new QLabel(this);
   m_iconLabel->setObjectName(QStringLiteral("DetailHeaderIcon"));
   m_iconLabel->setFixedSize(48, 48);
   m_iconLabel->setAlignment(Qt::AlignCenter);
-  layout->addWidget(m_iconLabel);
+  rootLayout->addWidget(m_iconLabel, 0, Qt::AlignVCenter);
 
-  // 2. Khu vực Tiêu đề + Category badge
-  auto *metaLayout = new QVBoxLayout();
-  metaLayout->setSpacing(4);
+  // 2. Khu vực nội dung trung tâm (Hàng tiêu đề + Hàng phân loại/ngày cập nhật)
+  auto *contentLayout = new QVBoxLayout();
+  contentLayout->setContentsMargins(0, 0, 0, 0);
+  contentLayout->setSpacing(8);
+  contentLayout->setAlignment(Qt::AlignVCenter);
 
-  m_titleLabel = new QLabel(tr("Untitled Item"), this);
+  // --- Hàng 1: Tiêu đề (Label / Input) + Các nút thao tác (Action Buttons) ---
+  auto *titleRowLayout = new QHBoxLayout();
+  titleRowLayout->setContentsMargins(0, 0, 0, 0);
+  titleRowLayout->setSpacing(10);
+  titleRowLayout->setAlignment(Qt::AlignVCenter);
+
+  m_titleLabel = new components::ElidedLabel(tr("Untitled Item"), this);
   m_titleLabel->setObjectName(QStringLiteral("DetailHeaderTitle"));
   QFont titleFont = m_titleLabel->font();
   titleFont.setPointSize(16);
   titleFont.setBold(true);
   m_titleLabel->setFont(titleFont);
-  metaLayout->addWidget(m_titleLabel);
+  titleRowLayout->addWidget(m_titleLabel, 1);
 
   m_titleInput = new QLineEdit(this);
   m_titleInput->setObjectName(QStringLiteral("DetailHeaderTitleInput"));
   m_titleInput->setFont(titleFont);
+  m_titleInput->setFixedHeight(34);
+  m_titleInput->setMinimumWidth(80);
   m_titleInput->setPlaceholderText(tr("Item Title..."));
   m_titleInput->hide();
   connect(m_titleInput, &QLineEdit::returnPressed, this,
           &DetailHeaderWidget::saveRequested);
-  metaLayout->addWidget(m_titleInput);
+  titleRowLayout->addWidget(m_titleInput, 1);
 
-  auto *subMetaLayout = new QHBoxLayout();
-  subMetaLayout->setSpacing(8);
+  // Cụm nút hành động bên phải Hàng 1
+  auto *actionLayout = new QHBoxLayout();
+  actionLayout->setContentsMargins(0, 0, 0, 0);
+  actionLayout->setSpacing(8);
+  actionLayout->setAlignment(Qt::AlignVCenter);
+
+  m_favBtn = new QPushButton(this);
+  m_favBtn->setObjectName(QStringLiteral("DetailHeaderFavBtn"));
+  m_favBtn->setIcon(QIcon(QStringLiteral(":/icons/star.svg")));
+  m_favBtn->setIconSize(QSize(18, 18));
+  m_favBtn->setFixedSize(34, 34);
+  m_favBtn->setToolTip(tr("Mark as favorite"));
+  m_favBtn->setCursor(Qt::PointingHandCursor);
+  connect(m_favBtn, &QPushButton::clicked, this, [this]() {
+    m_isFavorite = !m_isFavorite;
+    m_favBtn->setIcon(QIcon(m_isFavorite
+                                ? QStringLiteral(":/icons/star_filled.svg")
+                                : QStringLiteral(":/icons/star.svg")));
+    emit favoriteToggled(m_isFavorite);
+  });
+  actionLayout->addWidget(m_favBtn);
+
+  m_editBtn = new QPushButton(this);
+  m_editBtn->setObjectName(QStringLiteral("DetailHeaderEditBtn"));
+  m_editBtn->setIcon(QIcon(QStringLiteral(":/icons/edit.svg")));
+  m_editBtn->setText(tr("Edit"));
+  m_editBtn->setFixedHeight(34);
+  m_editBtn->setToolTip(tr("Edit item (Ctrl+E)"));
+  m_editBtn->setCursor(Qt::PointingHandCursor);
+  connect(m_editBtn, &QPushButton::clicked, this,
+          &DetailHeaderWidget::editRequested);
+  actionLayout->addWidget(m_editBtn);
+
+  m_cancelBtn = new QPushButton(this);
+  m_cancelBtn->setObjectName(QStringLiteral("DetailHeaderCancelBtn"));
+  m_cancelBtn->setText(tr("Cancel"));
+  m_cancelBtn->setFixedHeight(34);
+  m_cancelBtn->setToolTip(tr("Discard changes (Esc)"));
+  m_cancelBtn->setCursor(Qt::PointingHandCursor);
+  m_cancelBtn->hide();
+  connect(m_cancelBtn, &QPushButton::clicked, this,
+          &DetailHeaderWidget::cancelRequested);
+  actionLayout->addWidget(m_cancelBtn);
+
+  m_saveBtn = new QPushButton(this);
+  m_saveBtn->setObjectName(QStringLiteral("DetailHeaderSaveBtn"));
+  m_saveBtn->setText(tr("Save"));
+  m_saveBtn->setFixedHeight(34);
+  m_saveBtn->setToolTip(tr("Save changes (Ctrl+S)"));
+  m_saveBtn->setCursor(Qt::PointingHandCursor);
+  m_saveBtn->hide();
+  connect(m_saveBtn, &QPushButton::clicked, this,
+          &DetailHeaderWidget::saveRequested);
+  actionLayout->addWidget(m_saveBtn);
+
+  titleRowLayout->addLayout(actionLayout, 0);
+  contentLayout->addLayout(titleRowLayout);
+
+  // --- Hàng 2: Phân loại danh mục (Badge / ComboBox) + Thời gian cập nhật ---
+  auto *metaRowLayout = new QHBoxLayout();
+  metaRowLayout->setContentsMargins(0, 0, 0, 0);
+  metaRowLayout->setSpacing(10);
+  metaRowLayout->setAlignment(Qt::AlignVCenter);
 
   m_categoryBadge = new QLabel(this);
   m_categoryBadge->setObjectName(QStringLiteral("DetailCategoryBadge"));
-  subMetaLayout->addWidget(m_categoryBadge);
+  metaRowLayout->addWidget(m_categoryBadge);
 
   m_categoryCombo = new QComboBox(this);
   m_categoryCombo->setObjectName(QStringLiteral("DetailCategoryCombo"));
-  m_categoryCombo->setFixedHeight(26);
-  m_categoryCombo->setView(new QListView(m_categoryCombo));
+  m_categoryCombo->setFixedHeight(28);
+  m_categoryCombo->setMinimumWidth(150);
+  m_categoryCombo->setMaxVisibleItems(9);
+  svm::ui::setupFramelessComboBoxPopup(m_categoryCombo, 190);
   m_categoryCombo->setCursor(Qt::PointingHandCursor);
 
   const std::array<models::ItemCategory, 9> allCategories = {
@@ -82,62 +157,16 @@ void DetailHeaderWidget::setupUI() {
   m_categoryCombo->hide();
   connect(m_categoryCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
           this, &DetailHeaderWidget::onCategoryIndexChanged);
-  subMetaLayout->addWidget(m_categoryCombo);
+  metaRowLayout->addWidget(m_categoryCombo);
 
   m_updatedLabel = new QLabel(this);
   m_updatedLabel->setObjectName(QStringLiteral("DetailUpdatedLabel"));
-  subMetaLayout->addWidget(m_updatedLabel);
+  metaRowLayout->addWidget(m_updatedLabel);
 
-  subMetaLayout->addStretch(1);
-  metaLayout->addLayout(subMetaLayout);
+  metaRowLayout->addStretch(1);
+  contentLayout->addLayout(metaRowLayout);
 
-  layout->addLayout(metaLayout, 1);
-
-  // 3. Nút Favorite Star + Action Buttons (Edit / Cancel / Save)
-  m_favBtn = new QPushButton(this);
-  m_favBtn->setObjectName(QStringLiteral("DetailHeaderFavBtn"));
-  m_favBtn->setIcon(QIcon(QStringLiteral(":/icons/star.svg")));
-  m_favBtn->setIconSize(QSize(18, 18));
-  m_favBtn->setToolTip(tr("Mark as favorite"));
-  m_favBtn->setCursor(Qt::PointingHandCursor);
-  connect(m_favBtn, &QPushButton::clicked, this, [this]() {
-    m_isFavorite = !m_isFavorite;
-    m_favBtn->setIcon(QIcon(m_isFavorite
-                                ? QStringLiteral(":/icons/star_filled.svg")
-                                : QStringLiteral(":/icons/star.svg")));
-    emit favoriteToggled(m_isFavorite);
-  });
-  layout->addWidget(m_favBtn);
-
-  m_editBtn = new QPushButton(this);
-  m_editBtn->setObjectName(QStringLiteral("DetailHeaderEditBtn"));
-  m_editBtn->setIcon(QIcon(QStringLiteral(":/icons/edit.svg")));
-  m_editBtn->setText(tr("Edit"));
-  m_editBtn->setToolTip(tr("Edit item (Ctrl+E)"));
-  m_editBtn->setCursor(Qt::PointingHandCursor);
-  connect(m_editBtn, &QPushButton::clicked, this,
-          &DetailHeaderWidget::editRequested);
-  layout->addWidget(m_editBtn);
-
-  m_cancelBtn = new QPushButton(this);
-  m_cancelBtn->setObjectName(QStringLiteral("DetailHeaderCancelBtn"));
-  m_cancelBtn->setText(tr("Cancel"));
-  m_cancelBtn->setToolTip(tr("Discard changes (Esc)"));
-  m_cancelBtn->setCursor(Qt::PointingHandCursor);
-  m_cancelBtn->hide();
-  connect(m_cancelBtn, &QPushButton::clicked, this,
-          &DetailHeaderWidget::cancelRequested);
-  layout->addWidget(m_cancelBtn);
-
-  m_saveBtn = new QPushButton(this);
-  m_saveBtn->setObjectName(QStringLiteral("DetailHeaderSaveBtn"));
-  m_saveBtn->setText(tr("Save"));
-  m_saveBtn->setToolTip(tr("Save changes (Ctrl+S)"));
-  m_saveBtn->setCursor(Qt::PointingHandCursor);
-  m_saveBtn->hide();
-  connect(m_saveBtn, &QPushButton::clicked, this,
-          &DetailHeaderWidget::saveRequested);
-  layout->addWidget(m_saveBtn);
+  rootLayout->addLayout(contentLayout, 1);
 
   connect(&app::ThemeManager::instance(), &app::ThemeManager::themeChanged,
           this, [this]() { updateThemeIcons(); });
@@ -232,7 +261,7 @@ QString DetailHeaderWidget::title() const {
   if (m_isEditMode) {
     return m_titleInput->text().trimmed();
   }
-  return m_titleLabel->text();
+  return m_titleLabel->fullText();
 }
 
 void DetailHeaderWidget::focusTitleInput() {
@@ -251,6 +280,7 @@ void DetailHeaderWidget::setEditMode(bool edit) {
 
     m_categoryBadge->hide();
     m_categoryCombo->show();
+    m_updatedLabel->hide();
 
     m_favBtn->hide();
     m_editBtn->hide();
@@ -265,6 +295,7 @@ void DetailHeaderWidget::setEditMode(bool edit) {
 
     m_categoryCombo->hide();
     m_categoryBadge->show();
+    m_updatedLabel->show();
 
     m_cancelBtn->hide();
     m_saveBtn->hide();

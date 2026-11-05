@@ -16,6 +16,8 @@
         <file>icons/win_close_white.svg</file>
         <file>icons/menu_check_dark.svg</file>
         <file>icons/menu_check_light.svg</file>
+        <file>icons/checkbox_check_dark.svg</file>
+        <file>icons/checkbox_check_light.svg</file>
 
         <!-- Brand & Security -->
         <file>icons/app_logo.svg</file>
@@ -41,6 +43,9 @@
         <file>icons/search.svg</file>
         <file>icons/search_dark.svg</file>
         <file>icons/search_light.svg</file>
+        <file>icons/theme_toggle.svg</file>
+        <file>icons/theme_toggle_dark.svg</file>
+        <file>icons/theme_toggle_light.svg</file>
         <file>icons/plus.svg</file>
         <file>icons/plus_dark.svg</file>
         <file>icons/plus_light.svg</file>
@@ -120,6 +125,12 @@
         <file>icons/chevron_down.svg</file>
         <file>icons/chevron_down_dark.svg</file>
         <file>icons/chevron_down_light.svg</file>
+        <file>icons/chevron_left.svg</file>
+        <file>icons/chevron_left_dark.svg</file>
+        <file>icons/chevron_left_light.svg</file>
+        <file>icons/chevron_right.svg</file>
+        <file>icons/chevron_right_dark.svg</file>
+        <file>icons/chevron_right_light.svg</file>
         <file>icons/watchtower_weak.svg</file>
         <file>icons/watchtower_weak_dark.svg</file>
         <file>icons/watchtower_weak_light.svg</file>
@@ -132,6 +143,14 @@
         <file>icons/trash.svg</file>
         <file>icons/trash_dark.svg</file>
         <file>icons/trash_light.svg</file>
+
+        <!-- Sort Icons -->
+        <file>icons/sort_time_dark.svg</file>
+        <file>icons/sort_time_light.svg</file>
+        <file>icons/sort_alpha_asc_dark.svg</file>
+        <file>icons/sort_alpha_asc_light.svg</file>
+        <file>icons/sort_alpha_desc_dark.svg</file>
+        <file>icons/sort_alpha_desc_light.svg</file>
 
         <!-- Stylesheets -->
         <file>styles/dark.qss</file>

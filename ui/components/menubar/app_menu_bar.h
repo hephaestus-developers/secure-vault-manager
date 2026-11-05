@@ -34,9 +34,6 @@ private:
   QAction *m_lockAct{nullptr};
   QAction *m_exitAct{nullptr};
 
-  QMenu *m_viewMenu{nullptr};
-  QAction *m_themeAct{nullptr};
-
   QMenu *m_helpMenu{nullptr};
   QAction *m_aboutAct{nullptr};
 };

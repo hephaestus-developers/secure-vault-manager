@@ -81,6 +81,7 @@ private:
 
   // Phím tắt toàn cục
   QShortcut *m_toggleSidebarShortcut{nullptr};
+  QShortcut *m_toggleThemeShortcut{nullptr};
   QShortcut *m_commandPaletteShortcut{nullptr};
   QShortcut *m_searchShortcut{nullptr};
   QShortcut *m_newItemShortcut{nullptr};

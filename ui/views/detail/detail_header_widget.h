@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include "components/elided_label.h"
 #include "models/vault_item.h"
 
 #include <QComboBox>
@@ -52,7 +53,7 @@ private:
   models::ItemCategory m_category{models::ItemCategory::Login};
 
   QLabel *m_iconLabel{nullptr};
-  QLabel *m_titleLabel{nullptr};
+  components::ElidedLabel *m_titleLabel{nullptr};
   QLineEdit *m_titleInput{nullptr};
   QLabel *m_categoryBadge{nullptr};
   QComboBox *m_categoryCombo{nullptr};

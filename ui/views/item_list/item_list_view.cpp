@@ -7,6 +7,7 @@
 
 #include "item_list_view.h"
 #include "app/theme_manager.h"
+#include "components/combobox_popup_helper.h"
 
 #include <QAction>
 #include <QHBoxLayout>
@@ -19,7 +20,6 @@ ItemListView::ItemListView(QWidget *parent) : QWidget(parent) {
   setObjectName(QStringLiteral("ItemListView"));
   setAttribute(Qt::WA_StyledBackground, true);
   setMinimumWidth(280);
-  setMaximumWidth(460);
 
   setupUI();
 }
@@ -73,8 +73,24 @@ void ItemListView::setupUI() {
 
   m_sortCombo = new QComboBox(toolContainer);
   m_sortCombo->setObjectName(QStringLiteral("ItemListSortCombo"));
-  m_sortCombo->setFixedHeight(26);
-  m_sortCombo->setView(new QListView(m_sortCombo));
+  m_sortCombo->setFixedHeight(28);
+  m_sortCombo->setIconSize(QSize(16, 16));
+  m_sortCombo->setCursor(Qt::PointingHandCursor);
+  svm::ui::setupFramelessComboBoxPopup(m_sortCombo, 175);
+
+  auto updateSortIcons = [this]() {
+    const bool isLight =
+        (app::ThemeManager::instance().currentMode() == app::ThemeMode::Light);
+    const QString suffix =
+        isLight ? QStringLiteral("_light.svg") : QStringLiteral("_dark.svg");
+    m_sortCombo->setItemIcon(
+        0, QIcon(QStringLiteral(":/icons/sort_time") + suffix));
+    m_sortCombo->setItemIcon(
+        1, QIcon(QStringLiteral(":/icons/sort_alpha_asc") + suffix));
+    m_sortCombo->setItemIcon(
+        2, QIcon(QStringLiteral(":/icons/sort_alpha_desc") + suffix));
+  };
+
   m_sortCombo->addItem(
       tr("Recently Updated"),
       static_cast<int>(ItemSortFilterProxy::SortOption::UpdatedDesc));
@@ -84,6 +100,10 @@ void ItemListView::setupUI() {
   m_sortCombo->addItem(
       tr("Title (Z-A)"),
       static_cast<int>(ItemSortFilterProxy::SortOption::TitleDesc));
+  updateSortIcons();
+
+  connect(&app::ThemeManager::instance(), &app::ThemeManager::themeChanged,
+          this, updateSortIcons);
   connect(m_sortCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
           this, &ItemListView::onSortChanged);
   toolLayout->addWidget(m_sortCombo);

@@ -22,7 +22,6 @@ SidebarView::SidebarView(QWidget *parent) : QWidget(parent) {
   setObjectName(QStringLiteral("SidebarView"));
   setAttribute(Qt::WA_StyledBackground, true);
   setMinimumWidth(200);
-  setMaximumWidth(320);
 
   setupUI();
   populateNavItems();
@@ -466,7 +465,7 @@ void SidebarView::setCollapsed(bool collapsed) {
     m_stackedWidget->setCurrentIndex(1);
   } else {
     setMinimumWidth(200);
-    setMaximumWidth(320);
+    setMaximumWidth(QWIDGETSIZE_MAX);
     m_collapseBtn->setIcon(
         QIcon(QStringLiteral(":/icons/sidebar_collapse.svg")));
     m_stackedWidget->setCurrentIndex(0);
