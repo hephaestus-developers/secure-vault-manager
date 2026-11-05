@@ -1,6 +1,7 @@
 # Build directories
 /build/
 **/target/
+/compile_commands.json
 
 # Compiled libraries and binaries
 *.so
@@ -29,6 +30,7 @@ Thumbs.db
 
 # IDE and Editor
 .idea/
+CMakeUserPresets.json
 *.swp
 *.swo
 *~

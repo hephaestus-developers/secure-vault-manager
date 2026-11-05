@@ -2,21 +2,28 @@
   "version": 3,
   "configurePresets": [
     {
-      "name": "debug",
-      "displayName": "Debug (Ninja)",
-      "description": "Debug build using Ninja generator",
+      "name": "base",
+      "hidden": true,
       "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/debug",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
       }
     },
     {
+      "name": "debug",
+      "displayName": "Debug (Native Toolchain)",
+      "description": "Debug build using platform native compiler (GCC on Linux, Apple Clang on macOS, MSVC on Windows)",
+      "inherits": "base",
+      "binaryDir": "${sourceDir}/build/debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
       "name": "release",
-      "displayName": "Release (Ninja)",
-      "description": "Optimized release build using Ninja generator",
-      "generator": "Ninja",
+      "displayName": "Release (Native Toolchain)",
+      "description": "Optimized release build using platform native compiler",
+      "inherits": "base",
       "binaryDir": "${sourceDir}/build/release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release"
@@ -25,8 +32,8 @@
     {
       "name": "ci",
       "displayName": "CI Build",
-      "description": "Strict build configuration for Continuous Integration",
-      "generator": "Ninja",
+      "description": "Build configuration for Continuous Integration",
+      "inherits": "base",
       "binaryDir": "${sourceDir}/build/ci",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug"
@@ -36,14 +43,17 @@
   "buildPresets": [
     {
       "name": "debug",
+      "displayName": "Build Debug",
       "configurePreset": "debug"
     },
     {
       "name": "release",
+      "displayName": "Build Release",
       "configurePreset": "release"
     },
     {
       "name": "ci",
+      "displayName": "Build CI",
       "configurePreset": "ci"
     }
   ]

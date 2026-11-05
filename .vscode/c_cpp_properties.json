@@ -1,0 +1,11 @@
+{
+  "configurations": [
+    {
+      "name": "Auto (Compile Commands)",
+      "compileCommands": "${workspaceFolder}/build/debug/compile_commands.json",
+      "cppStandard": "c++17",
+      "cStandard": "c17"
+    }
+  ],
+  "version": 4
+}

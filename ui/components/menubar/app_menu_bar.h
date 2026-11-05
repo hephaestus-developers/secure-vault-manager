@@ -10,6 +10,7 @@
 #include <QAction>
 #include <QMenu>
 #include <QMenuBar>
+#include <QWidget>
 
 namespace svm::components {
 

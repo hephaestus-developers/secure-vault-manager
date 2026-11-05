@@ -1,0 +1,53 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Launch SVM Desktop UI",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/debug/ui/svm_ui",
+      "args": [],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "environment": [],
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "linux": {
+        "MIMode": "gdb",
+        "program": "${workspaceFolder}/build/debug/ui/svm_ui"
+      },
+      "osx": {
+        "MIMode": "lldb",
+        "program": "${workspaceFolder}/build/debug/ui/svm_ui"
+      },
+      "windows": {
+        "MIMode": "gdb",
+        "program": "${workspaceFolder}/build/debug/ui/svm_ui.exe"
+      }
+    },
+    {
+      "name": "Launch SVM CLI",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/core/target/debug/svm-cli",
+      "args": [],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "environment": [],
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "linux": {
+        "MIMode": "gdb",
+        "program": "${workspaceFolder}/core/target/debug/svm-cli"
+      },
+      "osx": {
+        "MIMode": "lldb",
+        "program": "${workspaceFolder}/core/target/debug/svm-cli"
+      },
+      "windows": {
+        "MIMode": "gdb",
+        "program": "${workspaceFolder}/core/target/debug/svm-cli.exe"
+      }
+    }
+  ]
+}
