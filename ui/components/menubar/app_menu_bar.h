@@ -21,7 +21,6 @@ public:
   ~AppMenuBar() override = default;
 
 signals:
-  void quickLauncherRequested();
   void lockVaultRequested();
   void exitRequested();
   void toggleThemeRequested();
@@ -31,7 +30,6 @@ private:
   void setupMenus();
 
   QMenu *m_vaultMenu{nullptr};
-  QAction *m_quickLauncherAct{nullptr};
   QAction *m_lockAct{nullptr};
   QAction *m_exitAct{nullptr};
 

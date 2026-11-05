@@ -1,13 +1,12 @@
 /**
  * @file ui/app/tray_manager.cpp
- * @brief Hiện thực chi tiết TrayManager điều phối System Tray và Tray Launcher.
+ * @brief Hiện thực chi tiết TrayManager điều phối System Tray.
  * @author Hai Pham Ngoc <ngochai285nd@gmail.com>
  * @copyright (c) 2026 Hephaestus Developers. All rights reserved.
  */
 
 #include "tray_manager.h"
 #include "app/theme_manager.h"
-#include "components/tray_launcher/tray_launcher.h"
 #include "main_window.h"
 
 #include <QApplication>
@@ -20,32 +19,6 @@ TrayManager::TrayManager(MainWindow *mainWindow, QObject *parent)
     : QObject(parent), m_mainWindow(mainWindow) {}
 
 bool TrayManager::initialize() {
-  m_trayLauncher = new components::TrayLauncher(nullptr);
-
-  // Kết nối tín hiệu từ TrayLauncher
-  connect(m_trayLauncher, &components::TrayLauncher::openMainWindowRequested,
-          this, [this]() {
-            if (m_mainWindow) {
-              m_mainWindow->showNormal();
-              m_mainWindow->raise();
-              m_mainWindow->activateWindow();
-            }
-          });
-
-  connect(m_trayLauncher, &components::TrayLauncher::toggleVaultLockRequested,
-          this, &TrayManager::toggleVaultLock);
-
-  connect(m_trayLauncher, &components::TrayLauncher::toggleThemeRequested, this,
-          [this]() {
-            auto &tm = ThemeManager::instance();
-            auto next = (tm.currentMode() == ThemeMode::Dark) ? ThemeMode::Light
-                                                              : ThemeMode::Dark;
-            tm.applyTheme(next);
-          });
-
-  connect(m_trayLauncher, &components::TrayLauncher::quitRequested, this,
-          &QApplication::quit);
-
   // Kết nối sự kiện thay đổi theme
   connect(&ThemeManager::instance(), &ThemeManager::themeChanged, this,
           &TrayManager::onThemeChanged);
@@ -85,12 +58,6 @@ void TrayManager::setupContextMenu() {
   QFont font = m_openAction->font();
   font.setBold(true);
   m_openAction->setFont(font);
-
-  m_launcherAction = m_trayMenu->addAction(
-      QIcon(QStringLiteral(":/icons/search.svg")), tr("Quick Launcher..."),
-      this, &TrayManager::showTrayLauncher);
-  m_launcherAction->setShortcut(
-      QKeySequence(QStringLiteral("Ctrl+Shift+Space")));
 
   m_trayMenu->addSeparator();
 
@@ -140,8 +107,6 @@ void TrayManager::updateTrayTooltipAndIcon() {
 void TrayManager::onTrayActivated(QSystemTrayIcon::ActivationReason reason) {
   switch (reason) {
   case QSystemTrayIcon::Trigger:
-    showTrayLauncher();
-    break;
   case QSystemTrayIcon::DoubleClick:
     toggleMainWindow();
     break;
@@ -150,21 +115,6 @@ void TrayManager::onTrayActivated(QSystemTrayIcon::ActivationReason reason) {
     break;
   default:
     break;
-  }
-}
-
-void TrayManager::showTrayLauncher() {
-  if (!m_trayLauncher) {
-    return;
-  }
-  if (m_trayLauncher->isVisible()) {
-    m_trayLauncher->hide();
-  } else {
-    QRect trayGeom;
-    if (m_trayIcon) {
-      trayGeom = m_trayIcon->geometry();
-    }
-    m_trayLauncher->showNearTray(trayGeom);
   }
 }
 
@@ -193,9 +143,6 @@ void TrayManager::toggleVaultLock() {
 void TrayManager::setVaultLocked(bool locked) {
   m_isVaultLocked = locked;
   updateTrayTooltipAndIcon();
-  if (m_trayLauncher) {
-    m_trayLauncher->setVaultLocked(locked);
-  }
 }
 
 void TrayManager::showNotification(const QString &title, const QString &message,

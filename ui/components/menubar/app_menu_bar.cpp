@@ -19,12 +19,6 @@ void AppMenuBar::setupMenus() {
   // 1. Menu Kho Dữ Liệu (Vault)
   m_vaultMenu = addMenu(tr("&Vault"));
 
-  m_quickLauncherAct = m_vaultMenu->addAction(tr("&Quick Launcher..."));
-  m_quickLauncherAct->setShortcut(
-      QKeySequence(QStringLiteral("Ctrl+Shift+Space")));
-  connect(m_quickLauncherAct, &QAction::triggered, this,
-          &AppMenuBar::quickLauncherRequested);
-
   m_lockAct = m_vaultMenu->addAction(tr("&Lock Vault"));
   m_lockAct->setShortcut(QKeySequence(QStringLiteral("Ctrl+L")));
   connect(m_lockAct, &QAction::triggered, this,

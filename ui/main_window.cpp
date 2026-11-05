@@ -119,12 +119,6 @@ void MainWindow::setupUI() {
             }
           });
 
-  connect(m_menuBar, &components::AppMenuBar::quickLauncherRequested, this,
-          [this]() {
-            if (m_trayManager) {
-              m_trayManager->showTrayLauncher();
-            }
-          });
   connect(m_menuBar, &components::AppMenuBar::lockVaultRequested, this,
           [this]() {
             if (m_trayManager) {

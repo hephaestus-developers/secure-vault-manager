@@ -17,7 +17,6 @@ set(UI_SOURCES
     app/theme_manager.cpp
     app/tray_manager.cpp
     components/menubar/app_menu_bar.cpp
-    components/tray_launcher/tray_launcher.cpp
     components/unified_header_bar.cpp
     components/window_resize_handler.cpp
     resources/resources.qrc
@@ -29,7 +28,6 @@ set(UI_HEADERS
     app/theme_manager.h
     app/tray_manager.h
     components/menubar/app_menu_bar.h
-    components/tray_launcher/tray_launcher.h
     components/unified_header_bar.h
     components/window_resize_handler.h
 )

@@ -13,7 +13,6 @@
 
 #include "app/theme_manager.h"
 #include "app/tray_manager.h"
-#include "components/tray_launcher/tray_launcher.h"
 #include "core/core_bridge.h"
 #include "main_window.h"
 
@@ -25,7 +24,7 @@ int main(int argc, char *argv[]) {
   QApplication app(argc, argv);
   app.setApplicationName(QStringLiteral("Secure Vault Manager"));
   app.setApplicationVersion(QStringLiteral("0.1.0"));
-  app.setOrganizationName(QStringLiteral("Hephaestus Studio"));
+  app.setOrganizationName(QStringLiteral("Hephaestus Developers"));
   app.setOrganizationDomain(QStringLiteral("hephaestus.io"));
 
   // Đảm bảo ứng dụng tiếp tục chạy ngầm trong System Tray khi đóng cửa sổ chính
@@ -48,7 +47,6 @@ int main(int argc, char *argv[]) {
   mainWindow.setTrayManager(&trayManager);
 
   bool startMinimized = false;
-  bool startLauncher = false;
 
   for (int i = 1; i < argc; ++i) {
     const QString arg = QString::fromLatin1(argv[i]);
@@ -61,14 +59,10 @@ int main(int argc, char *argv[]) {
     } else if (arg == QStringLiteral("--minimized") ||
                arg == QStringLiteral("--tray")) {
       startMinimized = true;
-    } else if (arg == QStringLiteral("--launcher")) {
-      startLauncher = true;
     }
   }
 
-  if (startLauncher) {
-    trayManager.showTrayLauncher();
-  } else if (!startMinimized) {
+  if (!startMinimized) {
     mainWindow.show();
   }
 
@@ -76,18 +70,12 @@ int main(int argc, char *argv[]) {
     if (QString::fromLatin1(argv[i]) == QStringLiteral("--screenshot") &&
         i + 1 < argc) {
       QString path = QString::fromLocal8Bit(argv[++i]);
-      QTimer::singleShot(
-          400, [&mainWindow, &trayManager, startLauncher, path, &app]() {
-            QPixmap pix;
-            if (startLauncher && trayManager.launcherWidget()) {
-              pix = trayManager.launcherWidget()->grab();
-            } else {
-              pix = mainWindow.grab();
-            }
-            pix.save(path);
-            qInfo() << "[Main] Screenshot saved to:" << path;
-            app.quit();
-          });
+      QTimer::singleShot(400, [&mainWindow, path, &app]() {
+        QPixmap pix = mainWindow.grab();
+        pix.save(path);
+        qInfo() << "[Main] Screenshot saved to:" << path;
+        app.quit();
+      });
     }
   }
 
