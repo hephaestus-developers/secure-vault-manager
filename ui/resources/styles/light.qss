@@ -311,3 +311,571 @@ QStatusBar::item {
     padding: 2px 4px;
     background: transparent;
 }
+
+/* ==============================================================================
+ * Cấu Trúc 3 Cột (MainThreeColumnSplitter)
+ * ============================================================================== */
+#MainThreeColumnSplitter {
+    background-color: #eff1f5;
+}
+
+#MainThreeColumnSplitter::handle {
+    background-color: #ccd0da;
+    width: 1px;
+}
+
+#MainThreeColumnSplitter::handle:hover {
+    background-color: #1e66f5;
+}
+
+/* Header Action Buttons */
+#HeaderSidebarToggleBtn, #HeaderCommandPaletteBtn {
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    padding: 4px;
+}
+
+#HeaderSidebarToggleBtn:hover, #HeaderCommandPaletteBtn:hover {
+    background-color: #ccd0da;
+}
+
+/* 1. Cột 1: SidebarView */
+#SidebarView,
+#SidebarExpandedContainer,
+#SidebarCollapsedContainer {
+    background-color: #e6e9ef;
+    background: #e6e9ef;
+    border-right: 1px solid #ccd0da;
+}
+
+#SidebarToggleBtn {
+    background-color: #ffffff;
+    border: 1px solid #ccd0da;
+    border-radius: 6px;
+    padding: 0;
+}
+
+#SidebarToggleBtn:hover {
+    background-color: #ccd0da;
+    border-color: #1e66f5;
+}
+
+#SidebarCompactVaultBtn {
+    background-color: #ffffff;
+    border: 1px solid #ccd0da;
+    border-radius: 6px;
+    padding: 4px;
+}
+
+#SidebarCompactVaultBtn:hover {
+    background-color: #dce0e8;
+    border-color: #1e66f5;
+}
+
+#SidebarCompactList {
+    background: transparent;
+    border: none;
+    outline: none;
+}
+
+#SidebarCompactList::item {
+    border-radius: 6px;
+    padding: 6px;
+    margin: 2px 0;
+}
+
+#SidebarCompactList::item:hover {
+    background-color: #dce0e8;
+}
+
+#SidebarCompactList::item:selected {
+    background-color: #ccd0da;
+}
+
+#SidebarCompactLockBtn {
+    background-color: #ffffff;
+    border: 1px solid #ccd0da;
+    border-radius: 6px;
+    padding: 6px;
+    color: #d20f39;
+}
+
+#SidebarCompactLockBtn:hover {
+    background-color: #dce0e8;
+    border-color: #d20f39;
+}
+
+#SidebarHeaderWidget {
+    background: transparent;
+    border-bottom: 1px solid #ccd0da;
+}
+
+#VaultProfileBtn {
+    background-color: #ffffff;
+    border: 1px solid #ccd0da;
+    border-radius: 6px;
+    padding: 0;
+    min-height: 32px;
+}
+
+#VaultProfileBtn:hover {
+    background-color: #dce0e8;
+    border-color: #1e66f5;
+}
+
+#VaultProfileBtn::menu-indicator {
+    image: none;
+    width: 0;
+}
+
+#VaultTitleLabel {
+    color: #4c4f69;
+    font-weight: 600;
+    font-size: 13px;
+    background: transparent;
+}
+
+#VaultChevronLabel {
+    background: transparent;
+    margin-right: 4px;
+}
+
+#LockBtnText {
+    color: #d20f39;
+    font-weight: 600;
+    font-size: 13px;
+    background: transparent;
+}
+
+#VaultSwitchMenu {
+    background-color: #ffffff;
+    border: 1px solid #ccd0da;
+    border-radius: 8px;
+    padding: 4px;
+    color: #4c4f69;
+}
+
+#SidebarNavList {
+    background: transparent;
+    border: none;
+    outline: none;
+    padding: 4px 0;
+}
+
+#SidebarFooterWidget {
+    background: transparent;
+    border-top: 1px solid #ccd0da;
+}
+
+#SidebarLockBtn {
+    background-color: transparent;
+    border: 1px solid rgba(210, 15, 57, 0.25);
+    border-radius: 6px;
+    padding: 0;
+    min-height: 32px;
+    color: #d20f39;
+    font-weight: 600;
+    text-align: left;
+}
+
+#SidebarLockBtn:hover {
+    background-color: rgba(210, 15, 57, 0.12);
+    border-color: #d20f39;
+}
+
+#LockShortcutBadge {
+    background-color: #e6e9ef;
+    border: 1px solid #ccd0da;
+    border-radius: 4px;
+    padding: 1px 6px;
+    color: #7c7f93;
+    font-size: 10px;
+    font-weight: bold;
+}
+
+/* 2. Cột 2: ItemListView */
+#ItemListView {
+    background-color: #eff1f5;
+    background: #eff1f5;
+    border-right: 1px solid #ccd0da;
+}
+
+#ItemListSearchEdit {
+    background-color: #ffffff;
+    border: 1px solid #ccd0da;
+    border-radius: 6px;
+    padding: 0 10px;
+    color: #4c4f69;
+    font-size: 13px;
+    min-height: 28px;
+    max-height: 28px;
+}
+
+#ItemListSearchEdit:focus {
+    border-color: #1e66f5;
+    background-color: #ffffff;
+}
+
+#ItemListCountLabel {
+    color: #6c6f85;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+#ItemListSortCombo {
+    background-color: #ffffff;
+    border: 1px solid #ccd0da;
+    border-radius: 4px;
+    padding: 2px 8px;
+    color: #5c5f77;
+    font-size: 11px;
+}
+
+QComboBox QAbstractItemView {
+    background-color: #ffffff;
+    color: #4c4f69;
+    selection-background-color: #dce0e8;
+    selection-color: #1e66f5;
+    border: 1px solid #ccd0da;
+    border-radius: 6px;
+    padding: 4px;
+    outline: none;
+}
+
+#ItemListNewBtn {
+    background-color: #ffffff;
+    border: 1px solid #ccd0da;
+    border-radius: 6px;
+    padding: 0;
+    min-height: 28px;
+    max-height: 28px;
+    min-width: 28px;
+    max-width: 28px;
+}
+
+#ItemListNewBtn:hover {
+    background-color: #dce0e8;
+    border-color: #1e66f5;
+}
+
+#ItemListNewBtn:pressed {
+    background-color: #bcc0cc;
+    border-color: #1e66f5;
+}
+
+#ItemCardListView {
+    background: transparent;
+    border: none;
+    outline: none;
+}
+
+/* 3. Cột 3: DetailInspectorView */
+#DetailInspectorView,
+#DetailScrollArea,
+#DetailScrollViewport,
+#DetailContentContainer {
+    background-color: #eff1f5;
+    background: #eff1f5;
+    border: none;
+}
+
+#EmptyStateTitle {
+    color: #4c4f69;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+#EmptyStateDesc {
+    color: #7c7f93;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+#DetailHeaderCard {
+    background-color: #ffffff;
+    border: 1px solid #ccd0da;
+    border-radius: 8px;
+}
+
+#DetailHeaderIcon {
+    background-color: #e6e9ef;
+    border-radius: 8px;
+}
+
+#DetailHeaderTitle {
+    color: #4c4f69;
+}
+
+#DetailHeaderTitleInput {
+    background-color: #ffffff;
+    border: 1px solid #1e66f5;
+    border-radius: 6px;
+    padding: 4px 8px;
+    color: #4c4f69;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+#DetailCategoryBadge {
+    background-color: #dce0e8;
+    color: #1e66f5;
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+#DetailCategoryCombo {
+    background-color: #ffffff;
+    border: 1px solid #ccd0da;
+    border-radius: 4px;
+    padding: 2px 6px;
+    color: #1e66f5;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+#DetailCategoryCombo:hover, #DetailCategoryCombo:focus {
+    border-color: #1e66f5;
+}
+
+#DetailCategoryCombo::drop-down {
+    border: none;
+    width: 14px;
+}
+
+#DetailCategoryCombo::down-arrow {
+    image: url(:/icons/chevron_down.svg);
+    width: 10px;
+    height: 10px;
+}
+
+#DetailUpdatedLabel {
+    color: #7c7f93;
+    font-size: 11px;
+}
+
+#DetailHeaderFavBtn, #DetailHeaderEditBtn {
+    background-color: #e6e9ef;
+    border: 1px solid #ccd0da;
+    border-radius: 6px;
+    padding: 6px 12px;
+    color: #4c4f69;
+    font-weight: 500;
+}
+
+#DetailHeaderFavBtn:hover, #DetailHeaderEditBtn:hover {
+    background-color: #dce0e8;
+    border-color: #1e66f5;
+}
+
+#DetailHeaderCancelBtn {
+    background-color: #ffffff;
+    color: #4c4f69;
+    border: 1px solid #ccd0da;
+    border-radius: 6px;
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+#DetailHeaderCancelBtn:hover {
+    background-color: #f2f3f7;
+    border-color: #1e66f5;
+    color: #1e66f5;
+}
+
+#DetailHeaderSaveBtn {
+    background-color: #1e66f5;
+    color: #ffffff;
+    border: 1px solid #1e66f5;
+    border-radius: 6px;
+    padding: 6px 16px;
+    font-size: 13px;
+    font-weight: bold;
+}
+
+#DetailHeaderSaveBtn:hover {
+    background-color: #04a5e5;
+    border-color: #04a5e5;
+}
+
+#TotpFieldWidget {
+    background: transparent;
+    border: none;
+}
+
+#TotpSectionHeader {
+    color: #6c6f85;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+#TotpTimerLabel {
+    color: #40a02b;
+    font-weight: bold;
+    font-size: 12px;
+}
+
+#TotpCodeDisplay {
+    color: #4c4f69;
+    letter-spacing: 2px;
+}
+
+#TotpCopyBtn {
+    background-color: #e6e9ef;
+    border: 1px solid #ccd0da;
+    border-radius: 6px;
+    padding: 5px 12px;
+    color: #4c4f69;
+    font-weight: 500;
+}
+
+#TotpCopyBtn:hover {
+    background-color: #dce0e8;
+    border-color: #1e66f5;
+}
+
+#TotpProgressBar {
+    background-color: #ccd0da;
+    border-radius: 2px;
+}
+
+#TotpProgressBar::chunk {
+    background-color: #40a02b;
+    border-radius: 2px;
+}
+
+#DetailSectionCard {
+    background-color: #ffffff;
+    border: 1px solid #ccd0da;
+    border-radius: 10px;
+}
+
+#DetailSectionHeader {
+    color: #1e66f5;
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 0.8px;
+    padding-bottom: 2px;
+}
+
+#FieldRowDivider {
+    background-color: #e6e9ef;
+    min-height: 1px;
+    max-height: 1px;
+    border: none;
+    margin: 2px 6px;
+}
+
+#FieldRowWidget, #CustomFieldRowWidget, #TotpFieldWidget {
+    background: transparent;
+    border: none;
+}
+
+#FieldRowLabel {
+    color: #6c6f85;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+#FieldRowValue {
+    color: #4c4f69;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+#FieldRowInput {
+    background-color: #f2f3f7;
+    border: 1px solid #ccd0da;
+    border-radius: 6px;
+    padding: 6px 10px;
+    color: #4c4f69;
+    font-size: 13px;
+}
+
+#FieldRowInput:focus {
+    border-color: #1e66f5;
+    background-color: #ffffff;
+}
+
+#FieldRowActionBtn {
+    background: transparent;
+    border: 1px solid #ccd0da;
+    border-radius: 6px;
+    padding: 4px;
+}
+
+#FieldRowActionBtn:hover {
+    background-color: #dce0e8;
+    border-color: #1e66f5;
+}
+
+#CustomFieldKindCombo {
+    background-color: #f2f3f7;
+    border: 1px solid #ccd0da;
+    border-radius: 6px;
+    padding: 2px 8px;
+    color: #4c4f69;
+    font-size: 12px;
+}
+
+#CustomFieldKindCombo:focus {
+    border-color: #1e66f5;
+}
+
+#CustomFieldDeleteBtn {
+    background: transparent;
+    border: 1px solid #ccd0da;
+    border-radius: 6px;
+    padding: 4px;
+}
+
+#CustomFieldDeleteBtn:hover {
+    background-color: #ffdce0;
+    border-color: #d20f39;
+}
+
+#CustomFieldAddBtn, #AddTotpBtn {
+    background-color: #eff1f5;
+    border: 1px dashed #bcc0cc;
+    border-radius: 6px;
+    color: #1e66f5;
+    font-weight: 600;
+    font-size: 12px;
+}
+
+#CustomFieldAddBtn:hover, #AddTotpBtn:hover {
+    background-color: #e6e9ef;
+    border-color: #1e66f5;
+    color: #04a5e5;
+}
+
+/* 4. Command Palette Dialog */
+#CommandPaletteCard {
+    background-color: #ffffff;
+    border: 1px solid #ccd0da;
+    border-radius: 12px;
+}
+
+#PaletteSearchInput {
+    background-color: #e6e9ef;
+    border: 1px solid #ccd0da;
+    border-radius: 8px;
+    padding: 10px 14px;
+    color: #4c4f69;
+    font-size: 15px;
+}
+
+#PaletteSearchInput:focus {
+    border-color: #1e66f5;
+}
+
+#PaletteResultList {
+    background: transparent;
+    border: none;
+    outline: none;
+}

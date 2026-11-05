@@ -24,6 +24,8 @@
         <!-- Common Actions & States -->
         <file>icons/search.svg</file>
         <file>icons/plus.svg</file>
+        <file>icons/plus_dark.svg</file>
+        <file>icons/plus_light.svg</file>
         <file>icons/folder_empty.svg</file>
         <file>icons/folder_open.svg</file>
         <file>icons/win_close.svg</file>
@@ -35,8 +37,26 @@
         <file>icons/category_card.svg</file>
         <file>icons/category_passkey.svg</file>
         <file>icons/category_ssh.svg</file>
+        <file>icons/category_database.svg</file>
+        <file>icons/category_server.svg</file>
+        <file>icons/category_wifi.svg</file>
+        <file>icons/category_identity.svg</file>
         <file>icons/category_settings.svg</file>
         <file>icons/category_trash.svg</file>
+
+        <!-- Action Icons -->
+        <file>icons/copy.svg</file>
+        <file>icons/eye.svg</file>
+        <file>icons/eye_off.svg</file>
+        <file>icons/sidebar_toggle.svg</file>
+        <file>icons/star.svg</file>
+        <file>icons/star_filled.svg</file>
+        <file>icons/edit.svg</file>
+        <file>icons/chevron_down.svg</file>
+        <file>icons/watchtower_weak.svg</file>
+        <file>icons/watchtower_expiring.svg</file>
+        <file>icons/external_link.svg</file>
+        <file>icons/trash.svg</file>
 
         <!-- Stylesheets -->
         <file>styles/dark.qss</file>

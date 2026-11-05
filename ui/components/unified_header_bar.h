@@ -44,6 +44,7 @@ signals:
   void minimizeRequested();
   void maximizeRestoreRequested();
   void closeRequested();
+  void commandPaletteRequested();
 
 protected:
   void paintEvent(QPaintEvent *event) override;
@@ -57,6 +58,7 @@ private:
   void repositionTitleOverlay();
 
   QLabel *m_logoLabel{nullptr};
+  QPushButton *m_paletteBtn{nullptr};
   AppMenuBar *m_menuBar{nullptr};
   QLabel *m_titleLabel{nullptr};
   QPushButton *m_minBtn{nullptr};

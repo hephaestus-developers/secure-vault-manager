@@ -1,0 +1,535 @@
+/**
+ * @file ui/views/sidebar/sidebar_view.cpp
+ * @brief Hiện thực SidebarView điều hướng phân cấp chuẩn Modern Desktop không
+ * bị vỡ layout.
+ * @author Hai Pham Ngoc <ngochai285nd@gmail.com>
+ * @copyright (c) 2026 Hephaestus Developers. All rights reserved.
+ */
+
+#include "sidebar_view.h"
+#include "app/theme_manager.h"
+
+#include <QAction>
+#include <QActionGroup>
+#include <QHBoxLayout>
+#include <QIcon>
+#include <QLabel>
+#include <QVBoxLayout>
+
+namespace svm::views {
+
+SidebarView::SidebarView(QWidget *parent) : QWidget(parent) {
+  setObjectName(QStringLiteral("SidebarView"));
+  setAttribute(Qt::WA_StyledBackground, true);
+  setMinimumWidth(230);
+  setMaximumWidth(320);
+
+  setupUI();
+  populateNavItems();
+}
+
+void SidebarView::setupUI() {
+  auto *rootLayout = new QVBoxLayout(this);
+  rootLayout->setContentsMargins(0, 0, 0, 0);
+  rootLayout->setSpacing(0);
+
+  m_stackedWidget = new QStackedWidget(this);
+  m_stackedWidget->setObjectName(QStringLiteral("SidebarStackedWidget"));
+  m_stackedWidget->setAttribute(Qt::WA_StyledBackground, true);
+
+  setupExpandedUI();
+  setupCollapsedUI();
+
+  m_stackedWidget->addWidget(m_expandedWidget);  // Index 0: Mở rộng
+  m_stackedWidget->addWidget(m_collapsedWidget); // Index 1: Thu gọn
+
+  connect(&app::ThemeManager::instance(), &app::ThemeManager::themeChanged,
+          this, [this]() {
+            if (m_navList && m_navList->viewport()) {
+              m_navList->viewport()->update();
+            }
+            if (m_compactList && m_compactList->viewport()) {
+              m_compactList->viewport()->update();
+            }
+          });
+
+  rootLayout->addWidget(m_stackedWidget);
+}
+
+void SidebarView::setupExpandedUI() {
+  m_expandedWidget = new QWidget(m_stackedWidget);
+  m_expandedWidget->setObjectName(QStringLiteral("SidebarExpandedContainer"));
+  m_expandedWidget->setAttribute(Qt::WA_StyledBackground, true);
+
+  auto *layout = new QVBoxLayout(m_expandedWidget);
+  layout->setContentsMargins(0, 0, 0, 0);
+  layout->setSpacing(0);
+
+  // 1. Header: Vault Profile Button + Collapse Toggle Button
+  auto *headerWidget = new QWidget(m_expandedWidget);
+  headerWidget->setObjectName(QStringLiteral("SidebarHeaderWidget"));
+  auto *headerLayout = new QHBoxLayout(headerWidget);
+  headerLayout->setContentsMargins(10, 10, 10, 8);
+  headerLayout->setSpacing(6);
+
+  // Vault Profile Button với Icon và Chữ căn thẳng tắp với list bên dưới
+  m_vaultProfileBtn = new QPushButton(headerWidget);
+  m_vaultProfileBtn->setObjectName(QStringLiteral("VaultProfileBtn"));
+  m_vaultProfileBtn->setFixedHeight(32);
+  m_vaultProfileBtn->setCursor(Qt::PointingHandCursor);
+
+  auto *vaultBtnLayout = new QHBoxLayout(m_vaultProfileBtn);
+  vaultBtnLayout->setContentsMargins(8, 0, 8, 0);
+  vaultBtnLayout->setSpacing(10);
+
+  m_vaultIconLabel = new QLabel(m_vaultProfileBtn);
+  m_vaultIconLabel->setFixedSize(16, 16);
+  m_vaultIconLabel->setPixmap(
+      QIcon(QStringLiteral(":/icons/folder_open.svg")).pixmap(16, 16));
+  vaultBtnLayout->addWidget(m_vaultIconLabel);
+
+  m_vaultTitleLabel = new QLabel(m_currentVaultName, m_vaultProfileBtn);
+  m_vaultTitleLabel->setObjectName(QStringLiteral("VaultTitleLabel"));
+  vaultBtnLayout->addWidget(m_vaultTitleLabel, 1);
+
+  auto *chevronLabel = new QLabel(m_vaultProfileBtn);
+  chevronLabel->setObjectName(QStringLiteral("VaultChevronLabel"));
+  chevronLabel->setFixedSize(12, 12);
+  chevronLabel->setPixmap(
+      QIcon(QStringLiteral(":/icons/chevron_down.svg")).pixmap(12, 12));
+  vaultBtnLayout->addWidget(chevronLabel);
+
+  m_vaultMenu = new QMenu(m_vaultProfileBtn);
+  m_vaultMenu->setObjectName(QStringLiteral("VaultSwitchMenu"));
+  auto *personalAct = m_vaultMenu->addAction(
+      QIcon(QStringLiteral(":/icons/folder_open.svg")), tr("Personal Vault"));
+  personalAct->setCheckable(true);
+  personalAct->setChecked(true);
+
+  auto *workAct = m_vaultMenu->addAction(
+      QIcon(QStringLiteral(":/icons/folder_empty.svg")), tr("Work Vault"));
+  workAct->setCheckable(true);
+
+  auto *allAct = m_vaultMenu->addAction(
+      QIcon(QStringLiteral(":/icons/shield_check.svg")), tr("All Vaults"));
+  allAct->setCheckable(true);
+
+  auto *vaultGroup = new QActionGroup(this);
+  vaultGroup->addAction(personalAct);
+  vaultGroup->addAction(workAct);
+  vaultGroup->addAction(allAct);
+  connect(vaultGroup, &QActionGroup::triggered, this,
+          &SidebarView::onVaultMenuActionTriggered);
+
+  connect(m_vaultProfileBtn, &QPushButton::clicked, this, [this]() {
+    m_vaultMenu->exec(m_vaultProfileBtn->mapToGlobal(
+        QPoint(0, m_vaultProfileBtn->height() + 2)));
+  });
+
+  headerLayout->addWidget(m_vaultProfileBtn, 1);
+
+  // Nút Collapse Sidebar
+  m_collapseBtn = new QPushButton(headerWidget);
+  m_collapseBtn->setObjectName(QStringLiteral("SidebarToggleBtn"));
+  m_collapseBtn->setIcon(QIcon(QStringLiteral(":/icons/sidebar_toggle.svg")));
+  m_collapseBtn->setIconSize(QSize(18, 18));
+  m_collapseBtn->setFixedSize(32, 32);
+  m_collapseBtn->setToolTip(tr("Collapse Sidebar (Ctrl+B)"));
+  m_collapseBtn->setCursor(Qt::PointingHandCursor);
+  connect(m_collapseBtn, &QPushButton::clicked, this,
+          &SidebarView::toggleCollapsed);
+  headerLayout->addWidget(m_collapseBtn, 0, Qt::AlignVCenter);
+
+  layout->addWidget(headerWidget);
+
+  // 2. Navigation List với Custom Delegate liền mạch
+  m_navList = new QListWidget(m_expandedWidget);
+  m_navList->setObjectName(QStringLiteral("SidebarNavList"));
+  m_navList->setFrameShape(QFrame::NoFrame);
+  m_navList->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+  m_navList->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+  m_navList->setSelectionMode(QAbstractItemView::SingleSelection);
+  m_navList->setSpacing(1);
+
+  m_itemDelegate = new SidebarItemDelegate(this);
+  m_navList->setItemDelegate(m_itemDelegate);
+
+  connect(m_navList, &QListWidget::itemClicked, this,
+          &SidebarView::onListItemClicked);
+  layout->addWidget(m_navList, 1);
+
+  // 3. Footer: Lock Vault Button
+  auto *footerWidget = new QWidget(m_expandedWidget);
+  footerWidget->setObjectName(QStringLiteral("SidebarFooterWidget"));
+  auto *footerLayout = new QHBoxLayout(footerWidget);
+  footerLayout->setContentsMargins(10, 8, 10, 10);
+  footerLayout->setSpacing(0);
+
+  m_lockBtn = new QPushButton(footerWidget);
+  m_lockBtn->setObjectName(QStringLiteral("SidebarLockBtn"));
+  m_lockBtn->setCursor(Qt::PointingHandCursor);
+  m_lockBtn->setToolTip(tr("Lock vault immediately (Ctrl+L)"));
+
+  auto *lockBtnLayout = new QHBoxLayout(m_lockBtn);
+  lockBtnLayout->setContentsMargins(8, 0, 8, 0);
+  lockBtnLayout->setSpacing(10);
+
+  auto *lockIconLabel = new QLabel(m_lockBtn);
+  lockIconLabel->setFixedSize(16, 16);
+  lockIconLabel->setPixmap(
+      QIcon(QStringLiteral(":/icons/lock.svg")).pixmap(16, 16));
+  lockBtnLayout->addWidget(lockIconLabel);
+
+  auto *lockTextLabel = new QLabel(tr("Lock Vault"), m_lockBtn);
+  lockTextLabel->setObjectName(QStringLiteral("LockBtnText"));
+  lockBtnLayout->addWidget(lockTextLabel, 1);
+
+  auto *shortcutBadge = new QLabel(QStringLiteral("Ctrl+L"), m_lockBtn);
+  shortcutBadge->setObjectName(QStringLiteral("LockShortcutBadge"));
+  shortcutBadge->setAlignment(Qt::AlignCenter);
+  lockBtnLayout->addWidget(shortcutBadge);
+
+  connect(m_lockBtn, &QPushButton::clicked, this,
+          &SidebarView::lockVaultRequested);
+  footerLayout->addWidget(m_lockBtn);
+
+  layout->addWidget(footerWidget);
+}
+
+void SidebarView::setupCollapsedUI() {
+  m_collapsedWidget = new QWidget(m_stackedWidget);
+  m_collapsedWidget->setObjectName(QStringLiteral("SidebarCollapsedContainer"));
+  m_collapsedWidget->setAttribute(Qt::WA_StyledBackground, true);
+
+  auto *layout = new QVBoxLayout(m_collapsedWidget);
+  layout->setContentsMargins(6, 12, 6, 10);
+  layout->setSpacing(8);
+  layout->setAlignment(Qt::AlignHCenter);
+
+  // 1. Expand Toggle Button
+  m_expandBtn = new QPushButton(m_collapsedWidget);
+  m_expandBtn->setObjectName(QStringLiteral("SidebarToggleBtn"));
+  m_expandBtn->setIcon(QIcon(QStringLiteral(":/icons/sidebar_toggle.svg")));
+  m_expandBtn->setIconSize(QSize(18, 18));
+  m_expandBtn->setFixedSize(36, 32);
+  m_expandBtn->setToolTip(tr("Expand Sidebar (Ctrl+B)"));
+  m_expandBtn->setCursor(Qt::PointingHandCursor);
+  connect(m_expandBtn, &QPushButton::clicked, this,
+          &SidebarView::toggleCollapsed);
+  layout->addWidget(m_expandBtn, 0, Qt::AlignHCenter);
+
+  // 2. Vault Icon Button
+  m_collapsedVaultBtn = new QPushButton(m_collapsedWidget);
+  m_collapsedVaultBtn->setObjectName(QStringLiteral("SidebarCompactVaultBtn"));
+  m_collapsedVaultBtn->setIcon(
+      QIcon(QStringLiteral(":/icons/folder_open.svg")));
+  m_collapsedVaultBtn->setIconSize(QSize(18, 18));
+  m_collapsedVaultBtn->setFixedSize(36, 32);
+  m_collapsedVaultBtn->setToolTip(m_currentVaultName);
+  m_collapsedVaultBtn->setCursor(Qt::PointingHandCursor);
+  connect(m_collapsedVaultBtn, &QPushButton::clicked, this,
+          &SidebarView::toggleCollapsed);
+  layout->addWidget(m_collapsedVaultBtn, 0, Qt::AlignHCenter);
+
+  // 3. Compact Navigation Icon List
+  m_compactList = new QListWidget(m_collapsedWidget);
+  m_compactList->setObjectName(QStringLiteral("SidebarCompactList"));
+  m_compactList->setViewMode(QListView::ListMode);
+  m_compactList->setIconSize(QSize(18, 18));
+  m_compactList->setSpacing(4);
+  m_compactList->setUniformItemSizes(true);
+  m_compactList->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+  m_compactList->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+
+  connect(m_compactList, &QListWidget::itemClicked, this,
+          &SidebarView::onCompactItemClicked);
+  layout->addWidget(m_compactList, 1);
+
+  // 4. Bottom Collapsed Lock Button
+  m_collapsedLockBtn = new QPushButton(m_collapsedWidget);
+  m_collapsedLockBtn->setObjectName(QStringLiteral("SidebarCompactLockBtn"));
+  m_collapsedLockBtn->setIcon(QIcon(QStringLiteral(":/icons/lock.svg")));
+  m_collapsedLockBtn->setIconSize(QSize(16, 16));
+  m_collapsedLockBtn->setFixedSize(36, 36);
+  m_collapsedLockBtn->setToolTip(tr("Lock Vault (Ctrl+L)"));
+  m_collapsedLockBtn->setCursor(Qt::PointingHandCursor);
+  connect(m_collapsedLockBtn, &QPushButton::clicked, this,
+          &SidebarView::lockVaultRequested);
+  layout->addWidget(m_collapsedLockBtn, 0, Qt::AlignHCenter);
+}
+
+void SidebarView::populateNavItems() {
+  m_navList->clear();
+  m_compactList->clear();
+  m_compactFilterItems.clear();
+  m_compactCategoryItems.clear();
+  m_categoryItems.clear();
+
+  auto addHeader = [this](const QString &title) {
+    auto *header = new QListWidgetItem(title, m_navList);
+    header->setFlags(Qt::NoItemFlags);
+    header->setData(SidebarItemDelegate::IsHeaderRole, true);
+  };
+
+  auto addNavItem = [this](const QIcon &icon, const QString &text,
+                           SidebarFilterType type,
+                           int categoryInt = -1) -> QListWidgetItem * {
+    auto *item = new QListWidgetItem(icon, text, m_navList);
+    item->setData(Qt::UserRole, static_cast<int>(type));
+    item->setData(SidebarItemDelegate::CountRole, 0);
+    item->setData(SidebarItemDelegate::IsHeaderRole, false);
+    if (categoryInt >= 0) {
+      item->setData(Qt::UserRole + 1, categoryInt);
+    }
+    return item;
+  };
+
+  auto addCompactItem = [this](const QIcon &icon, const QString &tooltip,
+                               SidebarFilterType filterType,
+                               int categoryInt = -1) -> QListWidgetItem * {
+    auto *item = new QListWidgetItem(icon, QString(), m_compactList);
+    item->setToolTip(tooltip);
+    item->setSizeHint(QSize(36, 36));
+    item->setData(Qt::UserRole, static_cast<int>(filterType));
+    if (categoryInt >= 0) {
+      item->setData(Qt::UserRole + 1, categoryInt);
+    }
+    return item;
+  };
+
+  // 1. Nhóm bộ lọc nhanh
+  m_allItem = addNavItem(QIcon(QStringLiteral(":/icons/category_all.svg")),
+                         tr("All Items"), SidebarFilterType::AllItems);
+  m_compactFilterItems[SidebarFilterType::AllItems] =
+      addCompactItem(QIcon(QStringLiteral(":/icons/category_all.svg")),
+                     tr("All Items (0)"), SidebarFilterType::AllItems);
+
+  m_favItem = addNavItem(QIcon(QStringLiteral(":/icons/star_filled.svg")),
+                         tr("Favorites"), SidebarFilterType::Favorites);
+  m_compactFilterItems[SidebarFilterType::Favorites] =
+      addCompactItem(QIcon(QStringLiteral(":/icons/star_filled.svg")),
+                     tr("Favorites (0)"), SidebarFilterType::Favorites);
+
+  m_trashItem = addNavItem(QIcon(QStringLiteral(":/icons/category_trash.svg")),
+                           tr("Trash"), SidebarFilterType::Trash);
+  m_compactFilterItems[SidebarFilterType::Trash] =
+      addCompactItem(QIcon(QStringLiteral(":/icons/category_trash.svg")),
+                     tr("Trash (0)"), SidebarFilterType::Trash);
+
+  // 2. Nhóm 9 Danh Mục Nghiệp Vụ
+  addHeader(tr("CATEGORIES"));
+
+  const std::array<models::ItemCategory, 9> categories = {
+      models::ItemCategory::Login,      models::ItemCategory::Passkey,
+      models::ItemCategory::Card,       models::ItemCategory::Identity,
+      models::ItemCategory::SecureNote, models::ItemCategory::SshKey,
+      models::ItemCategory::Database,   models::ItemCategory::Server,
+      models::ItemCategory::Wifi};
+
+  for (const auto cat : categories) {
+    const QString name = models::categoryDisplayName(cat);
+    const QIcon icon(models::categoryIconPath(cat));
+
+    auto *item = addNavItem(icon, name, SidebarFilterType::Category,
+                            static_cast<int>(cat));
+    m_categoryItems.insert(cat, item);
+
+    auto *compactItem =
+        addCompactItem(icon, QStringLiteral("%1 (0)").arg(name),
+                       SidebarFilterType::Category, static_cast<int>(cat));
+    m_compactCategoryItems.insert(cat, compactItem);
+  }
+
+  // 3. Nhóm Watchtower
+  addHeader(tr("WATCHTOWER"));
+
+  m_weakPassItem =
+      addNavItem(QIcon(QStringLiteral(":/icons/watchtower_weak.svg")),
+                 tr("Weak Passwords"), SidebarFilterType::WatchtowerWeak);
+  m_compactFilterItems[SidebarFilterType::WatchtowerWeak] = addCompactItem(
+      QIcon(QStringLiteral(":/icons/watchtower_weak.svg")),
+      tr("Weak Passwords (0)"), SidebarFilterType::WatchtowerWeak);
+
+  m_expiringItem =
+      addNavItem(QIcon(QStringLiteral(":/icons/watchtower_expiring.svg")),
+                 tr("Expiring Tokens"), SidebarFilterType::WatchtowerExpiring);
+  m_compactFilterItems[SidebarFilterType::WatchtowerExpiring] = addCompactItem(
+      QIcon(QStringLiteral(":/icons/watchtower_expiring.svg")),
+      tr("Expiring Tokens (0)"), SidebarFilterType::WatchtowerExpiring);
+
+  // Chọn mặc định All Items
+  m_navList->setCurrentItem(m_allItem);
+  if (auto *allCompact =
+          m_compactFilterItems.value(SidebarFilterType::AllItems, nullptr)) {
+    m_compactList->setCurrentItem(allCompact);
+  }
+}
+
+void SidebarView::setCollapsed(bool collapsed) {
+  if (m_isCollapsed == collapsed) {
+    return;
+  }
+  m_isCollapsed = collapsed;
+
+  if (m_isCollapsed) {
+    setFixedWidth(60);
+    m_stackedWidget->setCurrentIndex(1);
+  } else {
+    setMinimumWidth(230);
+    setMaximumWidth(320);
+    m_stackedWidget->setCurrentIndex(0);
+  }
+
+  emit collapsedChanged(m_isCollapsed);
+}
+
+void SidebarView::toggleCollapsed() { setCollapsed(!m_isCollapsed); }
+
+void SidebarView::onListItemClicked(QListWidgetItem *item) {
+  if (!item || item->data(SidebarItemDelegate::IsHeaderRole).toBool()) {
+    return;
+  }
+
+  const auto filterType =
+      static_cast<SidebarFilterType>(item->data(Qt::UserRole).toInt());
+  models::ItemCategory category = models::ItemCategory::Login;
+
+  if (filterType == SidebarFilterType::Category) {
+    category =
+        static_cast<models::ItemCategory>(item->data(Qt::UserRole + 1).toInt());
+  }
+
+  syncSelectionToCompact(filterType, category);
+  emit filterSelected(filterType, category);
+}
+
+void SidebarView::onCompactItemClicked(QListWidgetItem *item) {
+  if (!item) {
+    return;
+  }
+
+  const auto filterType =
+      static_cast<SidebarFilterType>(item->data(Qt::UserRole).toInt());
+  models::ItemCategory category = models::ItemCategory::Login;
+
+  if (filterType == SidebarFilterType::Category) {
+    category =
+        static_cast<models::ItemCategory>(item->data(Qt::UserRole + 1).toInt());
+  }
+
+  syncSelectionToList(filterType, category);
+  emit filterSelected(filterType, category);
+}
+
+void SidebarView::onVaultMenuActionTriggered(QAction *action) {
+  if (!action) {
+    return;
+  }
+  m_currentVaultName = action->text();
+  m_vaultTitleLabel->setText(m_currentVaultName);
+  m_collapsedVaultBtn->setToolTip(m_currentVaultName);
+  emit vaultChanged(m_currentVaultName);
+}
+
+void SidebarView::syncSelectionToCompact(SidebarFilterType type,
+                                         models::ItemCategory category) {
+  if (type == SidebarFilterType::Category) {
+    if (auto *compactItem = m_compactCategoryItems.value(category, nullptr)) {
+      m_compactList->setCurrentItem(compactItem);
+    }
+  } else {
+    if (auto *compactItem = m_compactFilterItems.value(type, nullptr)) {
+      m_compactList->setCurrentItem(compactItem);
+    }
+  }
+}
+
+void SidebarView::syncSelectionToList(SidebarFilterType type,
+                                      models::ItemCategory category) {
+  if (type == SidebarFilterType::Category) {
+    if (auto *listItem = m_categoryItems.value(category, nullptr)) {
+      m_navList->setCurrentItem(listItem);
+    }
+  } else {
+    switch (type) {
+    case SidebarFilterType::AllItems:
+      m_navList->setCurrentItem(m_allItem);
+      break;
+    case SidebarFilterType::Favorites:
+      m_navList->setCurrentItem(m_favItem);
+      break;
+    case SidebarFilterType::Trash:
+      m_navList->setCurrentItem(m_trashItem);
+      break;
+    case SidebarFilterType::WatchtowerWeak:
+      m_navList->setCurrentItem(m_weakPassItem);
+      break;
+    case SidebarFilterType::WatchtowerExpiring:
+      m_navList->setCurrentItem(m_expiringItem);
+      break;
+    }
+  }
+}
+
+void SidebarView::updateCounts(
+    const QMap<SidebarFilterType, int> &filterCounts,
+    const QMap<models::ItemCategory, int> &categoryCounts) {
+  auto updateCount = [](QListWidgetItem *item, int count) {
+    if (item) {
+      item->setData(SidebarItemDelegate::CountRole, count);
+    }
+  };
+
+  const int allCount = filterCounts.value(SidebarFilterType::AllItems, 0);
+  const int favCount = filterCounts.value(SidebarFilterType::Favorites, 0);
+  const int trashCount = filterCounts.value(SidebarFilterType::Trash, 0);
+  const int weakCount =
+      filterCounts.value(SidebarFilterType::WatchtowerWeak, 0);
+  const int expCount =
+      filterCounts.value(SidebarFilterType::WatchtowerExpiring, 0);
+
+  updateCount(m_allItem, allCount);
+  updateCount(m_favItem, favCount);
+  updateCount(m_trashItem, trashCount);
+  updateCount(m_weakPassItem, weakCount);
+  updateCount(m_expiringItem, expCount);
+
+  // Cập nhật Compact Tooltips
+  if (auto *it =
+          m_compactFilterItems.value(SidebarFilterType::AllItems, nullptr)) {
+    it->setToolTip(tr("All Items (%1)").arg(allCount));
+  }
+  if (auto *it =
+          m_compactFilterItems.value(SidebarFilterType::Favorites, nullptr)) {
+    it->setToolTip(tr("Favorites (%1)").arg(favCount));
+  }
+  if (auto *it =
+          m_compactFilterItems.value(SidebarFilterType::Trash, nullptr)) {
+    it->setToolTip(tr("Trash (%1)").arg(trashCount));
+  }
+  if (auto *it = m_compactFilterItems.value(SidebarFilterType::WatchtowerWeak,
+                                            nullptr)) {
+    it->setToolTip(tr("Weak Passwords (%1)").arg(weakCount));
+  }
+  if (auto *it = m_compactFilterItems.value(
+          SidebarFilterType::WatchtowerExpiring, nullptr)) {
+    it->setToolTip(tr("Expiring Tokens (%1)").arg(expCount));
+  }
+
+  // Cập nhật Danh mục
+  for (auto it = categoryCounts.begin(); it != categoryCounts.end(); ++it) {
+    const int count = it.value();
+    if (auto *listItem = m_categoryItems.value(it.key(), nullptr)) {
+      listItem->setData(SidebarItemDelegate::CountRole, count);
+    }
+    if (auto *compactItem = m_compactCategoryItems.value(it.key(), nullptr)) {
+      compactItem->setToolTip(QStringLiteral("%1 (%2)")
+                                  .arg(models::categoryDisplayName(it.key()))
+                                  .arg(count));
+    }
+  }
+
+  m_navList->viewport()->update();
+}
+
+} // namespace svm::views

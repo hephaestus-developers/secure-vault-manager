@@ -54,6 +54,18 @@ UnifiedHeaderBar::UnifiedHeaderBar(AppMenuBar *menuBar, QWidget *parent)
   // Khoảng đệm dãn giữa MenuBar và các nút điều khiển cửa sổ góc phải
   layout->addStretch(1);
 
+  // Nút Spotlight Command Palette (Ctrl+K)
+  m_paletteBtn = new QPushButton(this);
+  m_paletteBtn->setObjectName(QStringLiteral("HeaderCommandPaletteBtn"));
+  m_paletteBtn->setIcon(QIcon(QStringLiteral(":/icons/search.svg")));
+  m_paletteBtn->setIconSize(QSize(14, 14));
+  m_paletteBtn->setFixedSize(28, 28);
+  m_paletteBtn->setFlat(true);
+  m_paletteBtn->setToolTip(tr("Command Palette (Ctrl+K)"));
+  connect(m_paletteBtn, &QPushButton::clicked, this,
+          &UnifiedHeaderBar::commandPaletteRequested);
+  layout->addWidget(m_paletteBtn, 0, Qt::AlignVCenter);
+
   // 3. Nhãn tiêu đề căn giữa toàn bộ cửa sổ (Center Title Label Overlay)
   m_titleLabel = new QLabel(QStringLiteral("Secure Vault Manager"), this);
   m_titleLabel->setObjectName(QStringLiteral("HeaderTitleLabel"));
