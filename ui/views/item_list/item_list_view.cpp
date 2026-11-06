@@ -7,6 +7,7 @@
 
 #include "item_list_view.h"
 #include "app/theme_manager.h"
+#include "app/vault_manager.h"
 #include "components/combobox_popup_helper.h"
 
 #include <QAction>
@@ -114,6 +115,13 @@ void ItemListView::setupUI() {
   m_model = new ItemListModel(this);
   m_proxyModel = new ItemSortFilterProxy(this);
   m_proxyModel->setSourceModel(m_model);
+
+  connect(&app::VaultManager::instance(),
+          &app::VaultManager::activeVaultChanged, this,
+          [this](const QString &vaultId) {
+            m_proxyModel->setVaultFilter(vaultId);
+            updateCountLabel();
+          });
 
   m_listView = new QListView(this);
   m_listView->setObjectName(QStringLiteral("ItemCardListView"));

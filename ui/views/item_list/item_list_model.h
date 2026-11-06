@@ -32,7 +32,8 @@ public:
     IsArchivedRole,
     PasswordScoreRole,
     UpdatedDateRole,
-    VaultItemRole
+    VaultItemRole,
+    VaultIdRole
   };
 
   explicit ItemListModel(QObject *parent = nullptr);

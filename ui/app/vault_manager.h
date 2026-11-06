@@ -1,0 +1,136 @@
+/**
+ * @file ui/app/vault_manager.h
+ * @brief Lớp quản lý trạng thái vòng đời kho lưu trữ (VaultManager singleton).
+ * @author Hai Pham Ngoc <ngochai285nd@gmail.com>
+ * @copyright (c) 2026 Hephaestus Developers. All rights reserved.
+ */
+
+#pragma once
+
+#include "models/vault_types.h"
+
+#include <QList>
+#include <QObject>
+#include <QString>
+
+namespace svm::app {
+
+class VaultManager : public QObject {
+  Q_OBJECT
+
+public:
+  static VaultManager &instance();
+
+  ~VaultManager() override = default;
+
+  // Xóa copy và gán
+  VaultManager(const VaultManager &) = delete;
+  VaultManager &operator=(const VaultManager &) = delete;
+
+  /**
+   * @brief Khởi tạo hệ thống quản lý Vault, đọc trạng thái từ cấu hình.
+   */
+  void initialize();
+
+  /**
+   * @brief Kiểm tra xem hệ thống đã thiết lập Master Password và Vault ban đầu
+   * chưa.
+   */
+  [[nodiscard]] bool isConfigured() const;
+
+  /**
+   * @brief Kiểm tra trạng thái hiện tại đang khóa hay mở khóa.
+   */
+  [[nodiscard]] bool isLocked() const;
+
+  /**
+   * @brief Lấy định danh Vault đang active. Trống hoặc "all" là All Vaults.
+   */
+  [[nodiscard]] QString activeVaultId() const;
+  void setActiveVaultId(const QString &vaultId);
+
+  /**
+   * @brief Lấy danh sách tất cả các Vault hiện có.
+   */
+  [[nodiscard]] QList<models::UiVault> vaults() const;
+
+  /**
+   * @brief Lấy thông tin chi tiết một Vault theo ID.
+   */
+  [[nodiscard]] models::UiVault vault(const QString &vaultId) const;
+
+  /**
+   * @brief Tạo mới một Vault.
+   */
+  bool createVault(const models::UiVault &vault);
+
+  /**
+   * @brief Cập nhật thông tin một Vault.
+   */
+  bool updateVault(const models::UiVault &vault);
+
+  /**
+   * @brief Xóa một Vault.
+   */
+  bool deleteVault(const QString &vaultId);
+
+  /**
+   * @brief Thiết lập khởi tạo lần đầu từ Onboarding Wizard.
+   */
+  bool setupInitialMasterPassword(const QString &password,
+                                  const QString &recoveryKey,
+                                  const QString &initialVaultName);
+
+  /**
+   * @brief Mở khóa kho bằng Master Password.
+   */
+  bool unlock(const QString &password);
+
+  /**
+   * @brief Mở khóa khẩn cấp và đặt lại mật khẩu bằng Recovery Key.
+   */
+  bool unlockWithRecoveryKey(const QString &recoveryKey,
+                             const QString &newPassword = QString());
+
+  /**
+   * @brief Mở khóa bằng sinh trắc học.
+   */
+  bool unlockWithBiometrics();
+
+  /**
+   * @brief Khóa ngay lập tức và giải phóng bộ nhớ.
+   */
+  void lock();
+
+  /**
+   * @brief Sinh mã Recovery Key ngẫu nhiên theo định dạng chuẩn
+   * SVM-XXXX-XXXX-XXXX-XXXX.
+   */
+  static QString generateRecoveryKey();
+
+signals:
+  void configuredChanged(bool configured);
+  void lockStateChanged(bool isLocked);
+  void activeVaultChanged(const QString &vaultId);
+  void vaultListChanged();
+  void vaultCreated(const models::UiVault &vault);
+
+private:
+  VaultManager();
+
+  void loadSettings();
+  void saveSettings();
+  QString hashPassword(const QString &password, const QString &salt) const;
+
+  bool m_isConfigured{false};
+  bool m_isLocked{true};
+  QString m_activeVaultId{QStringLiteral("all")};
+  QString m_passwordHash;
+  QString m_passwordSalt;
+  QString m_recoveryKey;
+  bool m_biometricEnabled{false};
+
+  QList<models::UiVault> m_vaults;
+};
+
+} // namespace svm::app

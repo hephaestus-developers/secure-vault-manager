@@ -1246,3 +1246,112 @@ QCalendarWidget QHeaderView::section {
     background-color: #dce0e8;
     color: #1e1e2e;
 }
+
+/* 6. Onboarding Wizard & Lock Screen Cards */
+#OnboardingCard, #LockScreenCard, #RecoveryDialogCard, #NewVaultCard {
+    background-color: #ffffff;
+    border: 1px solid #ccd0da;
+    border-radius: 12px;
+}
+
+#RecoveryBox {
+    background-color: #f2f3f7;
+    border: 1px solid #ccd0da;
+    border-radius: 8px;
+}
+
+#RecoveryKeyDisplay {
+    font-family: "JetBrains Mono", "Cascadia Code", "Fira Code", monospace;
+    font-size: 15px;
+    font-weight: 700;
+    color: #40a02b;
+    letter-spacing: 1.5px;
+    background: transparent;
+    border: none;
+    padding: 6px 0;
+}
+
+#RecoveryActionBtn {
+    background-color: #ffffff;
+    color: #4c4f69;
+    border: 1px solid #ccd0da;
+    border-radius: 6px;
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+#RecoveryActionBtn:hover {
+    background-color: #e6e9ef;
+    border-color: #1e66f5;
+    color: #202027;
+}
+
+#RecoveryActionBtn:pressed {
+    background-color: #dce0e8;
+}
+
+#OnboardingPrimaryBtn {
+    background-color: #1e1e2e;
+    border: none;
+    border-radius: 6px;
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+#OnboardingPrimaryBtn:hover {
+    background-color: #313244;
+}
+
+#OnboardingPrimaryBtn:disabled {
+    background-color: #e6e9ef;
+    color: #9ca3af;
+}
+
+#LockPasswordContainer {
+    background-color: #f8f9fa;
+    border: 1px solid #ccd0da;
+    border-radius: 8px;
+}
+
+#LockPasswordContainer:focus-within {
+    border-color: #2f3540;
+}
+
+#LockPasswordInput {
+    background: transparent;
+    border: none;
+    color: #2f3540;
+    font-size: 14px;
+    padding-left: 10px;
+}
+
+#LockRevealBtn, #LockBiometricBtn {
+    background-color: #e6e9ef;
+    border: 1px solid #ccd0da;
+    border-radius: 6px;
+}
+
+#LockRevealBtn:hover, #LockBiometricBtn:hover {
+    background-color: #dce0e8;
+}
+
+#DetailVaultBadge {
+    background-color: #e6e9ef;
+    color: #1e1e2e;
+    border: 1px solid #ccd0da;
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+#DetailVaultCombo {
+    background-color: #ffffff;
+    border: 1px solid #ccd0da;
+    border-radius: 6px;
+    color: #2f3540;
+    font-size: 12px;
+    padding: 2px 8px;
+}

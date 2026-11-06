@@ -120,6 +120,7 @@ struct UiCustomField {
  */
 struct UiVaultItem {
   QString id;
+  QString vaultId{QStringLiteral("personal")};
   QString title;
   ItemCategory category{ItemCategory::Login};
   QString username;        // Hoặc account/fingerprint/cardholder

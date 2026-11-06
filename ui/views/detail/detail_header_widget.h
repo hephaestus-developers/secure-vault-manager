@@ -30,6 +30,8 @@ public:
   [[nodiscard]] QString title() const;
   [[nodiscard]] models::ItemCategory category() const { return m_category; }
   void setCategory(models::ItemCategory cat);
+  [[nodiscard]] QString vaultId() const;
+  void setVaultId(const QString &vaultId);
   void setEditMode(bool edit);
   [[nodiscard]] bool isEditMode() const { return m_isEditMode; }
   void focusTitleInput();
@@ -62,7 +64,10 @@ private:
   QLineEdit *m_titleInput{nullptr};
   QLabel *m_categoryBadge{nullptr};
   QComboBox *m_categoryCombo{nullptr};
+  QLabel *m_vaultBadge{nullptr};
+  QComboBox *m_vaultCombo{nullptr};
   QLabel *m_updatedLabel{nullptr};
+  QString m_vaultId{QStringLiteral("personal")};
   QPushButton *m_favBtn{nullptr};
   QPushButton *m_editBtn{nullptr};
   QPushButton *m_cancelBtn{nullptr};

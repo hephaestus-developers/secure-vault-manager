@@ -10,6 +10,7 @@
 #include "app/clipboard_manager.h"
 #include "app/theme_manager.h"
 #include "app/tray_manager.h"
+#include "app/vault_manager.h"
 #include "components/menubar/app_menu_bar.h"
 #include "components/unified_header_bar.h"
 #include "components/window_resize_handler.h"
@@ -77,8 +78,32 @@ void MainWindow::setupUI() {
   m_mainSplitter->setStretchFactor(1, 0);
   m_mainSplitter->setStretchFactor(2, 1);
 
-  layout->addWidget(m_mainSplitter, 1);
+  // Stack điều hướng chính (Onboarding / Lock Screen / 3 Cột)
+  m_mainStack = new QStackedWidget(centralWidget);
+  m_mainStack->setObjectName(QStringLiteral("MainNavigationStack"));
+
+  m_onboardingView = new views::OnboardingWizardView(m_mainStack);
+  m_lockScreenView = new views::LockScreenView(m_mainStack);
+
+  m_mainStack->addWidget(m_onboardingView); // Index 0
+  m_mainStack->addWidget(m_lockScreenView); // Index 1
+  m_mainStack->addWidget(m_mainSplitter);   // Index 2
+
+  layout->addWidget(m_mainStack, 1);
   setCentralWidget(centralWidget);
+
+  // Kết nối luồng vòng đời Vault
+  connect(m_onboardingView, &views::OnboardingWizardView::onboardingFinished,
+          this, &MainWindow::updateNavigationState);
+  connect(m_lockScreenView, &views::LockScreenView::unlocked, this,
+          &MainWindow::updateNavigationState);
+  connect(&app::VaultManager::instance(), &app::VaultManager::lockStateChanged,
+          this, &MainWindow::updateNavigationState);
+  connect(&app::VaultManager::instance(), &app::VaultManager::configuredChanged,
+          this, &MainWindow::updateNavigationState);
+  connect(&app::VaultManager::instance(),
+          &app::VaultManager::activeVaultChanged, this,
+          [this]() { updateSidebarCounts(); });
 
   // 3. Command Palette Dialog
   m_commandPalette =
@@ -122,12 +147,17 @@ void MainWindow::setupUI() {
           &views::ItemListView::setFilter);
   connect(m_sidebarView, &views::SidebarView::lockVaultRequested, this,
           [this]() {
+            app::VaultManager::instance().lock();
             if (m_trayManager) {
               m_trayManager->setVaultLocked(true);
             }
-            QMessageBox::information(
-                this, tr("Vault Locked"),
-                tr("Vault has been locked and memory zeroized."));
+          });
+  connect(m_menuBar, &components::AppMenuBar::lockVaultRequested, this,
+          [this]() {
+            app::VaultManager::instance().lock();
+            if (m_trayManager) {
+              m_trayManager->setVaultLocked(true);
+            }
           });
 
   connect(m_itemListView, &views::ItemListView::itemSelected, this,
@@ -154,13 +184,19 @@ void MainWindow::setupUI() {
           });
   connect(m_menuBar, &components::AppMenuBar::exitRequested, qApp,
           &QApplication::quit);
+
+  // 7. Đồng bộ trạng thái điều hướng khởi đầu
+  updateNavigationState();
 }
 
 void MainWindow::setupShortcuts() {
   m_toggleSidebarShortcut =
       new QShortcut(QKeySequence(QStringLiteral("Ctrl+B")), this);
-  connect(m_toggleSidebarShortcut, &QShortcut::activated, this,
-          &MainWindow::toggleSidebar);
+  connect(m_toggleSidebarShortcut, &QShortcut::activated, this, [this]() {
+    if (!app::VaultManager::instance().isLocked()) {
+      toggleSidebar();
+    }
+  });
 
   m_toggleThemeShortcut =
       new QShortcut(QKeySequence(QStringLiteral("Ctrl+T")), this);
@@ -174,37 +210,48 @@ void MainWindow::setupShortcuts() {
 
   m_commandPaletteShortcut =
       new QShortcut(QKeySequence(QStringLiteral("Ctrl+K")), this);
-  connect(m_commandPaletteShortcut, &QShortcut::activated, this,
-          &MainWindow::openCommandPalette);
+  connect(m_commandPaletteShortcut, &QShortcut::activated, this, [this]() {
+    if (!app::VaultManager::instance().isLocked()) {
+      openCommandPalette();
+    }
+  });
 
   m_searchShortcut =
       new QShortcut(QKeySequence(QStringLiteral("Ctrl+F")), this);
-  connect(m_searchShortcut, &QShortcut::activated, m_itemListView,
-          &views::ItemListView::focusSearch);
+  connect(m_searchShortcut, &QShortcut::activated, this, [this]() {
+    if (!app::VaultManager::instance().isLocked()) {
+      m_itemListView->focusSearch();
+    }
+  });
 
   m_newItemShortcut =
       new QShortcut(QKeySequence(QStringLiteral("Ctrl+N")), this);
   connect(m_newItemShortcut, &QShortcut::activated, this, [this]() {
-    onAddNewItemRequested(m_itemListView->currentCategory());
+    if (!app::VaultManager::instance().isLocked()) {
+      onAddNewItemRequested(m_itemListView->currentCategory());
+    }
   });
 
   m_saveShortcut = new QShortcut(QKeySequence(QStringLiteral("Ctrl+S")), this);
   connect(m_saveShortcut, &QShortcut::activated, this, [this]() {
-    if (m_detailView->isEditMode()) {
+    if (!app::VaultManager::instance().isLocked() &&
+        m_detailView->isEditMode()) {
       m_detailView->saveEdit();
     }
   });
 
   m_cancelShortcut = new QShortcut(QKeySequence(Qt::Key_Escape), this);
   connect(m_cancelShortcut, &QShortcut::activated, this, [this]() {
-    if (m_detailView->isEditMode()) {
+    if (!app::VaultManager::instance().isLocked() &&
+        m_detailView->isEditMode()) {
       m_detailView->cancelEdit();
     }
   });
 
   m_editShortcut = new QShortcut(QKeySequence(QStringLiteral("Ctrl+E")), this);
   connect(m_editShortcut, &QShortcut::activated, this, [this]() {
-    if (!m_detailView->isEditMode() &&
+    if (!app::VaultManager::instance().isLocked() &&
+        !m_detailView->isEditMode() &&
         !m_itemListView->selectedItemId().isEmpty()) {
       m_detailView->setEditMode(true);
     }
@@ -274,6 +321,7 @@ void MainWindow::populateMockData() {
   git.id = QStringLiteral("item-001");
   git.title = QStringLiteral("GitHub (Work Account)");
   git.category = models::ItemCategory::Login;
+  git.vaultId = QStringLiteral("personal");
   git.username = QStringLiteral("octocat@hephaestus.io");
   git.password = QStringLiteral("ghp_9284Fja9028Fh2q8fh0283fh90q");
   git.websiteUrl = QStringLiteral("https://github.com/login");
@@ -319,6 +367,7 @@ void MainWindow::populateMockData() {
   aws.id = QStringLiteral("item-002");
   aws.title = QStringLiteral("AWS Console (Production)");
   aws.category = models::ItemCategory::Login;
+  aws.vaultId = QStringLiteral("work");
   aws.username = QStringLiteral("devops-admin@corp.internal");
   aws.password = QStringLiteral("K8s!Aws#Secure2026$Production");
   aws.websiteUrl = QStringLiteral("https://aws.amazon.com/console");
@@ -348,6 +397,7 @@ void MainWindow::populateMockData() {
   ssh.id = QStringLiteral("item-003");
   ssh.title = QStringLiteral("id_ed25519 (Prod Bastion)");
   ssh.category = models::ItemCategory::SshKey;
+  ssh.vaultId = QStringLiteral("work");
   ssh.username = QStringLiteral("root@bastion.infra.net");
   ssh.sshFingerprint =
       QStringLiteral("SHA256:7mP0e5K2q9N8w1X4v6Z3t7Y0u5W2r8O1p4Q7s");
@@ -364,6 +414,7 @@ void MainWindow::populateMockData() {
   db.id = QStringLiteral("item-004");
   db.title = QStringLiteral("Postgres Cloud Cluster");
   db.category = models::ItemCategory::Database;
+  db.vaultId = QStringLiteral("work");
   db.username = QStringLiteral("postgres_superadmin");
   db.password = QStringLiteral("PgSQL#SecurePass!Cluster2026");
   db.dbHost = QStringLiteral("pg-primary.prod.svc.cluster.local:5432");
@@ -376,6 +427,7 @@ void MainWindow::populateMockData() {
   wifi.id = QStringLiteral("item-005");
   wifi.title = QStringLiteral("Hephaestus Studio Wi-Fi");
   wifi.category = models::ItemCategory::Wifi;
+  wifi.vaultId = QStringLiteral("work");
   wifi.wifiSsid = QStringLiteral("Hephaestus_5GHz_HighSec");
   wifi.password = QStringLiteral("IronForge#Wifi#2026");
   wifi.updatedAt = QDateTime::currentDateTime().addDays(-30);
@@ -386,6 +438,7 @@ void MainWindow::populateMockData() {
   card.id = QStringLiteral("item-006");
   card.title = QStringLiteral("Corporate Visa Platinum");
   card.category = models::ItemCategory::Card;
+  card.vaultId = QStringLiteral("personal");
   card.username = QStringLiteral("HAI PHAM NGOC");
   card.cardNumber = QStringLiteral("4111 2222 3333 4444");
   card.cardExpiry = QStringLiteral("12/28");
@@ -403,18 +456,26 @@ void MainWindow::populateMockData() {
 
 void MainWindow::updateSidebarCounts() {
   const auto &items = m_itemListView->sourceModel()->items();
+  const QString activeVId = app::VaultManager::instance().activeVaultId();
 
   QMap<views::SidebarFilterType, int> filterCounts;
   QMap<models::ItemCategory, int> categoryCounts;
 
+  int allCount = 0;
   int favCount = 0;
   int trashCount = 0;
   int weakCount = 0;
 
   for (const auto &item : items) {
+    if (!activeVId.isEmpty() && activeVId != QStringLiteral("all")) {
+      if (item.vaultId != activeVId) {
+        continue;
+      }
+    }
     if (item.isDeleted) {
       ++trashCount;
     } else {
+      ++allCount;
       categoryCounts[item.category] =
           categoryCounts.value(item.category, 0) + 1;
 
@@ -427,17 +488,39 @@ void MainWindow::updateSidebarCounts() {
     }
   }
 
-  filterCounts[views::SidebarFilterType::AllItems] = items.size() - trashCount;
+  filterCounts[views::SidebarFilterType::AllItems] = allCount;
   filterCounts[views::SidebarFilterType::Favorites] = favCount;
   filterCounts[views::SidebarFilterType::Trash] = trashCount;
   filterCounts[views::SidebarFilterType::WatchtowerWeak] = weakCount;
-  filterCounts[views::SidebarFilterType::WatchtowerExpiring] = 1;
+  filterCounts[views::SidebarFilterType::WatchtowerExpiring] =
+      (allCount > 0) ? 1 : 0;
 
   m_sidebarView->updateCounts(filterCounts, categoryCounts);
 }
 
+void MainWindow::updateNavigationState() {
+  if (!app::VaultManager::instance().isConfigured()) {
+    m_mainStack->setCurrentWidget(m_onboardingView);
+    m_onboardingView->resetWizard();
+    m_headerBar->setTitleText(tr("Setup - Secure Vault Manager"));
+  } else if (app::VaultManager::instance().isLocked()) {
+    m_mainStack->setCurrentWidget(m_lockScreenView);
+    m_lockScreenView->resetLockScreen();
+    m_headerBar->setTitleText(tr("Locked - Secure Vault Manager"));
+  } else {
+    m_mainStack->setCurrentWidget(m_mainSplitter);
+    m_headerBar->setTitleText(tr("Secure Vault Manager"));
+    updateSidebarCounts();
+  }
+}
+
 void MainWindow::setTrayManager(app::TrayManager *trayManager) {
   m_trayManager = trayManager;
+  if (m_trayManager) {
+    connect(&app::VaultManager::instance(),
+            &app::VaultManager::lockStateChanged, m_trayManager,
+            &app::TrayManager::setVaultLocked);
+  }
 }
 
 void MainWindow::resizeEvent(QResizeEvent *event) {
@@ -465,6 +548,12 @@ void MainWindow::retranslateUi() {
   }
   if (m_headerBar) {
     m_headerBar->retranslateUi();
+  }
+  if (m_onboardingView) {
+    m_onboardingView->retranslateUi();
+  }
+  if (m_lockScreenView) {
+    m_lockScreenView->retranslateUi();
   }
   if (m_sidebarView) {
     m_sidebarView->retranslateUi();

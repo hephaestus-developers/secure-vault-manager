@@ -13,11 +13,14 @@
 #include "views/command_palette/command_palette_dialog.h"
 #include "views/detail/detail_inspector_view.h"
 #include "views/item_list/item_list_view.h"
+#include "views/lock/lock_screen_view.h"
+#include "views/onboarding/onboarding_wizard_view.h"
 #include "views/sidebar/sidebar_view.h"
 
 #include <QMainWindow>
 #include <QShortcut>
 #include <QSplitter>
+#include <QStackedWidget>
 
 namespace svm::app {
 class TrayManager;
@@ -64,11 +67,17 @@ private:
   void setupShortcuts();
   void populateMockData();
   void updateSidebarCounts();
+  void updateNavigationState();
 
   app::TrayManager *m_trayManager{nullptr};
   components::AppMenuBar *m_menuBar{nullptr};
   components::UnifiedHeaderBar *m_headerBar{nullptr};
   components::WindowResizeHandler *m_resizeHandler{nullptr};
+
+  // Stack điều hướng chính (Onboarding / Lock Screen / 3 Cột)
+  QStackedWidget *m_mainStack{nullptr};
+  views::OnboardingWizardView *m_onboardingView{nullptr};
+  views::LockScreenView *m_lockScreenView{nullptr};
 
   // 3 Cột chính
   QSplitter *m_mainSplitter{nullptr};

@@ -8,6 +8,8 @@
 
 #include "sidebar_view.h"
 #include "app/theme_manager.h"
+#include "app/vault_manager.h"
+#include "views/vaults/new_vault_dialog.h"
 
 #include <QAction>
 #include <QActionGroup>
@@ -102,25 +104,22 @@ void SidebarView::setupExpandedUI() {
 
   m_vaultMenu = new QMenu(m_vaultProfileBtn);
   m_vaultMenu->setObjectName(QStringLiteral("VaultSwitchMenu"));
-  auto *personalAct = m_vaultMenu->addAction(
-      QIcon(QStringLiteral(":/icons/folder_open.svg")), tr("Personal Vault"));
-  personalAct->setCheckable(true);
-  personalAct->setChecked(true);
+  populateVaultMenu();
 
-  auto *workAct = m_vaultMenu->addAction(
-      QIcon(QStringLiteral(":/icons/folder_empty.svg")), tr("Work Vault"));
-  workAct->setCheckable(true);
-
-  auto *allAct = m_vaultMenu->addAction(
-      QIcon(QStringLiteral(":/icons/shield_check.svg")), tr("All Vaults"));
-  allAct->setCheckable(true);
-
-  auto *vaultGroup = new QActionGroup(this);
-  vaultGroup->addAction(personalAct);
-  vaultGroup->addAction(workAct);
-  vaultGroup->addAction(allAct);
-  connect(vaultGroup, &QActionGroup::triggered, this,
-          &SidebarView::onVaultMenuActionTriggered);
+  connect(&app::VaultManager::instance(), &app::VaultManager::vaultListChanged,
+          this, &SidebarView::populateVaultMenu);
+  connect(
+      &app::VaultManager::instance(), &app::VaultManager::activeVaultChanged,
+      this, [this](const QString &vId) {
+        if (vId == QStringLiteral("all") || vId.isEmpty()) {
+          m_currentVaultName = tr("All Vaults");
+        } else {
+          const auto v = app::VaultManager::instance().vault(vId);
+          m_currentVaultName = v.name.isEmpty() ? tr("Personal Vault") : v.name;
+        }
+        m_vaultTitleLabel->setText(m_currentVaultName);
+        m_collapsedVaultBtn->setToolTip(m_currentVaultName);
+      });
 
   connect(m_vaultProfileBtn, &QPushButton::clicked, this, [this]() {
     m_vaultMenu->exec(m_vaultProfileBtn->mapToGlobal(
@@ -514,6 +513,52 @@ void SidebarView::onCompactItemClicked(QListWidgetItem *item) {
   emit filterSelected(filterType, category);
 }
 
+void SidebarView::populateVaultMenu() {
+  if (!m_vaultMenu) {
+    return;
+  }
+  m_vaultMenu->clear();
+  const auto vaults = app::VaultManager::instance().vaults();
+  const QString activeId = app::VaultManager::instance().activeVaultId();
+
+  auto *vaultGroup = new QActionGroup(this);
+
+  // 1. Danh sách Vaults hiện có
+  for (const auto &v : vaults) {
+    auto *act = m_vaultMenu->addAction(
+        app::ThemeManager::instance().icon(v.iconName), v.name);
+    act->setCheckable(true);
+    act->setChecked(v.id == activeId);
+    act->setProperty("vaultId", v.id);
+    vaultGroup->addAction(act);
+    connect(act, &QAction::triggered, this,
+            [v]() { app::VaultManager::instance().setActiveVaultId(v.id); });
+  }
+
+  // 2. Chế độ xem gộp All Vaults
+  auto *allAct = m_vaultMenu->addAction(
+      app::ThemeManager::instance().icon(QStringLiteral("shield_check")),
+      tr("All Vaults"));
+  allAct->setCheckable(true);
+  allAct->setChecked(activeId == QStringLiteral("all") || activeId.isEmpty());
+  allAct->setProperty("vaultId", QStringLiteral("all"));
+  vaultGroup->addAction(allAct);
+  connect(allAct, &QAction::triggered, this, []() {
+    app::VaultManager::instance().setActiveVaultId(QStringLiteral("all"));
+  });
+
+  m_vaultMenu->addSeparator();
+
+  // 3. Nút tạo mới Vault
+  auto *newVaultAct = m_vaultMenu->addAction(
+      app::ThemeManager::instance().icon(QStringLiteral("plus")),
+      tr("+ New Vault..."));
+  connect(newVaultAct, &QAction::triggered, this, [this]() {
+    NewVaultDialog dlg(this);
+    dlg.exec();
+  });
+}
+
 void SidebarView::onVaultMenuActionTriggered(QAction *action) {
   if (!action) {
     return;
@@ -628,6 +673,7 @@ void SidebarView::updateCounts(
 }
 
 void SidebarView::retranslateUi() {
+  populateVaultMenu();
   if (m_collapseBtn) {
     m_collapseBtn->setToolTip(tr("Collapse Sidebar (Ctrl+B)"));
   }

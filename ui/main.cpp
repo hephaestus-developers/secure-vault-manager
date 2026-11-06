@@ -17,6 +17,7 @@
 #include "app/language_manager.h"
 #include "app/theme_manager.h"
 #include "app/tray_manager.h"
+#include "app/vault_manager.h"
 #include "core/core_bridge.h"
 #include "main_window.h"
 
@@ -41,8 +42,9 @@ int main(int argc, char *argv[]) {
                   "offline/degraded mode.";
   }
 
-  // 2. Khởi tạo Đa ngôn ngữ (mặc định English) và Theme (Dark)
+  // 2. Khởi tạo Đa ngôn ngữ, Quản lý Vault và Theme
   svm::app::LanguageManager::instance().initialize();
+  svm::app::VaultManager::instance().initialize();
   svm::app::ThemeManager::instance().applyTheme(svm::app::ThemeMode::Dark);
 
   // 3. Khởi tạo cửa sổ chính và TrayManager

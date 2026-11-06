@@ -8,6 +8,7 @@
 
 #include "detail_inspector_view.h"
 #include "app/theme_manager.h"
+#include "app/vault_manager.h"
 
 #include <QHBoxLayout>
 #include <QLabel>
@@ -298,6 +299,11 @@ void DetailInspectorView::createNewItem(models::ItemCategory category) {
   m_currentItem = {};
   m_currentItem.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
   m_currentItem.category = category;
+  QString activeVId = app::VaultManager::instance().activeVaultId();
+  if (activeVId.isEmpty() || activeVId == QStringLiteral("all")) {
+    activeVId = QStringLiteral("personal");
+  }
+  m_currentItem.vaultId = activeVId;
   m_currentItem.title = QString();
   m_currentItem.createdAt = QDateTime();
   m_currentItem.updatedAt = QDateTime();
@@ -346,6 +352,7 @@ void DetailInspectorView::onSaveRequested() {
   }
   m_currentItem.title = enteredTitle;
   m_currentItem.category = m_headerWidget->category();
+  m_currentItem.vaultId = m_headerWidget->vaultId();
   m_currentItem.username = m_usernameField->value();
   m_currentItem.password = m_passwordField->value();
   m_currentItem.websiteUrl = m_websiteField->value();

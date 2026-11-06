@@ -7,6 +7,7 @@
 
 #include "detail_header_widget.h"
 #include "app/theme_manager.h"
+#include "app/vault_manager.h"
 #include "components/combobox_popup_helper.h"
 
 #include <QHBoxLayout>
@@ -159,6 +160,23 @@ void DetailHeaderWidget::setupUI() {
           this, &DetailHeaderWidget::onCategoryIndexChanged);
   metaRowLayout->addWidget(m_categoryCombo);
 
+  m_vaultBadge = new QLabel(this);
+  m_vaultBadge->setObjectName(QStringLiteral("DetailVaultBadge"));
+  m_vaultBadge->setStyleSheet(QStringLiteral(
+      "background-color: #26293b; color: #89b4fa; border: 1px solid #45475a; "
+      "border-radius: 4px; padding: 2px 8px; font-size: 11px; font-weight: "
+      "600;"));
+  metaRowLayout->addWidget(m_vaultBadge);
+
+  m_vaultCombo = new QComboBox(this);
+  m_vaultCombo->setObjectName(QStringLiteral("DetailVaultCombo"));
+  m_vaultCombo->setFixedHeight(28);
+  m_vaultCombo->setMinimumWidth(130);
+  svm::ui::setupFramelessComboBoxPopup(m_vaultCombo, 170);
+  m_vaultCombo->setCursor(Qt::PointingHandCursor);
+  m_vaultCombo->hide();
+  metaRowLayout->addWidget(m_vaultCombo);
+
   m_updatedLabel = new QLabel(this);
   m_updatedLabel->setObjectName(QStringLiteral("DetailUpdatedLabel"));
   metaRowLayout->addWidget(m_updatedLabel);
@@ -204,6 +222,7 @@ void DetailHeaderWidget::setItem(const models::UiVaultItem &item) {
   m_isFavorite = item.isFavorite;
 
   setCategory(item.category);
+  setVaultId(item.vaultId);
   m_titleLabel->setText(item.title.isEmpty() ? tr("Untitled Item")
                                              : item.title);
   m_titleInput->setText(item.title);
@@ -269,6 +288,38 @@ void DetailHeaderWidget::focusTitleInput() {
   m_titleInput->selectAll();
 }
 
+void DetailHeaderWidget::setVaultId(const QString &vaultId) {
+  m_vaultId = vaultId.isEmpty() ? QStringLiteral("personal") : vaultId;
+  const auto v = app::VaultManager::instance().vault(m_vaultId);
+  if (m_vaultBadge) {
+    m_vaultBadge->setText(v.name.isEmpty() ? tr("Personal Vault") : v.name);
+  }
+
+  if (m_vaultCombo) {
+    m_vaultCombo->blockSignals(true);
+    m_vaultCombo->clear();
+    const auto vaults = app::VaultManager::instance().vaults();
+    int selectedIdx = 0;
+    for (int i = 0; i < vaults.size(); ++i) {
+      m_vaultCombo->addItem(
+          app::ThemeManager::instance().icon(vaults[i].iconName),
+          vaults[i].name, vaults[i].id);
+      if (vaults[i].id == m_vaultId) {
+        selectedIdx = i;
+      }
+    }
+    m_vaultCombo->setCurrentIndex(selectedIdx);
+    m_vaultCombo->blockSignals(false);
+  }
+}
+
+QString DetailHeaderWidget::vaultId() const {
+  if (m_isEditMode && m_vaultCombo && m_vaultCombo->currentIndex() >= 0) {
+    return m_vaultCombo->currentData().toString();
+  }
+  return m_vaultId;
+}
+
 void DetailHeaderWidget::setEditMode(bool edit) {
   m_isEditMode = edit;
 
@@ -280,6 +331,8 @@ void DetailHeaderWidget::setEditMode(bool edit) {
 
     m_categoryBadge->hide();
     m_categoryCombo->show();
+    m_vaultBadge->hide();
+    m_vaultCombo->show();
     m_updatedLabel->hide();
 
     m_favBtn->hide();
@@ -295,6 +348,8 @@ void DetailHeaderWidget::setEditMode(bool edit) {
 
     m_categoryCombo->hide();
     m_categoryBadge->show();
+    m_vaultCombo->hide();
+    m_vaultBadge->show();
     m_updatedLabel->show();
 
     m_cancelBtn->hide();

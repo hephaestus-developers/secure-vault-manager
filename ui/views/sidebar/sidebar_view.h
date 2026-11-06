@@ -59,6 +59,7 @@ private:
   void setupExpandedUI();
   void setupCollapsedUI();
   void populateNavItems();
+  void populateVaultMenu();
   void updateThemeIcons();
   void syncSelectionToCompact(SidebarFilterType type,
                               models::ItemCategory category);

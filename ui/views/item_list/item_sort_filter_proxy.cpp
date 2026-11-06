@@ -23,6 +23,13 @@ void ItemSortFilterProxy::setFilterType(SidebarFilterType type,
   invalidateFilter();
 }
 
+void ItemSortFilterProxy::setVaultFilter(const QString &vaultId) {
+  if (m_vaultFilter != vaultId) {
+    m_vaultFilter = vaultId;
+    invalidateFilter();
+  }
+}
+
 void ItemSortFilterProxy::setSearchText(const QString &query) {
   m_searchQuery = query.trimmed();
   invalidateFilter();
@@ -51,6 +58,14 @@ bool ItemSortFilterProxy::filterAcceptsRow(
   } else {
     if (isDeleted) {
       return false; // Mọi view thông thường đều ẩn mục trong thùng rác
+    }
+  }
+
+  // 2. Lọc theo Vault
+  if (!m_vaultFilter.isEmpty() && m_vaultFilter != QStringLiteral("all")) {
+    const QString itemVaultId = idx.data(ItemListModel::VaultIdRole).toString();
+    if (itemVaultId != m_vaultFilter) {
+      return false;
     }
   }
 

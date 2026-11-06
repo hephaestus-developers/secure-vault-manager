@@ -18,6 +18,7 @@ set(UI_SOURCES
     app/tray_manager.cpp
     app/clipboard_manager.cpp
     app/language_manager.cpp
+    app/vault_manager.cpp
     components/menubar/app_menu_bar.cpp
     components/unified_header_bar.cpp
     components/window_resize_handler.cpp
@@ -36,17 +37,24 @@ set(UI_SOURCES
     views/detail/detail_inspector_view.cpp
     views/command_palette/command_palette_dialog.cpp
     views/about/about_dialog.cpp
+    views/onboarding/password_entropy_meter.cpp
+    views/onboarding/onboarding_wizard_view.cpp
+    views/lock/recovery_dialog.cpp
+    views/lock/lock_screen_view.cpp
+    views/vaults/new_vault_dialog.cpp
     resources/resources.qrc
 )
 
 set(UI_HEADERS
     main_window.h
     models/vault_item.h
+    models/vault_types.h
     core/core_bridge.h
     app/theme_manager.h
     app/tray_manager.h
     app/clipboard_manager.h
     app/language_manager.h
+    app/vault_manager.h
     components/menubar/app_menu_bar.h
     components/unified_header_bar.h
     components/window_resize_handler.h
@@ -68,6 +76,11 @@ set(UI_HEADERS
     views/detail/detail_inspector_view.h
     views/command_palette/command_palette_dialog.h
     views/about/about_dialog.h
+    views/onboarding/password_entropy_meter.h
+    views/onboarding/onboarding_wizard_view.h
+    views/lock/recovery_dialog.h
+    views/lock/lock_screen_view.h
+    views/vaults/new_vault_dialog.h
 )
 
 add_executable(svm_ui ${UI_SOURCES} ${UI_HEADERS})

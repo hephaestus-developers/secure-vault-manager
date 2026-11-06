@@ -178,7 +178,7 @@ void CommandPaletteDialog::copySelectedPassword() {
     const auto item = itemVar.value<models::UiVaultItem>();
     if (!item.password.isEmpty()) {
       app::ClipboardManager::instance().copySensitive(
-          item.password, tr("Mật khẩu: %1").arg(item.title), 30);
+          item.password, tr("Password: %1").arg(item.title), 30);
     }
   }
   accept();
