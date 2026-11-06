@@ -34,6 +34,8 @@ public:
   void setVaultLocked(bool locked);
   bool isVaultLocked() const { return m_isVaultLocked; }
 
+  void retranslateUi();
+
 public slots:
   void toggleMainWindow();
   void toggleVaultLock();

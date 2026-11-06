@@ -6,6 +6,9 @@
  */
 
 #include "app_menu_bar.h"
+#include "app/language_manager.h"
+
+#include <QEvent>
 #include <QKeySequence>
 
 namespace svm::components {
@@ -30,11 +33,81 @@ void AppMenuBar::setupMenus() {
   m_exitAct->setShortcut(QKeySequence::Quit);
   connect(m_exitAct, &QAction::triggered, this, &AppMenuBar::exitRequested);
 
-  // 2. Menu Trợ Giúp (Help)
+  // 2. Menu Ngôn ngữ (Language)
+  m_langMenu = addMenu(tr("&Language"));
+  m_langGroup = new QActionGroup(this);
+  m_langGroup->setExclusive(true);
+
+  m_langEnAct = m_langMenu->addAction(tr("English"));
+  m_langEnAct->setCheckable(true);
+  m_langGroup->addAction(m_langEnAct);
+  connect(m_langEnAct, &QAction::triggered, this, []() {
+    app::LanguageManager::instance().setLanguage(app::AppLanguage::English);
+  });
+
+  m_langViAct = m_langMenu->addAction(tr("Vietnamese"));
+  m_langViAct->setCheckable(true);
+  m_langGroup->addAction(m_langViAct);
+  connect(m_langViAct, &QAction::triggered, this, []() {
+    app::LanguageManager::instance().setLanguage(app::AppLanguage::Vietnamese);
+  });
+
+  updateLanguageActions();
+
+  connect(&app::LanguageManager::instance(),
+          &app::LanguageManager::languageChanged, this,
+          &AppMenuBar::retranslateUi);
+
+  // 3. Menu Trợ Giúp (Help)
   m_helpMenu = addMenu(tr("&Help"));
 
   m_aboutAct = m_helpMenu->addAction(tr("&About Secure Vault Manager..."));
   connect(m_aboutAct, &QAction::triggered, this, &AppMenuBar::aboutRequested);
+}
+
+void AppMenuBar::retranslateUi() {
+  if (m_vaultMenu) {
+    m_vaultMenu->setTitle(tr("&Vault"));
+  }
+  if (m_lockAct) {
+    m_lockAct->setText(tr("&Lock Vault"));
+  }
+  if (m_exitAct) {
+    m_exitAct->setText(tr("E&xit"));
+  }
+  if (m_langMenu) {
+    m_langMenu->setTitle(tr("&Language"));
+  }
+  if (m_langEnAct) {
+    m_langEnAct->setText(tr("English"));
+  }
+  if (m_langViAct) {
+    m_langViAct->setText(tr("Vietnamese"));
+  }
+  if (m_helpMenu) {
+    m_helpMenu->setTitle(tr("&Help"));
+  }
+  if (m_aboutAct) {
+    m_aboutAct->setText(tr("&About Secure Vault Manager..."));
+  }
+  updateLanguageActions();
+}
+
+void AppMenuBar::updateLanguageActions() {
+  const auto cur = app::LanguageManager::instance().currentLanguage();
+  if (m_langEnAct) {
+    m_langEnAct->setChecked(cur == app::AppLanguage::English);
+  }
+  if (m_langViAct) {
+    m_langViAct->setChecked(cur == app::AppLanguage::Vietnamese);
+  }
+}
+
+void AppMenuBar::changeEvent(QEvent *event) {
+  if (event->type() == QEvent::LanguageChange) {
+    retranslateUi();
+  }
+  QMenuBar::changeEvent(event);
 }
 
 } // namespace svm::components

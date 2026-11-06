@@ -155,5 +155,9 @@
         <!-- Stylesheets -->
         <file>styles/dark.qss</file>
         <file>styles/light.qss</file>
+
+        <!-- Translations -->
+        <file>i18n/en.json</file>
+        <file>i18n/vi.json</file>
     </qresource>
 </RCC>

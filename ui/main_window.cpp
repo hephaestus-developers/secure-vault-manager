@@ -122,8 +122,12 @@ void MainWindow::setupUI() {
           &views::ItemListView::setFilter);
   connect(m_sidebarView, &views::SidebarView::lockVaultRequested, this,
           [this]() {
-            QMessageBox::information(this, tr("Vault Locked"),
-                                     tr("Kho dữ liệu đã được khóa an toàn."));
+            if (m_trayManager) {
+              m_trayManager->setVaultLocked(true);
+            }
+            QMessageBox::information(
+                this, tr("Vault Locked"),
+                tr("Vault has been locked and memory zeroized."));
           });
 
   connect(m_itemListView, &views::ItemListView::itemSelected, this,
@@ -256,7 +260,7 @@ void MainWindow::onQuickCopyRequested(const QString &itemId,
   const auto &item = opt.value();
   if (fieldName == QStringLiteral("password")) {
     app::ClipboardManager::instance().copySensitive(
-        item.password, tr("Mật khẩu: %1").arg(item.title), 30);
+        item.password, tr("Password for %1").arg(item.title), 30);
   } else if (fieldName == QStringLiteral("username")) {
     app::ClipboardManager::instance().copyPlainText(item.username);
   }
@@ -445,9 +449,32 @@ void MainWindow::resizeEvent(QResizeEvent *event) {
 
 void MainWindow::changeEvent(QEvent *event) {
   if (event->type() == QEvent::WindowStateChange) {
-    m_headerBar->updateMaximizeIcon(isMaximized());
+    if (m_headerBar) {
+      m_headerBar->updateMaximizeIcon(isMaximized());
+    }
+  } else if (event->type() == QEvent::LanguageChange) {
+    retranslateUi();
   }
   QMainWindow::changeEvent(event);
+}
+
+void MainWindow::retranslateUi() {
+  setWindowTitle(tr("Secure Vault Manager"));
+  if (m_menuBar) {
+    m_menuBar->retranslateUi();
+  }
+  if (m_headerBar) {
+    m_headerBar->retranslateUi();
+  }
+  if (m_sidebarView) {
+    m_sidebarView->retranslateUi();
+  }
+  if (m_itemListView) {
+    m_itemListView->retranslateUi();
+  }
+  if (m_detailView) {
+    m_detailView->retranslateUi();
+  }
 }
 
 void MainWindow::closeEvent(QCloseEvent *event) {

@@ -10,6 +10,7 @@
 #include "app/theme_manager.h"
 
 #include <QDateTime>
+#include <QEvent>
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QVBoxLayout>
@@ -38,9 +39,9 @@ void TotpWidget::setupUI() {
 
   // Dòng tiêu đề: Label 2FA + Thời gian còn lại
   auto *headerLayout = new QHBoxLayout();
-  auto *titleLabel = new QLabel(tr("ONE-TIME CODE (2FA)"), m_viewContainer);
-  titleLabel->setObjectName(QStringLiteral("TotpSectionHeader"));
-  headerLayout->addWidget(titleLabel);
+  m_viewTitleLabel = new QLabel(tr("ONE-TIME CODE (2FA)"), m_viewContainer);
+  m_viewTitleLabel->setObjectName(QStringLiteral("TotpSectionHeader"));
+  headerLayout->addWidget(m_viewTitleLabel);
 
   headerLayout->addStretch(1);
 
@@ -70,8 +71,8 @@ void TotpWidget::setupUI() {
   connect(m_copyBtn, &QPushButton::clicked, this, [this]() {
     const QString cleanCode = m_currentCode.trimmed().remove(QLatin1Char(' '));
     if (!cleanCode.isEmpty()) {
-      app::ClipboardManager::instance().copySensitive(cleanCode,
-                                                      tr("Mã 2FA (TOTP)"), 30);
+      app::ClipboardManager::instance().copySensitive(
+          cleanCode, tr("One-Time Code (2FA)"), 30);
     }
   });
   codeLayout->addWidget(m_copyBtn);
@@ -93,10 +94,10 @@ void TotpWidget::setupUI() {
   editLayout->setContentsMargins(0, 0, 0, 0);
   editLayout->setSpacing(4);
 
-  auto *editTitleLabel =
+  m_editTitleLabel =
       new QLabel(tr("ONE-TIME CODE SECRET KEY (2FA)"), m_editContainer);
-  editTitleLabel->setObjectName(QStringLiteral("TotpSectionHeader"));
-  editLayout->addWidget(editTitleLabel);
+  m_editTitleLabel->setObjectName(QStringLiteral("TotpSectionHeader"));
+  editLayout->addWidget(m_editTitleLabel);
 
   auto *inputRow = new QHBoxLayout();
   inputRow->setContentsMargins(0, 0, 0, 0);
@@ -257,6 +258,35 @@ void TotpWidget::updateCodeAndTimer() {
     m_currentCode = formatted;
     m_codeLabel->setText(formatted);
   }
+}
+
+void TotpWidget::retranslateUi() {
+  if (m_viewTitleLabel) {
+    m_viewTitleLabel->setText(tr("ONE-TIME CODE (2FA)"));
+  }
+  if (m_copyBtn) {
+    m_copyBtn->setToolTip(tr("Copy one-time code"));
+  }
+  if (m_editTitleLabel) {
+    m_editTitleLabel->setText(tr("ONE-TIME CODE SECRET KEY (2FA)"));
+  }
+  if (m_secretInput) {
+    m_secretInput->setPlaceholderText(
+        tr("Paste Base32 secret (e.g. JBSWY3DPEHPK3PXP)"));
+  }
+  if (m_revealSecretBtn) {
+    m_revealSecretBtn->setToolTip(tr("Show / Hide Secret Key"));
+  }
+  if (m_removeBtn) {
+    m_removeBtn->setToolTip(tr("Remove 2FA"));
+  }
+}
+
+void TotpWidget::changeEvent(QEvent *event) {
+  if (event->type() == QEvent::LanguageChange) {
+    retranslateUi();
+  }
+  QWidget::changeEvent(event);
 }
 
 } // namespace svm::views

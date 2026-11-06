@@ -34,12 +34,17 @@ public:
   [[nodiscard]] bool isEditMode() const { return m_isEditMode; }
   void focusTitleInput();
 
+  void retranslateUi();
+
 signals:
   void favoriteToggled(bool isFavorite);
   void editRequested();
   void saveRequested();
   void cancelRequested();
   void categoryChanged(models::ItemCategory category);
+
+protected:
+  void changeEvent(QEvent *event) override;
 
 private slots:
   void onCategoryIndexChanged(int index);

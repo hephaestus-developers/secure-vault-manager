@@ -304,4 +304,47 @@ void DetailHeaderWidget::setEditMode(bool edit) {
   }
 }
 
+void DetailHeaderWidget::retranslateUi() {
+  if (m_titleInput) {
+    m_titleInput->setPlaceholderText(tr("Item Title..."));
+  }
+  if (m_favBtn) {
+    m_favBtn->setToolTip(m_isFavorite ? tr("Remove from favorites")
+                                      : tr("Mark as favorite"));
+  }
+  if (m_editBtn) {
+    m_editBtn->setText(tr("Edit"));
+    m_editBtn->setToolTip(tr("Edit item (Ctrl+E)"));
+  }
+  if (m_cancelBtn) {
+    m_cancelBtn->setText(tr("Cancel"));
+    m_cancelBtn->setToolTip(tr("Discard changes (Esc)"));
+  }
+  if (m_saveBtn) {
+    m_saveBtn->setText(tr("Save"));
+    m_saveBtn->setToolTip(tr("Save changes (Ctrl+S)"));
+  }
+
+  if (m_categoryCombo) {
+    m_categoryCombo->blockSignals(true);
+    for (int i = 0; i < m_categoryCombo->count(); ++i) {
+      const auto cat = static_cast<models::ItemCategory>(
+          m_categoryCombo->itemData(i).toInt());
+      m_categoryCombo->setItemText(i, models::categoryDisplayName(cat));
+    }
+    m_categoryCombo->blockSignals(false);
+  }
+
+  if (m_categoryBadge) {
+    m_categoryBadge->setText(models::categoryDisplayName(m_category));
+  }
+}
+
+void DetailHeaderWidget::changeEvent(QEvent *event) {
+  if (event->type() == QEvent::LanguageChange) {
+    retranslateUi();
+  }
+  QWidget::changeEvent(event);
+}
+
 } // namespace svm::views

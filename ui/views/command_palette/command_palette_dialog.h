@@ -12,6 +12,7 @@
 #include "views/item_list/item_sort_filter_proxy.h"
 
 #include <QDialog>
+#include <QLabel>
 #include <QLineEdit>
 #include <QListView>
 
@@ -26,9 +27,11 @@ public:
   ~CommandPaletteDialog() override = default;
 
   void openPalette();
+  void retranslateUi();
 
 protected:
   bool eventFilter(QObject *watched, QEvent *event) override;
+  void changeEvent(QEvent *event) override;
 
 private slots:
   void onSearchTextChanged(const QString &text);
@@ -36,11 +39,13 @@ private slots:
 
 private:
   void setupUI();
+  void updateHint();
   void copySelectedPassword();
   void copySelectedUsername();
 
   QLineEdit *m_searchEdit{nullptr};
   QListView *m_resultList{nullptr};
+  QLabel *m_hintLabel{nullptr};
   ItemSortFilterProxy *m_proxyModel{nullptr};
 };
 

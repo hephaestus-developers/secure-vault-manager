@@ -37,10 +37,15 @@ public:
   void saveEdit();
   void cancelEdit();
 
+  void retranslateUi();
+
 signals:
   void itemSaved(const models::UiVaultItem &item);
   void itemDeleted(const QString &itemId);
   void cancelRequested();
+
+protected:
+  void changeEvent(QEvent *event) override;
 
 private slots:
   void onSaveRequested();

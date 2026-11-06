@@ -40,6 +40,11 @@ public:
    */
   void updateThemeIcons(bool darkMode);
 
+  /**
+   * @brief Cập nhật lại chuỗi hiển thị theo ngôn ngữ đang chọn.
+   */
+  void retranslateUi();
+
 signals:
   void minimizeRequested();
   void maximizeRestoreRequested();
@@ -48,6 +53,7 @@ signals:
   void themeToggleRequested();
 
 protected:
+  void changeEvent(QEvent *event) override;
   void paintEvent(QPaintEvent *event) override;
   void resizeEvent(QResizeEvent *event) override;
   void mousePressEvent(QMouseEvent *event) override;

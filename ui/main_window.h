@@ -42,6 +42,8 @@ public:
     return m_sidebarView;
   }
 
+  void retranslateUi();
+
 protected:
   void resizeEvent(QResizeEvent *event) override;
   void changeEvent(QEvent *event) override;

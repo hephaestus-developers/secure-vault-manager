@@ -151,7 +151,7 @@ void DetailInspectorView::setupUI() {
   m_addTotpBtn->setIcon(
       app::ThemeManager::instance().icon(QStringLiteral("plus")));
   m_addTotpBtn->setIconSize(QSize(14, 14));
-  m_addTotpBtn->setText(tr(" Set Up 2FA (One-Time Code)"));
+  m_addTotpBtn->setText(tr("+ Set Up 2FA (One-Time Code)"));
   m_addTotpBtn->setFixedHeight(32);
   m_addTotpBtn->setCursor(Qt::PointingHandCursor);
   m_addTotpBtn->hide();
@@ -535,6 +535,42 @@ void DetailInspectorView::updateVisibilityForCategory(
                              category == models::ItemCategory::Server);
   const bool showAddTotp = m_isEditMode && supportsTotp && !m_isTotpActive;
   m_addTotpBtn->setVisible(showAddTotp);
+}
+
+void DetailInspectorView::retranslateUi() {
+  if (m_emptyState) {
+    m_emptyState->retranslateUi();
+  }
+  if (m_headerWidget) {
+    m_headerWidget->retranslateUi();
+  }
+  if (m_totpWidget) {
+    m_totpWidget->retranslateUi();
+  }
+  if (m_customFieldsWidget) {
+    m_customFieldsWidget->retranslateUi();
+  }
+  if (m_notesField) {
+    m_notesField->setLabel(tr("Remarks / Content"));
+    m_notesField->setPlaceholderText(tr("Add notes or remarks..."));
+    m_notesField->retranslateUi();
+  }
+  if (m_addTotpBtn) {
+    m_addTotpBtn->setText(tr("+ Set Up 2FA (One-Time Code)"));
+  }
+  for (auto *f : m_allPrimaryFields) {
+    if (f) {
+      f->retranslateUi();
+    }
+  }
+  updateVisibilityForCategory(m_currentItem.category);
+}
+
+void DetailInspectorView::changeEvent(QEvent *event) {
+  if (event->type() == QEvent::LanguageChange) {
+    retranslateUi();
+  }
+  QWidget::changeEvent(event);
 }
 
 } // namespace svm::views

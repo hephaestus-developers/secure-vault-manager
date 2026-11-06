@@ -8,6 +8,7 @@
 #include "custom_fields_widget.h"
 #include "app/theme_manager.h"
 
+#include <QEvent>
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QIcon>
@@ -147,6 +148,32 @@ void CustomFieldsWidget::updateVisibility() {
   } else {
     show();
   }
+}
+
+void CustomFieldsWidget::retranslateUi() {
+  if (m_sectionTitle) {
+    m_sectionTitle->setText(tr("CUSTOM FIELDS"));
+  }
+  if (m_emptyLabel) {
+    m_emptyLabel->setText(
+        tr("No custom fields yet. Click \"+ Add Field\" to create one."));
+  }
+  if (m_addFieldBtn) {
+    m_addFieldBtn->setText(tr(" Add Field"));
+    m_addFieldBtn->setToolTip(tr("Add a custom field (Text or Concealed)"));
+  }
+  for (auto *row : m_rowWidgets) {
+    if (row) {
+      row->retranslateUi();
+    }
+  }
+}
+
+void CustomFieldsWidget::changeEvent(QEvent *event) {
+  if (event->type() == QEvent::LanguageChange) {
+    retranslateUi();
+  }
+  QWidget::changeEvent(event);
 }
 
 } // namespace svm::views

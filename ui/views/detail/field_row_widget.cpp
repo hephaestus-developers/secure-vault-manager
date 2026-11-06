@@ -266,4 +266,24 @@ void FieldRowWidget::updateDisplay() {
   }
 }
 
+void FieldRowWidget::retranslateUi() {
+  if (m_revealBtn) {
+    m_revealBtn->setToolTip(tr("Reveal password (10s)"));
+  }
+  if (m_openUrlBtn) {
+    m_openUrlBtn->setToolTip(tr("Open website"));
+  }
+  if (m_copyBtn) {
+    m_copyBtn->setToolTip(tr("Copy to clipboard"));
+  }
+  updateDisplay();
+}
+
+void FieldRowWidget::changeEvent(QEvent *event) {
+  if (event->type() == QEvent::LanguageChange) {
+    retranslateUi();
+  }
+  QWidget::changeEvent(event);
+}
+
 } // namespace svm::views

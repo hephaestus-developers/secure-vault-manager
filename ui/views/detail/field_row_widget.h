@@ -37,8 +37,13 @@ public:
   void setEditMode(bool editable);
   [[nodiscard]] bool isEditMode() const { return m_isEditMode; }
 
+  void retranslateUi();
+
 signals:
   void copyRequested(const QString &value, const QString &label);
+
+protected:
+  void changeEvent(QEvent *event) override;
 
 private slots:
   void onToggleReveal();

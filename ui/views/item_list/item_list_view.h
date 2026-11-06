@@ -45,10 +45,15 @@ public:
     return m_currentCategory;
   }
 
+  void retranslateUi();
+
 signals:
   void itemSelected(const QString &itemId);
   void addNewItemRequested(models::ItemCategory defaultCategory);
   void quickCopyRequested(const QString &itemId, const QString &fieldName);
+
+protected:
+  void changeEvent(QEvent *event) override;
 
 private slots:
   void onSearchTextChanged(const QString &text);

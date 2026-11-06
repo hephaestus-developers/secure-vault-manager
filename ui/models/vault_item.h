@@ -9,6 +9,7 @@
 
 #include <QDateTime>
 #include <QMap>
+#include <QObject>
 #include <QString>
 #include <QStringList>
 
@@ -73,25 +74,25 @@ inline QString categoryIconPath(ItemCategory cat, bool isLight = false) {
 inline QString categoryDisplayName(ItemCategory cat) {
   switch (cat) {
   case ItemCategory::Login:
-    return QStringLiteral("Logins");
+    return QObject::tr("Logins");
   case ItemCategory::Passkey:
-    return QStringLiteral("Passkeys");
+    return QObject::tr("Passkeys");
   case ItemCategory::Card:
-    return QStringLiteral("Credit Cards");
+    return QObject::tr("Credit Cards");
   case ItemCategory::Identity:
-    return QStringLiteral("Identities");
+    return QObject::tr("Identities");
   case ItemCategory::SecureNote:
-    return QStringLiteral("Secure Notes");
+    return QObject::tr("Secure Notes");
   case ItemCategory::SshKey:
-    return QStringLiteral("SSH Keys");
+    return QObject::tr("SSH Keys");
   case ItemCategory::Database:
-    return QStringLiteral("Databases");
+    return QObject::tr("Databases");
   case ItemCategory::Server:
-    return QStringLiteral("Servers");
+    return QObject::tr("Servers");
   case ItemCategory::Wifi:
-    return QStringLiteral("Wi-Fi Networks");
+    return QObject::tr("Wi-Fi Networks");
   }
-  return QStringLiteral("Unknown");
+  return QObject::tr("Unknown");
 }
 
 /**

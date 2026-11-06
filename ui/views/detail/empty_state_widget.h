@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <QLabel>
 #include <QWidget>
 
 namespace svm::views {
@@ -18,8 +19,16 @@ public:
   explicit EmptyStateWidget(QWidget *parent = nullptr);
   ~EmptyStateWidget() override = default;
 
+  void retranslateUi();
+
+protected:
+  void changeEvent(QEvent *event) override;
+
 private:
   void setupUI();
+
+  QLabel *m_titleLabel{nullptr};
+  QLabel *m_descLabel{nullptr};
 };
 
 } // namespace svm::views

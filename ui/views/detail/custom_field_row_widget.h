@@ -37,9 +37,14 @@ public:
 
   void focusLabelInput();
 
+  void retranslateUi();
+
 signals:
   void deleteRequested();
   void copyRequested(const QString &value, const QString &label);
+
+protected:
+  void changeEvent(QEvent *event) override;
 
 private slots:
   void onToggleReveal();

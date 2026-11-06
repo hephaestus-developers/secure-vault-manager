@@ -32,9 +32,14 @@ public:
   void setEditMode(bool editable);
   [[nodiscard]] bool isEditMode() const { return m_isEditMode; }
 
+  void retranslateUi();
+
 signals:
   void copyRequested(const QString &code);
   void removeRequested();
+
+protected:
+  void changeEvent(QEvent *event) override;
 
 private slots:
   void onTick();
@@ -54,6 +59,7 @@ private:
 
   // View Mode widgets
   QWidget *m_viewContainer{nullptr};
+  QLabel *m_viewTitleLabel{nullptr};
   QLabel *m_codeLabel{nullptr};
   QLabel *m_timerLabel{nullptr};
   QProgressBar *m_progressBar{nullptr};
@@ -61,6 +67,7 @@ private:
 
   // Edit Mode widgets
   QWidget *m_editContainer{nullptr};
+  QLabel *m_editTitleLabel{nullptr};
   QLineEdit *m_secretInput{nullptr};
   QPushButton *m_revealSecretBtn{nullptr};
   QPushButton *m_removeBtn{nullptr};

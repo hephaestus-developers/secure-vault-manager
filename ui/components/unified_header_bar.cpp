@@ -80,7 +80,7 @@ UnifiedHeaderBar::UnifiedHeaderBar(AppMenuBar *menuBar, QWidget *parent)
   layout->addWidget(m_themeToggleBtn, 0, Qt::AlignVCenter);
 
   // 3. Nhãn tiêu đề căn giữa toàn bộ cửa sổ (Center Title Label Overlay)
-  m_titleLabel = new QLabel(QStringLiteral("Secure Vault Manager"), this);
+  m_titleLabel = new QLabel(tr("Secure Vault Manager"), this);
   m_titleLabel->setObjectName(QStringLiteral("HeaderTitleLabel"));
   m_titleLabel->setAlignment(Qt::AlignCenter);
   m_titleLabel->setAttribute(Qt::WA_TransparentForMouseEvents, true);
@@ -157,7 +157,7 @@ void UnifiedHeaderBar::repositionTitleOverlay() {
   int availWidth = width() - (sideMargin * 2);
   QString fullTitle = m_titleLabel->property("fullTitle").toString();
   if (fullTitle.isEmpty()) {
-    fullTitle = QStringLiteral("Secure Vault Manager");
+    fullTitle = tr("Secure Vault Manager");
   }
 
   if (availWidth <= 40) {
@@ -225,6 +225,37 @@ void UnifiedHeaderBar::updateThemeIcons(bool darkMode) {
       m_themeToggleBtn->setToolTip(tr("Switch to Dark theme (Ctrl+T)"));
     }
   }
+}
+
+void UnifiedHeaderBar::retranslateUi() {
+  if (m_titleLabel) {
+    m_titleLabel->setText(tr("Secure Vault Manager"));
+  }
+  if (m_paletteBtn) {
+    m_paletteBtn->setToolTip(tr("Command Palette (Ctrl+K)"));
+  }
+  if (m_themeToggleBtn) {
+    m_themeToggleBtn->setToolTip(m_darkMode
+                                     ? tr("Switch to Light theme (Ctrl+T)")
+                                     : tr("Switch to Dark theme (Ctrl+T)"));
+  }
+  if (m_minBtn) {
+    m_minBtn->setToolTip(tr("Minimize"));
+  }
+  if (m_maxBtn) {
+    const bool isMax = window() && window()->isMaximized();
+    m_maxBtn->setToolTip(isMax ? tr("Restore") : tr("Maximize"));
+  }
+  if (m_closeBtn) {
+    m_closeBtn->setToolTip(tr("Close"));
+  }
+}
+
+void UnifiedHeaderBar::changeEvent(QEvent *event) {
+  if (event->type() == QEvent::LanguageChange) {
+    retranslateUi();
+  }
+  QWidget::changeEvent(event);
 }
 
 void UnifiedHeaderBar::mousePressEvent(QMouseEvent *event) {

@@ -234,7 +234,33 @@ void ItemListView::onListSelectionChanged(const QItemSelection &selected,
 
 void ItemListView::updateCountLabel() {
   const int count = m_proxyModel->rowCount();
-  m_countLabel->setText(tr("%1 items").arg(count));
+  if (count == 1) {
+    m_countLabel->setText(tr("%1 item").arg(count));
+  } else {
+    m_countLabel->setText(tr("%1 items").arg(count));
+  }
+}
+
+void ItemListView::retranslateUi() {
+  if (m_searchEdit) {
+    m_searchEdit->setPlaceholderText(tr("Search vault... (Ctrl+F)"));
+  }
+  if (m_newBtn) {
+    m_newBtn->setToolTip(tr("Create new item (Ctrl+N)"));
+  }
+  if (m_sortCombo && m_sortCombo->count() >= 3) {
+    m_sortCombo->setItemText(0, tr("Recently Updated"));
+    m_sortCombo->setItemText(1, tr("Title (A-Z)"));
+    m_sortCombo->setItemText(2, tr("Title (Z-A)"));
+  }
+  updateCountLabel();
+}
+
+void ItemListView::changeEvent(QEvent *event) {
+  if (event->type() == QEvent::LanguageChange) {
+    retranslateUi();
+  }
+  QWidget::changeEvent(event);
 }
 
 } // namespace svm::views

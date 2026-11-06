@@ -7,6 +7,7 @@
 
 #include "empty_state_widget.h"
 
+#include <QEvent>
 #include <QIcon>
 #include <QLabel>
 #include <QVBoxLayout>
@@ -32,13 +33,13 @@ void EmptyStateWidget::setupUI() {
   layout->addWidget(iconLabel);
 
   // Tiêu đề
-  auto *titleLabel = new QLabel(tr("No Item Selected"), this);
-  titleLabel->setObjectName(QStringLiteral("EmptyStateTitle"));
-  titleLabel->setAlignment(Qt::AlignCenter);
-  layout->addWidget(titleLabel);
+  m_titleLabel = new QLabel(tr("No Item Selected"), this);
+  m_titleLabel->setObjectName(QStringLiteral("EmptyStateTitle"));
+  m_titleLabel->setAlignment(Qt::AlignCenter);
+  layout->addWidget(m_titleLabel);
 
   // Hướng dẫn phím tắt
-  auto *descLabel =
+  m_descLabel =
       new QLabel(tr("Select an item from the list to view its details,\n"
                     "or use keyboard shortcuts:\n\n"
                     "• Ctrl+N : Create a new item\n"
@@ -46,9 +47,31 @@ void EmptyStateWidget::setupUI() {
                     "• Ctrl+K : Open Command Palette\n"
                     "• Ctrl+B : Toggle navigation sidebar"),
                  this);
-  descLabel->setObjectName(QStringLiteral("EmptyStateDesc"));
-  descLabel->setAlignment(Qt::AlignCenter);
-  layout->addWidget(descLabel);
+  m_descLabel->setObjectName(QStringLiteral("EmptyStateDesc"));
+  m_descLabel->setAlignment(Qt::AlignCenter);
+  layout->addWidget(m_descLabel);
+}
+
+void EmptyStateWidget::retranslateUi() {
+  if (m_titleLabel) {
+    m_titleLabel->setText(tr("No Item Selected"));
+  }
+  if (m_descLabel) {
+    m_descLabel->setText(
+        tr("Select an item from the list to view its details,\n"
+           "or use keyboard shortcuts:\n\n"
+           "• Ctrl+N : Create a new item\n"
+           "• Ctrl+F : Search vault items\n"
+           "• Ctrl+K : Open Command Palette\n"
+           "• Ctrl+B : Toggle navigation sidebar"));
+  }
+}
+
+void EmptyStateWidget::changeEvent(QEvent *event) {
+  if (event->type() == QEvent::LanguageChange) {
+    retranslateUi();
+  }
+  QWidget::changeEvent(event);
 }
 
 } // namespace svm::views

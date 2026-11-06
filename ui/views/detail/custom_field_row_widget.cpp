@@ -431,4 +431,43 @@ void CustomFieldRowWidget::updateDisplay() {
   }
 }
 
+void CustomFieldRowWidget::retranslateUi() {
+  if (m_revealBtn) {
+    m_revealBtn->setToolTip(tr("Reveal (10s)"));
+  }
+  if (m_copyBtn) {
+    m_copyBtn->setToolTip(tr("Copy to clipboard"));
+  }
+  if (m_labelEdit) {
+    m_labelEdit->setPlaceholderText(tr("Field Name (e.g. PIN, Recovery Code)"));
+  }
+  if (m_kindCombo && m_kindCombo->count() >= 4) {
+    m_kindCombo->setItemText(0, tr("Text"));
+    m_kindCombo->setItemText(1, tr("Concealed"));
+    m_kindCombo->setItemText(2, tr("Boolean"));
+    m_kindCombo->setItemText(3, tr("Date"));
+  }
+  if (m_deleteBtn) {
+    m_deleteBtn->setToolTip(tr("Delete this field"));
+  }
+  if (m_valueEdit) {
+    m_valueEdit->setPlaceholderText(tr("Field Value"));
+  }
+  if (m_boolEdit) {
+    m_boolEdit->setText(m_boolEdit->isChecked() ? tr("Yes / True")
+                                                : tr("No / False"));
+  }
+  if (m_editRevealBtn) {
+    m_editRevealBtn->setToolTip(tr("Show / Hide password"));
+  }
+  updateDisplay();
+}
+
+void CustomFieldRowWidget::changeEvent(QEvent *event) {
+  if (event->type() == QEvent::LanguageChange) {
+    retranslateUi();
+  }
+  QWidget::changeEvent(event);
+}
+
 } // namespace svm::views

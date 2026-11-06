@@ -31,6 +31,11 @@ public:
   void setEditMode(bool editable);
   [[nodiscard]] bool isEditMode() const { return m_isEditMode; }
 
+  void retranslateUi();
+
+protected:
+  void changeEvent(QEvent *event) override;
+
 private slots:
   void onAddFieldClicked();
 

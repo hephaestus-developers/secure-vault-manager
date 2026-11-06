@@ -14,6 +14,7 @@
 #include <QScrollBar>
 #include <QTimer>
 
+#include "app/language_manager.h"
 #include "app/theme_manager.h"
 #include "app/tray_manager.h"
 #include "core/core_bridge.h"
@@ -40,7 +41,8 @@ int main(int argc, char *argv[]) {
                   "offline/degraded mode.";
   }
 
-  // 2. Thiết lập Theme mặc định (Dark Theme chuẩn SAD)
+  // 2. Khởi tạo Đa ngôn ngữ (mặc định English) và Theme (Dark)
+  svm::app::LanguageManager::instance().initialize();
   svm::app::ThemeManager::instance().applyTheme(svm::app::ThemeMode::Dark);
 
   // 3. Khởi tạo cửa sổ chính và TrayManager
@@ -53,7 +55,11 @@ int main(int argc, char *argv[]) {
 
   for (int i = 1; i < argc; ++i) {
     const QString arg = QString::fromLatin1(argv[i]);
-    if (arg == QStringLiteral("--theme") && i + 1 < argc) {
+    if (arg == QStringLiteral("--lang") && i + 1 < argc) {
+      QString lang = QString::fromLatin1(argv[++i]);
+      svm::app::LanguageManager::instance().setLanguage(
+          svm::app::LanguageManager::languageFromCode(lang));
+    } else if (arg == QStringLiteral("--theme") && i + 1 < argc) {
       QString theme = QString::fromLatin1(argv[++i]);
       if (theme == QStringLiteral("light")) {
         svm::app::ThemeManager::instance().applyTheme(

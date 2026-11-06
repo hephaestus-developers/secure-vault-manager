@@ -6,6 +6,7 @@
  */
 
 #include "tray_manager.h"
+#include "app/language_manager.h"
 #include "app/theme_manager.h"
 #include "main_window.h"
 
@@ -19,9 +20,11 @@ TrayManager::TrayManager(MainWindow *mainWindow, QObject *parent)
     : QObject(parent), m_mainWindow(mainWindow) {}
 
 bool TrayManager::initialize() {
-  // Kết nối sự kiện thay đổi theme
+  // Kết nối sự kiện thay đổi theme và language
   connect(&ThemeManager::instance(), &ThemeManager::themeChanged, this,
           &TrayManager::onThemeChanged);
+  connect(&LanguageManager::instance(), &LanguageManager::languageChanged, this,
+          &TrayManager::retranslateUi);
 
   if (!QSystemTrayIcon::isSystemTrayAvailable()) {
     return false;
@@ -101,6 +104,19 @@ void TrayManager::updateTrayTooltipAndIcon() {
     m_lockAction->setIcon(ThemeManager::instance().icon(
         m_isVaultLocked ? QStringLiteral("unlock") : QStringLiteral("lock")));
   }
+}
+
+void TrayManager::retranslateUi() {
+  if (m_openAction) {
+    m_openAction->setText(tr("Open Secure Vault Manager"));
+  }
+  if (m_themeAction) {
+    m_themeAction->setText(tr("Toggle Theme"));
+  }
+  if (m_quitAction) {
+    m_quitAction->setText(tr("Quit Application"));
+  }
+  updateTrayTooltipAndIcon();
 }
 
 void TrayManager::onTrayActivated(QSystemTrayIcon::ActivationReason reason) {

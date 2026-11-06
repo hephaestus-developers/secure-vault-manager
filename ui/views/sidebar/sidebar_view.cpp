@@ -11,6 +11,7 @@
 
 #include <QAction>
 #include <QActionGroup>
+#include <QEvent>
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QLabel>
@@ -180,9 +181,9 @@ void SidebarView::setupExpandedUI() {
       QIcon(QStringLiteral(":/icons/lock.svg")).pixmap(18, 18));
   lockBtnLayout->addWidget(m_lockIconLabel);
 
-  auto *lockTextLabel = new QLabel(tr("Lock Vault"), m_lockBtn);
-  lockTextLabel->setObjectName(QStringLiteral("LockBtnText"));
-  lockBtnLayout->addWidget(lockTextLabel, 1);
+  m_lockTextLabel = new QLabel(tr("Lock Vault"), m_lockBtn);
+  m_lockTextLabel->setObjectName(QStringLiteral("LockBtnText"));
+  lockBtnLayout->addWidget(m_lockTextLabel, 1);
 
   connect(m_lockBtn, &QPushButton::clicked, this,
           &SidebarView::lockVaultRequested);
@@ -262,7 +263,7 @@ void SidebarView::populateNavItems() {
   m_compactCategoryItems.clear();
   m_categoryItems.clear();
 
-  auto addHeader = [this](const QString &title) {
+  auto addHeader = [this](const QString &title) -> QListWidgetItem * {
     auto *header = new QListWidgetItem(title, m_navList);
     header->setFlags(Qt::NoItemFlags);
     header->setData(SidebarItemDelegate::IsHeaderRole, true);
@@ -271,6 +272,7 @@ void SidebarView::populateNavItems() {
     compactDivider->setFlags(Qt::NoItemFlags);
     compactDivider->setData(SidebarItemDelegate::IsHeaderRole, true);
     compactDivider->setSizeHint(QSize(60, 16));
+    return header;
   };
 
   auto addNavItem = [this](const QIcon &icon, const QString &text,
@@ -319,7 +321,7 @@ void SidebarView::populateNavItems() {
                      tr("Trash (0)"), SidebarFilterType::Trash);
 
   // 2. Nhóm 9 Danh Mục Nghiệp Vụ
-  addHeader(tr("CATEGORIES"));
+  m_categoriesHeaderItem = addHeader(tr("CATEGORIES"));
 
   const std::array<models::ItemCategory, 9> categories = {
       models::ItemCategory::Login,      models::ItemCategory::Passkey,
@@ -343,7 +345,7 @@ void SidebarView::populateNavItems() {
   }
 
   // 3. Nhóm Watchtower
-  addHeader(tr("WATCHTOWER"));
+  m_watchtowerHeaderItem = addHeader(tr("WATCHTOWER"));
 
   m_weakPassItem =
       addNavItem(QIcon(QStringLiteral(":/icons/watchtower_weak.svg")),
@@ -565,6 +567,9 @@ void SidebarView::syncSelectionToList(SidebarFilterType type,
 void SidebarView::updateCounts(
     const QMap<SidebarFilterType, int> &filterCounts,
     const QMap<models::ItemCategory, int> &categoryCounts) {
+  m_lastFilterCounts = filterCounts;
+  m_lastCategoryCounts = categoryCounts;
+
   auto updateCount = [](QListWidgetItem *item, int count) {
     if (item) {
       item->setData(SidebarItemDelegate::CountRole, count);
@@ -614,13 +619,68 @@ void SidebarView::updateCounts(
       listItem->setData(SidebarItemDelegate::CountRole, count);
     }
     if (auto *compactItem = m_compactCategoryItems.value(it.key(), nullptr)) {
-      compactItem->setToolTip(QStringLiteral("%1 (%2)")
-                                  .arg(models::categoryDisplayName(it.key()))
-                                  .arg(count));
+      compactItem->setToolTip(
+          tr("%1 (%2)").arg(models::categoryDisplayName(it.key())).arg(count));
     }
   }
 
   m_navList->viewport()->update();
+}
+
+void SidebarView::retranslateUi() {
+  if (m_collapseBtn) {
+    m_collapseBtn->setToolTip(tr("Collapse Sidebar (Ctrl+B)"));
+  }
+  if (m_expandBtn) {
+    m_expandBtn->setToolTip(tr("Expand Sidebar (Ctrl+B)"));
+  }
+  if (m_lockBtn) {
+    m_lockBtn->setToolTip(tr("Lock vault immediately (Ctrl+L)"));
+  }
+  if (m_collapsedLockBtn) {
+    m_collapsedLockBtn->setToolTip(tr("Lock Vault (Ctrl+L)"));
+  }
+  if (m_lockTextLabel) {
+    m_lockTextLabel->setText(tr("Lock Vault"));
+  }
+
+  if (m_allItem) {
+    m_allItem->setText(tr("All Items"));
+  }
+  if (m_favItem) {
+    m_favItem->setText(tr("Favorites"));
+  }
+  if (m_trashItem) {
+    m_trashItem->setText(tr("Trash"));
+  }
+  if (m_weakPassItem) {
+    m_weakPassItem->setText(tr("Weak Passwords"));
+  }
+  if (m_expiringItem) {
+    m_expiringItem->setText(tr("Expiring Tokens"));
+  }
+
+  if (m_categoriesHeaderItem) {
+    m_categoriesHeaderItem->setText(tr("CATEGORIES"));
+  }
+  if (m_watchtowerHeaderItem) {
+    m_watchtowerHeaderItem->setText(tr("WATCHTOWER"));
+  }
+
+  for (auto it = m_categoryItems.begin(); it != m_categoryItems.end(); ++it) {
+    if (it.value()) {
+      it.value()->setText(models::categoryDisplayName(it.key()));
+    }
+  }
+
+  updateCounts(m_lastFilterCounts, m_lastCategoryCounts);
+}
+
+void SidebarView::changeEvent(QEvent *event) {
+  if (event->type() == QEvent::LanguageChange) {
+    retranslateUi();
+  }
+  QWidget::changeEvent(event);
 }
 
 } // namespace svm::views

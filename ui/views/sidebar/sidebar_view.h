@@ -35,6 +35,8 @@ public:
   void setCollapsed(bool collapsed);
   [[nodiscard]] bool isCollapsed() const { return m_isCollapsed; }
 
+  void retranslateUi();
+
 public slots:
   void toggleCollapsed();
 
@@ -43,6 +45,9 @@ signals:
   void lockVaultRequested();
   void vaultChanged(const QString &vaultName);
   void collapsedChanged(bool collapsed);
+
+protected:
+  void changeEvent(QEvent *event) override;
 
 private slots:
   void onListItemClicked(QListWidgetItem *item);
@@ -81,9 +86,14 @@ private:
   QListWidgetItem *m_allItem{nullptr};
   QListWidgetItem *m_favItem{nullptr};
   QListWidgetItem *m_trashItem{nullptr};
+  QListWidgetItem *m_categoriesHeaderItem{nullptr};
+  QListWidgetItem *m_watchtowerHeaderItem{nullptr};
+  QLabel *m_lockTextLabel{nullptr};
   QMap<models::ItemCategory, QListWidgetItem *> m_categoryItems;
   QListWidgetItem *m_weakPassItem{nullptr};
   QListWidgetItem *m_expiringItem{nullptr};
+  QMap<SidebarFilterType, int> m_lastFilterCounts;
+  QMap<models::ItemCategory, int> m_lastCategoryCounts;
 
   // Trang 1: Collapsed View (Icon Rail)
   QWidget *m_collapsedWidget{nullptr};
