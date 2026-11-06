@@ -329,14 +329,14 @@ QStatusBar::item {
 }
 
 /* Header Action Buttons */
-#HeaderSidebarToggleBtn, #HeaderCommandPaletteBtn, #HeaderThemeToggleBtn {
+#HeaderSidebarToggleBtn, #HeaderCommandPaletteBtn, #HeaderThemeToggleBtn, #HeaderAboutBtn {
     background: transparent;
     border: none;
     border-radius: 4px;
     padding: 4px;
 }
 
-#HeaderSidebarToggleBtn:hover, #HeaderCommandPaletteBtn:hover, #HeaderThemeToggleBtn:hover {
+#HeaderSidebarToggleBtn:hover, #HeaderCommandPaletteBtn:hover, #HeaderThemeToggleBtn:hover, #HeaderAboutBtn:hover {
     background-color: #ccd0da;
 }
 
@@ -1145,4 +1145,104 @@ QCalendarWidget QHeaderView::section {
     background: transparent;
     border: none;
     outline: none;
+}
+
+/* 5. About Dialog */
+#AboutDialogCard {
+    background-color: #ffffff;
+    border: 1px solid #ccd0da;
+    border-radius: 12px;
+}
+
+#AboutDialogHeader {
+    background-color: #f4f4f6;
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+    border-bottom: 1px solid #e6e9ef;
+    padding: 8px 12px;
+}
+
+#AboutDialogTitle {
+    color: #1e1e2e;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+#AboutCloseIconBtn {
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    padding: 4px;
+}
+
+#AboutCloseIconBtn:hover {
+    background-color: #e6e9ef;
+}
+
+#AboutTabWidget::pane {
+    border: 1px solid #ccd0da;
+    border-radius: 8px;
+    background-color: #ffffff;
+    top: -1px;
+}
+
+#AboutTabWidget QTabBar::tab {
+    background-color: #f4f4f6;
+    color: #6c6f85;
+    border: 1px solid #ccd0da;
+    border-bottom: none;
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    padding: 6px 16px;
+    margin-right: 4px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+#AboutTabWidget QTabBar::tab:selected {
+    background-color: #ffffff;
+    color: #1e1e2e;
+    border-color: #ccd0da;
+    font-weight: 600;
+}
+
+#AboutTabWidget QTabBar::tab:hover:!selected {
+    background-color: #e6e9ef;
+    color: #4c4f69;
+}
+
+#AboutMetaLabelKey {
+    color: #5c5f77;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+#AboutMetaLabelVal {
+    color: #1e1e2e;
+    font-size: 12px;
+}
+
+#AboutLicenseView {
+    background-color: #f8f9fa;
+    border: 1px solid #ccd0da;
+    border-radius: 6px;
+    color: #4c4f69;
+    font-family: monospace;
+    font-size: 11px;
+    padding: 8px;
+}
+
+#AboutBottomCloseBtn {
+    background-color: #e6e9ef;
+    border: 1px solid #ccd0da;
+    border-radius: 6px;
+    color: #2f3540;
+    padding: 6px 20px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+#AboutBottomCloseBtn:hover {
+    background-color: #dce0e8;
+    color: #1e1e2e;
 }

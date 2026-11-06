@@ -46,6 +46,9 @@
         <file>icons/theme_toggle.svg</file>
         <file>icons/theme_toggle_dark.svg</file>
         <file>icons/theme_toggle_light.svg</file>
+        <file>icons/info.svg</file>
+        <file>icons/info_dark.svg</file>
+        <file>icons/info_light.svg</file>
         <file>icons/plus.svg</file>
         <file>icons/plus_dark.svg</file>
         <file>icons/plus_light.svg</file>

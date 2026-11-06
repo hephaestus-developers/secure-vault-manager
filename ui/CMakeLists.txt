@@ -35,6 +35,7 @@ set(UI_SOURCES
     views/detail/detail_header_widget.cpp
     views/detail/detail_inspector_view.cpp
     views/command_palette/command_palette_dialog.cpp
+    views/about/about_dialog.cpp
     resources/resources.qrc
 )
 
@@ -66,6 +67,7 @@ set(UI_HEADERS
     views/detail/detail_header_widget.h
     views/detail/detail_inspector_view.h
     views/command_palette/command_palette_dialog.h
+    views/about/about_dialog.h
 )
 
 add_executable(svm_ui ${UI_SOURCES} ${UI_HEADERS})

@@ -9,6 +9,7 @@
 #pragma once
 
 #include "models/vault_item.h"
+#include "views/about/about_dialog.h"
 #include "views/command_palette/command_palette_dialog.h"
 #include "views/detail/detail_inspector_view.h"
 #include "views/item_list/item_list_view.h"
@@ -80,6 +81,9 @@ private:
 
   // Command Palette
   views::CommandPaletteDialog *m_commandPalette{nullptr};
+
+  // About Dialog
+  views::AboutDialog *m_aboutDialog{nullptr};
 
   // Phím tắt toàn cục
   QShortcut *m_toggleSidebarShortcut{nullptr};

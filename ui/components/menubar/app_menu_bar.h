@@ -45,9 +45,6 @@ private:
   QActionGroup *m_langGroup{nullptr};
   QAction *m_langEnAct{nullptr};
   QAction *m_langViAct{nullptr};
-
-  QMenu *m_helpMenu{nullptr};
-  QAction *m_aboutAct{nullptr};
 };
 
 } // namespace svm::components

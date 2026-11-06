@@ -57,12 +57,6 @@ void AppMenuBar::setupMenus() {
   connect(&app::LanguageManager::instance(),
           &app::LanguageManager::languageChanged, this,
           &AppMenuBar::retranslateUi);
-
-  // 3. Menu Trợ Giúp (Help)
-  m_helpMenu = addMenu(tr("&Help"));
-
-  m_aboutAct = m_helpMenu->addAction(tr("&About Secure Vault Manager..."));
-  connect(m_aboutAct, &QAction::triggered, this, &AppMenuBar::aboutRequested);
 }
 
 void AppMenuBar::retranslateUi() {
@@ -83,12 +77,6 @@ void AppMenuBar::retranslateUi() {
   }
   if (m_langViAct) {
     m_langViAct->setText(tr("Vietnamese"));
-  }
-  if (m_helpMenu) {
-    m_helpMenu->setTitle(tr("&Help"));
-  }
-  if (m_aboutAct) {
-    m_aboutAct->setText(tr("&About Secure Vault Manager..."));
   }
   updateLanguageActions();
 }

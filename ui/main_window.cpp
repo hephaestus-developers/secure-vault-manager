@@ -142,16 +142,16 @@ void MainWindow::setupUI() {
   connect(m_detailView, &views::DetailInspectorView::cancelRequested, this,
           &MainWindow::onDetailCancelRequested);
 
-  // 6. Kết nối MenuBar Actions
-  connect(m_menuBar, &components::AppMenuBar::aboutRequested, this, [this]() {
-    const QString version = core::CoreBridge::instance().coreVersion();
-    QMessageBox::about(this, tr("About Secure Vault Manager"),
-                       tr("<b>Secure Vault Manager v0.1.0</b><br>"
-                          "Native Zero-Knowledge Password & Secret Manager.<br>"
-                          "Rust Core Engine v%1.<br><br>"
-                          "© 2026 Hephaestus Developers.")
-                           .arg(version));
-  });
+  // 6. Kết nối HeaderBar & MenuBar Actions
+  connect(m_headerBar, &components::UnifiedHeaderBar::aboutRequested, this,
+          [this]() {
+            if (!m_aboutDialog) {
+              m_aboutDialog = new views::AboutDialog(this);
+            }
+            m_aboutDialog->show();
+            m_aboutDialog->raise();
+            m_aboutDialog->activateWindow();
+          });
   connect(m_menuBar, &components::AppMenuBar::exitRequested, qApp,
           &QApplication::quit);
 }
@@ -474,6 +474,9 @@ void MainWindow::retranslateUi() {
   }
   if (m_detailView) {
     m_detailView->retranslateUi();
+  }
+  if (m_aboutDialog) {
+    m_aboutDialog->retranslateUi();
   }
 }
 

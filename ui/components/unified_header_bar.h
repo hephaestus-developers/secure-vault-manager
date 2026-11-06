@@ -51,6 +51,7 @@ signals:
   void closeRequested();
   void commandPaletteRequested();
   void themeToggleRequested();
+  void aboutRequested();
 
 protected:
   void changeEvent(QEvent *event) override;
@@ -67,6 +68,7 @@ private:
   QLabel *m_logoLabel{nullptr};
   QPushButton *m_paletteBtn{nullptr};
   QPushButton *m_themeToggleBtn{nullptr};
+  QPushButton *m_aboutBtn{nullptr};
   AppMenuBar *m_menuBar{nullptr};
   QLabel *m_titleLabel{nullptr};
   QPushButton *m_minBtn{nullptr};

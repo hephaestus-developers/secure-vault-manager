@@ -79,6 +79,18 @@ UnifiedHeaderBar::UnifiedHeaderBar(AppMenuBar *menuBar, QWidget *parent)
           &UnifiedHeaderBar::themeToggleRequested);
   layout->addWidget(m_themeToggleBtn, 0, Qt::AlignVCenter);
 
+  // Nút Giới thiệu (About Dialog)
+  m_aboutBtn = new QPushButton(this);
+  m_aboutBtn->setObjectName(QStringLiteral("HeaderAboutBtn"));
+  m_aboutBtn->setIconSize(QSize(15, 15));
+  m_aboutBtn->setFixedSize(28, 28);
+  m_aboutBtn->setFlat(true);
+  m_aboutBtn->setCursor(Qt::PointingHandCursor);
+  m_aboutBtn->setToolTip(tr("About Secure Vault Manager"));
+  connect(m_aboutBtn, &QPushButton::clicked, this,
+          &UnifiedHeaderBar::aboutRequested);
+  layout->addWidget(m_aboutBtn, 0, Qt::AlignVCenter);
+
   // 3. Nhãn tiêu đề căn giữa toàn bộ cửa sổ (Center Title Label Overlay)
   m_titleLabel = new QLabel(tr("Secure Vault Manager"), this);
   m_titleLabel->setObjectName(QStringLiteral("HeaderTitleLabel"));
@@ -225,6 +237,12 @@ void UnifiedHeaderBar::updateThemeIcons(bool darkMode) {
       m_themeToggleBtn->setToolTip(tr("Switch to Dark theme (Ctrl+T)"));
     }
   }
+
+  if (m_aboutBtn) {
+    m_aboutBtn->setIcon(QIcon(darkMode
+                                  ? QStringLiteral(":/icons/info_dark.svg")
+                                  : QStringLiteral(":/icons/info_light.svg")));
+  }
 }
 
 void UnifiedHeaderBar::retranslateUi() {
@@ -238,6 +256,9 @@ void UnifiedHeaderBar::retranslateUi() {
     m_themeToggleBtn->setToolTip(m_darkMode
                                      ? tr("Switch to Light theme (Ctrl+T)")
                                      : tr("Switch to Dark theme (Ctrl+T)"));
+  }
+  if (m_aboutBtn) {
+    m_aboutBtn->setToolTip(tr("About Secure Vault Manager"));
   }
   if (m_minBtn) {
     m_minBtn->setToolTip(tr("Minimize"));
