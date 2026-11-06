@@ -44,6 +44,13 @@ public:
   [[nodiscard]] bool isLocked() const;
 
   /**
+   * @brief Kiểm tra xem kho đã sẵn sàng và đang mở khóa.
+   */
+  [[nodiscard]] bool isUnlocked() const {
+    return m_isConfigured && !m_isLocked;
+  }
+
+  /**
    * @brief Lấy định danh Vault đang active. Trống hoặc "all" là All Vaults.
    */
   [[nodiscard]] QString activeVaultId() const;
@@ -75,6 +82,11 @@ public:
   bool deleteVault(const QString &vaultId);
 
   /**
+   * @brief Đặt một Vault làm mặc định.
+   */
+  bool setDefaultVault(const QString &vaultId);
+
+  /**
    * @brief Thiết lập khởi tạo lần đầu từ Onboarding Wizard.
    */
   bool setupInitialMasterPassword(const QString &password,
@@ -101,6 +113,23 @@ public:
    * @brief Khóa ngay lập tức và giải phóng bộ nhớ.
    */
   void lock();
+
+  /**
+   * @brief Kiểm tra mật khẩu chính có khớp với mật khẩu đã lưu không.
+   */
+  [[nodiscard]] bool validateMasterPassword(const QString &password) const;
+
+  /**
+   * @brief Lấy mã Emergency Recovery Key hiện tại.
+   */
+  [[nodiscard]] QString recoveryKey() const { return m_recoveryKey; }
+
+  /**
+   * @brief Lấy thông tin Vault đang hoạt động.
+   */
+  [[nodiscard]] models::UiVault currentVault() const {
+    return vault(m_activeVaultId);
+  }
 
   /**
    * @brief Sinh mã Recovery Key ngẫu nhiên theo định dạng chuẩn

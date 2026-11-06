@@ -186,7 +186,19 @@ void SidebarView::setupExpandedUI() {
 
   connect(m_lockBtn, &QPushButton::clicked, this,
           &SidebarView::lockVaultRequested);
-  footerLayout->addWidget(m_lockBtn);
+  footerLayout->addWidget(m_lockBtn, 1);
+
+  m_settingsBtn = new QPushButton(footerWidget);
+  m_settingsBtn->setObjectName(QStringLiteral("SidebarSettingsBtn"));
+  m_settingsBtn->setFixedSize(32, 32);
+  m_settingsBtn->setIconSize(QSize(16, 16));
+  m_settingsBtn->setIcon(
+      app::ThemeManager::instance().icon(QStringLiteral("category_settings")));
+  m_settingsBtn->setToolTip(tr("Settings (Ctrl+,)"));
+  m_settingsBtn->setCursor(Qt::PointingHandCursor);
+  connect(m_settingsBtn, &QPushButton::clicked, this,
+          &SidebarView::settingsRequested);
+  footerLayout->addWidget(m_settingsBtn, 0);
 
   layout->addWidget(footerWidget);
 }
@@ -242,7 +254,20 @@ void SidebarView::setupCollapsedUI() {
           &SidebarView::onCompactItemClicked);
   layout->addWidget(m_compactList, 1, Qt::AlignHCenter);
 
-  // 4. Bottom Collapsed Lock Button (36x36, icon 18x18)
+  // 4. Bottom Collapsed Settings & Lock Buttons (36x36, icon 18x18)
+  m_collapsedSettingsBtn = new QPushButton(m_collapsedWidget);
+  m_collapsedSettingsBtn->setObjectName(
+      QStringLiteral("SidebarCompactSettingsBtn"));
+  m_collapsedSettingsBtn->setIcon(
+      app::ThemeManager::instance().icon(QStringLiteral("category_settings")));
+  m_collapsedSettingsBtn->setIconSize(QSize(18, 18));
+  m_collapsedSettingsBtn->setFixedSize(36, 36);
+  m_collapsedSettingsBtn->setToolTip(tr("Settings (Ctrl+,)"));
+  m_collapsedSettingsBtn->setCursor(Qt::PointingHandCursor);
+  connect(m_collapsedSettingsBtn, &QPushButton::clicked, this,
+          &SidebarView::settingsRequested);
+  layout->addWidget(m_collapsedSettingsBtn, 0, Qt::AlignHCenter);
+
   m_collapsedLockBtn = new QPushButton(m_collapsedWidget);
   m_collapsedLockBtn->setObjectName(QStringLiteral("SidebarCompactLockBtn"));
   m_collapsedLockBtn->setIcon(QIcon(QStringLiteral(":/icons/lock.svg")));
@@ -391,6 +416,13 @@ void SidebarView::updateThemeIcons() {
   }
   if (m_collapsedLockBtn) {
     m_collapsedLockBtn->setIcon(tm.icon(QStringLiteral("lock")));
+  }
+  if (m_settingsBtn) {
+    m_settingsBtn->setIcon(tm.icon(QStringLiteral("category_settings")));
+  }
+  if (m_collapsedSettingsBtn) {
+    m_collapsedSettingsBtn->setIcon(
+        tm.icon(QStringLiteral("category_settings")));
   }
 
   if (m_collapseBtn) {
@@ -682,6 +714,12 @@ void SidebarView::retranslateUi() {
   }
   if (m_lockBtn) {
     m_lockBtn->setToolTip(tr("Lock vault immediately (Ctrl+L)"));
+  }
+  if (m_settingsBtn) {
+    m_settingsBtn->setToolTip(tr("Settings (Ctrl+,)"));
+  }
+  if (m_collapsedSettingsBtn) {
+    m_collapsedSettingsBtn->setToolTip(tr("Settings (Ctrl+,)"));
   }
   if (m_collapsedLockBtn) {
     m_collapsedLockBtn->setToolTip(tr("Lock Vault (Ctrl+L)"));

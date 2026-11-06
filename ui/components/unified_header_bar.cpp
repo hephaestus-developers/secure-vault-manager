@@ -79,6 +79,19 @@ UnifiedHeaderBar::UnifiedHeaderBar(AppMenuBar *menuBar, QWidget *parent)
           &UnifiedHeaderBar::themeToggleRequested);
   layout->addWidget(m_themeToggleBtn, 0, Qt::AlignVCenter);
 
+  // Nút Cài đặt (Settings Dialog)
+  m_settingsBtn = new QPushButton(this);
+  m_settingsBtn->setObjectName(QStringLiteral("HeaderSettingsBtn"));
+  m_settingsBtn->setIconSize(QSize(15, 15));
+  m_settingsBtn->setFixedSize(28, 28);
+  m_settingsBtn->setFlat(true);
+  m_settingsBtn->setCursor(Qt::PointingHandCursor);
+  m_settingsBtn->setToolTip(tr("Settings (Ctrl+,)"));
+  m_settingsBtn->setShortcut(QKeySequence(QStringLiteral("Ctrl+,")));
+  connect(m_settingsBtn, &QPushButton::clicked, this,
+          &UnifiedHeaderBar::settingsRequested);
+  layout->addWidget(m_settingsBtn, 0, Qt::AlignVCenter);
+
   // Nút Giới thiệu (About Dialog)
   m_aboutBtn = new QPushButton(this);
   m_aboutBtn->setObjectName(QStringLiteral("HeaderAboutBtn"));
@@ -238,6 +251,12 @@ void UnifiedHeaderBar::updateThemeIcons(bool darkMode) {
     }
   }
 
+  if (m_settingsBtn) {
+    m_settingsBtn->setIcon(QIcon(
+        darkMode ? QStringLiteral(":/icons/category_settings_dark.svg")
+                 : QStringLiteral(":/icons/category_settings_light.svg")));
+  }
+
   if (m_aboutBtn) {
     m_aboutBtn->setIcon(QIcon(darkMode
                                   ? QStringLiteral(":/icons/info_dark.svg")
@@ -257,6 +276,10 @@ void UnifiedHeaderBar::retranslateUi() {
                                      ? tr("Switch to Light theme (Ctrl+T)")
                                      : tr("Switch to Dark theme (Ctrl+T)"));
   }
+  if (m_settingsBtn) {
+    m_settingsBtn->setToolTip(tr("Settings (Ctrl+,)"));
+  }
+
   if (m_aboutBtn) {
     m_aboutBtn->setToolTip(tr("About Secure Vault Manager"));
   }
@@ -269,6 +292,12 @@ void UnifiedHeaderBar::retranslateUi() {
   }
   if (m_closeBtn) {
     m_closeBtn->setToolTip(tr("Close"));
+  }
+}
+
+void UnifiedHeaderBar::setSettingsVisible(bool visible) {
+  if (m_settingsBtn) {
+    m_settingsBtn->setVisible(visible);
   }
 }
 

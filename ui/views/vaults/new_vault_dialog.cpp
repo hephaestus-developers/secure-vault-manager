@@ -235,10 +235,48 @@ QWidget *NewVaultDialog::createColorPicker() {
   return container;
 }
 
+void NewVaultDialog::setEditVault(const models::UiVault &vault) {
+  m_isEditMode = true;
+  m_createdVault = vault;
+  m_selectedIcon = vault.iconName;
+  m_selectedColor = vault.accentColor;
+
+  if (m_titleLabel) {
+    m_titleLabel->setText(tr("Edit Vault"));
+  }
+  if (m_descLabel) {
+    m_descLabel->setText(tr("Update vault name, icon, and appearance color."));
+  }
+  if (m_nameEdit) {
+    m_nameEdit->setText(vault.name);
+  }
+  if (m_descEdit) {
+    m_descEdit->setText(vault.description);
+  }
+  if (m_createBtn) {
+    m_createBtn->setText(tr("Save Changes"));
+  }
+}
+
 void NewVaultDialog::onCreateClicked() {
   const QString name = m_nameEdit->text().trimmed();
   if (name.isEmpty()) {
     m_errorLabel->setText(tr("Vault name cannot be empty."));
+    return;
+  }
+
+  if (m_isEditMode) {
+    m_createdVault.name = name;
+    m_createdVault.iconName = m_selectedIcon;
+    m_createdVault.accentColor = m_selectedColor;
+    m_createdVault.description = m_descEdit->text().trimmed();
+
+    const bool ok = app::VaultManager::instance().updateVault(m_createdVault);
+    if (!ok) {
+      m_errorLabel->setText(tr("Could not update vault."));
+      return;
+    }
+    accept();
     return;
   }
 

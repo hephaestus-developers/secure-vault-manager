@@ -1,0 +1,207 @@
+/**
+ * @file ui/app/settings_manager.cpp
+ * @brief Hiện thực lớp SettingsManager đọc/ghi cấu hình tập trung qua
+ * QSettings.
+ * @author Hai Pham Ngoc <ngochai285nd@gmail.com>
+ * @copyright (c) 2026 Hephaestus Developers. All rights reserved.
+ */
+
+#include "settings_manager.h"
+
+namespace svm::app {
+
+SettingsManager &SettingsManager::instance() {
+  static SettingsManager s_instance;
+  return s_instance;
+}
+
+SettingsManager::SettingsManager(QObject *parent)
+    : QObject(parent), m_settings(QSettings::IniFormat, QSettings::UserScope,
+                                  QStringLiteral("Hephaestus"),
+                                  QStringLiteral("SecureVaultManager")) {}
+
+ThemeMode SettingsManager::themeMode() const {
+  const int val = m_settings
+                      .value(QStringLiteral("general/theme"),
+                             static_cast<int>(ThemeMode::Dark))
+                      .toInt();
+  return (val == static_cast<int>(ThemeMode::Light)) ? ThemeMode::Light
+                                                     : ThemeMode::Dark;
+}
+
+void SettingsManager::setThemeMode(ThemeMode mode) {
+  if (themeMode() != mode) {
+    m_settings.setValue(QStringLiteral("general/theme"),
+                        static_cast<int>(mode));
+    ThemeManager::instance().applyTheme(mode);
+    emit settingsChanged();
+  }
+}
+
+AppLanguage SettingsManager::language() const {
+  const int val = m_settings
+                      .value(QStringLiteral("general/language"),
+                             static_cast<int>(AppLanguage::English))
+                      .toInt();
+  return (val == static_cast<int>(AppLanguage::Vietnamese))
+             ? AppLanguage::Vietnamese
+             : AppLanguage::English;
+}
+
+void SettingsManager::setLanguage(AppLanguage lang) {
+  if (language() != lang) {
+    m_settings.setValue(QStringLiteral("general/language"),
+                        static_cast<int>(lang));
+    LanguageManager::instance().setLanguage(lang);
+    emit settingsChanged();
+  }
+}
+
+ListDensity SettingsManager::listDensity() const {
+  const int val = m_settings
+                      .value(QStringLiteral("general/list_density"),
+                             static_cast<int>(ListDensity::Comfortable))
+                      .toInt();
+  return (val == static_cast<int>(ListDensity::Compact))
+             ? ListDensity::Compact
+             : ListDensity::Comfortable;
+}
+
+void SettingsManager::setListDensity(ListDensity density) {
+  if (listDensity() != density) {
+    m_settings.setValue(QStringLiteral("general/list_density"),
+                        static_cast<int>(density));
+    emit listDensityChanged(density);
+    emit settingsChanged();
+  }
+}
+
+bool SettingsManager::launchOnStartup() const {
+  return m_settings.value(QStringLiteral("general/launch_on_startup"), false)
+      .toBool();
+}
+
+void SettingsManager::setLaunchOnStartup(bool enable) {
+  m_settings.setValue(QStringLiteral("general/launch_on_startup"), enable);
+  emit settingsChanged();
+}
+
+bool SettingsManager::closeToTray() const {
+  return m_settings.value(QStringLiteral("general/close_to_tray"), true)
+      .toBool();
+}
+
+void SettingsManager::setCloseToTray(bool enable) {
+  m_settings.setValue(QStringLiteral("general/close_to_tray"), enable);
+  emit settingsChanged();
+}
+
+bool SettingsManager::startMinimized() const {
+  return m_settings.value(QStringLiteral("general/start_minimized"), false)
+      .toBool();
+}
+
+void SettingsManager::setStartMinimized(bool enable) {
+  m_settings.setValue(QStringLiteral("general/start_minimized"), enable);
+  emit settingsChanged();
+}
+
+int SettingsManager::autoLockMinutes() const {
+  return m_settings.value(QStringLiteral("security/auto_lock_minutes"), 15)
+      .toInt();
+}
+
+void SettingsManager::setAutoLockMinutes(int minutes) {
+  if (autoLockMinutes() != minutes) {
+    m_settings.setValue(QStringLiteral("security/auto_lock_minutes"), minutes);
+    emit autoLockTimeoutChanged(minutes);
+    emit settingsChanged();
+  }
+}
+
+bool SettingsManager::lockOnSleep() const {
+  return m_settings.value(QStringLiteral("security/lock_on_sleep"), true)
+      .toBool();
+}
+
+void SettingsManager::setLockOnSleep(bool enable) {
+  m_settings.setValue(QStringLiteral("security/lock_on_sleep"), enable);
+  emit settingsChanged();
+}
+
+int SettingsManager::clipboardClearSeconds() const {
+  return m_settings
+      .value(QStringLiteral("security/clipboard_clear_seconds"), 30)
+      .toInt();
+}
+
+void SettingsManager::setClipboardClearSeconds(int seconds) {
+  if (clipboardClearSeconds() != seconds) {
+    m_settings.setValue(QStringLiteral("security/clipboard_clear_seconds"),
+                        seconds);
+    emit clipboardTimeoutChanged(seconds);
+    emit settingsChanged();
+  }
+}
+
+bool SettingsManager::clearClipboardOnLock() const {
+  return m_settings
+      .value(QStringLiteral("security/clear_clipboard_on_lock"), true)
+      .toBool();
+}
+
+void SettingsManager::setClearClipboardOnLock(bool enable) {
+  m_settings.setValue(QStringLiteral("security/clear_clipboard_on_lock"),
+                      enable);
+  emit settingsChanged();
+}
+
+bool SettingsManager::biometricEnabled() const {
+  return m_settings.value(QStringLiteral("security/biometric_enabled"), true)
+      .toBool();
+}
+
+void SettingsManager::setBiometricEnabled(bool enable) {
+  m_settings.setValue(QStringLiteral("security/biometric_enabled"), enable);
+  emit settingsChanged();
+}
+
+bool SettingsManager::browserBridgeEnabled() const {
+  return m_settings.value(QStringLiteral("browser/bridge_enabled"), true)
+      .toBool();
+}
+
+void SettingsManager::setBrowserBridgeEnabled(bool enable) {
+  m_settings.setValue(QStringLiteral("browser/bridge_enabled"), enable);
+  emit settingsChanged();
+}
+
+bool SettingsManager::sshAgentEnabled() const {
+  return m_settings.value(QStringLiteral("ssh/agent_enabled"), false).toBool();
+}
+
+void SettingsManager::setSshAgentEnabled(bool enable) {
+  m_settings.setValue(QStringLiteral("ssh/agent_enabled"), enable);
+  emit settingsChanged();
+}
+
+bool SettingsManager::sshPromptApproval() const {
+  return m_settings.value(QStringLiteral("ssh/prompt_approval"), true).toBool();
+}
+
+void SettingsManager::setSshPromptApproval(bool enable) {
+  m_settings.setValue(QStringLiteral("ssh/prompt_approval"), enable);
+  emit settingsChanged();
+}
+
+bool SettingsManager::autoEmptyTrashDaysEnabled() const {
+  return m_settings.value(QStringLiteral("data/auto_empty_trash"), true)
+      .toBool();
+}
+
+void SettingsManager::setAutoEmptyTrashDaysEnabled(bool enable) {
+  m_settings.setValue(QStringLiteral("data/auto_empty_trash"), enable);
+  emit settingsChanged();
+}
+
+} // namespace svm::app

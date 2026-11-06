@@ -329,14 +329,14 @@ QStatusBar::item {
 }
 
 /* Header Action Buttons */
-#HeaderSidebarToggleBtn, #HeaderCommandPaletteBtn, #HeaderThemeToggleBtn, #HeaderAboutBtn {
+#HeaderSidebarToggleBtn, #HeaderCommandPaletteBtn, #HeaderThemeToggleBtn, #HeaderSettingsBtn, #HeaderAboutBtn {
     background: transparent;
     border: none;
     border-radius: 4px;
     padding: 4px;
 }
 
-#HeaderSidebarToggleBtn:hover, #HeaderCommandPaletteBtn:hover, #HeaderThemeToggleBtn:hover, #HeaderAboutBtn:hover {
+#HeaderSidebarToggleBtn:hover, #HeaderCommandPaletteBtn:hover, #HeaderThemeToggleBtn:hover, #HeaderSettingsBtn:hover, #HeaderAboutBtn:hover {
     background-color: #ccd0da;
 }
 
@@ -1354,4 +1354,81 @@ QCalendarWidget QHeaderView::section {
     color: #2f3540;
     font-size: 12px;
     padding: 2px 8px;
+}
+
+/* 7. Settings Dialog & Sidebar Footer Buttons */
+#SidebarSettingsBtn {
+    background-color: transparent;
+    border: 1px solid #ccd0da;
+    border-radius: 6px;
+    padding: 0;
+}
+
+#SidebarSettingsBtn:hover {
+    background-color: #e6e9ef;
+    border-color: #bcc0cc;
+}
+
+#SidebarCompactSettingsBtn {
+    background-color: transparent;
+    border: none;
+    border-radius: 6px;
+}
+
+#SidebarCompactSettingsBtn:hover {
+    background-color: #e6e9ef;
+}
+
+#SettingsDialogCard {
+    background-color: #ffffff;
+    border: 1px solid #ccd0da;
+    border-radius: 12px;
+}
+
+#SettingsDialogHeader {
+    background-color: #f2f3f7;
+    border-bottom: 1px solid #ccd0da;
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+}
+
+#SettingsDialogTitle {
+    color: #2f3540;
+}
+
+#SettingsNavList {
+    background-color: #ffffff;
+    border: none;
+    padding: 8px;
+    outline: none;
+}
+
+#SettingsNavList::item {
+    color: #6c7086;
+    border-radius: 6px;
+    padding: 8px 12px;
+    margin-bottom: 2px;
+    font-size: 12.5px;
+    font-weight: 500;
+}
+
+#SettingsNavList::item:hover {
+    background-color: #f2f3f7;
+    color: #2f3540;
+}
+
+#SettingsNavList::item:selected {
+    background-color: #e6e9ef;
+    color: #1e66f5;
+    font-weight: 600;
+}
+
+#SettingSectionCard {
+    background-color: #ffffff;
+    border: 1px solid #ccd0da;
+    border-radius: 8px;
+}
+
+#SettingSectionCard QLabel {
+    background: transparent;
 }

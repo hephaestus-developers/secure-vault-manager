@@ -32,6 +32,12 @@ class UnifiedHeaderBar;
 class WindowResizeHandler;
 } // namespace svm::components
 
+namespace svm::views {
+class AboutDialog;
+class CommandPaletteDialog;
+class SettingsDialog;
+} // namespace svm::views
+
 namespace svm {
 
 class MainWindow : public QMainWindow {
@@ -52,6 +58,7 @@ protected:
   void resizeEvent(QResizeEvent *event) override;
   void changeEvent(QEvent *event) override;
   void closeEvent(QCloseEvent *event) override;
+  bool eventFilter(QObject *obj, QEvent *event) override;
 
 private slots:
   void toggleSidebar();
@@ -93,6 +100,14 @@ private:
 
   // About Dialog
   views::AboutDialog *m_aboutDialog{nullptr};
+
+  // Settings Dialog
+  views::SettingsDialog *m_settingsDialog{nullptr};
+  void openSettingsDialog();
+  void updateInactivityTimer();
+
+  // Inactivity Auto-Lock Timer
+  QTimer m_inactivityTimer;
 
   // Phím tắt toàn cục
   QShortcut *m_toggleSidebarShortcut{nullptr};

@@ -24,6 +24,8 @@ public:
   explicit NewVaultDialog(QWidget *parent = nullptr);
   ~NewVaultDialog() override = default;
 
+  void setEditVault(const models::UiVault &vault);
+  [[nodiscard]] bool isEditMode() const { return m_isEditMode; }
   [[nodiscard]] models::UiVault createdVault() const { return m_createdVault; }
 
   void retranslateUi();
@@ -54,6 +56,7 @@ private:
   QPushButton *m_cancelBtn{nullptr};
   QPushButton *m_createBtn{nullptr};
 
+  bool m_isEditMode{false};
   models::UiVault m_createdVault;
 };
 

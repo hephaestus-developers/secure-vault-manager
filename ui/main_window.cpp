@@ -8,6 +8,7 @@
 
 #include "main_window.h"
 #include "app/clipboard_manager.h"
+#include "app/settings_manager.h"
 #include "app/theme_manager.h"
 #include "app/tray_manager.h"
 #include "app/vault_manager.h"
@@ -15,6 +16,7 @@
 #include "components/unified_header_bar.h"
 #include "components/window_resize_handler.h"
 #include "core/core_bridge.h"
+#include "views/settings/settings_dialog.h"
 
 #include <QApplication>
 #include <QCloseEvent>
@@ -172,7 +174,7 @@ void MainWindow::setupUI() {
   connect(m_detailView, &views::DetailInspectorView::cancelRequested, this,
           &MainWindow::onDetailCancelRequested);
 
-  // 6. Kết nối HeaderBar & MenuBar Actions
+  // 6. Kết nối HeaderBar, Sidebar & MenuBar Actions
   connect(m_headerBar, &components::UnifiedHeaderBar::aboutRequested, this,
           [this]() {
             if (!m_aboutDialog) {
@@ -182,10 +184,30 @@ void MainWindow::setupUI() {
             m_aboutDialog->raise();
             m_aboutDialog->activateWindow();
           });
+  connect(m_headerBar, &components::UnifiedHeaderBar::settingsRequested, this,
+          &MainWindow::openSettingsDialog);
+  connect(m_sidebarView, &views::SidebarView::settingsRequested, this,
+          &MainWindow::openSettingsDialog);
+
   connect(m_menuBar, &components::AppMenuBar::exitRequested, qApp,
           &QApplication::quit);
 
-  // 7. Đồng bộ trạng thái điều hướng khởi đầu
+  // 7. Thiết lập Inactivity Timer tự động khóa Vault
+  connect(&m_inactivityTimer, &QTimer::timeout, this, [this]() {
+    if (app::VaultManager::instance().isUnlocked()) {
+      app::VaultManager::instance().lock();
+      if (m_trayManager) {
+        m_trayManager->setVaultLocked(true);
+      }
+    }
+  });
+  connect(&app::SettingsManager::instance(),
+          &app::SettingsManager::autoLockTimeoutChanged, this,
+          &MainWindow::updateInactivityTimer);
+  updateInactivityTimer();
+  qApp->installEventFilter(this);
+
+  // 8. Đồng bộ trạng thái điều hướng khởi đầu
   updateNavigationState();
 }
 
@@ -256,6 +278,11 @@ void MainWindow::setupShortcuts() {
       m_detailView->setEditMode(true);
     }
   });
+
+  auto *settingsShortcut =
+      new QShortcut(QKeySequence(QStringLiteral("Ctrl+,")), this);
+  connect(settingsShortcut, &QShortcut::activated, this,
+          &MainWindow::openSettingsDialog);
 }
 
 void MainWindow::toggleSidebar() { m_sidebarView->toggleCollapsed(); }
@@ -503,15 +530,63 @@ void MainWindow::updateNavigationState() {
     m_mainStack->setCurrentWidget(m_onboardingView);
     m_onboardingView->resetWizard();
     m_headerBar->setTitleText(tr("Setup - Secure Vault Manager"));
+    m_headerBar->setSettingsVisible(false);
+    m_inactivityTimer.stop();
   } else if (app::VaultManager::instance().isLocked()) {
     m_mainStack->setCurrentWidget(m_lockScreenView);
     m_lockScreenView->resetLockScreen();
     m_headerBar->setTitleText(tr("Locked - Secure Vault Manager"));
+    m_headerBar->setSettingsVisible(false);
+    m_inactivityTimer.stop();
+    if (m_settingsDialog && m_settingsDialog->isVisible()) {
+      m_settingsDialog->reject();
+    }
+    if (app::SettingsManager::instance().clearClipboardOnLock()) {
+      app::ClipboardManager::instance().clearClipboard();
+    }
   } else {
     m_mainStack->setCurrentWidget(m_mainSplitter);
     m_headerBar->setTitleText(tr("Secure Vault Manager"));
+    m_headerBar->setSettingsVisible(true);
     updateSidebarCounts();
+    updateInactivityTimer();
   }
+}
+
+void MainWindow::openSettingsDialog() {
+  if (!app::VaultManager::instance().isUnlocked()) {
+    return;
+  }
+  if (!m_settingsDialog) {
+    m_settingsDialog = new views::SettingsDialog(this);
+  }
+  m_settingsDialog->show();
+  m_settingsDialog->raise();
+  m_settingsDialog->activateWindow();
+}
+
+void MainWindow::updateInactivityTimer() {
+  const int mins = app::SettingsManager::instance().autoLockMinutes();
+  if (mins <= 0) {
+    m_inactivityTimer.stop();
+  } else {
+    m_inactivityTimer.setInterval(mins * 60 * 1000);
+    if (app::VaultManager::instance().isUnlocked()) {
+      m_inactivityTimer.start();
+    }
+  }
+}
+
+bool MainWindow::eventFilter(QObject *obj, QEvent *event) {
+  if (event->type() == QEvent::MouseMove ||
+      event->type() == QEvent::MouseButtonPress ||
+      event->type() == QEvent::KeyPress) {
+    if (app::VaultManager::instance().isUnlocked() &&
+        m_inactivityTimer.isActive()) {
+      m_inactivityTimer.start(); // reset inactivity timeout
+    }
+  }
+  return QMainWindow::eventFilter(obj, event);
 }
 
 void MainWindow::setTrayManager(app::TrayManager *trayManager) {
@@ -566,6 +641,9 @@ void MainWindow::retranslateUi() {
   }
   if (m_aboutDialog) {
     m_aboutDialog->retranslateUi();
+  }
+  if (m_settingsDialog) {
+    m_settingsDialog->retranslateUi();
   }
 }
 

@@ -19,6 +19,7 @@ set(UI_SOURCES
     app/clipboard_manager.cpp
     app/language_manager.cpp
     app/vault_manager.cpp
+    app/settings_manager.cpp
     components/menubar/app_menu_bar.cpp
     components/unified_header_bar.cpp
     components/window_resize_handler.cpp
@@ -42,6 +43,14 @@ set(UI_SOURCES
     views/lock/recovery_dialog.cpp
     views/lock/lock_screen_view.cpp
     views/vaults/new_vault_dialog.cpp
+    views/settings/setting_row_widget.cpp
+    views/settings/tabs/tab_general.cpp
+    views/settings/tabs/tab_security.cpp
+    views/settings/tabs/tab_vaults.cpp
+    views/settings/tabs/tab_browser.cpp
+    views/settings/tabs/tab_ssh.cpp
+    views/settings/tabs/tab_data.cpp
+    views/settings/settings_dialog.cpp
     resources/resources.qrc
 )
 
@@ -55,6 +64,7 @@ set(UI_HEADERS
     app/clipboard_manager.h
     app/language_manager.h
     app/vault_manager.h
+    app/settings_manager.h
     components/menubar/app_menu_bar.h
     components/unified_header_bar.h
     components/window_resize_handler.h
@@ -81,6 +91,14 @@ set(UI_HEADERS
     views/lock/recovery_dialog.h
     views/lock/lock_screen_view.h
     views/vaults/new_vault_dialog.h
+    views/settings/setting_row_widget.h
+    views/settings/tabs/tab_general.h
+    views/settings/tabs/tab_security.h
+    views/settings/tabs/tab_vaults.h
+    views/settings/tabs/tab_browser.h
+    views/settings/tabs/tab_ssh.h
+    views/settings/tabs/tab_data.h
+    views/settings/settings_dialog.h
 )
 
 add_executable(svm_ui ${UI_SOURCES} ${UI_HEADERS})

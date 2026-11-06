@@ -43,6 +43,7 @@ public slots:
 signals:
   void filterSelected(SidebarFilterType type, models::ItemCategory category);
   void lockVaultRequested();
+  void settingsRequested();
   void vaultChanged(const QString &vaultName);
   void collapsedChanged(bool collapsed);
 
@@ -82,6 +83,7 @@ private:
   QListWidget *m_navList{nullptr};
   SidebarItemDelegate *m_itemDelegate{nullptr};
   QPushButton *m_lockBtn{nullptr};
+  QPushButton *m_settingsBtn{nullptr};
   QLabel *m_lockIconLabel{nullptr};
 
   QListWidgetItem *m_allItem{nullptr};
@@ -102,6 +104,7 @@ private:
   QPushButton *m_collapsedVaultBtn{nullptr};
   QListWidget *m_compactList{nullptr};
   CompactSidebarDelegate *m_compactDelegate{nullptr};
+  QPushButton *m_collapsedSettingsBtn{nullptr};
   QPushButton *m_collapsedLockBtn{nullptr};
 
   QMap<SidebarFilterType, QListWidgetItem *> m_compactFilterItems;

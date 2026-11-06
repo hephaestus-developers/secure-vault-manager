@@ -101,6 +101,22 @@ bool VaultManager::deleteVault(const QString &vaultId) {
   return false;
 }
 
+bool VaultManager::setDefaultVault(const QString &vaultId) {
+  bool changed = false;
+  for (auto &v : m_vaults) {
+    bool shouldBeDefault = (v.id == vaultId);
+    if (v.isDefault != shouldBeDefault) {
+      v.isDefault = shouldBeDefault;
+      changed = true;
+    }
+  }
+  if (changed) {
+    saveSettings();
+    emit vaultListChanged();
+  }
+  return changed;
+}
+
 bool VaultManager::setupInitialMasterPassword(const QString &password,
                                               const QString &recoveryKey,
                                               const QString &initialVaultName) {
@@ -165,6 +181,13 @@ bool VaultManager::unlock(const QString &password) {
     return true;
   }
   return false;
+}
+
+bool VaultManager::validateMasterPassword(const QString &password) const {
+  if (!m_isConfigured) {
+    return false;
+  }
+  return hashPassword(password, m_passwordSalt) == m_passwordHash;
 }
 
 bool VaultManager::unlockWithRecoveryKey(const QString &recoveryKey,
