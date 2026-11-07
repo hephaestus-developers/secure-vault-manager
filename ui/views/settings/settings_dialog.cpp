@@ -14,9 +14,34 @@
 #include <QHBoxLayout>
 #include <QKeyEvent>
 #include <QMouseEvent>
+#include <QScrollBar>
 #include <QVBoxLayout>
 
 namespace svm::views {
+
+namespace {
+
+class SettingsTabStack : public QStackedWidget {
+public:
+  explicit SettingsTabStack(QWidget *parent = nullptr)
+      : QStackedWidget(parent) {}
+
+  QSize minimumSizeHint() const override {
+    if (currentWidget()) {
+      return currentWidget()->minimumSizeHint();
+    }
+    return QSize(0, 0);
+  }
+
+  QSize sizeHint() const override {
+    if (currentWidget()) {
+      return currentWidget()->sizeHint();
+    }
+    return QSize(0, 0);
+  }
+};
+
+} // namespace
 
 SettingsDialog::SettingsDialog(QWidget *parent)
     : QDialog(parent, Qt::FramelessWindowHint | Qt::Dialog) {
@@ -24,7 +49,7 @@ SettingsDialog::SettingsDialog(QWidget *parent)
   setAttribute(Qt::WA_TranslucentBackground, true);
   setModal(false);
   setWindowModality(Qt::NonModal);
-  setFixedSize(780, 560);
+  setFixedSize(820, 570);
 
   setupUI();
   initNavList();
@@ -38,6 +63,7 @@ void SettingsDialog::setupUI() {
   // Thẻ Card chính
   m_cardWidget = new QWidget(this);
   m_cardWidget->setObjectName(QStringLiteral("SettingsDialogCard"));
+  m_cardWidget->setAttribute(Qt::WA_StyledBackground, true);
 
   auto *shadow = new QGraphicsDropShadowEffect(this);
   shadow->setBlurRadius(36);
@@ -52,6 +78,7 @@ void SettingsDialog::setupUI() {
   // 1. Header Bar tích hợp
   m_headerWidget = new QWidget(m_cardWidget);
   m_headerWidget->setObjectName(QStringLiteral("SettingsDialogHeader"));
+  m_headerWidget->setAttribute(Qt::WA_StyledBackground, true);
   m_headerWidget->setFixedHeight(44);
 
   auto *headerLayout = new QHBoxLayout(m_headerWidget);
@@ -91,6 +118,8 @@ void SettingsDialog::setupUI() {
 
   // 2. Nội dung 2 cột Master-Detail
   auto *bodyWidget = new QWidget(m_cardWidget);
+  bodyWidget->setObjectName(QStringLiteral("SettingsBodyWidget"));
+  bodyWidget->setAttribute(Qt::WA_StyledBackground, true);
   auto *bodyLayout = new QHBoxLayout(bodyWidget);
   bodyLayout->setContentsMargins(0, 0, 0, 0);
   bodyLayout->setSpacing(0);
@@ -117,6 +146,8 @@ void SettingsDialog::setupUI() {
 
   // Cột phải: Header danh mục + QScrollArea chứa StackedWidget
   auto *rightPane = new QWidget(bodyWidget);
+  rightPane->setObjectName(QStringLiteral("SettingsRightPane"));
+  rightPane->setAttribute(Qt::WA_StyledBackground, true);
   auto *rightLayout = new QVBoxLayout(rightPane);
   rightLayout->setContentsMargins(20, 16, 20, 16);
   rightLayout->setSpacing(12);
@@ -135,9 +166,13 @@ void SettingsDialog::setupUI() {
   m_scrollArea->setFrameShape(QFrame::NoFrame);
   m_scrollArea->setWidgetResizable(true);
   m_scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+  m_scrollArea->viewport()->setObjectName(
+      QStringLiteral("SettingsScrollViewport"));
+  m_scrollArea->viewport()->setAttribute(Qt::WA_StyledBackground, true);
 
-  m_stack = new QStackedWidget(m_scrollArea);
+  m_stack = new SettingsTabStack(m_scrollArea);
   m_stack->setObjectName(QStringLiteral("SettingsTabStack"));
+  m_stack->setAttribute(Qt::WA_StyledBackground, true);
 
   m_tabGeneral = new TabGeneral(m_stack);
   m_tabSecurity = new TabSecurity(m_stack);
@@ -206,6 +241,10 @@ void SettingsDialog::selectTab(int index) {
   if (index >= 0 && index < m_stack->count()) {
     m_stack->setCurrentIndex(index);
     updateCategoryHeader(index);
+    m_stack->updateGeometry();
+    if (m_scrollArea && m_scrollArea->verticalScrollBar()) {
+      m_scrollArea->verticalScrollBar()->setValue(0);
+    }
   }
 }
 

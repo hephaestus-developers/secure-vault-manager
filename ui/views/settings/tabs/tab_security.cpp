@@ -23,7 +23,10 @@
 
 namespace svm::views {
 
-TabSecurity::TabSecurity(QWidget *parent) : QWidget(parent) { setupUI(); }
+TabSecurity::TabSecurity(QWidget *parent) : QWidget(parent) {
+  setAttribute(Qt::WA_StyledBackground, true);
+  setupUI();
+}
 
 void TabSecurity::setupUI() {
   auto *layout = new QVBoxLayout(this);

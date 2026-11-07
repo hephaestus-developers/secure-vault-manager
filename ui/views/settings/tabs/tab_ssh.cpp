@@ -17,7 +17,10 @@
 
 namespace svm::views {
 
-TabSsh::TabSsh(QWidget *parent) : QWidget(parent) { setupUI(); }
+TabSsh::TabSsh(QWidget *parent) : QWidget(parent) {
+  setAttribute(Qt::WA_StyledBackground, true);
+  setupUI();
+}
 
 void TabSsh::setupUI() {
   auto *layout = new QVBoxLayout(this);

@@ -17,7 +17,10 @@
 
 namespace svm::views {
 
-TabData::TabData(QWidget *parent) : QWidget(parent) { setupUI(); }
+TabData::TabData(QWidget *parent) : QWidget(parent) {
+  setAttribute(Qt::WA_StyledBackground, true);
+  setupUI();
+}
 
 void TabData::setupUI() {
   auto *layout = new QVBoxLayout(this);

@@ -6,6 +6,12 @@
 QMainWindow, QDialog {
     background-color: #eff1f5;
     color: #4c4f69;
+    border-radius: 0px;
+}
+
+QDialog {
+    border: 1px solid #bcc0cc;
+    border-radius: 0px;
 }
 
 /* Toàn bộ nhãn văn bản mặc định trong suốt */
@@ -17,7 +23,7 @@ QLabel {
 /* Khung cửa sổ chính */
 #CentralWidget {
     background-color: #eff1f5;
-    border: 1px solid #ccd0da;
+    border: 1px solid #bcc0cc;
 }
 
 /* ==============================================================================
@@ -177,51 +183,72 @@ QPushButton {
     background-color: #e6e9ef;
     color: #4c4f69;
     border: 1px solid #bcc0cc;
-    border-radius: 5px;
+    border-radius: 6px;
     padding: 6px 14px;
-    font-size: 12px;
+    font-size: 12.5px;
     font-weight: 500;
 }
 
 QPushButton:hover {
     background-color: #dce0e8;
+    border-color: #1e66f5;
     color: #1e1e2e;
 }
 
 QPushButton:pressed {
     background-color: #ccd0da;
+    border-color: #1e66f5;
+    color: #1e1e2e;
+}
+
+QPushButton:disabled {
+    background-color: #eff1f5;
+    border-color: #ccd0da;
+    color: #9ca0b0;
 }
 
 QPushButton#PrimaryButton {
-    background-color: #1e1e2e;
+    background-color: #1e66f5;
     color: #ffffff;
-    border: 1px solid #1e1e2e;
+    border: 1px solid #1e66f5;
     font-weight: 600;
 }
 
 QPushButton#PrimaryButton:hover {
-    background-color: #2f3540;
-    border-color: #2f3540;
+    background-color: #04a5e5;
+    border-color: #04a5e5;
+    color: #ffffff;
 }
 
 QPushButton#PrimaryButton:pressed {
-    background-color: #11111b;
-    border-color: #11111b;
+    background-color: #1855c4;
+    border-color: #1855c4;
+    color: #ffffff;
+}
+
+QPushButton#PrimaryButton:disabled {
+    background-color: #e6e9ef;
+    border-color: #ccd0da;
+    color: #9ca0b0;
 }
 
 QPushButton#DangerButton {
-    background-color: #f6f8fa;
-    color: #cf222e;
+    background-color: #fff0f2;
+    color: #d20f39;
     border: 1px solid #ccd0da;
+    font-weight: 500;
 }
 
 QPushButton#DangerButton:hover {
-    background-color: #ffebe9;
-    border-color: #cf222e;
+    background-color: #ffdce0;
+    border-color: #d20f39;
+    color: #d20f39;
 }
 
 QPushButton#DangerButton:pressed {
-    background-color: #ffcecb;
+    background-color: #d20f39;
+    border-color: #d20f39;
+    color: #ffffff;
 }
 
 /* ==============================================================================
@@ -340,6 +367,10 @@ QStatusBar::item {
     background-color: #ccd0da;
 }
 
+#HeaderSidebarToggleBtn:pressed, #HeaderCommandPaletteBtn:pressed, #HeaderThemeToggleBtn:pressed, #HeaderSettingsBtn:pressed, #HeaderAboutBtn:pressed {
+    background-color: #bcc0cc;
+}
+
 /* 1. Cột 1: SidebarView */
 #SidebarView,
 #SidebarExpandedContainer,
@@ -357,8 +388,8 @@ QStatusBar::item {
 }
 
 #SidebarToggleBtn:hover {
-    background-color: #ccd0da;
-    border-color: #4c4f69;
+    background-color: #dce0e8;
+    border-color: #1e66f5;
 }
 
 #SidebarCompactVaultBtn {
@@ -370,7 +401,7 @@ QStatusBar::item {
 
 #SidebarCompactVaultBtn:hover {
     background-color: #dce0e8;
-    border-color: #4c4f69;
+    border-color: #1e66f5;
 }
 
 #SidebarCompactList {
@@ -414,7 +445,7 @@ QStatusBar::item {
 
 #VaultProfileBtn:hover {
     background-color: #dce0e8;
-    border-color: #4c4f69;
+    border-color: #1e66f5;
 }
 
 #VaultProfileBtn::menu-indicator {
@@ -587,9 +618,37 @@ QComboBox QAbstractItemView::item:hover {
     color: #1e1e2e;
 }
 
+/* ==============================================================================
+ * Hộp Chọn (QCheckBox)
+ * ============================================================================== */
+QCheckBox {
+    color: #4c4f69;
+    font-size: 12px;
+    spacing: 8px;
+    background: transparent;
+}
+
+QCheckBox::indicator {
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    border: 1px solid #bcc0cc;
+    background-color: #ffffff;
+}
+
+QCheckBox::indicator:hover {
+    border-color: #1e66f5;
+}
+
+QCheckBox::indicator:checked {
+    background-color: #1e66f5;
+    border-color: #1e66f5;
+    image: url(:/icons/checkbox_check_light.svg);
+}
+
 #ItemListNewBtn {
     background-color: #ffffff;
-    border: 1px solid #ccd0da;
+    border: 1px solid #bcc0cc;
     border-radius: 6px;
     padding: 0;
     min-height: 28px;
@@ -599,13 +658,13 @@ QComboBox QAbstractItemView::item:hover {
 }
 
 #ItemListNewBtn:hover {
-    background-color: #dce0e8;
-    border-color: #4c4f69;
+    background-color: #e6e9ef;
+    border-color: #1e66f5;
 }
 
 #ItemListNewBtn:pressed {
-    background-color: #bcc0cc;
-    border-color: #2f3540;
+    background-color: #ccd0da;
+    border-color: #1e66f5;
 }
 
 #ItemCardListView {
@@ -723,12 +782,12 @@ QComboBox QAbstractItemView::item:hover {
 
 #DetailHeaderFavBtn:hover {
     background-color: #dce0e8;
-    border-color: #4c4f69;
+    border-color: #1e66f5;
 }
 
 #DetailHeaderEditBtn {
     background-color: #e6e9ef;
-    border: 1px solid #ccd0da;
+    border: 1px solid #bcc0cc;
     border-radius: 6px;
     padding: 0 14px;
     color: #4c4f69;
@@ -738,14 +797,19 @@ QComboBox QAbstractItemView::item:hover {
 
 #DetailHeaderEditBtn:hover {
     background-color: #dce0e8;
-    border-color: #4c4f69;
+    border-color: #1e66f5;
     color: #1e1e2e;
 }
 
+#DetailHeaderEditBtn:pressed {
+    background-color: #ccd0da;
+    border-color: #1e66f5;
+}
+
 #DetailHeaderCancelBtn {
-    background-color: #ffffff;
+    background-color: #e6e9ef;
     color: #4c4f69;
-    border: 1px solid #ccd0da;
+    border: 1px solid #bcc0cc;
     border-radius: 6px;
     padding: 0 16px;
     font-size: 13px;
@@ -753,15 +817,20 @@ QComboBox QAbstractItemView::item:hover {
 }
 
 #DetailHeaderCancelBtn:hover {
-    background-color: #f2f3f7;
-    border-color: #4c4f69;
+    background-color: #dce0e8;
+    border-color: #1e66f5;
     color: #1e1e2e;
 }
 
+#DetailHeaderCancelBtn:pressed {
+    background-color: #ccd0da;
+    border-color: #1e66f5;
+}
+
 #DetailHeaderSaveBtn {
-    background-color: #1e1e2e;
+    background-color: #1e66f5;
     color: #ffffff;
-    border: 1px solid #1e1e2e;
+    border: 1px solid #1e66f5;
     border-radius: 6px;
     padding: 0 18px;
     font-size: 13px;
@@ -769,13 +838,15 @@ QComboBox QAbstractItemView::item:hover {
 }
 
 #DetailHeaderSaveBtn:hover {
-    background-color: #2f3540;
-    border-color: #2f3540;
+    background-color: #04a5e5;
+    border-color: #04a5e5;
+    color: #ffffff;
 }
 
 #DetailHeaderSaveBtn:pressed {
-    background-color: #11111b;
-    border-color: #11111b;
+    background-color: #1855c4;
+    border-color: #1855c4;
+    color: #ffffff;
 }
 
 #TotpFieldWidget {
@@ -810,7 +881,12 @@ QComboBox QAbstractItemView::item:hover {
 
 #TotpCopyBtn:hover {
     background-color: #dce0e8;
-    border-color: #4c4f69;
+    border-color: #1e66f5;
+}
+
+#TotpCopyBtn:pressed {
+    background-color: #ccd0da;
+    border-color: #1e66f5;
 }
 
 #TotpProgressBar {
@@ -886,7 +962,12 @@ QComboBox QAbstractItemView::item:hover {
 
 #FieldRowActionBtn:hover {
     background-color: #dce0e8;
-    border-color: #4c4f69;
+    border-color: #1e66f5;
+}
+
+#FieldRowActionBtn:pressed {
+    background-color: #ccd0da;
+    border-color: #1e66f5;
 }
 
 #CustomFieldKindCombo {
@@ -1110,22 +1191,22 @@ QCalendarWidget QHeaderView::section {
     background-color: #ffffff;
     border: 1px dashed #bcc0cc;
     border-radius: 6px;
-    color: #4c4f69;
+    color: #1e66f5;
     font-weight: 600;
     font-size: 12px;
 }
 
 #CustomFieldAddBtn:hover, #AddTotpBtn:hover {
-    background-color: #e6e9ef;
-    border-color: #4c4f69;
-    color: #1e1e2e;
+    background-color: #eff1f5;
+    border-color: #1e66f5;
+    color: #04a5e5;
 }
 
 /* 4. Command Palette Dialog */
 #CommandPaletteCard {
     background-color: #ffffff;
-    border: 1px solid #ccd0da;
-    border-radius: 12px;
+    border: 1px solid #bcc0cc;
+    border-radius: 0px;
 }
 
 #PaletteSearchInput {
@@ -1150,14 +1231,14 @@ QCalendarWidget QHeaderView::section {
 /* 5. About Dialog */
 #AboutDialogCard {
     background-color: #ffffff;
-    border: 1px solid #ccd0da;
-    border-radius: 12px;
+    border: 1px solid #bcc0cc;
+    border-radius: 0px;
 }
 
 #AboutDialogHeader {
     background-color: #f4f4f6;
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
+    border-top-left-radius: 0px;
+    border-top-right-radius: 0px;
     border-bottom: 1px solid #e6e9ef;
     padding: 8px 12px;
 }
@@ -1172,11 +1253,15 @@ QCalendarWidget QHeaderView::section {
     background: transparent;
     border: none;
     border-radius: 4px;
-    padding: 4px;
+    padding: 2px;
 }
 
 #AboutCloseIconBtn:hover {
-    background-color: #e6e9ef;
+    background-color: #ffdce0;
+}
+
+#AboutCloseIconBtn:pressed {
+    background-color: #d20f39;
 }
 
 #AboutTabWidget::pane {
@@ -1234,9 +1319,9 @@ QCalendarWidget QHeaderView::section {
 
 #AboutBottomCloseBtn {
     background-color: #e6e9ef;
-    border: 1px solid #ccd0da;
+    border: 1px solid #bcc0cc;
     border-radius: 6px;
-    color: #2f3540;
+    color: #4c4f69;
     padding: 6px 20px;
     font-size: 12px;
     font-weight: 500;
@@ -1244,14 +1329,27 @@ QCalendarWidget QHeaderView::section {
 
 #AboutBottomCloseBtn:hover {
     background-color: #dce0e8;
+    border-color: #1e66f5;
+    color: #1e1e2e;
+}
+
+#AboutBottomCloseBtn:pressed {
+    background-color: #ccd0da;
+    border-color: #1e66f5;
     color: #1e1e2e;
 }
 
 /* 6. Onboarding Wizard & Lock Screen Cards */
-#LockScreenCard, #RecoveryDialogCard, #NewVaultCard {
+#LockScreenCard {
     background-color: #ffffff;
     border: 1px solid #ccd0da;
     border-radius: 12px;
+}
+
+#RecoveryDialogCard, #NewVaultCard {
+    background-color: #ffffff;
+    border: 1px solid #bcc0cc;
+    border-radius: 0px;
 }
 
 /* --- Onboarding Wizard (Split Card Design) --- */
@@ -1405,8 +1503,8 @@ QCalendarWidget QHeaderView::section {
 }
 
 #OnboardingSecondaryBtn {
-    background-color: #ffffff;
-    border: 1px solid #ccd0da;
+    background-color: #e6e9ef;
+    border: 1px solid #bcc0cc;
     border-radius: 6px;
     color: #4c4f69;
     font-size: 13px;
@@ -1415,18 +1513,19 @@ QCalendarWidget QHeaderView::section {
 }
 
 #OnboardingSecondaryBtn:hover {
-    background-color: #e6e9ef;
+    background-color: #dce0e8;
     border-color: #1e66f5;
-    color: #1e66f5;
+    color: #1e1e2e;
 }
 
 #OnboardingSecondaryBtn:pressed {
-    background-color: #dce0e8;
+    background-color: #ccd0da;
+    border-color: #1e66f5;
 }
 
 #OnboardingPrimaryBtn {
     background-color: #1e66f5;
-    border: none;
+    border: 1px solid #1e66f5;
     border-radius: 6px;
     color: #ffffff;
     font-size: 13px;
@@ -1436,14 +1535,19 @@ QCalendarWidget QHeaderView::section {
 
 #OnboardingPrimaryBtn:hover {
     background-color: #04a5e5;
+    border-color: #04a5e5;
+    color: #ffffff;
 }
 
 #OnboardingPrimaryBtn:pressed {
-    background-color: #209fb5;
+    background-color: #1855c4;
+    border-color: #1855c4;
+    color: #ffffff;
 }
 
 #OnboardingPrimaryBtn:disabled {
     background-color: #e6e9ef;
+    border-color: #ccd0da;
     color: #9ca0b0;
 }
 
@@ -1465,9 +1569,9 @@ QCalendarWidget QHeaderView::section {
 }
 
 #RecoveryActionBtn {
-    background-color: #ffffff;
+    background-color: #e6e9ef;
     color: #4c4f69;
-    border: 1px solid #ccd0da;
+    border: 1px solid #bcc0cc;
     border-radius: 6px;
     padding: 6px 14px;
     font-size: 12px;
@@ -1475,13 +1579,14 @@ QCalendarWidget QHeaderView::section {
 }
 
 #RecoveryActionBtn:hover {
-    background-color: #e6e9ef;
+    background-color: #dce0e8;
     border-color: #1e66f5;
-    color: #202027;
+    color: #1e1e2e;
 }
 
 #RecoveryActionBtn:pressed {
-    background-color: #dce0e8;
+    background-color: #ccd0da;
+    border-color: #1e66f5;
 }
 
 #LockPasswordContainer {
@@ -1504,12 +1609,18 @@ QCalendarWidget QHeaderView::section {
 
 #LockRevealBtn, #LockBiometricBtn {
     background-color: #e6e9ef;
-    border: 1px solid #ccd0da;
+    border: 1px solid #bcc0cc;
     border-radius: 6px;
 }
 
 #LockRevealBtn:hover, #LockBiometricBtn:hover {
     background-color: #dce0e8;
+    border-color: #1e66f5;
+}
+
+#LockRevealBtn:pressed, #LockBiometricBtn:pressed {
+    background-color: #ccd0da;
+    border-color: #1e66f5;
 }
 
 #DetailVaultBadge {
@@ -1556,19 +1667,19 @@ QCalendarWidget QHeaderView::section {
 
 #SettingsDialogCard {
     background-color: #ffffff;
-    border: 1px solid #ccd0da;
-    border-radius: 12px;
+    border: 1px solid #bcc0cc;
+    border-radius: 0px;
 }
 
 #SettingsDialogHeader, #NewVaultHeader, #RecoveryDialogHeader {
-    background-color: #f2f3f7;
+    background-color: #e6e9ef;
     border-bottom: 1px solid #ccd0da;
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
+    border-top-left-radius: 0px;
+    border-top-right-radius: 0px;
 }
 
 #SettingsDialogTitle, #NewVaultTitle, #RecoveryDialogTitle {
-    color: #2f3540;
+    color: #4c4f69;
     font-size: 13px;
     font-weight: 600;
 }
@@ -1576,16 +1687,16 @@ QCalendarWidget QHeaderView::section {
 #DialogCloseBtn {
     background: transparent;
     border: none;
-    border-radius: 6px;
-    padding: 4px;
+    border-radius: 4px;
+    padding: 2px;
 }
 
 #DialogCloseBtn:hover {
-    background-color: #e6e9ef;
+    background-color: #ffdce0;
 }
 
 #DialogCloseBtn:pressed {
-    background-color: #ccd0da;
+    background-color: #d20f39;
 }
 
 #ModalWarningToast {
@@ -1601,15 +1712,19 @@ QCalendarWidget QHeaderView::section {
     font-weight: 600;
 }
 
+#SettingsBodyWidget {
+    background-color: #e6e9ef;
+}
+
 #SettingsNavList {
-    background-color: #ffffff;
+    background-color: #e6e9ef;
     border: none;
     padding: 8px;
     outline: none;
 }
 
 #SettingsNavList::item {
-    color: #6c7086;
+    color: #5c5f77;
     border-radius: 6px;
     padding: 8px 12px;
     margin-bottom: 2px;
@@ -1618,14 +1733,24 @@ QCalendarWidget QHeaderView::section {
 }
 
 #SettingsNavList::item:hover {
-    background-color: #f2f3f7;
-    color: #2f3540;
+    background-color: #dce0e8;
+    color: #4c4f69;
 }
 
 #SettingsNavList::item:selected {
-    background-color: #e6e9ef;
+    background-color: #ffffff;
     color: #1e66f5;
     font-weight: 600;
+}
+
+#SettingsRightPane,
+#SettingsScrollArea,
+#SettingsScrollViewport,
+#SettingsTabStack,
+#SettingsTabStack > QWidget {
+    background-color: #eff1f5;
+    background: #eff1f5;
+    border: none;
 }
 
 #SettingSectionCard {
@@ -1639,7 +1764,8 @@ QCalendarWidget QHeaderView::section {
 }
 
 #SettingsRightCategoryTitle {
-    color: #1e1e2e;
+    color: #4c4f69;
+    background: transparent;
 }
 
 #SettingsVerticalDivider {
@@ -1650,12 +1776,12 @@ QCalendarWidget QHeaderView::section {
 #SettingRowTitle {
     font-size: 13px;
     font-weight: 600;
-    color: #1e1e2e;
+    color: #4c4f69;
 }
 
 #SettingRowDesc {
     font-size: 11.5px;
-    color: #5c5f77;
+    color: #6c7086;
 }
 
 #SettingSectionTitle {
@@ -1676,12 +1802,12 @@ QCalendarWidget QHeaderView::section {
 #SettingsListItemTitle {
     font-size: 13px;
     font-weight: 600;
-    color: #1e1e2e;
+    color: #4c4f69;
 }
 
 #SettingsListItemDesc {
     font-size: 11px;
-    color: #5c5f77;
+    color: #6c7086;
 }
 
 #SettingsDefaultBadge {
@@ -1694,7 +1820,7 @@ QCalendarWidget QHeaderView::section {
 }
 
 #SshSnippetBox {
-    background-color: #f2f3f7;
+    background-color: #e6e9ef;
     border: 1px solid #ccd0da;
     border-radius: 6px;
     padding: 10px;
@@ -1702,7 +1828,7 @@ QCalendarWidget QHeaderView::section {
 
 #SshSnippetHint {
     font-size: 11px;
-    color: #5c5f77;
+    color: #6c7086;
 }
 
 #SshSnippetCode {
@@ -1784,6 +1910,12 @@ QCalendarWidget QHeaderView::section {
     color: #d20f39;
 }
 
+#DetailHeaderDeleteBtn:pressed {
+    background-color: #d20f39;
+    border-color: #d20f39;
+    color: #ffffff;
+}
+
 #DetailHeaderRestoreBtn {
     background-color: #f8f9fa;
     border: 1px solid #40a02b;
@@ -1799,9 +1931,15 @@ QCalendarWidget QHeaderView::section {
     border-color: #40a02b;
 }
 
+#DetailHeaderRestoreBtn:pressed {
+    background-color: #40a02b;
+    border-color: #40a02b;
+    color: #ffffff;
+}
+
 #FieldRowGenerateBtn {
-    background-color: #f2f3f7;
-    border: 1px solid #ccd0da;
+    background-color: #e6e9ef;
+    border: 1px solid #bcc0cc;
     border-radius: 6px;
     padding: 0 10px;
     color: #1e66f5;
@@ -1810,7 +1948,13 @@ QCalendarWidget QHeaderView::section {
 }
 
 #FieldRowGenerateBtn:hover {
-    background-color: #e6e9ef;
+    background-color: #dce0e8;
     border-color: #1e66f5;
+    color: #04a5e5;
+}
+
+#FieldRowGenerateBtn:pressed {
+    background-color: #ccd0da;
+    border-color: #1855c4;
     color: #1e1e2e;
 }

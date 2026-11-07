@@ -30,6 +30,8 @@ SettingRowWidget::SettingRowWidget(const QString &title,
     m_descLabel = new QLabel(description, this);
     m_descLabel->setObjectName(QStringLiteral("SettingRowDesc"));
     m_descLabel->setWordWrap(true);
+    m_descLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    m_descLabel->setMinimumWidth(0);
     textLayout->addWidget(m_descLabel);
   }
 
@@ -37,6 +39,7 @@ SettingRowWidget::SettingRowWidget(const QString &title,
 
   if (m_controlWidget) {
     m_controlWidget->setParent(this);
+    m_controlWidget->show();
     layout->addWidget(m_controlWidget, 0, Qt::AlignRight | Qt::AlignVCenter);
   }
 }

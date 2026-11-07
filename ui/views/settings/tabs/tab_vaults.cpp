@@ -22,6 +22,7 @@
 namespace svm::views {
 
 TabVaults::TabVaults(QWidget *parent) : QWidget(parent) {
+  setAttribute(Qt::WA_StyledBackground, true);
   setupUI();
   refreshVaultList();
   connect(&app::VaultManager::instance(), &app::VaultManager::vaultListChanged,
@@ -43,6 +44,9 @@ void TabVaults::setupUI() {
       tr("Manage your isolated cryptographic vaults and default locations."),
       m_vaultsListCard);
   subTitle->setObjectName(QStringLiteral("SettingRowDesc"));
+  subTitle->setWordWrap(true);
+  subTitle->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+  subTitle->setMinimumWidth(0);
   topBar->addWidget(subTitle);
   topBar->addStretch(1);
 
