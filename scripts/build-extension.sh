@@ -17,17 +17,21 @@ echo "==> [SVM Extension] Bắt đầu đóng gói Browser Extension (MV3)..."
 
 if [[ ! -d "${EXT_DIR}" ]]; then
     echo "Thông báo: Thư mục extension/ chưa được khởi tạo."
-    echo "Phân hệ extension sẽ được liên kết khi phát triển WebExtension."
     exit 0
+fi
+
+# Đảm bảo gói WebAssembly đã được biên dịch trước khi đóng gói Extension
+if [[ ! -f "${ROOT_DIR}/core/crates/svm-wasm/pkg/svm_wasm.wasm" ]]; then
+    "${SCRIPT_DIR}/build-wasm.sh"
 fi
 
 cd "${EXT_DIR}"
 
-if command -v pnpm >/dev/null 2>&1; then
-    pnpm install
-    pnpm build
-    echo "==> [SVM Extension] Đóng gói extension thành công!"
+if command -v node >/dev/null 2>&1; then
+    node --no-warnings scripts/build.mjs
+    node --no-warnings scripts/post-build.js
+    echo "==> [SVM Extension] Đóng gói extension thành công (dist/chrome & dist/firefox)!"
 else
-    echo "Lỗi: pnpm chưa được cài đặt. Vui lòng cài pnpm để build extension." >&2
+    echo "Lỗi: Node.js chưa được cài đặt. Vui lòng cài Node.js để build extension." >&2
     exit 1
 fi

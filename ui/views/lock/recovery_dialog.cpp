@@ -6,11 +6,15 @@
  */
 
 #include "recovery_dialog.h"
+#include "app/theme_manager.h"
 #include "app/vault_manager.h"
+#include "components/dialog_drag_helper.h"
 
 #include <QEvent>
 #include <QGraphicsDropShadowEffect>
 #include <QHBoxLayout>
+#include <QIcon>
+#include <QKeyEvent>
 #include <QVBoxLayout>
 
 namespace svm::views {
@@ -19,8 +23,9 @@ RecoveryDialog::RecoveryDialog(QWidget *parent)
     : QDialog(parent, Qt::FramelessWindowHint | Qt::Dialog) {
   setObjectName(QStringLiteral("RecoveryDialog"));
   setAttribute(Qt::WA_TranslucentBackground, true);
-  setModal(true);
-  setFixedSize(500, 440);
+  setModal(false);
+  setWindowModality(Qt::NonModal);
+  setFixedSize(500, 480);
 
   setupUI();
 }
@@ -38,32 +43,65 @@ void RecoveryDialog::setupUI() {
   shadow->setOffset(0, 8);
   m_cardWidget->setGraphicsEffect(shadow);
 
-  auto *layout = new QVBoxLayout(m_cardWidget);
-  layout->setContentsMargins(24, 20, 24, 20);
-  layout->setSpacing(12);
+  auto *cardLayout = new QVBoxLayout(m_cardWidget);
+  cardLayout->setContentsMargins(0, 0, 0, 16);
+  cardLayout->setSpacing(0);
 
-  m_titleLabel = new QLabel(tr("Emergency Vault Recovery"), m_cardWidget);
-  QFont f = m_titleLabel->font();
-  f.setPointSize(14);
-  f.setBold(true);
-  m_titleLabel->setFont(f);
-  layout->addWidget(m_titleLabel);
+  // 1. Thanh tiêu đề kéo thả tích hợp
+  m_headerWidget = new QWidget(m_cardWidget);
+  m_headerWidget->setObjectName(QStringLiteral("RecoveryDialogHeader"));
+  m_headerWidget->setFixedHeight(44);
+
+  auto *headerLayout = new QHBoxLayout(m_headerWidget);
+  headerLayout->setContentsMargins(16, 0, 8, 0);
+  headerLayout->setSpacing(10);
+
+  m_headerIcon = new QLabel(m_headerWidget);
+  m_headerIcon->setFixedSize(18, 18);
+  m_headerIcon->setPixmap(app::ThemeManager::instance()
+                              .icon(QStringLiteral("shield_check"))
+                              .pixmap(18, 18));
+  headerLayout->addWidget(m_headerIcon);
+
+  m_headerTitle = new QLabel(tr("Emergency Vault Recovery"), m_headerWidget);
+  m_headerTitle->setObjectName(QStringLiteral("RecoveryDialogTitle"));
+  QFont hf = m_headerTitle->font();
+  hf.setPointSize(12);
+  hf.setBold(true);
+  m_headerTitle->setFont(hf);
+  headerLayout->addWidget(m_headerTitle, 1);
+
+  m_closeBtn = new QPushButton(m_headerWidget);
+  m_closeBtn->setObjectName(QStringLiteral("DialogCloseBtn"));
+  m_closeBtn->setFixedSize(32, 32);
+  m_closeBtn->setIconSize(QSize(12, 12));
+  m_closeBtn->setCursor(Qt::PointingHandCursor);
+  m_closeBtn->setIcon(
+      app::ThemeManager::instance().icon(QStringLiteral("win_close")));
+  connect(m_closeBtn, &QPushButton::clicked, this, &QDialog::reject);
+  headerLayout->addWidget(m_closeBtn);
+
+  cardLayout->addWidget(m_headerWidget);
+
+  // 2. Thân nội dung
+  auto *bodyWidget = new QWidget(m_cardWidget);
+  auto *layout = new QVBoxLayout(bodyWidget);
+  layout->setContentsMargins(20, 14, 20, 0);
+  layout->setSpacing(10);
 
   m_descLabel = new QLabel(tr("Enter your Emergency Recovery Key to restore "
                               "access and set a new Master Password."),
-                           m_cardWidget);
+                           bodyWidget);
   m_descLabel->setWordWrap(true);
-  m_descLabel->setStyleSheet(
-      QStringLiteral("color: #a6adc8; font-size: 11.5px;"));
+  m_descLabel->setObjectName(QStringLiteral("DialogDescLabel"));
   layout->addWidget(m_descLabel);
 
   // Recovery Key
-  auto *keyLabel = new QLabel(tr("Emergency Recovery Key"), m_cardWidget);
-  keyLabel->setStyleSheet(
-      QStringLiteral("font-size: 11px; font-weight: 600; color: #bac2de;"));
+  auto *keyLabel = new QLabel(tr("Emergency Recovery Key"), bodyWidget);
+  keyLabel->setObjectName(QStringLiteral("DialogFieldLabel"));
   layout->addWidget(keyLabel);
 
-  m_recKeyEdit = new QLineEdit(m_cardWidget);
+  m_recKeyEdit = new QLineEdit(bodyWidget);
   m_recKeyEdit->setPlaceholderText(QStringLiteral("SVM-XXXX-XXXX-XXXX-XXXX"));
   m_recKeyEdit->setStyleSheet(
       QStringLiteral("font-family: monospace; font-size: 13px;"));
@@ -71,40 +109,37 @@ void RecoveryDialog::setupUI() {
   layout->addWidget(m_recKeyEdit);
 
   // New Password
-  auto *newLabel = new QLabel(tr("New Master Password"), m_cardWidget);
-  newLabel->setStyleSheet(
-      QStringLiteral("font-size: 11px; font-weight: 600; color: #bac2de;"));
+  auto *newLabel = new QLabel(tr("New Master Password"), bodyWidget);
+  newLabel->setObjectName(QStringLiteral("DialogFieldLabel"));
   layout->addWidget(newLabel);
 
-  m_newPwdEdit = new QLineEdit(m_cardWidget);
+  m_newPwdEdit = new QLineEdit(bodyWidget);
   m_newPwdEdit->setEchoMode(QLineEdit::Password);
   m_newPwdEdit->setPlaceholderText(tr("Enter new master password..."));
-  m_newPwdEdit->setFixedHeight(36);
+  m_newPwdEdit->setFixedHeight(34);
   layout->addWidget(m_newPwdEdit);
 
   // Confirm New Password
   auto *confirmLabel =
-      new QLabel(tr("Confirm New Master Password"), m_cardWidget);
-  confirmLabel->setStyleSheet(
-      QStringLiteral("font-size: 11px; font-weight: 600; color: #bac2de;"));
+      new QLabel(tr("Confirm New Master Password"), bodyWidget);
+  confirmLabel->setObjectName(QStringLiteral("DialogFieldLabel"));
   layout->addWidget(confirmLabel);
 
-  m_confirmPwdEdit = new QLineEdit(m_cardWidget);
+  m_confirmPwdEdit = new QLineEdit(bodyWidget);
   m_confirmPwdEdit->setEchoMode(QLineEdit::Password);
   m_confirmPwdEdit->setPlaceholderText(tr("Repeat new master password..."));
-  m_confirmPwdEdit->setFixedHeight(36);
+  m_confirmPwdEdit->setFixedHeight(34);
   layout->addWidget(m_confirmPwdEdit);
 
-  m_errorLabel = new QLabel(m_cardWidget);
-  m_errorLabel->setStyleSheet(
-      QStringLiteral("color: #ef4444; font-size: 11px; font-weight: 500;"));
+  m_errorLabel = new QLabel(bodyWidget);
+  m_errorLabel->setObjectName(QStringLiteral("DialogErrorLabel"));
   layout->addWidget(m_errorLabel);
 
   layout->addStretch(1);
 
   // Bottom action bar
   auto *btnLayout = new QHBoxLayout();
-  m_cancelBtn = new QPushButton(tr("Cancel"), m_cardWidget);
+  m_cancelBtn = new QPushButton(tr("Cancel"), bodyWidget);
   m_cancelBtn->setFixedHeight(34);
   m_cancelBtn->setCursor(Qt::PointingHandCursor);
   connect(m_cancelBtn, &QPushButton::clicked, this, &QDialog::reject);
@@ -112,7 +147,7 @@ void RecoveryDialog::setupUI() {
 
   btnLayout->addStretch(1);
 
-  m_restoreBtn = new QPushButton(tr("Restore & Unlock Vault"), m_cardWidget);
+  m_restoreBtn = new QPushButton(tr("Restore && Unlock Vault"), bodyWidget);
   m_restoreBtn->setObjectName(QStringLiteral("OnboardingPrimaryBtn"));
   m_restoreBtn->setFixedHeight(34);
   m_restoreBtn->setCursor(Qt::PointingHandCursor);
@@ -121,6 +156,9 @@ void RecoveryDialog::setupUI() {
   btnLayout->addWidget(m_restoreBtn);
 
   layout->addLayout(btnLayout);
+  cardLayout->addWidget(bodyWidget, 1);
+
+  components::DialogDragHelper::makeDraggable(m_cardWidget, this);
   rootLayout->addWidget(m_cardWidget);
 }
 
@@ -157,8 +195,8 @@ void RecoveryDialog::onRestoreClicked() {
 }
 
 void RecoveryDialog::retranslateUi() {
-  if (m_titleLabel) {
-    m_titleLabel->setText(tr("Emergency Vault Recovery"));
+  if (m_headerTitle) {
+    m_headerTitle->setText(tr("Emergency Vault Recovery"));
   }
   if (m_descLabel) {
     m_descLabel->setText(tr("Enter your Emergency Recovery Key to restore "
@@ -174,8 +212,16 @@ void RecoveryDialog::retranslateUi() {
     m_cancelBtn->setText(tr("Cancel"));
   }
   if (m_restoreBtn) {
-    m_restoreBtn->setText(tr("Restore & Unlock Vault"));
+    m_restoreBtn->setText(tr("Restore && Unlock Vault"));
   }
+}
+
+void RecoveryDialog::keyPressEvent(QKeyEvent *event) {
+  if (event->key() == Qt::Key_Escape) {
+    reject();
+    return;
+  }
+  QDialog::keyPressEvent(event);
 }
 
 void RecoveryDialog::changeEvent(QEvent *event) {

@@ -8,6 +8,7 @@
 #include "totp_widget.h"
 #include "app/clipboard_manager.h"
 #include "app/theme_manager.h"
+#include "core/core_bridge.h"
 
 #include <QDateTime>
 #include <QEvent>
@@ -175,10 +176,17 @@ void TotpWidget::setTotpSecret(const QString &secret) {
 }
 
 QString TotpWidget::totpSecret() const {
-  if (m_isEditMode && m_secretInput) {
-    return m_secretInput->text().trimmed();
+  QString raw = (m_isEditMode && m_secretInput)
+                    ? m_secretInput->text().trimmed()
+                    : m_secret.trimmed();
+  if (raw.startsWith(QStringLiteral("otpauth://"), Qt::CaseInsensitive)) {
+    const auto parsed = core::CoreBridge::instance().parseOtpAuth(raw);
+    const QString extracted = parsed.value(QStringLiteral("secret")).toString();
+    if (!extracted.isEmpty()) {
+      return extracted;
+    }
   }
-  return m_secret.trimmed();
+  return raw;
 }
 
 void TotpWidget::clearTotp() {
@@ -244,20 +252,32 @@ void TotpWidget::updateCodeAndTimer() {
   const int remainder = static_cast<int>(currentSec % 30);
   m_remainingSeconds = 30 - remainder;
 
+  if (!m_secret.isEmpty()) {
+    auto &bridge = core::CoreBridge::instance();
+    if (bridge.isInitialized()) {
+      const auto pair =
+          bridge.generateTotp(m_secret, static_cast<quint64>(currentSec));
+      QString code = pair.first.trimmed();
+      if (code.length() == 6) {
+        code = code.left(3) + QLatin1Char(' ') + code.mid(3);
+      }
+      m_remainingSeconds = pair.second;
+      m_currentCode = code;
+      m_codeLabel->setText(code);
+    } else {
+      const quint64 timeStep = static_cast<quint64>(currentSec / 30);
+      const quint64 pseudoCode = (qHash(m_secret) ^ timeStep) % 1000000;
+      const QString formatted =
+          QStringLiteral("%1 %2")
+              .arg(pseudoCode / 1000, 3, 10, QLatin1Char('0'))
+              .arg(pseudoCode % 1000, 3, 10, QLatin1Char('0'));
+      m_currentCode = formatted;
+      m_codeLabel->setText(formatted);
+    }
+  }
+
   m_timerLabel->setText(QStringLiteral("%1s").arg(m_remainingSeconds));
   m_progressBar->setValue(m_remainingSeconds);
-
-  // Mô phỏng tạo mã 6 số nhất quán từ secret và thời gian
-  if (!m_secret.isEmpty()) {
-    const quint64 timeStep = static_cast<quint64>(currentSec / 30);
-    const quint64 pseudoCode = (qHash(m_secret) ^ timeStep) % 1000000;
-    const QString formatted =
-        QStringLiteral("%1 %2")
-            .arg(pseudoCode / 1000, 3, 10, QLatin1Char('0'))
-            .arg(pseudoCode % 1000, 3, 10, QLatin1Char('0'));
-    m_currentCode = formatted;
-    m_codeLabel->setText(formatted);
-  }
 }
 
 void TotpWidget::retranslateUi() {

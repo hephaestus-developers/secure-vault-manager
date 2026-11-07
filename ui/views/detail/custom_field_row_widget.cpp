@@ -421,7 +421,7 @@ void CustomFieldRowWidget::updateDisplay() {
         (m_field.value.trimmed().compare(QStringLiteral("true"),
                                          Qt::CaseInsensitive) == 0 ||
          m_field.value.trimmed() == QStringLiteral("1"));
-    m_valueView->setText(isTrue ? tr("✓ Yes (True)") : tr("✕ No (False)"));
+    m_valueView->setText(isTrue ? tr("Yes") : tr("No"));
   } else if (m_field.kind == models::CustomFieldKind::Date) {
     const QDate d = QDate::fromString(m_field.value.trimmed(), Qt::ISODate);
     m_valueView->setText(d.isValid() ? d.toString(QStringLiteral("yyyy-MM-dd"))

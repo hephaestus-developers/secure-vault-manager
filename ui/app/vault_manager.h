@@ -94,6 +94,18 @@ public:
                                   const QString &initialVaultName);
 
   /**
+   * @brief Đổi Master Password hiện tại sang mật khẩu mới mà không làm mất dữ
+   * liệu kho.
+   */
+  bool changeMasterPassword(const QString &oldPassword,
+                            const QString &newPassword);
+
+  /**
+   * @brief Đồng bộ lại danh sách Vault và số lượng bản ghi từ Rust Core.
+   */
+  void refreshVaultsFromCore();
+
+  /**
    * @brief Mở khóa kho bằng Master Password.
    */
   bool unlock(const QString &password);

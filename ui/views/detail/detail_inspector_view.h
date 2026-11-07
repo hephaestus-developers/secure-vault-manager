@@ -42,6 +42,9 @@ public:
 signals:
   void itemSaved(const models::UiVaultItem &item);
   void itemDeleted(const QString &itemId);
+  void itemTrashRequested(const QString &itemId);
+  void itemRestoreRequested(const QString &itemId);
+  void itemPurgeRequested(const QString &itemId);
   void cancelRequested();
 
 protected:

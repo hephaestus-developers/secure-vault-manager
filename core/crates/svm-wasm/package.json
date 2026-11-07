@@ -1,0 +1,12 @@
+{
+  "name": "@svm/wasm",
+  "version": "0.1.0",
+  "description": "WebAssembly cryptographic & TOTP bridge for Secure Vault Manager Browser Extension",
+  "type": "module",
+  "main": "./pkg/svm_wasm.js",
+  "types": "./pkg/svm_wasm.d.ts",
+  "files": [
+    "pkg/"
+  ],
+  "license": "Proprietary"
+}

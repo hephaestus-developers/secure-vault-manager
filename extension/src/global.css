@@ -1,0 +1,70 @@
+/**
+ * @file extension/src/global.css
+ * @brief Bảng màu Catppuccin Mocha (Dark) / Latte (Light) và biến thiết kế toàn cục cho Extension Popup.
+ */
+
+:root,
+[data-theme="dark"] {
+  --bg-crust: #11111b;
+  --bg-base: #1e1e2e;
+  --bg-mantle: #181825;
+  --bg-surface0: #313244;
+  --bg-surface1: #45475a;
+  --text-primary: #cdd6f4;
+  --text-secondary: #a6adc8;
+  --text-muted: #6c7086;
+  --accent-primary: #89b4fa;
+  --accent-hover: #b4befe;
+  --btn-primary-fg: #11111b;
+  --status-success: #a6e3a1;
+  --status-warning: #f9e2af;
+  --status-danger: #f38ba8;
+  --border-subtle: #313244;
+  --border-hover: #45475a;
+  --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+[data-theme="light"] {
+  --bg-crust: #dce0e8;
+  --bg-base: #eff1f5;
+  --bg-mantle: #ffffff;
+  --bg-surface0: #e6e9ef;
+  --bg-surface1: #ccd0da;
+  --text-primary: #1e1e2e;
+  --text-secondary: #5c5f77;
+  --text-muted: #7c7f93;
+  --accent-primary: #1e66f5;
+  --accent-hover: #04a5e5;
+  --btn-primary-fg: #ffffff;
+  --status-success: #40a02b;
+  --status-warning: #df8e1d;
+  --status-danger: #d20f39;
+  --border-subtle: #ccd0da;
+  --border-hover: #bcc0cc;
+  --card-shadow: 0 2px 8px rgba(30, 30, 46, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  width: 360px;
+  min-height: 480px;
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  line-height: 1.45;
+  user-select: none;
+  overflow-x: hidden;
+}
+
+button,
+input {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}

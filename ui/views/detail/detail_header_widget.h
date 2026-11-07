@@ -43,6 +43,8 @@ signals:
   void editRequested();
   void saveRequested();
   void cancelRequested();
+  void deleteRequested();
+  void restoreRequested();
   void categoryChanged(models::ItemCategory category);
 
 protected:
@@ -57,6 +59,7 @@ private:
 
   bool m_isEditMode{false};
   bool m_isFavorite{false};
+  bool m_isDeleted{false};
   models::ItemCategory m_category{models::ItemCategory::Login};
 
   QLabel *m_iconLabel{nullptr};
@@ -70,6 +73,8 @@ private:
   QString m_vaultId{QStringLiteral("personal")};
   QPushButton *m_favBtn{nullptr};
   QPushButton *m_editBtn{nullptr};
+  QPushButton *m_restoreBtn{nullptr};
+  QPushButton *m_deleteBtn{nullptr};
   QPushButton *m_cancelBtn{nullptr};
   QPushButton *m_saveBtn{nullptr};
 };

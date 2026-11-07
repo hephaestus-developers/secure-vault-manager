@@ -16,7 +16,13 @@ dependencies = [
 name = "svm-cli"
 version = "0.1.0"
 dependencies = [
+ "svm-bridge",
+ "svm-crypto",
  "svm-domain",
+ "svm-ssh-agent",
+ "svm-storage",
+ "svm-totp",
+ "svm-transfer",
  "svm-vault",
 ]
 
@@ -59,8 +65,14 @@ dependencies = [
 name = "svm-native-host"
 version = "0.1.0"
 dependencies = [
+ "svm-bridge",
+ "svm-crypto",
  "svm-domain",
  "svm-ipc",
+ "svm-storage",
+ "svm-totp",
+ "svm-vault",
+ "svm-webauthn",
 ]
 
 [[package]]
@@ -90,6 +102,7 @@ dependencies = [
 name = "svm-totp"
 version = "0.1.0"
 dependencies = [
+ "svm-crypto",
  "svm-domain",
 ]
 
@@ -97,6 +110,7 @@ dependencies = [
 name = "svm-transfer"
 version = "0.1.0"
 dependencies = [
+ "svm-crypto",
  "svm-domain",
 ]
 
@@ -115,6 +129,7 @@ version = "0.1.0"
 dependencies = [
  "svm-crypto",
  "svm-domain",
+ "svm-totp",
 ]
 
 [[package]]

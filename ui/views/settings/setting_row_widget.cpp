@@ -24,16 +24,12 @@ SettingRowWidget::SettingRowWidget(const QString &title,
 
   m_titleLabel = new QLabel(title, this);
   m_titleLabel->setObjectName(QStringLiteral("SettingRowTitle"));
-  m_titleLabel->setStyleSheet(
-      QStringLiteral("font-size: 13px; font-weight: 600; color: #cdd6f4;"));
   textLayout->addWidget(m_titleLabel);
 
   if (!description.isEmpty()) {
     m_descLabel = new QLabel(description, this);
     m_descLabel->setObjectName(QStringLiteral("SettingRowDesc"));
     m_descLabel->setWordWrap(true);
-    m_descLabel->setStyleSheet(
-        QStringLiteral("font-size: 11.5px; color: #a6adc8;"));
     textLayout->addWidget(m_descLabel);
   }
 
@@ -71,9 +67,6 @@ SettingSectionCard::SettingSectionCard(const QString &title, QWidget *parent)
   if (!title.isEmpty()) {
     m_titleLabel = new QLabel(title.toUpper(), this);
     m_titleLabel->setObjectName(QStringLiteral("SettingSectionTitle"));
-    m_titleLabel->setStyleSheet(
-        QStringLiteral("font-size: 11px; font-weight: 700; color: #89b4fa; "
-                       "letter-spacing: 0.8px; margin-bottom: 2px;"));
     rootLayout->addWidget(m_titleLabel);
   }
 

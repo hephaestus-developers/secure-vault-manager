@@ -1,37 +1,58 @@
 //! # svm-vault
 //!
 //! Mô-đun nghiệp vụ quản lý vòng đời kho dữ liệu, phiên mở khóa trong RAM,
-//! cơ chế tự động khóa (Auto-Lock) và các thao tác thêm, sửa, xóa mục lưu trữ.
+//! cơ chế tự động khóa (Auto-Lock), lịch sử sửa đổi (Revisions), tệp đính kèm
+//! và các thao tác thêm, sửa, xóa mục lưu trữ.
 
-/// Dịch vụ quản lý phiên mở khóa và nghiệp vụ kho dữ liệu.
-pub struct VaultService {
-    unlocked: bool,
-}
+pub mod attachment;
+pub mod defaults;
+pub mod items;
+pub mod service;
 
-impl VaultService {
-    /// Khởi tạo dịch vụ VaultService mới ở trạng thái bị khóa.
-    pub fn new() -> Self {
-        Self { unlocked: false }
-    }
+pub use attachment::AttachmentMeta;
+pub use service::VaultService;
 
-    /// Kiểm tra xem kho hiện tại có đang trong trạng thái mở khóa hay không.
-    pub fn is_unlocked(&self) -> bool {
-        self.unlocked
-    }
+#[cfg(test)]
+mod tests {
+    use std::fs;
+    use svm_crypto::generate_uuid_v4;
+    use svm_domain::VaultItem;
+    use svm_storage::VaultStorage;
 
-    /// Khóa kho dữ liệu và thu hồi toàn bộ khóa giải mã khỏi bộ nhớ RAM.
-    pub fn lock(&mut self) {
-        self.unlocked = false;
-    }
+    use super::*;
 
-    /// Đánh dấu mở khóa kho dữ liệu sau khi xác thực Master Password thành công.
-    pub fn unlock(&mut self) {
-        self.unlocked = true;
-    }
-}
+    #[test]
+    fn test_vault_service_lifecycle_and_crud() {
+        let dir = format!("/tmp/svm_test_vault_svc_{}", generate_uuid_v4());
+        let mut svc = VaultService::with_storage(VaultStorage::new(&dir));
 
-impl Default for VaultService {
-    fn default() -> Self {
-        Self::new()
+        let id = svc
+            .create_vault("Personal Vault", "StrongMaster#2026")
+            .expect("create vault");
+        assert_eq!(id, "personal");
+        assert!(svc.is_unlocked());
+
+        // Upsert new item
+        let new_item = VaultItem {
+            title: "GitLab Enterprise".to_string(),
+            username: "hai@hephaestus.io".to_string(),
+            password: "GitLab#SuperSecret!99".to_string(),
+            ..VaultItem::default()
+        };
+        let item_id = svc.upsert_item(new_item).expect("upsert item");
+
+        let revealed = svc
+            .reveal_field(&item_id, "password")
+            .expect("reveal password");
+        assert_eq!(revealed, "GitLab#SuperSecret!99");
+
+        // Lock and re-unlock
+        svc.lock();
+        assert!(!svc.is_unlocked());
+        svc.unlock_with_credentials("personal", "StrongMaster#2026")
+            .expect("unlock");
+        assert!(svc.is_unlocked());
+
+        let _ = fs::remove_dir_all(&dir);
     }
 }

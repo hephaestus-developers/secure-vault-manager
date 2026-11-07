@@ -7,6 +7,7 @@
 
 #include "settings_dialog.h"
 #include "app/theme_manager.h"
+#include "components/dialog_drag_helper.h"
 
 #include <QEvent>
 #include <QGraphicsDropShadowEffect>
@@ -18,10 +19,11 @@
 namespace svm::views {
 
 SettingsDialog::SettingsDialog(QWidget *parent)
-    : QDialog(parent, Qt::FramelessWindowHint | Qt::WindowSystemMenuHint) {
+    : QDialog(parent, Qt::FramelessWindowHint | Qt::Dialog) {
   setObjectName(QStringLiteral("SettingsDialog"));
   setAttribute(Qt::WA_TranslucentBackground, true);
-  setModal(true);
+  setModal(false);
+  setWindowModality(Qt::NonModal);
   setFixedSize(780, 560);
 
   setupUI();
@@ -83,6 +85,8 @@ void SettingsDialog::setupUI() {
   connect(m_closeBtn, &QPushButton::clicked, this, &QDialog::reject);
   headerLayout->addWidget(m_closeBtn);
 
+  components::DialogDragHelper::makeDraggable(m_headerWidget, this);
+
   cardLayout->addWidget(m_headerWidget);
 
   // 2. Nội dung 2 cột Master-Detail
@@ -105,9 +109,10 @@ void SettingsDialog::setupUI() {
 
   // Đường phân cách dọc
   auto *vLine = new QFrame(bodyWidget);
+  vLine->setObjectName(QStringLiteral("SettingsVerticalDivider"));
+  vLine->setFixedWidth(1);
   vLine->setFrameShape(QFrame::VLine);
   vLine->setFrameShadow(QFrame::Plain);
-  vLine->setStyleSheet(QStringLiteral("color: #313244;"));
   bodyLayout->addWidget(vLine);
 
   // Cột phải: Header danh mục + QScrollArea chứa StackedWidget
@@ -117,11 +122,12 @@ void SettingsDialog::setupUI() {
   rightLayout->setSpacing(12);
 
   m_rightCategoryTitle = new QLabel(rightPane);
+  m_rightCategoryTitle->setObjectName(
+      QStringLiteral("SettingsRightCategoryTitle"));
   QFont catFont = m_rightCategoryTitle->font();
   catFont.setPointSize(14);
   catFont.setBold(true);
   m_rightCategoryTitle->setFont(catFont);
-  m_rightCategoryTitle->setStyleSheet(QStringLiteral("color: #cdd6f4;"));
   rightLayout->addWidget(m_rightCategoryTitle);
 
   m_scrollArea = new QScrollArea(rightPane);
@@ -154,6 +160,24 @@ void SettingsDialog::setupUI() {
   cardLayout->addWidget(bodyWidget, 1);
 
   rootLayout->addWidget(m_cardWidget);
+
+  connect(&app::ThemeManager::instance(), &app::ThemeManager::themeChanged,
+          this, [this, gearIcon]() {
+            if (gearIcon) {
+              gearIcon->setPixmap(app::ThemeManager::instance()
+                                      .icon(QStringLiteral("category_settings"))
+                                      .pixmap(18, 18));
+            }
+            if (m_closeBtn) {
+              m_closeBtn->setIcon(app::ThemeManager::instance().icon(
+                  QStringLiteral("win_close")));
+            }
+            const int cur = m_navList ? m_navList->currentRow() : 0;
+            initNavList();
+            if (m_navList && cur >= 0) {
+              m_navList->setCurrentRow(cur);
+            }
+          });
 }
 
 void SettingsDialog::initNavList() {
@@ -229,36 +253,6 @@ void SettingsDialog::changeEvent(QEvent *event) {
     retranslateUi();
   }
   QDialog::changeEvent(event);
-}
-
-void SettingsDialog::mousePressEvent(QMouseEvent *event) {
-  if (event->button() == Qt::LeftButton && m_headerWidget) {
-    if (m_headerWidget->geometry().contains(
-            m_cardWidget->mapFrom(this, event->pos()))) {
-      m_isDragging = true;
-      m_dragPosition =
-          event->globalPosition().toPoint() - frameGeometry().topLeft();
-      event->accept();
-      return;
-    }
-  }
-  QDialog::mousePressEvent(event);
-}
-
-void SettingsDialog::mouseMoveEvent(QMouseEvent *event) {
-  if (m_isDragging && (event->buttons() & Qt::LeftButton)) {
-    move(event->globalPosition().toPoint() - m_dragPosition);
-    event->accept();
-    return;
-  }
-  QDialog::mouseMoveEvent(event);
-}
-
-void SettingsDialog::mouseReleaseEvent(QMouseEvent *event) {
-  if (event->button() == Qt::LeftButton) {
-    m_isDragging = false;
-  }
-  QDialog::mouseReleaseEvent(event);
 }
 
 void SettingsDialog::keyPressEvent(QKeyEvent *event) {

@@ -65,6 +65,9 @@ private slots:
   void openCommandPalette();
   void onItemSelected(const QString &itemId);
   void onItemSaved(const models::UiVaultItem &item);
+  void onItemTrashRequested(const QString &itemId);
+  void onItemRestoreRequested(const QString &itemId);
+  void onItemPurgeRequested(const QString &itemId);
   void onQuickCopyRequested(const QString &itemId, const QString &fieldName);
   void onAddNewItemRequested(models::ItemCategory category);
   void onDetailCancelRequested();
@@ -72,6 +75,7 @@ private slots:
 private:
   void setupUI();
   void setupShortcuts();
+  void loadItemsFromCore();
   void populateMockData();
   void updateSidebarCounts();
   void updateNavigationState();
@@ -105,6 +109,16 @@ private:
   views::SettingsDialog *m_settingsDialog{nullptr};
   void openSettingsDialog();
   void updateInactivityTimer();
+
+  // Modal Dialog Guardian & Warning System
+  QDialog *findActiveModalDialog() const;
+  void shakeDialog(QWidget *dlg);
+  void showModalWarning(QWidget *dlg);
+
+  QWidget *m_modalWarningToast{nullptr};
+  QLabel *m_modalWarningLabel{nullptr};
+  QLabel *m_modalWarningIcon{nullptr};
+  QTimer m_modalWarningTimer;
 
   // Inactivity Auto-Lock Timer
   QTimer m_inactivityTimer;

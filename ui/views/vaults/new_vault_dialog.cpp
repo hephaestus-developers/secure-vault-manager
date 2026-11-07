@@ -8,12 +8,15 @@
 #include "new_vault_dialog.h"
 #include "app/theme_manager.h"
 #include "app/vault_manager.h"
+#include "components/dialog_drag_helper.h"
 
 #include <QEvent>
 #include <QGraphicsDropShadowEffect>
 #include <QGridLayout>
 #include <QHBoxLayout>
 #include <QIcon>
+#include <QKeyEvent>
+#include <QStyle>
 #include <QVBoxLayout>
 
 namespace svm::views {
@@ -22,8 +25,9 @@ NewVaultDialog::NewVaultDialog(QWidget *parent)
     : QDialog(parent, Qt::FramelessWindowHint | Qt::Dialog) {
   setObjectName(QStringLiteral("NewVaultDialog"));
   setAttribute(Qt::WA_TranslucentBackground, true);
-  setModal(true);
-  setFixedSize(480, 480);
+  setModal(false);
+  setWindowModality(Qt::NonModal);
+  setFixedSize(480, 520);
 
   setupUI();
 }
@@ -41,71 +45,100 @@ void NewVaultDialog::setupUI() {
   shadow->setOffset(0, 8);
   m_cardWidget->setGraphicsEffect(shadow);
 
-  auto *layout = new QVBoxLayout(m_cardWidget);
-  layout->setContentsMargins(24, 20, 24, 20);
-  layout->setSpacing(12);
+  auto *cardLayout = new QVBoxLayout(m_cardWidget);
+  cardLayout->setContentsMargins(0, 0, 0, 16);
+  cardLayout->setSpacing(0);
 
-  m_titleLabel = new QLabel(tr("Create New Vault"), m_cardWidget);
-  QFont f = m_titleLabel->font();
-  f.setPointSize(14);
-  f.setBold(true);
-  m_titleLabel->setFont(f);
-  layout->addWidget(m_titleLabel);
+  // 1. Thanh tiêu đề kéo thả tích hợp
+  m_headerWidget = new QWidget(m_cardWidget);
+  m_headerWidget->setObjectName(QStringLiteral("NewVaultHeader"));
+  m_headerWidget->setFixedHeight(44);
+
+  auto *headerLayout = new QHBoxLayout(m_headerWidget);
+  headerLayout->setContentsMargins(16, 0, 8, 0);
+  headerLayout->setSpacing(10);
+
+  m_headerIcon = new QLabel(m_headerWidget);
+  m_headerIcon->setFixedSize(18, 18);
+  m_headerIcon->setPixmap(app::ThemeManager::instance()
+                              .icon(QStringLiteral("folder_open"))
+                              .pixmap(18, 18));
+  headerLayout->addWidget(m_headerIcon);
+
+  m_headerTitle = new QLabel(tr("Create New Vault"), m_headerWidget);
+  m_headerTitle->setObjectName(QStringLiteral("NewVaultTitle"));
+  QFont hf = m_headerTitle->font();
+  hf.setPointSize(12);
+  hf.setBold(true);
+  m_headerTitle->setFont(hf);
+  headerLayout->addWidget(m_headerTitle, 1);
+
+  m_closeBtn = new QPushButton(m_headerWidget);
+  m_closeBtn->setObjectName(QStringLiteral("DialogCloseBtn"));
+  m_closeBtn->setFixedSize(32, 32);
+  m_closeBtn->setIconSize(QSize(12, 12));
+  m_closeBtn->setCursor(Qt::PointingHandCursor);
+  m_closeBtn->setIcon(
+      app::ThemeManager::instance().icon(QStringLiteral("win_close")));
+  connect(m_closeBtn, &QPushButton::clicked, this, &QDialog::reject);
+  headerLayout->addWidget(m_closeBtn);
+
+  cardLayout->addWidget(m_headerWidget);
+
+  // 2. Nội dung thân hộp thoại
+  auto *bodyWidget = new QWidget(m_cardWidget);
+  auto *layout = new QVBoxLayout(bodyWidget);
+  layout->setContentsMargins(20, 14, 20, 0);
+  layout->setSpacing(10);
 
   m_descLabel = new QLabel(tr("Create an isolated vault to organize passwords, "
                               "tokens, or shared secrets."),
-                           m_cardWidget);
+                           bodyWidget);
   m_descLabel->setWordWrap(true);
-  m_descLabel->setStyleSheet(
-      QStringLiteral("color: #a6adc8; font-size: 11.5px;"));
+  m_descLabel->setObjectName(QStringLiteral("DialogDescLabel"));
   layout->addWidget(m_descLabel);
 
   // Vault Name
-  auto *nameLabel = new QLabel(tr("Vault Name"), m_cardWidget);
-  nameLabel->setStyleSheet(
-      QStringLiteral("font-size: 11px; font-weight: 600; color: #bac2de;"));
+  auto *nameLabel = new QLabel(tr("Vault Name"), bodyWidget);
+  nameLabel->setObjectName(QStringLiteral("DialogFieldLabel"));
   layout->addWidget(nameLabel);
 
-  m_nameEdit = new QLineEdit(m_cardWidget);
+  m_nameEdit = new QLineEdit(bodyWidget);
   m_nameEdit->setPlaceholderText(tr("e.g. Work Credentials, Finance & Crypto"));
   m_nameEdit->setFixedHeight(36);
   layout->addWidget(m_nameEdit);
 
   // Icon Picker
-  auto *iconTitle = new QLabel(tr("Vault Icon"), m_cardWidget);
-  iconTitle->setStyleSheet(
-      QStringLiteral("font-size: 11px; font-weight: 600; color: #bac2de;"));
+  auto *iconTitle = new QLabel(tr("Vault Icon"), bodyWidget);
+  iconTitle->setObjectName(QStringLiteral("DialogFieldLabel"));
   layout->addWidget(iconTitle);
   layout->addWidget(createIconPicker());
 
   // Accent Color Picker
-  auto *colorTitle = new QLabel(tr("Accent Color"), m_cardWidget);
-  colorTitle->setStyleSheet(
-      QStringLiteral("font-size: 11px; font-weight: 600; color: #bac2de;"));
+  auto *colorTitle = new QLabel(tr("Accent Color"), bodyWidget);
+  colorTitle->setObjectName(QStringLiteral("DialogFieldLabel"));
   layout->addWidget(colorTitle);
   layout->addWidget(createColorPicker());
 
   // Description
-  auto *descTitle = new QLabel(tr("Description (Optional)"), m_cardWidget);
-  descTitle->setStyleSheet(
-      QStringLiteral("font-size: 11px; font-weight: 600; color: #bac2de;"));
+  auto *descTitle = new QLabel(tr("Description (Optional)"), bodyWidget);
+  descTitle->setObjectName(QStringLiteral("DialogFieldLabel"));
   layout->addWidget(descTitle);
 
-  m_descEdit = new QLineEdit(m_cardWidget);
+  m_descEdit = new QLineEdit(bodyWidget);
   m_descEdit->setPlaceholderText(tr("Short purpose or notes for this vault"));
   m_descEdit->setFixedHeight(34);
   layout->addWidget(m_descEdit);
 
-  m_errorLabel = new QLabel(m_cardWidget);
-  m_errorLabel->setStyleSheet(
-      QStringLiteral("color: #ef4444; font-size: 11px; font-weight: 500;"));
+  m_errorLabel = new QLabel(bodyWidget);
+  m_errorLabel->setObjectName(QStringLiteral("DialogErrorLabel"));
   layout->addWidget(m_errorLabel);
 
   layout->addStretch(1);
 
   // Action buttons
   auto *btnLayout = new QHBoxLayout();
-  m_cancelBtn = new QPushButton(tr("Cancel"), m_cardWidget);
+  m_cancelBtn = new QPushButton(tr("Cancel"), bodyWidget);
   m_cancelBtn->setFixedHeight(34);
   m_cancelBtn->setCursor(Qt::PointingHandCursor);
   connect(m_cancelBtn, &QPushButton::clicked, this, &QDialog::reject);
@@ -113,7 +146,7 @@ void NewVaultDialog::setupUI() {
 
   btnLayout->addStretch(1);
 
-  m_createBtn = new QPushButton(tr("Create Vault"), m_cardWidget);
+  m_createBtn = new QPushButton(tr("Create Vault"), bodyWidget);
   m_createBtn->setObjectName(QStringLiteral("OnboardingPrimaryBtn"));
   m_createBtn->setFixedHeight(34);
   m_createBtn->setCursor(Qt::PointingHandCursor);
@@ -122,6 +155,9 @@ void NewVaultDialog::setupUI() {
   btnLayout->addWidget(m_createBtn);
 
   layout->addLayout(btnLayout);
+  cardLayout->addWidget(bodyWidget, 1);
+
+  components::DialogDragHelper::makeDraggable(m_cardWidget, this);
   rootLayout->addWidget(m_cardWidget);
 }
 
@@ -139,34 +175,20 @@ QWidget *NewVaultDialog::createIconPicker() {
 
   for (const QString &iconName : icons) {
     auto *btn = new QPushButton(container);
+    btn->setObjectName(QStringLiteral("IconPickerBtn"));
     btn->setFixedSize(32, 32);
     btn->setIcon(app::ThemeManager::instance().icon(iconName));
     btn->setIconSize(QSize(16, 16));
     btn->setCursor(Qt::PointingHandCursor);
     btn->setProperty("iconName", iconName);
-
-    if (iconName == m_selectedIcon) {
-      btn->setStyleSheet(
-          QStringLiteral("background-color: #313244; border: 2px solid "
-                         "#89b4fa; border-radius: 6px;"));
-    } else {
-      btn->setStyleSheet(
-          QStringLiteral("background-color: #1e1e2e; border: 1px solid "
-                         "#313244; border-radius: 6px;"));
-    }
+    btn->setProperty("selected", iconName == m_selectedIcon);
 
     connect(btn, &QPushButton::clicked, this, [this, btn, iconName]() {
       m_selectedIcon = iconName;
       for (auto *b : m_iconButtons) {
-        if (b == btn) {
-          b->setStyleSheet(
-              QStringLiteral("background-color: #313244; border: 2px solid "
-                             "#89b4fa; border-radius: 6px;"));
-        } else {
-          b->setStyleSheet(
-              QStringLiteral("background-color: #1e1e2e; border: 1px solid "
-                             "#313244; border-radius: 6px;"));
-        }
+        b->setProperty("selected", b == btn);
+        b->style()->unpolish(b);
+        b->style()->polish(b);
       }
     });
 
@@ -241,8 +263,8 @@ void NewVaultDialog::setEditVault(const models::UiVault &vault) {
   m_selectedIcon = vault.iconName;
   m_selectedColor = vault.accentColor;
 
-  if (m_titleLabel) {
-    m_titleLabel->setText(tr("Edit Vault"));
+  if (m_headerTitle) {
+    m_headerTitle->setText(tr("Edit Vault"));
   }
   if (m_descLabel) {
     m_descLabel->setText(tr("Update vault name, icon, and appearance color."));
@@ -255,6 +277,24 @@ void NewVaultDialog::setEditVault(const models::UiVault &vault) {
   }
   if (m_createBtn) {
     m_createBtn->setText(tr("Save Changes"));
+  }
+  for (auto *b : m_iconButtons) {
+    b->setProperty("selected",
+                   b->property("iconName").toString() == m_selectedIcon);
+    b->style()->unpolish(b);
+    b->style()->polish(b);
+  }
+  for (auto *b : m_colorButtons) {
+    const QString bColor = b->property("colorHex").toString();
+    if (bColor.compare(m_selectedColor, Qt::CaseInsensitive) == 0) {
+      b->setStyleSheet(QStringLiteral("background-color: %1; border: 2px "
+                                      "solid #ffffff; border-radius: 13px;")
+                           .arg(bColor));
+    } else {
+      b->setStyleSheet(QStringLiteral("background-color: %1; border: 1px "
+                                      "solid #313244; border-radius: 13px;")
+                           .arg(bColor));
+    }
   }
 }
 
@@ -301,8 +341,9 @@ void NewVaultDialog::onCreateClicked() {
 }
 
 void NewVaultDialog::retranslateUi() {
-  if (m_titleLabel) {
-    m_titleLabel->setText(tr("Create New Vault"));
+  if (m_headerTitle) {
+    m_headerTitle->setText(m_isEditMode ? tr("Edit Vault")
+                                        : tr("Create New Vault"));
   }
   if (m_descLabel) {
     m_descLabel->setText(tr("Create an isolated vault to organize passwords, "
@@ -319,8 +360,17 @@ void NewVaultDialog::retranslateUi() {
     m_cancelBtn->setText(tr("Cancel"));
   }
   if (m_createBtn) {
-    m_createBtn->setText(tr("Create Vault"));
+    m_createBtn->setText(m_isEditMode ? tr("Save Changes")
+                                      : tr("Create Vault"));
   }
+}
+
+void NewVaultDialog::keyPressEvent(QKeyEvent *event) {
+  if (event->key() == Qt::Key_Escape) {
+    reject();
+    return;
+  }
+  QDialog::keyPressEvent(event);
 }
 
 void NewVaultDialog::changeEvent(QEvent *event) {

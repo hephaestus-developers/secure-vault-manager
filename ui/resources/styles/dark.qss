@@ -1244,10 +1244,202 @@ QCalendarWidget QHeaderView::section {
 }
 
 /* 6. Onboarding Wizard & Lock Screen Cards */
-#OnboardingCard, #LockScreenCard, #RecoveryDialogCard, #NewVaultCard {
+#LockScreenCard, #RecoveryDialogCard, #NewVaultCard {
     background-color: #181825;
     border: 1px solid #45475a;
     border-radius: 12px;
+}
+
+/* --- Onboarding Wizard (Split Card Design) --- */
+#OnboardingCard {
+    background-color: #181825;
+    border: 1px solid #313244;
+    border-radius: 16px;
+}
+
+#OnboardingSidebar {
+    background-color: #11111b;
+    border-top-left-radius: 15px;
+    border-bottom-left-radius: 15px;
+    border-right: 1px solid #313244;
+}
+
+#OnboardingContentPanel {
+    background-color: #181825;
+    border-top-right-radius: 15px;
+    border-bottom-right-radius: 15px;
+}
+
+#OnboardingDivider {
+    background-color: #313244;
+}
+
+#OnboardingSidebarTitle {
+    color: #cdd6f4;
+}
+
+#OnboardingSidebarSub {
+    color: #89b4fa;
+    font-size: 8.5px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+#OnboardingBadge {
+    color: #89b4fa;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+}
+
+#OnboardingTitle {
+    color: #cdd6f4;
+}
+
+#OnboardingDesc {
+    color: #a6adc8;
+}
+
+#OnboardingLabel {
+    color: #bac2de;
+}
+
+#OnboardingStepItem {
+    border-radius: 8px;
+    padding: 6px 10px;
+    background-color: transparent;
+}
+
+#OnboardingStepItemActive {
+    border-radius: 8px;
+    padding: 6px 10px;
+    background-color: rgba(137, 180, 250, 0.08);
+}
+
+#OnboardingTrustBadge {
+    background-color: #181825;
+    border: 1px solid #313244;
+    border-radius: 8px;
+    padding: 8px 10px;
+}
+
+#OnboardingTrustTitle {
+    color: #cdd6f4;
+}
+
+#OnboardingTrustSub {
+    color: #a6adc8;
+}
+
+#OnboardingFeatureCard {
+    background-color: #1e1e2e;
+    border: 1px solid #313244;
+    border-radius: 10px;
+    padding: 10px 14px;
+}
+
+#OnboardingFeatureCard:hover {
+    border-color: #45475a;
+    background-color: #232634;
+}
+
+#OnboardingFeatureTitle {
+    color: #cdd6f4;
+}
+
+#OnboardingFeatureDesc {
+    color: #a6adc8;
+}
+
+#OnboardingInputContainer {
+    background-color: #1e1e2e;
+    border: 1px solid #313244;
+    border-radius: 8px;
+    padding: 0 4px 0 10px;
+}
+
+#OnboardingInputContainer:focus-within {
+    border-color: #89b4fa;
+}
+
+#OnboardingInput {
+    background: transparent;
+    border: none;
+    color: #cdd6f4;
+    font-size: 13px;
+    selection-background-color: #45475a;
+    selection-color: #ffffff;
+}
+
+#OnboardingEyeBtn {
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    padding: 4px;
+}
+
+#OnboardingEyeBtn:hover {
+    background-color: #313244;
+}
+
+#OnboardingWarningBox {
+    background-color: rgba(249, 226, 175, 0.08);
+    border: 1px solid rgba(249, 226, 175, 0.25);
+    border-radius: 8px;
+    padding: 10px 14px;
+}
+
+#OnboardingBiometricCard {
+    background-color: #1e1e2e;
+    border: 1px solid #313244;
+    border-radius: 10px;
+    padding: 12px 14px;
+}
+
+#OnboardingBiometricCard:hover {
+    border-color: #45475a;
+}
+
+#OnboardingSecondaryBtn {
+    background-color: #1e1e2e;
+    border: 1px solid #313244;
+    border-radius: 6px;
+    color: #cdd6f4;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 0 16px;
+}
+
+#OnboardingSecondaryBtn:hover {
+    background-color: #313244;
+    border-color: #89b4fa;
+    color: #ffffff;
+}
+
+#OnboardingSecondaryBtn:pressed {
+    background-color: #45475a;
+}
+
+#OnboardingPrimaryBtn {
+    background-color: #89b4fa;
+    border: none;
+    border-radius: 6px;
+    color: #11111b;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 0 20px;
+}
+
+#OnboardingPrimaryBtn:hover {
+    background-color: #b4befe;
+}
+
+#OnboardingPrimaryBtn:pressed {
+    background-color: #74c7ec;
+}
+
+#OnboardingPrimaryBtn:disabled {
+    background-color: #313244;
+    color: #6c7086;
 }
 
 #RecoveryBox {
@@ -1285,24 +1477,6 @@ QCalendarWidget QHeaderView::section {
 
 #RecoveryActionBtn:pressed {
     background-color: #45475a;
-}
-
-#OnboardingPrimaryBtn {
-    background-color: #89b4fa;
-    border: none;
-    border-radius: 6px;
-    color: #11111b;
-    font-size: 13px;
-    font-weight: 600;
-}
-
-#OnboardingPrimaryBtn:hover {
-    background-color: #b4befe;
-}
-
-#OnboardingPrimaryBtn:disabled {
-    background-color: #313244;
-    color: #6c7086;
 }
 
 #LockPasswordContainer {
@@ -1381,15 +1555,45 @@ QCalendarWidget QHeaderView::section {
     border-radius: 12px;
 }
 
-#SettingsDialogHeader {
+#SettingsDialogHeader, #NewVaultHeader, #RecoveryDialogHeader {
     background-color: #11111b;
     border-bottom: 1px solid #313244;
     border-top-left-radius: 12px;
     border-top-right-radius: 12px;
 }
 
-#SettingsDialogTitle {
+#SettingsDialogTitle, #NewVaultTitle, #RecoveryDialogTitle {
     color: #cdd6f4;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+#DialogCloseBtn {
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    padding: 4px;
+}
+
+#DialogCloseBtn:hover {
+    background-color: #313244;
+}
+
+#DialogCloseBtn:pressed {
+    background-color: #45475a;
+}
+
+#ModalWarningToast {
+    background-color: #1e1e2e;
+    border: 1px solid #fab387;
+    border-radius: 8px;
+    padding: 6px 14px;
+}
+
+#ModalWarningLabel {
+    color: #fab387;
+    font-size: 12px;
+    font-weight: 600;
 }
 
 #SettingsNavList {
@@ -1427,4 +1631,181 @@ QCalendarWidget QHeaderView::section {
 
 #SettingSectionCard QLabel {
     background: transparent;
+}
+
+#SettingsRightCategoryTitle {
+    color: #cdd6f4;
+}
+
+#SettingsVerticalDivider {
+    color: #313244;
+    background-color: #313244;
+}
+
+#SettingRowTitle {
+    font-size: 13px;
+    font-weight: 600;
+    color: #cdd6f4;
+}
+
+#SettingRowDesc {
+    font-size: 11.5px;
+    color: #a6adc8;
+}
+
+#SettingSectionTitle {
+    font-size: 11px;
+    font-weight: 700;
+    color: #89b4fa;
+    letter-spacing: 0.8px;
+    margin-bottom: 2px;
+}
+
+#SettingsListItemCard {
+    background-color: #1e1e2e;
+    border: 1px solid #313244;
+    border-radius: 6px;
+    padding: 4px;
+}
+
+#SettingsListItemTitle {
+    font-size: 13px;
+    font-weight: 600;
+    color: #cdd6f4;
+}
+
+#SettingsListItemDesc {
+    font-size: 11px;
+    color: #a6adc8;
+}
+
+#SettingsDefaultBadge {
+    background-color: #89b4fa;
+    color: #11111b;
+    font-size: 9.5px;
+    font-weight: 700;
+    border-radius: 3px;
+    padding: 2px 6px;
+}
+
+#SshSnippetBox {
+    background-color: #11111b;
+    border: 1px solid #313244;
+    border-radius: 6px;
+    padding: 10px;
+}
+
+#SshSnippetHint {
+    font-size: 11px;
+    color: #a6adc8;
+}
+
+#SshSnippetCode {
+    font-family: monospace;
+    font-size: 12px;
+    color: #a6e3a1;
+}
+
+#DialogDescLabel, #LockSubtitleLabel, #AboutDescLabel {
+    color: #a6adc8;
+    font-size: 11.5px;
+}
+
+#DialogFieldLabel {
+    font-size: 11px;
+    font-weight: 600;
+    color: #bac2de;
+}
+
+#DialogErrorLabel {
+    color: #ef4444;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+#LockForgotBtn {
+    color: #89b4fa;
+    font-size: 11.5px;
+    text-decoration: underline;
+    background: transparent;
+    border: none;
+}
+
+#LockForgotBtn:hover {
+    color: #b4befe;
+}
+
+#AboutTaglineLabel {
+    color: #89b4fa;
+    font-weight: 500;
+    font-size: 11px;
+}
+
+#AboutDividerLine {
+    background-color: #313244;
+    max-height: 1px;
+}
+
+#IconPickerBtn {
+    background-color: #1e1e2e;
+    border: 1px solid #313244;
+    border-radius: 6px;
+}
+
+#IconPickerBtn:hover {
+    background-color: #26293b;
+    border-color: #45475a;
+}
+
+#IconPickerBtn[selected="true"] {
+    background-color: #313244;
+    border: 2px solid #89b4fa;
+    border-radius: 6px;
+}
+
+#DetailHeaderDeleteBtn {
+    background-color: #232634;
+    border: 1px solid #313244;
+    border-radius: 6px;
+    padding: 0 10px;
+    color: #f38ba8;
+    font-size: 12.5px;
+    font-weight: 500;
+}
+
+#DetailHeaderDeleteBtn:hover {
+    background-color: rgba(243, 139, 168, 0.15);
+    border-color: #f38ba8;
+    color: #f38ba8;
+}
+
+#DetailHeaderRestoreBtn {
+    background-color: #232634;
+    border: 1px solid #a6e3a1;
+    border-radius: 6px;
+    padding: 0 12px;
+    color: #a6e3a1;
+    font-size: 12.5px;
+    font-weight: 600;
+}
+
+#DetailHeaderRestoreBtn:hover {
+    background-color: rgba(166, 227, 161, 0.15);
+    border-color: #a6e3a1;
+}
+
+#FieldRowGenerateBtn {
+    background-color: #232634;
+    border: 1px solid #45475a;
+    border-radius: 6px;
+    padding: 0 10px;
+    color: #89b4fa;
+    font-size: 11.5px;
+    font-weight: 600;
+}
+
+#FieldRowGenerateBtn:hover {
+    background-color: #313244;
+    border-color: #89b4fa;
+    color: #b4befe;
 }

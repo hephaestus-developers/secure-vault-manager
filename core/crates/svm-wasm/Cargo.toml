@@ -11,3 +11,4 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 svm-domain = { path = "../svm-domain" }
 svm-crypto = { path = "../svm-crypto" }
+svm-totp = { path = "../svm-totp" }

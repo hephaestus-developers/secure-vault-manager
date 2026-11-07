@@ -7,6 +7,7 @@
 
 #include "about_dialog.h"
 #include "app/theme_manager.h"
+#include "components/dialog_drag_helper.h"
 
 #include <QEvent>
 #include <QGraphicsDropShadowEffect>
@@ -23,7 +24,8 @@ AboutDialog::AboutDialog(QWidget *parent)
     : QDialog(parent, Qt::FramelessWindowHint | Qt::Dialog) {
   setObjectName(QStringLiteral("AboutDialog"));
   setAttribute(Qt::WA_TranslucentBackground, true);
-  setModal(true);
+  setModal(false);
+  setWindowModality(Qt::NonModal);
   setFixedSize(540, 480);
 
   setupUI();
@@ -112,6 +114,7 @@ void AboutDialog::setupUI() {
   contentLayout->addWidget(bottomBar);
   cardLayout->addWidget(contentContainer);
 
+  components::DialogDragHelper::makeDraggable(m_cardWidget, this);
   rootLayout->addWidget(m_cardWidget);
 }
 
@@ -151,11 +154,9 @@ QWidget *AboutDialog::createInfoTab() {
   m_versionLabel->setObjectName(QStringLiteral("AboutMetaLabelVal"));
   titleCol->addWidget(m_versionLabel);
 
-  m_taglineLabel = new QLabel(
-      tr("Enterprise-Grade Zero-Knowledge Secret & Password Manager"),
-      brandWidget);
-  m_taglineLabel->setStyleSheet(
-      QStringLiteral("color: #89b4fa; font-weight: 500; font-size: 11px;"));
+  m_taglineLabel =
+      new QLabel(tr("Private, Fast & Secure Password Manager"), brandWidget);
+  m_taglineLabel->setObjectName(QStringLiteral("AboutTaglineLabel"));
   m_taglineLabel->setWordWrap(true);
   titleCol->addWidget(m_taglineLabel);
 
@@ -165,21 +166,19 @@ QWidget *AboutDialog::createInfoTab() {
   // Description
   m_descLabel = new QLabel(tr("Secure Vault Manager is crafted with high "
                               "performance, minimal memory "
-                              "footprint, zero-knowledge architecture, and "
+                              "footprint, offline privacy, and "
                               "native modern UI aesthetics "
                               "across desktop platforms."),
                            tab);
   m_descLabel->setWordWrap(true);
-  m_descLabel->setStyleSheet(
-      QStringLiteral("color: #a6adc8; font-size: 11.5px; line-height: 1.4;"));
+  m_descLabel->setObjectName(QStringLiteral("AboutDescLabel"));
   layout->addWidget(m_descLabel);
 
   // Divider
   auto *line = new QFrame(tab);
+  line->setObjectName(QStringLiteral("AboutDividerLine"));
   line->setFrameShape(QFrame::HLine);
   line->setFrameShadow(QFrame::Plain);
-  line->setStyleSheet(
-      QStringLiteral("background-color: #313244; max-height: 1px;"));
   layout->addWidget(line);
 
   // Key-value metadata grid
@@ -298,13 +297,12 @@ void AboutDialog::retranslateUi() {
     m_versionLabel->setText(tr("Version 0.1.0 • Rust Core Engine v0.1.0"));
   }
   if (m_taglineLabel) {
-    m_taglineLabel->setText(
-        tr("Enterprise-Grade Zero-Knowledge Secret & Password Manager"));
+    m_taglineLabel->setText(tr("Private, Fast & Secure Password Manager"));
   }
   if (m_descLabel) {
     m_descLabel->setText(tr(
         "Secure Vault Manager is crafted with high performance, minimal memory "
-        "footprint, zero-knowledge architecture, and native modern UI "
+        "footprint, offline privacy, and native modern UI "
         "aesthetics "
         "across desktop platforms."));
   }
@@ -333,34 +331,6 @@ void AboutDialog::changeEvent(QEvent *event) {
     retranslateUi();
   }
   QDialog::changeEvent(event);
-}
-
-void AboutDialog::mousePressEvent(QMouseEvent *event) {
-  if (event->button() == Qt::LeftButton) {
-    if (m_headerWidget && m_headerWidget->geometry().contains(
-                              m_cardWidget->mapFrom(this, event->pos()))) {
-      m_dragging = true;
-      m_dragPosition =
-          event->globalPosition().toPoint() - frameGeometry().topLeft();
-      event->accept();
-      return;
-    }
-  }
-  QDialog::mousePressEvent(event);
-}
-
-void AboutDialog::mouseMoveEvent(QMouseEvent *event) {
-  if (m_dragging && (event->buttons() & Qt::LeftButton)) {
-    move(event->globalPosition().toPoint() - m_dragPosition);
-    event->accept();
-    return;
-  }
-  QDialog::mouseMoveEvent(event);
-}
-
-void AboutDialog::mouseReleaseEvent(QMouseEvent *event) {
-  m_dragging = false;
-  QDialog::mouseReleaseEvent(event);
 }
 
 void AboutDialog::keyPressEvent(QKeyEvent *event) {

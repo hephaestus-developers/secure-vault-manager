@@ -21,10 +21,15 @@
 #include <QApplication>
 #include <QCloseEvent>
 #include <QDateTime>
+#include <QGraphicsDropShadowEffect>
 #include <QHBoxLayout>
 #include <QIcon>
+#include <QLayout>
 #include <QMessageBox>
+#include <QMouseEvent>
+#include <QPropertyAnimation>
 #include <QVBoxLayout>
+#include <QWindow>
 
 namespace svm {
 
@@ -42,6 +47,9 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 
   // Khởi tạo bộ xử lý co giãn kích thước cửa sổ không viền 8 hướng
   m_resizeHandler = new components::WindowResizeHandler(this);
+
+  // Cài đặt Global Event Filter để bảo vệ tính Modal của các Dialog
+  qApp->installEventFilter(this);
 }
 
 void MainWindow::setupUI() {
@@ -106,6 +114,13 @@ void MainWindow::setupUI() {
   connect(&app::VaultManager::instance(),
           &app::VaultManager::activeVaultChanged, this,
           [this]() { updateSidebarCounts(); });
+  connect(&core::CoreBridge::instance(), &core::CoreBridge::itemsChangedEvent,
+          this, [this]() {
+            if (app::VaultManager::instance().isUnlocked()) {
+              loadItemsFromCore();
+              app::VaultManager::instance().refreshVaultsFromCore();
+            }
+          });
 
   // 3. Command Palette Dialog
   m_commandPalette =
@@ -171,6 +186,12 @@ void MainWindow::setupUI() {
 
   connect(m_detailView, &views::DetailInspectorView::itemSaved, this,
           &MainWindow::onItemSaved);
+  connect(m_detailView, &views::DetailInspectorView::itemTrashRequested, this,
+          &MainWindow::onItemTrashRequested);
+  connect(m_detailView, &views::DetailInspectorView::itemRestoreRequested, this,
+          &MainWindow::onItemRestoreRequested);
+  connect(m_detailView, &views::DetailInspectorView::itemPurgeRequested, this,
+          &MainWindow::onItemPurgeRequested);
   connect(m_detailView, &views::DetailInspectorView::cancelRequested, this,
           &MainWindow::onDetailCancelRequested);
 
@@ -180,6 +201,11 @@ void MainWindow::setupUI() {
             if (!m_aboutDialog) {
               m_aboutDialog = new views::AboutDialog(this);
             }
+            m_aboutDialog->setModal(false);
+            m_aboutDialog->setWindowModality(Qt::NonModal);
+            const QPoint center = geometry().center();
+            m_aboutDialog->move(center.x() - m_aboutDialog->width() / 2,
+                                center.y() - m_aboutDialog->height() / 2);
             m_aboutDialog->show();
             m_aboutDialog->raise();
             m_aboutDialog->activateWindow();
@@ -205,7 +231,6 @@ void MainWindow::setupUI() {
           &app::SettingsManager::autoLockTimeoutChanged, this,
           &MainWindow::updateInactivityTimer);
   updateInactivityTimer();
-  qApp->installEventFilter(this);
 
   // 8. Đồng bộ trạng thái điều hướng khởi đầu
   updateNavigationState();
@@ -317,10 +342,66 @@ void MainWindow::onDetailCancelRequested() {
 }
 
 void MainWindow::onItemSaved(const models::UiVaultItem &item) {
-  m_itemListView->upsertItem(item);
-  m_previousSelectedItemId = item.id;
-  m_itemListView->selectItem(item.id);
-  m_detailView->setItem(item);
+  models::UiVaultItem savedItem = item;
+  auto &bridge = core::CoreBridge::instance();
+  if (bridge.isInitialized() && bridge.isVaultUnlocked()) {
+    const QString savedId = bridge.upsertItem(item);
+    if (!savedId.isEmpty()) {
+      savedItem.id = savedId;
+      const auto refreshed = bridge.getItem(savedId);
+      if (refreshed.has_value()) {
+        savedItem = refreshed.value();
+      }
+    }
+    app::VaultManager::instance().refreshVaultsFromCore();
+  }
+
+  m_itemListView->upsertItem(savedItem);
+  m_previousSelectedItemId = savedItem.id;
+  m_itemListView->selectItem(savedItem.id);
+  m_detailView->setItem(savedItem);
+  updateSidebarCounts();
+}
+
+void MainWindow::onItemTrashRequested(const QString &itemId) {
+  auto &bridge = core::CoreBridge::instance();
+  if (bridge.isInitialized() && bridge.isVaultUnlocked()) {
+    bridge.trashItem(itemId);
+  }
+  const auto opt = m_itemListView->sourceModel()->findItemById(itemId);
+  if (opt.has_value()) {
+    models::UiVaultItem updated = opt.value();
+    updated.isDeleted = true;
+    updated.updatedAt = QDateTime::currentDateTime();
+    m_itemListView->upsertItem(updated);
+  }
+  m_detailView->clearItem();
+  updateSidebarCounts();
+}
+
+void MainWindow::onItemRestoreRequested(const QString &itemId) {
+  auto &bridge = core::CoreBridge::instance();
+  if (bridge.isInitialized() && bridge.isVaultUnlocked()) {
+    bridge.restoreItem(itemId);
+  }
+  const auto opt = m_itemListView->sourceModel()->findItemById(itemId);
+  if (opt.has_value()) {
+    models::UiVaultItem updated = opt.value();
+    updated.isDeleted = false;
+    updated.updatedAt = QDateTime::currentDateTime();
+    m_itemListView->upsertItem(updated);
+    m_detailView->setItem(updated);
+  }
+  updateSidebarCounts();
+}
+
+void MainWindow::onItemPurgeRequested(const QString &itemId) {
+  auto &bridge = core::CoreBridge::instance();
+  if (bridge.isInitialized() && bridge.isVaultUnlocked()) {
+    bridge.purgeItem(itemId);
+  }
+  m_itemListView->removeItem(itemId);
+  m_detailView->clearItem();
   updateSidebarCounts();
 }
 
@@ -332,11 +413,48 @@ void MainWindow::onQuickCopyRequested(const QString &itemId,
   }
 
   const auto &item = opt.value();
+  auto &bridge = core::CoreBridge::instance();
   if (fieldName == QStringLiteral("password")) {
+    QString secret = item.password;
+    if (bridge.isInitialized() && bridge.isVaultUnlocked()) {
+      const QString revealed =
+          bridge.revealField(itemId, QStringLiteral("password"));
+      if (!revealed.isEmpty()) {
+        secret = revealed;
+      }
+    }
     app::ClipboardManager::instance().copySensitive(
-        item.password, tr("Password for %1").arg(item.title), 30);
+        secret, tr("Password for %1").arg(item.title), 30);
   } else if (fieldName == QStringLiteral("username")) {
     app::ClipboardManager::instance().copyPlainText(item.username);
+  }
+}
+
+void MainWindow::loadItemsFromCore() {
+  auto &bridge = core::CoreBridge::instance();
+  if (!bridge.isInitialized() || !bridge.isVaultUnlocked()) {
+    return;
+  }
+  const QList<models::UiVaultItem> coreItems = bridge.listItems();
+  if (!coreItems.isEmpty()) {
+    const QString prevId = m_itemListView->selectedItemId();
+    m_itemListView->setItems(coreItems);
+    updateSidebarCounts();
+
+    QString targetId = prevId;
+    if (targetId.isEmpty() ||
+        !m_itemListView->sourceModel()->findItemById(targetId).has_value()) {
+      targetId = coreItems.first().id;
+    }
+    const auto opt = m_itemListView->sourceModel()->findItemById(targetId);
+    if (opt.has_value()) {
+      m_itemListView->selectItem(targetId);
+      m_detailView->setItem(opt.value());
+    }
+  } else {
+    m_itemListView->setItems({});
+    m_detailView->clearItem();
+    updateSidebarCounts();
   }
 }
 
@@ -548,6 +666,7 @@ void MainWindow::updateNavigationState() {
     m_mainStack->setCurrentWidget(m_mainSplitter);
     m_headerBar->setTitleText(tr("Secure Vault Manager"));
     m_headerBar->setSettingsVisible(true);
+    loadItemsFromCore();
     updateSidebarCounts();
     updateInactivityTimer();
   }
@@ -560,6 +679,11 @@ void MainWindow::openSettingsDialog() {
   if (!m_settingsDialog) {
     m_settingsDialog = new views::SettingsDialog(this);
   }
+  m_settingsDialog->setModal(false);
+  m_settingsDialog->setWindowModality(Qt::NonModal);
+  const QPoint center = geometry().center();
+  m_settingsDialog->move(center.x() - m_settingsDialog->width() / 2,
+                         center.y() - m_settingsDialog->height() / 2);
   m_settingsDialog->show();
   m_settingsDialog->raise();
   m_settingsDialog->activateWindow();
@@ -584,8 +708,103 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event) {
     if (app::VaultManager::instance().isUnlocked() &&
         m_inactivityTimer.isActive()) {
       m_inactivityTimer.start(); // reset inactivity timeout
+      core::CoreBridge::instance().reportIdle(0);
     }
   }
+
+  // Chặn tương tác ngoài vùng nếu có Dialog đang mở
+  auto *activeDlg = findActiveModalDialog();
+  if (activeDlg) {
+    const QEvent::Type t = event->type();
+    const bool isClick =
+        (t == QEvent::MouseButtonPress || t == QEvent::MouseButtonDblClick);
+    const bool isBlockedInput =
+        isClick || t == QEvent::MouseButtonRelease || t == QEvent::Wheel ||
+        t == QEvent::ContextMenu || t == QEvent::KeyPress ||
+        t == QEvent::KeyRelease || t == QEvent::ShortcutOverride;
+
+    if (isBlockedInput) {
+      auto triggerOutsideAlert = [this, activeDlg]() {
+        if (!activeDlg->property("isShaking").toBool()) {
+          QApplication::beep();
+        }
+        activeDlg->raise();
+        activeDlg->activateWindow();
+        shakeDialog(activeDlg);
+        showModalWarning(activeDlg);
+      };
+
+      // 1. Kiểm tra ở cấp độ QWindow (bắt được cả trên Wayland & X11 kể cả khi
+      // cửa sổ nền bị chặn)
+      if (auto *win = qobject_cast<QWindow *>(obj)) {
+        if (win == activeDlg->windowHandle()) {
+          if (isClick && activeDlg->layout() &&
+              activeDlg->layout()->count() == 1 &&
+              activeDlg->layout()->itemAt(0)->widget()) {
+            auto *card = activeDlg->layout()->itemAt(0)->widget();
+            auto *me = static_cast<QMouseEvent *>(event);
+            if (!card->geometry().contains(me->position().toPoint())) {
+              triggerOutsideAlert();
+              return true;
+            }
+          }
+          return false;
+        }
+
+        // Cho phép các popup con (như QComboBox dropdown, QMenu) thuộc về
+        // activeDlg
+        QWindow *tp = win->transientParent();
+        while (tp) {
+          if (tp == activeDlg->windowHandle()) {
+            return false;
+          }
+          tp = tp->transientParent();
+        }
+        if (QWidget *popup = QApplication::activePopupWidget()) {
+          if (popup == activeDlg || activeDlg->isAncestorOf(popup) ||
+              popup->windowHandle() == win) {
+            return false;
+          }
+        }
+
+        if (isClick) {
+          triggerOutsideAlert();
+        }
+        return true;
+      }
+
+      // 2. Kiểm tra ở cấp độ QWidget
+      if (auto *widget = qobject_cast<QWidget *>(obj)) {
+        if (widget == activeDlg || activeDlg->isAncestorOf(widget) ||
+            widget->window() == activeDlg) {
+          if (widget == activeDlg && isClick && activeDlg->layout() &&
+              activeDlg->layout()->count() == 1 &&
+              activeDlg->layout()->itemAt(0)->widget()) {
+            auto *card = activeDlg->layout()->itemAt(0)->widget();
+            auto *me = static_cast<QMouseEvent *>(event);
+            if (!card->geometry().contains(me->position().toPoint())) {
+              triggerOutsideAlert();
+              return true;
+            }
+          }
+          return false;
+        }
+
+        if (QWidget *popup = QApplication::activePopupWidget()) {
+          if ((widget == popup || popup->isAncestorOf(widget)) &&
+              activeDlg->isAncestorOf(popup)) {
+            return false;
+          }
+        }
+
+        if (isClick) {
+          triggerOutsideAlert();
+        }
+        return true;
+      }
+    }
+  }
+
   return QMainWindow::eventFilter(obj, event);
 }
 
@@ -602,6 +821,11 @@ void MainWindow::resizeEvent(QResizeEvent *event) {
   QMainWindow::resizeEvent(event);
   if (m_resizeHandler) {
     m_resizeHandler->updateGeometry();
+  }
+  if (m_modalWarningToast && m_modalWarningToast->isVisible()) {
+    const int x = (width() - m_modalWarningToast->width()) / 2;
+    const int y = (m_headerBar ? m_headerBar->height() + 10 : 54);
+    m_modalWarningToast->move(x, y);
   }
 }
 
@@ -645,6 +869,10 @@ void MainWindow::retranslateUi() {
   if (m_settingsDialog) {
     m_settingsDialog->retranslateUi();
   }
+  if (m_modalWarningLabel) {
+    m_modalWarningLabel->setText(
+        tr("Please close the dialog before interacting with the main window."));
+  }
 }
 
 void MainWindow::closeEvent(QCloseEvent *event) {
@@ -654,6 +882,126 @@ void MainWindow::closeEvent(QCloseEvent *event) {
   } else {
     event->accept();
   }
+}
+
+QDialog *MainWindow::findActiveModalDialog() const {
+  QList<QDialog *> visibleDialogs;
+  const auto topLevels = QApplication::topLevelWidgets();
+  for (auto *w : topLevels) {
+    if (auto *dlg = qobject_cast<QDialog *>(w)) {
+      if (dlg->isVisible()) {
+        visibleDialogs.append(dlg);
+      }
+    }
+  }
+  if (visibleDialogs.isEmpty()) {
+    return nullptr;
+  }
+
+  // Ưu tiên chọn Dialog con đang mở ở tầng sâu nhất (ví dụ NewVaultDialog mở
+  // trên SettingsDialog)
+  for (auto *candidate : visibleDialogs) {
+    bool hasVisibleChildDialog = false;
+    for (auto *other : visibleDialogs) {
+      if (other != candidate && candidate->isAncestorOf(other)) {
+        hasVisibleChildDialog = true;
+        break;
+      }
+    }
+    if (!hasVisibleChildDialog) {
+      return candidate;
+    }
+  }
+  return visibleDialogs.last();
+}
+
+void MainWindow::shakeDialog(QWidget *dlg) {
+  if (!dlg) {
+    return;
+  }
+  if (dlg->property("isShaking").toBool()) {
+    return;
+  }
+  dlg->setProperty("isShaking", true);
+
+  // Rung trực tiếp Card Widget bên trong vùng đệm bóng đổ 16px của QDialog
+  // để hoạt động mượt mà 60fps trên cả Wayland lẫn X11/Windows/macOS.
+  QWidget *target = dlg;
+  QLayout *dlgLayout = dlg->layout();
+  if (dlgLayout && dlgLayout->count() == 1 && dlgLayout->itemAt(0) &&
+      dlgLayout->itemAt(0)->widget()) {
+    target = dlgLayout->itemAt(0)->widget();
+    dlgLayout->setEnabled(false);
+  }
+
+  const QPoint origPos = target->pos();
+  auto *anim = new QPropertyAnimation(target, "pos", dlg);
+  anim->setDuration(360);
+
+  anim->setKeyValueAt(0.00, origPos);
+  anim->setKeyValueAt(0.12, origPos + QPoint(-12, 0));
+  anim->setKeyValueAt(0.28, origPos + QPoint(12, 0));
+  anim->setKeyValueAt(0.44, origPos + QPoint(-9, 0));
+  anim->setKeyValueAt(0.60, origPos + QPoint(9, 0));
+  anim->setKeyValueAt(0.76, origPos + QPoint(-5, 0));
+  anim->setKeyValueAt(0.88, origPos + QPoint(5, 0));
+  anim->setKeyValueAt(1.00, origPos);
+
+  connect(anim, &QPropertyAnimation::finished, dlg,
+          [dlg, target, dlgLayout, origPos]() {
+            target->move(origPos);
+            if (dlgLayout) {
+              dlgLayout->setEnabled(true);
+              dlgLayout->activate();
+            }
+            dlg->setProperty("isShaking", false);
+          });
+
+  anim->start(QAbstractAnimation::DeleteWhenStopped);
+}
+
+void MainWindow::showModalWarning(QWidget * /*dlg*/) {
+  if (!m_modalWarningToast) {
+    m_modalWarningToast = new QWidget(this);
+    m_modalWarningToast->setObjectName(QStringLiteral("ModalWarningToast"));
+    auto *layout = new QHBoxLayout(m_modalWarningToast);
+    layout->setContentsMargins(12, 8, 14, 8);
+    layout->setSpacing(8);
+
+    m_modalWarningIcon = new QLabel(m_modalWarningToast);
+    m_modalWarningIcon->setFixedSize(16, 16);
+    m_modalWarningIcon->setPixmap(app::ThemeManager::instance()
+                                      .icon(QStringLiteral("watchtower_weak"))
+                                      .pixmap(16, 16));
+    layout->addWidget(m_modalWarningIcon);
+
+    m_modalWarningLabel = new QLabel(
+        tr("Please close the dialog before interacting with the main window."),
+        m_modalWarningToast);
+    m_modalWarningLabel->setObjectName(QStringLiteral("ModalWarningLabel"));
+    layout->addWidget(m_modalWarningLabel);
+
+    auto *shadow = new QGraphicsDropShadowEffect(m_modalWarningToast);
+    shadow->setBlurRadius(20);
+    shadow->setColor(QColor(0, 0, 0, 140));
+    shadow->setOffset(0, 4);
+    m_modalWarningToast->setGraphicsEffect(shadow);
+
+    connect(&m_modalWarningTimer, &QTimer::timeout, this, [this]() {
+      if (m_modalWarningToast) {
+        m_modalWarningToast->hide();
+      }
+    });
+  }
+
+  m_modalWarningToast->adjustSize();
+  const int x = (width() - m_modalWarningToast->width()) / 2;
+  const int y = (m_headerBar ? m_headerBar->height() + 10 : 54);
+  m_modalWarningToast->move(x, y);
+  m_modalWarningToast->show();
+  m_modalWarningToast->raise();
+
+  m_modalWarningTimer.start(2500);
 }
 
 } // namespace svm

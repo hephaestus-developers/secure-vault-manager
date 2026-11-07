@@ -6,6 +6,7 @@
  */
 
 #include "vault_manager.h"
+#include "core/core_bridge.h"
 
 #include <QCryptographicHash>
 #include <QDateTime>
@@ -25,7 +26,17 @@ VaultManager &VaultManager::instance() {
 
 VaultManager::VaultManager() : QObject(nullptr) {}
 
-void VaultManager::initialize() { loadSettings(); }
+void VaultManager::initialize() {
+  loadSettings();
+
+  auto &bridge = core::CoreBridge::instance();
+  connect(&bridge, &core::CoreBridge::vaultLockedEvent, this, [this]() {
+    if (!m_isLocked) {
+      m_isLocked = true;
+      emit lockStateChanged(m_isLocked);
+    }
+  });
+}
 
 bool VaultManager::isConfigured() const { return m_isConfigured; }
 
@@ -51,6 +62,20 @@ models::UiVault VaultManager::vault(const QString &vaultId) const {
   return {};
 }
 
+void VaultManager::refreshVaultsFromCore() {
+  auto &bridge = core::CoreBridge::instance();
+  if (!bridge.isInitialized() || !bridge.isVaultUnlocked()) {
+    return;
+  }
+  bool coreConfigured = false;
+  const QList<models::UiVault> coreVaults = bridge.fetchVaults(&coreConfigured);
+  if (!coreVaults.isEmpty()) {
+    m_vaults = coreVaults;
+    saveSettings();
+    emit vaultListChanged();
+  }
+}
+
 bool VaultManager::createVault(const models::UiVault &vault) {
   for (const auto &v : m_vaults) {
     if (v.id == vault.id) {
@@ -62,6 +87,16 @@ bool VaultManager::createVault(const models::UiVault &vault) {
     newV.id =
         QStringLiteral("vault_%1").arg(QDateTime::currentMSecsSinceEpoch());
   }
+
+  auto &bridge = core::CoreBridge::instance();
+  if (bridge.isInitialized() && bridge.isVaultUnlocked()) {
+    QString createdId;
+    if (bridge.createVault(newV, QString(), QString(), false, &createdId) &&
+        !createdId.isEmpty()) {
+      newV.id = createdId;
+    }
+  }
+
   m_vaults.append(newV);
   saveSettings();
   emit vaultCreated(newV);
@@ -74,6 +109,10 @@ bool VaultManager::updateVault(const models::UiVault &vault) {
   for (int i = 0; i < m_vaults.size(); ++i) {
     if (m_vaults[i].id == vault.id) {
       m_vaults[i] = vault;
+      auto &bridge = core::CoreBridge::instance();
+      if (bridge.isInitialized() && bridge.isVaultUnlocked()) {
+        bridge.updateVault(vault);
+      }
       saveSettings();
       emit vaultListChanged();
       return true;
@@ -87,6 +126,10 @@ bool VaultManager::deleteVault(const QString &vaultId) {
     if (m_vaults[i].id == vaultId) {
       if (m_vaults[i].isDefault) {
         return false; // Không cho xóa Vault mặc định
+      }
+      auto &bridge = core::CoreBridge::instance();
+      if (bridge.isInitialized() && bridge.isVaultUnlocked()) {
+        bridge.deleteVault(vaultId);
       }
       m_vaults.removeAt(i);
       if (m_activeVaultId == vaultId) {
@@ -111,6 +154,10 @@ bool VaultManager::setDefaultVault(const QString &vaultId) {
     }
   }
   if (changed) {
+    auto &bridge = core::CoreBridge::instance();
+    if (bridge.isInitialized() && bridge.isVaultUnlocked()) {
+      bridge.setDefaultVault(vaultId);
+    }
     saveSettings();
     emit vaultListChanged();
   }
@@ -158,6 +205,17 @@ bool VaultManager::setupInitialMasterPassword(const QString &password,
   workVault.createdAt = QDateTime::currentDateTime();
   m_vaults.append(workVault);
 
+  // Khởi tạo kho mã hóa trong Rust Core
+  auto &bridge = core::CoreBridge::instance();
+  if (bridge.isInitialized()) {
+    bridge.createVault(defaultVault, password, m_recoveryKey, true);
+    bridge.enableBiometric(QStringLiteral("personal"), password);
+    const auto coreVaults = bridge.fetchVaults();
+    if (!coreVaults.isEmpty()) {
+      m_vaults = coreVaults;
+    }
+  }
+
   m_isConfigured = true;
   m_isLocked = false;
   m_activeVaultId = QStringLiteral("all");
@@ -170,13 +228,70 @@ bool VaultManager::setupInitialMasterPassword(const QString &password,
   return true;
 }
 
+bool VaultManager::changeMasterPassword(const QString &oldPassword,
+                                        const QString &newPassword) {
+  if (!m_isConfigured || newPassword.trimmed().length() < 8) {
+    return false;
+  }
+  if (!validateMasterPassword(oldPassword)) {
+    return false;
+  }
+
+  auto &bridge = core::CoreBridge::instance();
+  if (bridge.isInitialized()) {
+    if (!bridge.changeMasterPassword(oldPassword, newPassword)) {
+      return false;
+    }
+    if (m_biometricEnabled) {
+      bridge.enableBiometric(QStringLiteral("personal"), newPassword);
+    }
+  }
+
+  m_passwordHash = hashPassword(newPassword, m_passwordSalt);
+  saveSettings();
+  return true;
+}
+
 bool VaultManager::unlock(const QString &password) {
   if (!m_isConfigured) {
     return false;
   }
-  const QString attemptHash = hashPassword(password, m_passwordSalt);
-  if (attemptHash == m_passwordHash) {
+
+  auto &bridge = core::CoreBridge::instance();
+  bool coreUnlocked = false;
+  if (bridge.isInitialized()) {
+    coreUnlocked = bridge.unlockVault(QStringLiteral("personal"), password);
+  }
+
+  const bool localMatch =
+      !m_passwordHash.isEmpty() &&
+      (hashPassword(password, m_passwordSalt) == m_passwordHash);
+
+  if (coreUnlocked || localMatch) {
+    if (!coreUnlocked && bridge.isInitialized()) {
+      // Tự động đồng bộ / khởi tạo kho mã hóa Rust Core nếu trước đó chỉ có cấu
+      // hình QSettings
+      models::UiVault defaultVault;
+      defaultVault.id = QStringLiteral("personal");
+      defaultVault.name = m_vaults.isEmpty() ? QStringLiteral("Personal Vault")
+                                             : m_vaults.first().name;
+      defaultVault.iconName = QStringLiteral("folder_open");
+      defaultVault.accentColor = QStringLiteral("#3B82F6");
+      defaultVault.description =
+          QStringLiteral("Primary personal credentials & logins");
+      defaultVault.isDefault = true;
+      bridge.createVault(defaultVault, password, m_recoveryKey, true);
+      bridge.enableBiometric(QStringLiteral("personal"), password);
+    }
+    if (m_passwordHash.isEmpty() || !localMatch) {
+      if (m_passwordSalt.isEmpty()) {
+        m_passwordSalt = QStringLiteral("svm_default_salt");
+      }
+      m_passwordHash = hashPassword(password, m_passwordSalt);
+      saveSettings();
+    }
     m_isLocked = false;
+    refreshVaultsFromCore();
     emit lockStateChanged(m_isLocked);
     return true;
   }
@@ -187,7 +302,11 @@ bool VaultManager::validateMasterPassword(const QString &password) const {
   if (!m_isConfigured) {
     return false;
   }
-  return hashPassword(password, m_passwordSalt) == m_passwordHash;
+  if (!m_passwordHash.isEmpty() &&
+      hashPassword(password, m_passwordSalt) == m_passwordHash) {
+    return true;
+  }
+  return false;
 }
 
 bool VaultManager::unlockWithRecoveryKey(const QString &recoveryKey,
@@ -195,13 +314,29 @@ bool VaultManager::unlockWithRecoveryKey(const QString &recoveryKey,
   if (!m_isConfigured) {
     return false;
   }
-  QString normalizedKey = recoveryKey.trimmed().toUpper();
-  if (normalizedKey == m_recoveryKey) {
+  const QString normalizedKey = recoveryKey.trimmed().toUpper();
+  auto &bridge = core::CoreBridge::instance();
+  bool coreOk = false;
+  if (bridge.isInitialized()) {
+    coreOk = bridge.unlockWithRecoveryKey(normalizedKey, newPassword);
+  }
+
+  if (coreOk || (!m_recoveryKey.isEmpty() && normalizedKey == m_recoveryKey)) {
     if (!newPassword.isEmpty()) {
+      if (m_passwordSalt.isEmpty()) {
+        m_passwordSalt = QStringLiteral("svm_default_salt");
+      }
       m_passwordHash = hashPassword(newPassword, m_passwordSalt);
+      if (!coreOk && bridge.isInitialized()) {
+        models::UiVault defaultVault;
+        defaultVault.id = QStringLiteral("personal");
+        defaultVault.name = QStringLiteral("Personal Vault");
+        bridge.createVault(defaultVault, newPassword, normalizedKey, true);
+      }
       saveSettings();
     }
     m_isLocked = false;
+    refreshVaultsFromCore();
     emit lockStateChanged(m_isLocked);
     return true;
   }
@@ -212,13 +347,21 @@ bool VaultManager::unlockWithBiometrics() {
   if (!m_isConfigured) {
     return false;
   }
-  // Giả lập mở khóa sinh trắc học thành công (kết nối FFI hardware)
+  auto &bridge = core::CoreBridge::instance();
+  if (bridge.isInitialized()) {
+    bridge.unlockWithBiometrics(QStringLiteral("personal"));
+  }
   m_isLocked = false;
+  refreshVaultsFromCore();
   emit lockStateChanged(m_isLocked);
   return true;
 }
 
 void VaultManager::lock() {
+  auto &bridge = core::CoreBridge::instance();
+  if (bridge.isInitialized()) {
+    bridge.lockVault();
+  }
   if (!m_isLocked) {
     m_isLocked = true;
     emit lockStateChanged(m_isLocked);
@@ -233,7 +376,7 @@ QString VaultManager::generateRecoveryKey() {
     QString grp;
     for (int i = 0; i < 4; ++i) {
       const int idx = QRandomGenerator::system()->bounded(charCount);
-      grp.append(chars[idx]);
+      grp.append(QLatin1Char(chars[idx]));
     }
     groups.append(grp);
   }
@@ -261,36 +404,45 @@ void VaultManager::loadSettings() {
       settings.value(QStringLiteral("Security/BiometricEnabled"), false)
           .toBool();
 
-  if (m_isConfigured) {
-    m_isLocked = true; // Mặc định khi mở ứng dụng thì luôn ở trạng thái khóa
-  } else {
-    m_isLocked = true;
+  auto &bridge = core::CoreBridge::instance();
+  if (bridge.isInitialized()) {
+    bool coreConfigured = false;
+    const auto coreVaults = bridge.fetchVaults(&coreConfigured);
+    if (coreConfigured && !m_isConfigured) {
+      m_isConfigured = true;
+    }
+    if (!coreVaults.isEmpty()) {
+      m_vaults = coreVaults;
+    }
   }
 
-  m_vaults.clear();
-  const QString jsonStr =
-      settings.value(QStringLiteral("Vaults/ListJson")).toString();
-  if (!jsonStr.isEmpty()) {
-    QJsonDocument doc = QJsonDocument::fromJson(jsonStr.toUtf8());
-    if (doc.isArray()) {
-      const QJsonArray arr = doc.array();
-      for (const auto &val : arr) {
-        if (val.isObject()) {
-          QJsonObject obj = val.toObject();
-          models::UiVault v;
-          v.id = obj.value(QStringLiteral("id")).toString();
-          v.name = obj.value(QStringLiteral("name")).toString();
-          v.iconName = obj.value(QStringLiteral("iconName"))
-                           .toString(QStringLiteral("folder_open"));
-          v.accentColor = obj.value(QStringLiteral("accentColor"))
-                              .toString(QStringLiteral("#3B82F6"));
-          v.description = obj.value(QStringLiteral("description")).toString();
-          v.itemCount = obj.value(QStringLiteral("itemCount")).toInt(0);
-          v.isDefault = obj.value(QStringLiteral("isDefault")).toBool(false);
-          v.createdAt = QDateTime::fromString(
-              obj.value(QStringLiteral("createdAt")).toString(), Qt::ISODate);
-          if (!v.id.isEmpty()) {
-            m_vaults.append(v);
+  m_isLocked = true; // Mặc định khi mở ứng dụng thì luôn ở trạng thái khóa
+
+  if (m_vaults.isEmpty()) {
+    const QString jsonStr =
+        settings.value(QStringLiteral("Vaults/ListJson")).toString();
+    if (!jsonStr.isEmpty()) {
+      QJsonDocument doc = QJsonDocument::fromJson(jsonStr.toUtf8());
+      if (doc.isArray()) {
+        const QJsonArray arr = doc.array();
+        for (const auto &val : arr) {
+          if (val.isObject()) {
+            QJsonObject obj = val.toObject();
+            models::UiVault v;
+            v.id = obj.value(QStringLiteral("id")).toString();
+            v.name = obj.value(QStringLiteral("name")).toString();
+            v.iconName = obj.value(QStringLiteral("iconName"))
+                             .toString(QStringLiteral("folder_open"));
+            v.accentColor = obj.value(QStringLiteral("accentColor"))
+                                .toString(QStringLiteral("#3B82F6"));
+            v.description = obj.value(QStringLiteral("description")).toString();
+            v.itemCount = obj.value(QStringLiteral("itemCount")).toInt(0);
+            v.isDefault = obj.value(QStringLiteral("isDefault")).toBool(false);
+            v.createdAt = QDateTime::fromString(
+                obj.value(QStringLiteral("createdAt")).toString(), Qt::ISODate);
+            if (!v.id.isEmpty()) {
+              m_vaults.append(v);
+            }
           }
         }
       }

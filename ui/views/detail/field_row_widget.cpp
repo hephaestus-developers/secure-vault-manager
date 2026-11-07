@@ -8,6 +8,7 @@
 #include "field_row_widget.h"
 #include "app/clipboard_manager.h"
 #include "app/theme_manager.h"
+#include "core/core_bridge.h"
 
 #include <QDesktopServices>
 #include <QHBoxLayout>
@@ -79,8 +80,30 @@ void FieldRowWidget::setupUI() {
     valLayout->addWidget(m_lineEdit, 1);
   }
 
-  // 3. Nút ẩn/hiện mật khẩu (nếu là Concealed)
+  // 3. Nút tạo mật khẩu nhanh & ẩn/hiện mật khẩu (nếu là Concealed)
   if (m_type == FieldType::Concealed) {
+    m_generateBtn = new QPushButton(tr("Generate"), this);
+    m_generateBtn->setObjectName(QStringLiteral("FieldRowGenerateBtn"));
+    m_generateBtn->setFixedHeight(28);
+    m_generateBtn->setCursor(Qt::PointingHandCursor);
+    m_generateBtn->setToolTip(tr("Generate strong random password"));
+    m_generateBtn->hide();
+    connect(m_generateBtn, &QPushButton::clicked, this, [this]() {
+      QString generated = core::CoreBridge::instance().generatePassword(
+          20, true, true, true, true);
+      if (generated.isEmpty()) {
+        generated = QStringLiteral("Svm#9xK2!mP7$vL4@qR8");
+      }
+      m_value = generated;
+      if (m_lineEdit) {
+        m_lineEdit->setText(generated);
+      }
+      m_isRevealed = true;
+      updateThemeIcons();
+      updateDisplay();
+    });
+    valLayout->addWidget(m_generateBtn);
+
     m_revealBtn = new QPushButton(this);
     m_revealBtn->setObjectName(QStringLiteral("FieldRowActionBtn"));
     m_revealBtn->setIcon(QIcon(QStringLiteral(":/icons/eye.svg")));
@@ -196,6 +219,9 @@ void FieldRowWidget::setEditMode(bool editable) {
     } else if (m_lineEdit) {
       m_lineEdit->show();
     }
+    if (m_generateBtn) {
+      m_generateBtn->show();
+    }
     m_copyBtn->hide();
     if (m_openUrlBtn) {
       m_openUrlBtn->hide();
@@ -207,6 +233,9 @@ void FieldRowWidget::setEditMode(bool editable) {
     } else if (m_lineEdit) {
       m_value = m_lineEdit->text();
       m_lineEdit->hide();
+    }
+    if (m_generateBtn) {
+      m_generateBtn->hide();
     }
     m_valueLabel->show();
     m_copyBtn->show();
@@ -220,6 +249,10 @@ void FieldRowWidget::setEditMode(bool editable) {
 
 void FieldRowWidget::onToggleReveal() {
   m_isRevealed = !m_isRevealed;
+  if (m_lineEdit && m_type == FieldType::Concealed) {
+    m_lineEdit->setEchoMode(m_isRevealed ? QLineEdit::Normal
+                                         : QLineEdit::Password);
+  }
   if (m_isRevealed) {
     m_revealBtn->setIcon(
         app::ThemeManager::instance().icon(QStringLiteral("eye_off")));
@@ -256,6 +289,10 @@ void FieldRowWidget::updateDisplay() {
   m_valueLabel->setStyleSheet(QString());
 
   if (m_type == FieldType::Concealed) {
+    if (m_lineEdit) {
+      m_lineEdit->setEchoMode(m_isRevealed ? QLineEdit::Normal
+                                           : QLineEdit::Password);
+    }
     if (m_isRevealed) {
       m_valueLabel->setText(m_value);
     } else {
@@ -267,6 +304,10 @@ void FieldRowWidget::updateDisplay() {
 }
 
 void FieldRowWidget::retranslateUi() {
+  if (m_generateBtn) {
+    m_generateBtn->setText(tr("Generate"));
+    m_generateBtn->setToolTip(tr("Generate strong random password"));
+  }
   if (m_revealBtn) {
     m_revealBtn->setToolTip(tr("Reveal password (10s)"));
   }

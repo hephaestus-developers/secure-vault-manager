@@ -64,6 +64,7 @@ private:
   QLabel *m_valueLabel{nullptr};
   QLineEdit *m_lineEdit{nullptr};
   QPlainTextEdit *m_plainTextEdit{nullptr};
+  QPushButton *m_generateBtn{nullptr};
   QPushButton *m_revealBtn{nullptr};
   QPushButton *m_copyBtn{nullptr};
   QPushButton *m_openUrlBtn{nullptr};

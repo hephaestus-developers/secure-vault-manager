@@ -9,6 +9,7 @@
 #include "sidebar_view.h"
 #include "app/theme_manager.h"
 #include "app/vault_manager.h"
+#include "components/dialog_drag_helper.h"
 #include "views/vaults/new_vault_dialog.h"
 
 #include <QAction>
@@ -163,7 +164,7 @@ void SidebarView::setupExpandedUI() {
   footerWidget->setObjectName(QStringLiteral("SidebarFooterWidget"));
   auto *footerLayout = new QHBoxLayout(footerWidget);
   footerLayout->setContentsMargins(10, 8, 10, 10);
-  footerLayout->setSpacing(0);
+  footerLayout->setSpacing(6);
 
   m_lockBtn = new QPushButton(footerWidget);
   m_lockBtn->setObjectName(QStringLiteral("SidebarLockBtn"));
@@ -587,7 +588,7 @@ void SidebarView::populateVaultMenu() {
       tr("+ New Vault..."));
   connect(newVaultAct, &QAction::triggered, this, [this]() {
     NewVaultDialog dlg(this);
-    dlg.exec();
+    components::DialogDragHelper::execDialog(dlg);
   });
 }
 

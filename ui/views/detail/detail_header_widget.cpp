@@ -100,6 +100,28 @@ void DetailHeaderWidget::setupUI() {
           &DetailHeaderWidget::editRequested);
   actionLayout->addWidget(m_editBtn);
 
+  m_restoreBtn = new QPushButton(tr("Restore"), this);
+  m_restoreBtn->setObjectName(QStringLiteral("DetailHeaderRestoreBtn"));
+  m_restoreBtn->setFixedHeight(34);
+  m_restoreBtn->setToolTip(tr("Restore item from Trash"));
+  m_restoreBtn->setCursor(Qt::PointingHandCursor);
+  m_restoreBtn->hide();
+  connect(m_restoreBtn, &QPushButton::clicked, this,
+          &DetailHeaderWidget::restoreRequested);
+  actionLayout->addWidget(m_restoreBtn);
+
+  m_deleteBtn = new QPushButton(this);
+  m_deleteBtn->setObjectName(QStringLiteral("DetailHeaderDeleteBtn"));
+  m_deleteBtn->setIcon(
+      app::ThemeManager::instance().icon(QStringLiteral("trash")));
+  m_deleteBtn->setIconSize(QSize(16, 16));
+  m_deleteBtn->setFixedHeight(34);
+  m_deleteBtn->setToolTip(tr("Move to Trash"));
+  m_deleteBtn->setCursor(Qt::PointingHandCursor);
+  connect(m_deleteBtn, &QPushButton::clicked, this,
+          &DetailHeaderWidget::deleteRequested);
+  actionLayout->addWidget(m_deleteBtn);
+
   m_cancelBtn = new QPushButton(this);
   m_cancelBtn->setObjectName(QStringLiteral("DetailHeaderCancelBtn"));
   m_cancelBtn->setText(tr("Cancel"));
@@ -162,10 +184,6 @@ void DetailHeaderWidget::setupUI() {
 
   m_vaultBadge = new QLabel(this);
   m_vaultBadge->setObjectName(QStringLiteral("DetailVaultBadge"));
-  m_vaultBadge->setStyleSheet(QStringLiteral(
-      "background-color: #26293b; color: #89b4fa; border: 1px solid #45475a; "
-      "border-radius: 4px; padding: 2px 8px; font-size: 11px; font-weight: "
-      "600;"));
   metaRowLayout->addWidget(m_vaultBadge);
 
   m_vaultCombo = new QComboBox(this);
@@ -208,6 +226,9 @@ void DetailHeaderWidget::updateThemeIcons() {
   if (m_editBtn) {
     m_editBtn->setIcon(tm.icon(QStringLiteral("edit")));
   }
+  if (m_deleteBtn) {
+    m_deleteBtn->setIcon(tm.icon(QStringLiteral("trash")));
+  }
   if (m_categoryCombo) {
     for (int i = 0; i < m_categoryCombo->count(); ++i) {
       const auto cat = static_cast<models::ItemCategory>(
@@ -220,6 +241,7 @@ void DetailHeaderWidget::updateThemeIcons() {
 
 void DetailHeaderWidget::setItem(const models::UiVaultItem &item) {
   m_isFavorite = item.isFavorite;
+  m_isDeleted = item.isDeleted;
 
   setCategory(item.category);
   setVaultId(item.vaultId);
@@ -337,6 +359,12 @@ void DetailHeaderWidget::setEditMode(bool edit) {
 
     m_favBtn->hide();
     m_editBtn->hide();
+    if (m_restoreBtn) {
+      m_restoreBtn->hide();
+    }
+    if (m_deleteBtn) {
+      m_deleteBtn->hide();
+    }
     m_cancelBtn->show();
     m_saveBtn->show();
   } else {
@@ -354,8 +382,29 @@ void DetailHeaderWidget::setEditMode(bool edit) {
 
     m_cancelBtn->hide();
     m_saveBtn->hide();
-    m_editBtn->show();
-    m_favBtn->show();
+    if (m_isDeleted) {
+      m_favBtn->hide();
+      m_editBtn->hide();
+      if (m_restoreBtn) {
+        m_restoreBtn->show();
+      }
+      if (m_deleteBtn) {
+        m_deleteBtn->setText(tr("Delete Permanently"));
+        m_deleteBtn->setToolTip(tr("Permanently delete this item"));
+        m_deleteBtn->show();
+      }
+    } else {
+      m_editBtn->show();
+      m_favBtn->show();
+      if (m_restoreBtn) {
+        m_restoreBtn->hide();
+      }
+      if (m_deleteBtn) {
+        m_deleteBtn->setText(QString());
+        m_deleteBtn->setToolTip(tr("Move to Trash"));
+        m_deleteBtn->show();
+      }
+    }
   }
 }
 
@@ -370,6 +419,19 @@ void DetailHeaderWidget::retranslateUi() {
   if (m_editBtn) {
     m_editBtn->setText(tr("Edit"));
     m_editBtn->setToolTip(tr("Edit item (Ctrl+E)"));
+  }
+  if (m_restoreBtn) {
+    m_restoreBtn->setText(tr("Restore"));
+    m_restoreBtn->setToolTip(tr("Restore item from Trash"));
+  }
+  if (m_deleteBtn) {
+    if (m_isDeleted) {
+      m_deleteBtn->setText(tr("Delete Permanently"));
+      m_deleteBtn->setToolTip(tr("Permanently delete this item"));
+    } else {
+      m_deleteBtn->setText(QString());
+      m_deleteBtn->setToolTip(tr("Move to Trash"));
+    }
   }
   if (m_cancelBtn) {
     m_cancelBtn->setText(tr("Cancel"));

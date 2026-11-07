@@ -1,0 +1,15 @@
+{
+  "name": "@svm/extension",
+  "version": "0.1.0",
+  "description": "Secure Vault Manager Browser Extension (Manifest V3) for Chrome, Brave, Edge & Firefox",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs && node scripts/post-build.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@svm/wasm": "file:../core/crates/svm-wasm"
+  },
+  "license": "Proprietary"
+}

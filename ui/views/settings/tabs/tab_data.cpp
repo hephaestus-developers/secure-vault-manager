@@ -7,6 +7,7 @@
 
 #include "tab_data.h"
 #include "app/settings_manager.h"
+#include "core/core_bridge.h"
 
 #include <QFileDialog>
 #include <QHBoxLayout>
@@ -68,8 +69,8 @@ void TabData::setupUI() {
           &TabData::onExportEncryptedClicked);
   m_exportEncryptedRow = new SettingRowWidget(
       tr("Encrypted Backup (Recommended)"),
-      tr("Export your vault encrypted with Argon2id and AES-256-GCM. Safe to "
-         "store on external drives or cloud."),
+      tr("Export your vault encrypted with your master key. Safe to "
+         "store on external drives or cloud backups."),
       m_exportEncryptedBtn, m_exportCard);
   m_exportCard->addRow(m_exportEncryptedRow);
 
@@ -107,6 +108,7 @@ void TabData::setupUI() {
   m_emptyTrashNowBtn->setFixedHeight(30);
   m_emptyTrashNowBtn->setCursor(Qt::PointingHandCursor);
   connect(m_emptyTrashNowBtn, &QPushButton::clicked, this, [this]() {
+    core::CoreBridge::instance().emptyTrash();
     QMessageBox::information(
         this, tr("Trash Purged"),
         tr("All deleted items in trash have been purged."));
@@ -128,10 +130,36 @@ void TabData::onImportClicked() {
       tr("All Supported Formats (*.json *.1pux *.xml *.csv);;JSON Files "
          "(*.json);;CSV Files (*.csv);;All Files (*)"));
   if (!filePath.isEmpty()) {
-    QMessageBox::information(this, tr("Import Complete"),
-                             tr("Successfully parsed import file: %1\nImported "
-                                "18 items into your vault.")
-                                 .arg(filePath));
+    int fmt = SVM_FORMAT_BITWARDEN_JSON;
+    const int idx =
+        m_importFormatCombo ? m_importFormatCombo->currentIndex() : 0;
+    if (idx == 1 ||
+        filePath.endsWith(QStringLiteral(".1pux"), Qt::CaseInsensitive)) {
+      fmt = SVM_FORMAT_1PUX;
+    } else if (idx == 2 ||
+               filePath.endsWith(QStringLiteral(".xml"), Qt::CaseInsensitive)) {
+      fmt = SVM_FORMAT_KEEPASS_XML;
+    } else if (idx == 3 ||
+               filePath.endsWith(QStringLiteral(".csv"), Qt::CaseInsensitive)) {
+      fmt = SVM_FORMAT_CSV;
+    }
+
+    const int importedCount =
+        core::CoreBridge::instance().importItems(fmt, filePath);
+    if (importedCount >= 0) {
+      QMessageBox::information(
+          this, tr("Import Complete"),
+          tr("Successfully parsed import file: %1\nImported "
+             "%2 items into your vault.")
+              .arg(filePath)
+              .arg(importedCount));
+    } else {
+      QMessageBox::warning(
+          this, tr("Import Failed"),
+          core::CoreBridge::instance().lastError().isEmpty()
+              ? tr("Could not parse or import the selected file.")
+              : core::CoreBridge::instance().lastError());
+    }
   }
 }
 
@@ -142,9 +170,14 @@ void TabData::onExportEncryptedClicked() {
           QStringLiteral("/svm_backup.svm"),
       tr("Secure Vault Backup (*.svm);;All Files (*)"));
   if (!filePath.isEmpty()) {
-    QMessageBox::information(
-        this, tr("Export Complete"),
-        tr("Vault backup successfully encrypted and saved."));
+    if (core::CoreBridge::instance().exportItems(SVM_FORMAT_SVM, filePath)) {
+      QMessageBox::information(
+          this, tr("Export Complete"),
+          tr("Vault backup successfully encrypted and saved."));
+    } else {
+      QMessageBox::warning(this, tr("Export Failed"),
+                           core::CoreBridge::instance().lastError());
+    }
   }
 }
 
@@ -165,8 +198,17 @@ void TabData::onExportPlainClicked() {
             QStringLiteral("/svm_export.csv"),
         tr("CSV Files (*.csv);;JSON Files (*.json);;All Files (*)"));
     if (!filePath.isEmpty()) {
-      QMessageBox::information(this, tr("Export Complete"),
-                               tr("Plaintext file exported successfully."));
+      const int fmt =
+          filePath.endsWith(QStringLiteral(".json"), Qt::CaseInsensitive)
+              ? SVM_FORMAT_BITWARDEN_JSON
+              : SVM_FORMAT_CSV;
+      if (core::CoreBridge::instance().exportItems(fmt, filePath)) {
+        QMessageBox::information(this, tr("Export Complete"),
+                                 tr("Plaintext file exported successfully."));
+      } else {
+        QMessageBox::warning(this, tr("Export Failed"),
+                             core::CoreBridge::instance().lastError());
+      }
     }
   }
 }
@@ -193,8 +235,8 @@ void TabData::retranslateUi() {
   if (m_exportEncryptedRow) {
     m_exportEncryptedRow->updateText(
         tr("Encrypted Backup (Recommended)"),
-        tr("Export your vault encrypted with Argon2id and AES-256-GCM. Safe to "
-           "store on external drives or cloud."));
+        tr("Export your vault encrypted with your master key. Safe to "
+           "store on external drives or cloud backups."));
   }
   if (m_exportPlainBtn) {
     m_exportPlainBtn->setText(tr("Export Plaintext..."));

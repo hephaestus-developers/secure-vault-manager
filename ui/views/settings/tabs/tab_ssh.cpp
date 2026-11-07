@@ -8,6 +8,7 @@
 #include "tab_ssh.h"
 #include "app/clipboard_manager.h"
 #include "app/settings_manager.h"
+#include "core/core_bridge.h"
 
 #include <QDir>
 #include <QHBoxLayout>
@@ -30,8 +31,16 @@ void TabSsh::setupUI() {
 
   m_enableCheck = new QCheckBox(m_agentCard);
   m_enableCheck->setChecked(settings.sshAgentEnabled());
+  if (settings.sshAgentEnabled()) {
+    core::CoreBridge::instance().startSshAgent();
+  }
   connect(m_enableCheck, &QCheckBox::toggled, this, [](bool checked) {
     app::SettingsManager::instance().setSshAgentEnabled(checked);
+    if (checked) {
+      core::CoreBridge::instance().startSshAgent();
+    } else {
+      core::CoreBridge::instance().stopSshAgent();
+    }
   });
   m_enableRow = new SettingRowWidget(
       tr("Enable Secure SSH Agent"),
@@ -40,14 +49,19 @@ void TabSsh::setupUI() {
       m_enableCheck, m_agentCard);
   m_agentCard->addRow(m_enableRow);
 
-  const QString sockPath =
-      QDir::homePath() + QStringLiteral("/.svm/ssh-agent.sock");
+  QString sockPath = QDir::homePath() + QStringLiteral("/.svm/ssh-agent.sock");
+  const auto statusObj = core::CoreBridge::instance().sshAgentStatus();
+  const QString coreSock =
+      statusObj.value(QStringLiteral("socket_path")).toString();
+  if (!coreSock.isEmpty()) {
+    sockPath = coreSock;
+  }
   m_copySocketBtn = new QPushButton(tr("Copy Path"), m_agentCard);
   m_copySocketBtn->setFixedHeight(30);
   m_copySocketBtn->setCursor(Qt::PointingHandCursor);
   connect(m_copySocketBtn, &QPushButton::clicked, this, [this, sockPath]() {
     app::ClipboardManager::instance().copyPlainText(sockPath);
-    m_copySocketBtn->setText(tr("✓ Copied!"));
+    m_copySocketBtn->setText(tr("Copied!"));
   });
   m_socketRow = new SettingRowWidget(tr("SSH Auth Socket"), sockPath,
                                      m_copySocketBtn, m_agentCard);
@@ -55,23 +69,21 @@ void TabSsh::setupUI() {
 
   // Snippet box
   auto *snipBox = new QWidget(m_agentCard);
-  snipBox->setStyleSheet(
-      QStringLiteral("background-color: #11111b; border: 1px solid #313244; "
-                     "border-radius: 6px; padding: 10px;"));
+  snipBox->setObjectName(QStringLiteral("SshSnippetBox"));
+  snipBox->setAttribute(Qt::WA_StyledBackground, true);
   auto *snipLayout = new QVBoxLayout(snipBox);
   snipLayout->setContentsMargins(10, 8, 10, 8);
 
   auto *snipHint = new QLabel(
       tr("Add this line to your ~/.bashrc or ~/.zshrc file:"), snipBox);
-  snipHint->setStyleSheet(QStringLiteral("font-size: 11px; color: #a6adc8;"));
+  snipHint->setObjectName(QStringLiteral("SshSnippetHint"));
   snipLayout->addWidget(snipHint);
 
   auto *snipCode = new QLabel(
       QStringLiteral("export SSH_AUTH_SOCK=\"$HOME/.svm/ssh-agent.sock\""),
       snipBox);
   snipCode->setTextInteractionFlags(Qt::TextSelectableByMouse);
-  snipCode->setStyleSheet(QStringLiteral(
-      "font-family: monospace; font-size: 12px; color: #a6e3a1;"));
+  snipCode->setObjectName(QStringLiteral("SshSnippetCode"));
   snipLayout->addWidget(snipCode);
 
   m_agentCard->addWidget(snipBox);

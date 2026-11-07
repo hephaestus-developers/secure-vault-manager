@@ -74,6 +74,29 @@ void DetailInspectorView::setupUI() {
           &DetailInspectorView::onSaveRequested);
   connect(m_headerWidget, &DetailHeaderWidget::cancelRequested, this,
           &DetailInspectorView::onCancelRequested);
+  connect(m_headerWidget, &DetailHeaderWidget::deleteRequested, this, [this]() {
+    if (m_currentItem.id.isEmpty()) {
+      return;
+    }
+    if (m_currentItem.isDeleted) {
+      emit itemPurgeRequested(m_currentItem.id);
+    } else {
+      emit itemTrashRequested(m_currentItem.id);
+    }
+  });
+  connect(m_headerWidget, &DetailHeaderWidget::restoreRequested, this,
+          [this]() {
+            if (!m_currentItem.id.isEmpty()) {
+              emit itemRestoreRequested(m_currentItem.id);
+            }
+          });
+  connect(m_headerWidget, &DetailHeaderWidget::favoriteToggled, this,
+          [this](bool isFav) {
+            m_currentItem.isFavorite = isFav;
+            if (!m_isEditMode && !m_isNewItem && !m_currentItem.id.isEmpty()) {
+              emit itemSaved(m_currentItem);
+            }
+          });
   connect(m_headerWidget, &DetailHeaderWidget::categoryChanged, this,
           [this](models::ItemCategory newCat) {
             m_currentItem.category = newCat;

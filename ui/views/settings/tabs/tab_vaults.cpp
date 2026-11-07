@@ -8,9 +8,11 @@
 #include "tab_vaults.h"
 #include "app/theme_manager.h"
 #include "app/vault_manager.h"
+#include "components/dialog_drag_helper.h"
 #include "views/vaults/new_vault_dialog.h"
 
 #include <QDialog>
+#include <QGraphicsDropShadowEffect>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
@@ -23,6 +25,8 @@ TabVaults::TabVaults(QWidget *parent) : QWidget(parent) {
   setupUI();
   refreshVaultList();
   connect(&app::VaultManager::instance(), &app::VaultManager::vaultListChanged,
+          this, &TabVaults::refreshVaultList);
+  connect(&app::ThemeManager::instance(), &app::ThemeManager::themeChanged,
           this, &TabVaults::refreshVaultList);
 }
 
@@ -38,7 +42,7 @@ void TabVaults::setupUI() {
   auto *subTitle = new QLabel(
       tr("Manage your isolated cryptographic vaults and default locations."),
       m_vaultsListCard);
-  subTitle->setStyleSheet(QStringLiteral("font-size: 11.5px; color: #a6adc8;"));
+  subTitle->setObjectName(QStringLiteral("SettingRowDesc"));
   topBar->addWidget(subTitle);
   topBar->addStretch(1);
 
@@ -117,9 +121,8 @@ void TabVaults::refreshVaultList() {
 
   for (const auto &v : vaults) {
     auto *rowWidget = new QWidget(this);
-    rowWidget->setStyleSheet(
-        QStringLiteral("background-color: #1e1e2e; border: 1px solid #313244; "
-                       "border-radius: 6px; padding: 4px;"));
+    rowWidget->setObjectName(QStringLiteral("SettingsListItemCard"));
+    rowWidget->setAttribute(Qt::WA_StyledBackground, true);
     auto *rowLayout = new QHBoxLayout(rowWidget);
     rowLayout->setContentsMargins(12, 8, 12, 8);
     rowLayout->setSpacing(12);
@@ -144,14 +147,12 @@ void TabVaults::refreshVaultList() {
     infoLayout->setSpacing(2);
 
     auto *nameLbl = new QLabel(v.name, rowWidget);
-    nameLbl->setStyleSheet(
-        QStringLiteral("font-size: 13px; font-weight: 600; color: #cdd6f4;"));
+    nameLbl->setObjectName(QStringLiteral("SettingsListItemTitle"));
     infoLayout->addWidget(nameLbl);
 
     if (!v.description.isEmpty()) {
       auto *descLbl = new QLabel(v.description, rowWidget);
-      descLbl->setStyleSheet(
-          QStringLiteral("font-size: 11px; color: #a6adc8;"));
+      descLbl->setObjectName(QStringLiteral("SettingsListItemDesc"));
       infoLayout->addWidget(descLbl);
     }
     rowLayout->addLayout(infoLayout, 1);
@@ -159,10 +160,7 @@ void TabVaults::refreshVaultList() {
     // Default badge
     if (v.isDefault) {
       auto *badge = new QLabel(tr("DEFAULT"), rowWidget);
-      badge->setStyleSheet(QStringLiteral(
-          "background-color: #89b4fa; color: #11111b; font-size: "
-          "9.5px; font-weight: 700; border-radius: 3px; "
-          "padding: 2px 6px;"));
+      badge->setObjectName(QStringLiteral("SettingsDefaultBadge"));
       rowLayout->addWidget(badge);
     } else {
       auto *setDefaultBtn = new QPushButton(tr("Set Default"), rowWidget);
@@ -199,7 +197,7 @@ void TabVaults::refreshVaultList() {
 
 void TabVaults::onNewVaultClicked() {
   NewVaultDialog dlg(this);
-  if (dlg.exec() == QDialog::Accepted) {
+  if (components::DialogDragHelper::execDialog(dlg) == QDialog::Accepted) {
     refreshVaultList();
   }
 }
@@ -207,7 +205,7 @@ void TabVaults::onNewVaultClicked() {
 void TabVaults::onEditVaultClicked(const models::UiVault &vault) {
   NewVaultDialog dlg(this);
   dlg.setEditVault(vault);
-  if (dlg.exec() == QDialog::Accepted) {
+  if (components::DialogDragHelper::execDialog(dlg) == QDialog::Accepted) {
     refreshVaultList();
   }
 }
@@ -219,46 +217,90 @@ void TabVaults::onDeleteVaultClicked() {
   const QString vId = m_deleteCombo->currentData().toString();
   const QString vName = m_deleteCombo->currentText();
 
-  QDialog dlg(this);
-  dlg.setWindowTitle(tr("Confirm Vault Deletion"));
-  dlg.setModal(true);
-  dlg.setFixedSize(440, 240);
+  QDialog dlg(this, Qt::FramelessWindowHint | Qt::Dialog);
+  dlg.setAttribute(Qt::WA_TranslucentBackground, true);
+  dlg.setModal(false);
+  dlg.setWindowModality(Qt::NonModal);
+  dlg.setFixedSize(480, 290);
 
-  auto *layout = new QVBoxLayout(&dlg);
-  layout->setContentsMargins(24, 20, 24, 20);
+  auto *rootLayout = new QVBoxLayout(&dlg);
+  rootLayout->setContentsMargins(16, 16, 16, 16);
+
+  auto *card = new QWidget(&dlg);
+  card->setObjectName(QStringLiteral("NewVaultCard"));
+  auto *shadow = new QGraphicsDropShadowEffect(&dlg);
+  shadow->setBlurRadius(28);
+  shadow->setColor(QColor(0, 0, 0, 160));
+  shadow->setOffset(0, 8);
+  card->setGraphicsEffect(shadow);
+
+  auto *cardLayout = new QVBoxLayout(card);
+  cardLayout->setContentsMargins(0, 0, 0, 16);
+  cardLayout->setSpacing(0);
+
+  auto *header = new QWidget(card);
+  header->setObjectName(QStringLiteral("NewVaultHeader"));
+  header->setFixedHeight(44);
+  auto *headerLayout = new QHBoxLayout(header);
+  headerLayout->setContentsMargins(16, 0, 8, 0);
+  headerLayout->setSpacing(10);
+
+  auto *headerIcon = new QLabel(header);
+  headerIcon->setFixedSize(18, 18);
+  headerIcon->setPixmap(app::ThemeManager::instance()
+                            .icon(QStringLiteral("trash"))
+                            .pixmap(18, 18));
+  headerLayout->addWidget(headerIcon);
+
+  auto *title = new QLabel(tr("Permanently Delete Vault?"), header);
+  title->setObjectName(QStringLiteral("NewVaultTitle"));
+  headerLayout->addWidget(title, 1);
+
+  auto *closeBtn = new QPushButton(header);
+  closeBtn->setObjectName(QStringLiteral("DialogCloseBtn"));
+  closeBtn->setFixedSize(32, 32);
+  closeBtn->setIconSize(QSize(12, 12));
+  closeBtn->setCursor(Qt::PointingHandCursor);
+  closeBtn->setIcon(
+      app::ThemeManager::instance().icon(QStringLiteral("win_close")));
+  connect(closeBtn, &QPushButton::clicked, &dlg, &QDialog::reject);
+  headerLayout->addWidget(closeBtn);
+
+  cardLayout->addWidget(header);
+
+  auto *body = new QWidget(card);
+  auto *layout = new QVBoxLayout(body);
+  layout->setContentsMargins(20, 16, 20, 0);
   layout->setSpacing(12);
-
-  auto *title = new QLabel(tr("Permanently Delete Vault?"), &dlg);
-  QFont f = title->font();
-  f.setPointSize(13);
-  f.setBold(true);
-  title->setFont(f);
-  title->setStyleSheet(QStringLiteral("color: #f38ba8;"));
-  layout->addWidget(title);
 
   auto *warn = new QLabel(tr("This action will erase ALL secrets inside "
                              "\"%1\". Type the vault name below to confirm:")
                               .arg(vName),
-                          &dlg);
+                          body);
+  warn->setObjectName(QStringLiteral("DialogDescLabel"));
   warn->setWordWrap(true);
   layout->addWidget(warn);
 
-  auto *confirmEdit = new QLineEdit(&dlg);
+  auto *confirmEdit = new QLineEdit(body);
   confirmEdit->setPlaceholderText(vName);
   confirmEdit->setFixedHeight(34);
   layout->addWidget(confirmEdit);
 
+  layout->addStretch(1);
+
   auto *btnLayout = new QHBoxLayout();
-  btnLayout->addStretch(1);
-  auto *cancelBtn = new QPushButton(tr("Cancel"), &dlg);
+  auto *cancelBtn = new QPushButton(tr("Cancel"), body);
   cancelBtn->setFixedHeight(32);
+  cancelBtn->setCursor(Qt::PointingHandCursor);
   connect(cancelBtn, &QPushButton::clicked, &dlg, &QDialog::reject);
   btnLayout->addWidget(cancelBtn);
+  btnLayout->addStretch(1);
 
   auto *confirmBtn =
-      new QPushButton(tr("I understand, delete this vault"), &dlg);
+      new QPushButton(tr("I understand, delete this vault"), body);
   confirmBtn->setObjectName(QStringLiteral("DangerButton"));
   confirmBtn->setFixedHeight(32);
+  confirmBtn->setCursor(Qt::PointingHandCursor);
   confirmBtn->setEnabled(false);
   connect(confirmEdit, &QLineEdit::textChanged, &dlg,
           [confirmBtn, vName](const QString &t) {
@@ -272,7 +314,11 @@ void TabVaults::onDeleteVaultClicked() {
   btnLayout->addWidget(confirmBtn);
   layout->addLayout(btnLayout);
 
-  dlg.exec();
+  cardLayout->addWidget(body, 1);
+  components::DialogDragHelper::makeDraggable(card, &dlg);
+  rootLayout->addWidget(card);
+
+  components::DialogDragHelper::execDialog(dlg);
 }
 
 void TabVaults::retranslateUi() {

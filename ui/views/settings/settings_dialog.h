@@ -36,9 +36,6 @@ public:
 
 protected:
   void changeEvent(QEvent *event) override;
-  void mousePressEvent(QMouseEvent *event) override;
-  void mouseMoveEvent(QMouseEvent *event) override;
-  void mouseReleaseEvent(QMouseEvent *event) override;
   void keyPressEvent(QKeyEvent *event) override;
 
 private:
@@ -62,10 +59,6 @@ private:
   TabBrowser *m_tabBrowser{nullptr};
   TabSsh *m_tabSsh{nullptr};
   TabData *m_tabData{nullptr};
-
-  // Dragging state
-  bool m_isDragging{false};
-  QPoint m_dragPosition;
 };
 
 } // namespace svm::views

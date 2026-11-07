@@ -8,7 +8,10 @@
 #include "tab_security.h"
 #include "app/clipboard_manager.h"
 #include "app/settings_manager.h"
+#include "app/theme_manager.h"
 #include "app/vault_manager.h"
+#include "components/dialog_drag_helper.h"
+#include "core/core_bridge.h"
 #include "views/onboarding/password_entropy_meter.h"
 
 #include <QDialog>
@@ -125,10 +128,16 @@ void TabSecurity::setupUI() {
   m_biometricCheck->setChecked(settings.biometricEnabled());
   connect(m_biometricCheck, &QCheckBox::toggled, this, [](bool checked) {
     app::SettingsManager::instance().setBiometricEnabled(checked);
+    if (checked) {
+      core::CoreBridge::instance().enableBiometric(QStringLiteral("personal"),
+                                                   QString());
+    } else {
+      core::CoreBridge::instance().disableBiometric(QStringLiteral("personal"));
+    }
   });
   m_biometricRow =
       new SettingRowWidget(tr("Biometric Unlock"),
-                           tr("Use Touch ID, Windows Hello, or Linux PAM to "
+                           tr("Use Touch ID, Windows Hello, or Fingerprint to "
                               "quickly unlock your vault."),
                            m_biometricCheck, m_biometricCard);
   m_biometricCard->addRow(m_biometricRow);
@@ -169,62 +178,109 @@ void TabSecurity::setupUI() {
 }
 
 void TabSecurity::openChangePasswordDialog() {
-  QDialog dlg(this);
-  dlg.setWindowTitle(tr("Change Master Password"));
-  dlg.setModal(true);
-  dlg.setFixedSize(440, 380);
+  QDialog dlg(this, Qt::FramelessWindowHint | Qt::Dialog);
+  dlg.setAttribute(Qt::WA_TranslucentBackground, true);
+  dlg.setModal(false);
+  dlg.setWindowModality(Qt::NonModal);
+  dlg.setFixedSize(480, 440);
 
-  auto *layout = new QVBoxLayout(&dlg);
-  layout->setContentsMargins(24, 20, 24, 20);
-  layout->setSpacing(10);
+  auto *rootLayout = new QVBoxLayout(&dlg);
+  rootLayout->setContentsMargins(16, 16, 16, 16);
 
-  auto *title = new QLabel(tr("Change Master Password"), &dlg);
-  QFont f = title->font();
-  f.setPointSize(13);
-  f.setBold(true);
-  title->setFont(f);
-  layout->addWidget(title);
+  auto *card = new QWidget(&dlg);
+  card->setObjectName(QStringLiteral("RecoveryDialogCard"));
+  auto *shadow = new QGraphicsDropShadowEffect(&dlg);
+  shadow->setBlurRadius(28);
+  shadow->setColor(QColor(0, 0, 0, 160));
+  shadow->setOffset(0, 8);
+  card->setGraphicsEffect(shadow);
 
-  auto *curLabel = new QLabel(tr("Current Master Password:"), &dlg);
+  auto *cardLayout = new QVBoxLayout(card);
+  cardLayout->setContentsMargins(0, 0, 0, 16);
+  cardLayout->setSpacing(0);
+
+  auto *header = new QWidget(card);
+  header->setObjectName(QStringLiteral("RecoveryDialogHeader"));
+  header->setFixedHeight(44);
+  auto *headerLayout = new QHBoxLayout(header);
+  headerLayout->setContentsMargins(16, 0, 8, 0);
+  headerLayout->setSpacing(10);
+
+  auto *headerIcon = new QLabel(header);
+  headerIcon->setFixedSize(18, 18);
+  headerIcon->setPixmap(app::ThemeManager::instance()
+                            .icon(QStringLiteral("lock"))
+                            .pixmap(18, 18));
+  headerLayout->addWidget(headerIcon);
+
+  auto *title = new QLabel(tr("Change Master Password"), header);
+  title->setObjectName(QStringLiteral("RecoveryDialogTitle"));
+  headerLayout->addWidget(title, 1);
+
+  auto *closeBtn = new QPushButton(header);
+  closeBtn->setObjectName(QStringLiteral("DialogCloseBtn"));
+  closeBtn->setFixedSize(32, 32);
+  closeBtn->setIconSize(QSize(12, 12));
+  closeBtn->setCursor(Qt::PointingHandCursor);
+  closeBtn->setIcon(
+      app::ThemeManager::instance().icon(QStringLiteral("win_close")));
+  connect(closeBtn, &QPushButton::clicked, &dlg, &QDialog::reject);
+  headerLayout->addWidget(closeBtn);
+
+  cardLayout->addWidget(header);
+
+  auto *body = new QWidget(card);
+  auto *layout = new QVBoxLayout(body);
+  layout->setContentsMargins(20, 14, 20, 0);
+  layout->setSpacing(8);
+
+  auto *curLabel = new QLabel(tr("Current Master Password:"), body);
+  curLabel->setObjectName(QStringLiteral("DialogFieldLabel"));
   layout->addWidget(curLabel);
-  auto *curEdit = new QLineEdit(&dlg);
+  auto *curEdit = new QLineEdit(body);
   curEdit->setEchoMode(QLineEdit::Password);
   curEdit->setFixedHeight(34);
   layout->addWidget(curEdit);
 
-  auto *newLabel = new QLabel(tr("New Master Password:"), &dlg);
+  auto *newLabel = new QLabel(tr("New Master Password:"), body);
+  newLabel->setObjectName(QStringLiteral("DialogFieldLabel"));
   layout->addWidget(newLabel);
-  auto *newEdit = new QLineEdit(&dlg);
+  auto *newEdit = new QLineEdit(body);
   newEdit->setEchoMode(QLineEdit::Password);
   newEdit->setFixedHeight(34);
   layout->addWidget(newEdit);
 
-  auto *meter = new PasswordEntropyMeter(&dlg);
+  auto *meter = new PasswordEntropyMeter(body);
   layout->addWidget(meter);
   connect(newEdit, &QLineEdit::textChanged, meter,
           &PasswordEntropyMeter::setPassword);
 
-  auto *confirmLabel = new QLabel(tr("Confirm New Master Password:"), &dlg);
+  auto *confirmLabel = new QLabel(tr("Confirm New Master Password:"), body);
+  confirmLabel->setObjectName(QStringLiteral("DialogFieldLabel"));
   layout->addWidget(confirmLabel);
-  auto *confirmEdit = new QLineEdit(&dlg);
+  auto *confirmEdit = new QLineEdit(body);
   confirmEdit->setEchoMode(QLineEdit::Password);
   confirmEdit->setFixedHeight(34);
   layout->addWidget(confirmEdit);
 
-  auto *errorLabel = new QLabel(&dlg);
-  errorLabel->setStyleSheet(QStringLiteral("color: #ef4444; font-size: 11px;"));
+  auto *errorLabel = new QLabel(body);
+  errorLabel->setObjectName(QStringLiteral("DialogErrorLabel"));
   layout->addWidget(errorLabel);
 
+  layout->addStretch(1);
+
   auto *btnLayout = new QHBoxLayout();
-  btnLayout->addStretch(1);
-  auto *cancelBtn = new QPushButton(tr("Cancel"), &dlg);
+  auto *cancelBtn = new QPushButton(tr("Cancel"), body);
   cancelBtn->setFixedHeight(32);
+  cancelBtn->setCursor(Qt::PointingHandCursor);
   connect(cancelBtn, &QPushButton::clicked, &dlg, &QDialog::reject);
   btnLayout->addWidget(cancelBtn);
+  btnLayout->addStretch(1);
 
-  auto *okBtn = new QPushButton(tr("Update Password"), &dlg);
+  auto *okBtn = new QPushButton(tr("Update Password"), body);
   okBtn->setObjectName(QStringLiteral("OnboardingPrimaryBtn"));
   okBtn->setFixedHeight(32);
+  okBtn->setCursor(Qt::PointingHandCursor);
   connect(okBtn, &QPushButton::clicked, &dlg, [&]() {
     const QString cur = curEdit->text();
     const QString p1 = newEdit->text();
@@ -243,10 +299,10 @@ void TabSecurity::openChangePasswordDialog() {
       return;
     }
 
-    const auto v = app::VaultManager::instance().currentVault();
-    const QString recKey = app::VaultManager::instance().recoveryKey();
-    app::VaultManager::instance().setupInitialMasterPassword(p1, recKey,
-                                                             v.name);
+    if (!app::VaultManager::instance().changeMasterPassword(cur, p1)) {
+      errorLabel->setText(tr("Failed to update master password."));
+      return;
+    }
     QMessageBox::information(&dlg, tr("Success"),
                              tr("Master Password updated successfully!"));
     dlg.accept();
@@ -254,48 +310,97 @@ void TabSecurity::openChangePasswordDialog() {
   btnLayout->addWidget(okBtn);
   layout->addLayout(btnLayout);
 
-  dlg.exec();
+  cardLayout->addWidget(body, 1);
+  components::DialogDragHelper::makeDraggable(card, &dlg);
+  rootLayout->addWidget(card);
+
+  components::DialogDragHelper::execDialog(dlg);
 }
 
 void TabSecurity::openViewRecoveryKeyDialog() {
-  QDialog dlg(this);
-  dlg.setWindowTitle(tr("View Emergency Recovery Key"));
-  dlg.setModal(true);
-  dlg.setFixedSize(460, 260);
+  QDialog dlg(this, Qt::FramelessWindowHint | Qt::Dialog);
+  dlg.setAttribute(Qt::WA_TranslucentBackground, true);
+  dlg.setModal(false);
+  dlg.setWindowModality(Qt::NonModal);
+  dlg.setFixedSize(480, 300);
 
-  auto *layout = new QVBoxLayout(&dlg);
-  layout->setContentsMargins(24, 20, 24, 20);
-  layout->setSpacing(12);
+  auto *rootLayout = new QVBoxLayout(&dlg);
+  rootLayout->setContentsMargins(16, 16, 16, 16);
 
-  auto *title = new QLabel(tr("Verify Identity to View Recovery Key"), &dlg);
-  QFont f = title->font();
-  f.setPointSize(13);
-  f.setBold(true);
-  title->setFont(f);
-  layout->addWidget(title);
+  auto *card = new QWidget(&dlg);
+  card->setObjectName(QStringLiteral("RecoveryDialogCard"));
+  auto *shadow = new QGraphicsDropShadowEffect(&dlg);
+  shadow->setBlurRadius(28);
+  shadow->setColor(QColor(0, 0, 0, 160));
+  shadow->setOffset(0, 8);
+  card->setGraphicsEffect(shadow);
 
-  auto *pwdLabel = new QLabel(tr("Enter your Master Password:"), &dlg);
+  auto *cardLayout = new QVBoxLayout(card);
+  cardLayout->setContentsMargins(0, 0, 0, 16);
+  cardLayout->setSpacing(0);
+
+  auto *header = new QWidget(card);
+  header->setObjectName(QStringLiteral("RecoveryDialogHeader"));
+  header->setFixedHeight(44);
+  auto *headerLayout = new QHBoxLayout(header);
+  headerLayout->setContentsMargins(16, 0, 8, 0);
+  headerLayout->setSpacing(10);
+
+  auto *headerIcon = new QLabel(header);
+  headerIcon->setFixedSize(18, 18);
+  headerIcon->setPixmap(app::ThemeManager::instance()
+                            .icon(QStringLiteral("shield_check"))
+                            .pixmap(18, 18));
+  headerLayout->addWidget(headerIcon);
+
+  auto *title = new QLabel(tr("Verify Identity to View Recovery Key"), header);
+  title->setObjectName(QStringLiteral("RecoveryDialogTitle"));
+  headerLayout->addWidget(title, 1);
+
+  auto *closeBtn = new QPushButton(header);
+  closeBtn->setObjectName(QStringLiteral("DialogCloseBtn"));
+  closeBtn->setFixedSize(32, 32);
+  closeBtn->setIconSize(QSize(12, 12));
+  closeBtn->setCursor(Qt::PointingHandCursor);
+  closeBtn->setIcon(
+      app::ThemeManager::instance().icon(QStringLiteral("win_close")));
+  connect(closeBtn, &QPushButton::clicked, &dlg, &QDialog::reject);
+  headerLayout->addWidget(closeBtn);
+
+  cardLayout->addWidget(header);
+
+  auto *body = new QWidget(card);
+  auto *layout = new QVBoxLayout(body);
+  layout->setContentsMargins(20, 16, 20, 0);
+  layout->setSpacing(10);
+
+  auto *pwdLabel = new QLabel(tr("Enter your Master Password:"), body);
+  pwdLabel->setObjectName(QStringLiteral("DialogFieldLabel"));
   layout->addWidget(pwdLabel);
 
-  auto *pwdEdit = new QLineEdit(&dlg);
+  auto *pwdEdit = new QLineEdit(body);
   pwdEdit->setEchoMode(QLineEdit::Password);
   pwdEdit->setFixedHeight(34);
   layout->addWidget(pwdEdit);
 
-  auto *errorLabel = new QLabel(&dlg);
-  errorLabel->setStyleSheet(QStringLiteral("color: #ef4444; font-size: 11px;"));
+  auto *errorLabel = new QLabel(body);
+  errorLabel->setObjectName(QStringLiteral("DialogErrorLabel"));
   layout->addWidget(errorLabel);
 
+  layout->addStretch(1);
+
   auto *btnLayout = new QHBoxLayout();
-  btnLayout->addStretch(1);
-  auto *cancelBtn = new QPushButton(tr("Cancel"), &dlg);
+  auto *cancelBtn = new QPushButton(tr("Cancel"), body);
   cancelBtn->setFixedHeight(32);
+  cancelBtn->setCursor(Qt::PointingHandCursor);
   connect(cancelBtn, &QPushButton::clicked, &dlg, &QDialog::reject);
   btnLayout->addWidget(cancelBtn);
+  btnLayout->addStretch(1);
 
-  auto *verifyBtn = new QPushButton(tr("Reveal Key"), &dlg);
+  auto *verifyBtn = new QPushButton(tr("Reveal Key"), body);
   verifyBtn->setObjectName(QStringLiteral("OnboardingPrimaryBtn"));
   verifyBtn->setFixedHeight(32);
+  verifyBtn->setCursor(Qt::PointingHandCursor);
   connect(verifyBtn, &QPushButton::clicked, &dlg, [&]() {
     const QString pwd = pwdEdit->text();
     if (!app::VaultManager::instance().validateMasterPassword(pwd)) {
@@ -306,23 +411,63 @@ void TabSecurity::openViewRecoveryKeyDialog() {
     // Hiển thị mã
     dlg.accept();
 
-    QDialog showDlg(this);
-    showDlg.setWindowTitle(tr("Emergency Recovery Key"));
-    showDlg.setModal(true);
-    showDlg.setFixedSize(480, 220);
+    QDialog showDlg(this, Qt::FramelessWindowHint | Qt::Dialog);
+    showDlg.setAttribute(Qt::WA_TranslucentBackground, true);
+    showDlg.setModal(false);
+    showDlg.setWindowModality(Qt::NonModal);
+    showDlg.setFixedSize(500, 270);
 
-    auto *showLayout = new QVBoxLayout(&showDlg);
-    showLayout->setContentsMargins(24, 20, 24, 20);
+    auto *showRoot = new QVBoxLayout(&showDlg);
+    showRoot->setContentsMargins(16, 16, 16, 16);
+
+    auto *showCard = new QWidget(&showDlg);
+    showCard->setObjectName(QStringLiteral("RecoveryDialogCard"));
+    auto *showShadow = new QGraphicsDropShadowEffect(&showDlg);
+    showShadow->setBlurRadius(28);
+    showShadow->setColor(QColor(0, 0, 0, 160));
+    showShadow->setOffset(0, 8);
+    showCard->setGraphicsEffect(showShadow);
+
+    auto *showCardLayout = new QVBoxLayout(showCard);
+    showCardLayout->setContentsMargins(0, 0, 0, 16);
+    showCardLayout->setSpacing(0);
+
+    auto *showHeader = new QWidget(showCard);
+    showHeader->setObjectName(QStringLiteral("RecoveryDialogHeader"));
+    showHeader->setFixedHeight(44);
+    auto *showHeaderLayout = new QHBoxLayout(showHeader);
+    showHeaderLayout->setContentsMargins(16, 0, 8, 0);
+    showHeaderLayout->setSpacing(10);
+
+    auto *showIcon = new QLabel(showHeader);
+    showIcon->setFixedSize(18, 18);
+    showIcon->setPixmap(app::ThemeManager::instance()
+                            .icon(QStringLiteral("shield_check"))
+                            .pixmap(18, 18));
+    showHeaderLayout->addWidget(showIcon);
+
+    auto *h = new QLabel(tr("Your Emergency Recovery Key"), showHeader);
+    h->setObjectName(QStringLiteral("RecoveryDialogTitle"));
+    showHeaderLayout->addWidget(h, 1);
+
+    auto *showCloseBtn = new QPushButton(showHeader);
+    showCloseBtn->setObjectName(QStringLiteral("DialogCloseBtn"));
+    showCloseBtn->setFixedSize(32, 32);
+    showCloseBtn->setIconSize(QSize(12, 12));
+    showCloseBtn->setCursor(Qt::PointingHandCursor);
+    showCloseBtn->setIcon(
+        app::ThemeManager::instance().icon(QStringLiteral("win_close")));
+    connect(showCloseBtn, &QPushButton::clicked, &showDlg, &QDialog::accept);
+    showHeaderLayout->addWidget(showCloseBtn);
+
+    showCardLayout->addWidget(showHeader);
+
+    auto *showBody = new QWidget(showCard);
+    auto *showLayout = new QVBoxLayout(showBody);
+    showLayout->setContentsMargins(20, 16, 20, 0);
     showLayout->setSpacing(14);
 
-    auto *h = new QLabel(tr("Your Emergency Recovery Key"), &showDlg);
-    QFont hf = h->font();
-    hf.setPointSize(13);
-    hf.setBold(true);
-    h->setFont(hf);
-    showLayout->addWidget(h);
-
-    auto *box = new QWidget(&showDlg);
+    auto *box = new QWidget(showBody);
     box->setObjectName(QStringLiteral("RecoveryBox"));
     auto *boxLayout = new QVBoxLayout(box);
     boxLayout->setContentsMargins(14, 12, 14, 12);
@@ -335,22 +480,30 @@ void TabSecurity::openViewRecoveryKeyDialog() {
     boxLayout->addWidget(keyLabel);
     showLayout->addWidget(box);
 
-    auto *copyBtn = new QPushButton(tr("Copy to Clipboard"), &showDlg);
+    auto *copyBtn = new QPushButton(tr("Copy to Clipboard"), showBody);
     copyBtn->setObjectName(QStringLiteral("RecoveryActionBtn"));
     copyBtn->setFixedHeight(34);
     copyBtn->setCursor(Qt::PointingHandCursor);
     connect(copyBtn, &QPushButton::clicked, &showDlg, [&]() {
       app::ClipboardManager::instance().copySensitive(key, tr("Recovery Key"));
-      copyBtn->setText(tr("✓ Copied!"));
+      copyBtn->setText(tr("Copied!"));
     });
     showLayout->addWidget(copyBtn);
 
-    showDlg.exec();
+    showCardLayout->addWidget(showBody, 1);
+    components::DialogDragHelper::makeDraggable(showCard, &showDlg);
+    showRoot->addWidget(showCard);
+
+    components::DialogDragHelper::execDialog(showDlg);
   });
   btnLayout->addWidget(verifyBtn);
   layout->addLayout(btnLayout);
 
-  dlg.exec();
+  cardLayout->addWidget(body, 1);
+  components::DialogDragHelper::makeDraggable(card, &dlg);
+  rootLayout->addWidget(card);
+
+  components::DialogDragHelper::execDialog(dlg);
 }
 
 void TabSecurity::retranslateUi() {
@@ -387,7 +540,7 @@ void TabSecurity::retranslateUi() {
   }
   if (m_biometricRow) {
     m_biometricRow->updateText(tr("Biometric Unlock"),
-                               tr("Use Touch ID, Windows Hello, or Linux PAM "
+                               tr("Use Touch ID, Windows Hello, or Fingerprint "
                                   "to quickly unlock your vault."));
   }
 

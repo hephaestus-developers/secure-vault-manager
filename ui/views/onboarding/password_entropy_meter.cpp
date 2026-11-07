@@ -6,6 +6,7 @@
  */
 
 #include "password_entropy_meter.h"
+#include "core/core_bridge.h"
 
 #include <QEvent>
 #include <QHBoxLayout>
@@ -55,6 +56,23 @@ PasswordEntropyMeter::calculateStrength(const QString &pwd) const {
   if (pwd.isEmpty()) {
     return StrengthLevel::Empty;
   }
+
+  const auto evalObj =
+      core::CoreBridge::instance().evaluatePasswordStrength(pwd);
+  if (!evalObj.isEmpty()) {
+    const int score = evalObj.value(QStringLiteral("score")).toInt(0);
+    switch (score) {
+    case 4:
+      return StrengthLevel::Excellent;
+    case 3:
+      return StrengthLevel::Strong;
+    case 2:
+      return StrengthLevel::Fair;
+    default:
+      return StrengthLevel::Weak;
+    }
+  }
+
   if (pwd.length() < 8) {
     return StrengthLevel::Weak;
   }
@@ -118,7 +136,7 @@ void PasswordEntropyMeter::updateDisplay() {
   case StrengthLevel::Excellent:
     activeCount = 4;
     activeColor = QStringLiteral("#10B981"); // Xanh ngọc
-    text = tr("Excellent - Outstanding entropy and resilience");
+    text = tr("Excellent - Highly secure and resilient");
     break;
   }
 

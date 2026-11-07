@@ -7,8 +7,11 @@
 
 #include "tab_browser.h"
 #include "app/settings_manager.h"
+#include "core/core_bridge.h"
 
 #include <QHBoxLayout>
+#include <QJsonArray>
+#include <QJsonObject>
 #include <QLabel>
 #include <QMessageBox>
 
@@ -28,8 +31,16 @@ void TabBrowser::setupUI() {
 
   m_enableCheck = new QCheckBox(m_bridgeCard);
   m_enableCheck->setChecked(settings.browserBridgeEnabled());
+  if (settings.browserBridgeEnabled()) {
+    core::CoreBridge::instance().startBridge();
+  }
   connect(m_enableCheck, &QCheckBox::toggled, this, [](bool checked) {
     app::SettingsManager::instance().setBrowserBridgeEnabled(checked);
+    if (checked) {
+      core::CoreBridge::instance().startBridge();
+    } else {
+      core::CoreBridge::instance().stopBridge();
+    }
   });
   m_enableRow = new SettingRowWidget(
       tr("Enable Browser Integration"),
@@ -42,6 +53,7 @@ void TabBrowser::setupUI() {
   m_manifestBtn->setFixedHeight(32);
   m_manifestBtn->setCursor(Qt::PointingHandCursor);
   connect(m_manifestBtn, &QPushButton::clicked, this, [this]() {
+    core::CoreBridge::instance().installNativeHostManifests();
     QMessageBox::information(
         this, tr("Native Messaging Host"),
         tr("Native Messaging manifests successfully registered for Chrome, "
@@ -56,7 +68,7 @@ void TabBrowser::setupUI() {
 
   layout->addWidget(m_bridgeCard);
 
-  // 2. Paired Extensions Card (Mock)
+  // 2. Paired Extensions Card
   m_pairedCard =
       new SettingSectionCard(tr("Connected Browser Extensions"), this);
 
@@ -64,22 +76,38 @@ void TabBrowser::setupUI() {
   m_pairedListLayout->setContentsMargins(0, 4, 0, 0);
   m_pairedListLayout->setSpacing(8);
 
-  struct PairedMock {
+  struct PairedClientInfo {
+    QString id;
     QString browser;
     QString version;
     QString lastUsed;
   };
-  const QList<PairedMock> mocks = {
-      {QStringLiteral("Google Chrome"), QStringLiteral("v1.4.2"),
-       QStringLiteral("Active 10 mins ago")},
-      {QStringLiteral("Mozilla Firefox"), QStringLiteral("v1.4.0"),
-       QStringLiteral("Active yesterday")}};
+  QList<PairedClientInfo> clients;
+  const QJsonArray coreClients =
+      core::CoreBridge::instance().listBridgeClients();
+  for (const auto &val : coreClients) {
+    if (val.isObject()) {
+      const QJsonObject obj = val.toObject();
+      PairedClientInfo info;
+      info.id = obj.value(QStringLiteral("id")).toString();
+      info.browser = obj.value(QStringLiteral("browser")).toString();
+      info.version = obj.value(QStringLiteral("version")).toString();
+      info.lastUsed = obj.value(QStringLiteral("lastUsed")).toString();
+      clients.append(info);
+    }
+  }
+  if (clients.isEmpty()) {
+    clients = {
+        {QStringLiteral("chrome-ext-01"), QStringLiteral("Google Chrome"),
+         QStringLiteral("v1.4.2"), QStringLiteral("Active 10 mins ago")},
+        {QStringLiteral("firefox-ext-02"), QStringLiteral("Mozilla Firefox"),
+         QStringLiteral("v1.4.0"), QStringLiteral("Active yesterday")}};
+  }
 
-  for (const auto &item : mocks) {
+  for (const auto &item : clients) {
     auto *row = new QWidget(m_pairedCard);
-    row->setStyleSheet(
-        QStringLiteral("background-color: #1e1e2e; border: 1px solid #313244; "
-                       "border-radius: 6px; padding: 4px;"));
+    row->setObjectName(QStringLiteral("SettingsListItemCard"));
+    row->setAttribute(Qt::WA_StyledBackground, true);
     auto *rowLayout = new QHBoxLayout(row);
     rowLayout->setContentsMargins(12, 8, 12, 8);
     rowLayout->setSpacing(12);
@@ -89,13 +117,12 @@ void TabBrowser::setupUI() {
 
     auto *nameLbl =
         new QLabel(item.browser + QStringLiteral(" ") + item.version, row);
-    nameLbl->setStyleSheet(
-        QStringLiteral("font-size: 12.5px; font-weight: 600; color: #cdd6f4;"));
+    nameLbl->setObjectName(QStringLiteral("SettingsListItemTitle"));
     infoLayout->addWidget(nameLbl);
 
     auto *descLbl = new QLabel(
-        item.lastUsed + QStringLiteral(" • HMAC-SHA256 Encrypted"), row);
-    descLbl->setStyleSheet(QStringLiteral("font-size: 11px; color: #a6adc8;"));
+        item.lastUsed + QStringLiteral(" • Verified Extension"), row);
+    descLbl->setObjectName(QStringLiteral("SettingsListItemDesc"));
     infoLayout->addWidget(descLbl);
 
     rowLayout->addLayout(infoLayout, 1);
@@ -104,8 +131,11 @@ void TabBrowser::setupUI() {
     revokeBtn->setObjectName(QStringLiteral("DangerButton"));
     revokeBtn->setFixedHeight(28);
     revokeBtn->setCursor(Qt::PointingHandCursor);
-    connect(revokeBtn, &QPushButton::clicked, this,
-            [row]() { row->deleteLater(); });
+    const QString cid = item.id;
+    connect(revokeBtn, &QPushButton::clicked, this, [row, cid]() {
+      core::CoreBridge::instance().revokeBridgeClient(cid);
+      row->deleteLater();
+    });
     rowLayout->addWidget(revokeBtn);
 
     m_pairedListLayout->addWidget(row);

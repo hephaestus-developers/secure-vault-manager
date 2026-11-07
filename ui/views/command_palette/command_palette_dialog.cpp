@@ -8,6 +8,8 @@
 #include "command_palette_dialog.h"
 #include "app/clipboard_manager.h"
 #include "app/theme_manager.h"
+#include "components/dialog_drag_helper.h"
+#include "core/core_bridge.h"
 #include "views/item_list/item_card_delegate.h"
 
 #include <QApplication>
@@ -26,7 +28,8 @@ CommandPaletteDialog::CommandPaletteDialog(ItemListModel *sourceModel,
     : QDialog(parent, Qt::FramelessWindowHint | Qt::Dialog) {
   setObjectName(QStringLiteral("CommandPaletteDialog"));
   setAttribute(Qt::WA_TranslucentBackground, true);
-  setModal(true);
+  setModal(false);
+  setWindowModality(Qt::NonModal);
   setFixedSize(580, 420);
 
   m_proxyModel = new ItemSortFilterProxy(this);
@@ -103,6 +106,8 @@ void CommandPaletteDialog::setupUI() {
   footerLayout->addStretch(1);
   layout->addWidget(footer);
 
+  components::DialogDragHelper::makeDraggable(mainCard, this);
+
   rootLayout->addWidget(mainCard);
 }
 
@@ -176,9 +181,18 @@ void CommandPaletteDialog::copySelectedPassword() {
   const auto itemVar = idx.data(ItemListModel::VaultItemRole);
   if (itemVar.canConvert<models::UiVaultItem>()) {
     const auto item = itemVar.value<models::UiVaultItem>();
-    if (!item.password.isEmpty()) {
+    QString secret = item.password;
+    auto &bridge = core::CoreBridge::instance();
+    if (bridge.isInitialized() && bridge.isVaultUnlocked()) {
+      const QString revealed =
+          bridge.revealField(item.id, QStringLiteral("password"));
+      if (!revealed.isEmpty()) {
+        secret = revealed;
+      }
+    }
+    if (!secret.isEmpty()) {
       app::ClipboardManager::instance().copySensitive(
-          item.password, tr("Password: %1").arg(item.title), 30);
+          secret, tr("Password: %1").arg(item.title), 30);
     }
   }
   accept();

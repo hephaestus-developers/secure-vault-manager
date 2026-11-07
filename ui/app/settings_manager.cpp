@@ -7,6 +7,9 @@
  */
 
 #include "settings_manager.h"
+#include "core/core_bridge.h"
+
+#include <QJsonObject>
 
 namespace svm::app {
 
@@ -18,7 +21,33 @@ SettingsManager &SettingsManager::instance() {
 SettingsManager::SettingsManager(QObject *parent)
     : QObject(parent), m_settings(QSettings::IniFormat, QSettings::UserScope,
                                   QStringLiteral("Hephaestus"),
-                                  QStringLiteral("SecureVaultManager")) {}
+                                  QStringLiteral("SecureVaultManager")) {
+  connect(this, &SettingsManager::settingsChanged, this, [this]() {
+    auto &bridge = core::CoreBridge::instance();
+    if (!bridge.isInitialized()) {
+      return;
+    }
+    QJsonObject obj;
+    obj.insert(QStringLiteral("auto_lock_minutes"), autoLockMinutes());
+    obj.insert(QStringLiteral("clipboard_clear_seconds"),
+               clipboardClearSeconds());
+    obj.insert(QStringLiteral("clear_clipboard_on_lock"),
+               clearClipboardOnLock());
+    obj.insert(QStringLiteral("biometric_enabled"), biometricEnabled());
+    obj.insert(QStringLiteral("browser_bridge_enabled"),
+               browserBridgeEnabled());
+    obj.insert(QStringLiteral("ssh_agent_enabled"), sshAgentEnabled());
+    obj.insert(QStringLiteral("ssh_prompt_approval"), sshPromptApproval());
+    obj.insert(QStringLiteral("auto_empty_trash"), autoEmptyTrashDaysEnabled());
+    obj.insert(QStringLiteral("theme"), themeMode() == ThemeMode::Light
+                                            ? QStringLiteral("light")
+                                            : QStringLiteral("dark"));
+    obj.insert(QStringLiteral("language"), language() == AppLanguage::Vietnamese
+                                               ? QStringLiteral("vi")
+                                               : QStringLiteral("en"));
+    bridge.saveCoreSettings(obj);
+  });
+}
 
 ThemeMode SettingsManager::themeMode() const {
   const int val = m_settings

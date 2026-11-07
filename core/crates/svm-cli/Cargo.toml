@@ -11,4 +11,10 @@ path = "src/main.rs"
 
 [dependencies]
 svm-domain = { path = "../svm-domain" }
+svm-crypto = { path = "../svm-crypto" }
+svm-storage = { path = "../svm-storage" }
 svm-vault = { path = "../svm-vault" }
+svm-totp = { path = "../svm-totp" }
+svm-transfer = { path = "../svm-transfer" }
+svm-ssh-agent = { path = "../svm-ssh-agent" }
+svm-bridge = { path = "../svm-bridge" }

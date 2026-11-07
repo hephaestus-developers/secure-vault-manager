@@ -27,9 +27,6 @@ public:
 
 protected:
   void changeEvent(QEvent *event) override;
-  void mousePressEvent(QMouseEvent *event) override;
-  void mouseMoveEvent(QMouseEvent *event) override;
-  void mouseReleaseEvent(QMouseEvent *event) override;
   void keyPressEvent(QKeyEvent *event) override;
 
 private:
@@ -64,9 +61,6 @@ private:
 
   QPlainTextEdit *m_licenseEdit{nullptr};
   QPushButton *m_bottomCloseBtn{nullptr};
-
-  bool m_dragging{false};
-  QPoint m_dragPosition;
 };
 
 } // namespace svm::views

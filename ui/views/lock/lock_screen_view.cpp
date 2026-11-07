@@ -8,6 +8,7 @@
 #include "lock_screen_view.h"
 #include "app/theme_manager.h"
 #include "app/vault_manager.h"
+#include "components/dialog_drag_helper.h"
 #include "recovery_dialog.h"
 
 #include <QApplication>
@@ -64,9 +65,8 @@ void LockScreenView::setupUI() {
 
   m_subtitleLabel = new QLabel(
       tr("Enter your master password to decrypt your vaults"), m_cardWidget);
+  m_subtitleLabel->setObjectName(QStringLiteral("LockSubtitleLabel"));
   m_subtitleLabel->setAlignment(Qt::AlignCenter);
-  m_subtitleLabel->setStyleSheet(
-      QStringLiteral("color: #a6adc8; font-size: 11.5px;"));
   cardLayout->addWidget(m_subtitleLabel);
 
   cardLayout->addSpacing(4);
@@ -116,9 +116,8 @@ void LockScreenView::setupUI() {
 
   // Error label
   m_errorLabel = new QLabel(m_cardWidget);
+  m_errorLabel->setObjectName(QStringLiteral("DialogErrorLabel"));
   m_errorLabel->setAlignment(Qt::AlignCenter);
-  m_errorLabel->setStyleSheet(
-      QStringLiteral("color: #ef4444; font-size: 11.5px; font-weight: 500;"));
   cardLayout->addWidget(m_errorLabel);
 
   // Hàng nút Unlock & Sinh trắc học
@@ -137,7 +136,7 @@ void LockScreenView::setupUI() {
   m_biometricBtn->setObjectName(QStringLiteral("LockBiometricBtn"));
   m_biometricBtn->setFixedSize(38, 38);
   m_biometricBtn->setCursor(Qt::PointingHandCursor);
-  m_biometricBtn->setToolTip(tr("Unlock with Biometrics (Touch / Face / PAM)"));
+  m_biometricBtn->setToolTip(tr("Unlock with Biometrics (Touch / Face ID)"));
   m_biometricBtn->setIcon(
       app::ThemeManager::instance().icon(QStringLiteral("shield_check")));
   connect(m_biometricBtn, &QPushButton::clicked, this,
@@ -152,12 +151,22 @@ void LockScreenView::setupUI() {
   m_forgotBtn->setObjectName(QStringLiteral("LockForgotBtn"));
   m_forgotBtn->setFlat(true);
   m_forgotBtn->setCursor(Qt::PointingHandCursor);
-  m_forgotBtn->setStyleSheet(
-      QStringLiteral("color: #89b4fa; font-size: 11.5px; text-decoration: "
-                     "underline; background: transparent; border: none;"));
   connect(m_forgotBtn, &QPushButton::clicked, this,
           &LockScreenView::openRecoveryDialog);
   cardLayout->addWidget(m_forgotBtn);
+
+  connect(&app::ThemeManager::instance(), &app::ThemeManager::themeChanged,
+          this, [this]() {
+            if (m_revealBtn) {
+              m_revealBtn->setIcon(app::ThemeManager::instance().icon(
+                  m_isRevealed ? QStringLiteral("eye_off")
+                               : QStringLiteral("eye")));
+            }
+            if (m_biometricBtn) {
+              m_biometricBtn->setIcon(app::ThemeManager::instance().icon(
+                  QStringLiteral("shield_check")));
+            }
+          });
 
   rootLayout->addWidget(m_cardWidget);
 }
@@ -194,7 +203,7 @@ void LockScreenView::attemptBiometricUnlock() {
 
 void LockScreenView::openRecoveryDialog() {
   RecoveryDialog dlg(this);
-  if (dlg.exec() == QDialog::Accepted) {
+  if (components::DialogDragHelper::execDialog(dlg) == QDialog::Accepted) {
     m_passwordEdit->clear();
     m_errorLabel->clear();
     emit unlocked();
@@ -247,7 +256,7 @@ void LockScreenView::checkCapsLockState() {
   if (m_capsLockLabel) {
     m_capsLockLabel->setVisible(caps);
     if (caps) {
-      m_capsLockLabel->setText(tr("⚠ Caps Lock is ON"));
+      m_capsLockLabel->setText(tr("Caps Lock is ON"));
     }
   }
 #endif
@@ -278,8 +287,7 @@ void LockScreenView::retranslateUi() {
     m_unlockBtn->setText(tr("Unlock Vault"));
   }
   if (m_biometricBtn) {
-    m_biometricBtn->setToolTip(
-        tr("Unlock with Biometrics (Touch / Face / PAM)"));
+    m_biometricBtn->setToolTip(tr("Unlock with Biometrics (Touch / Face ID)"));
   }
   if (m_forgotBtn) {
     m_forgotBtn->setText(tr("Forgot password? Use Recovery Key"));

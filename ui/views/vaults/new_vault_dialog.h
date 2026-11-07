@@ -32,6 +32,7 @@ public:
 
 protected:
   void changeEvent(QEvent *event) override;
+  void keyPressEvent(QKeyEvent *event) override;
 
 private:
   void setupUI();
@@ -40,7 +41,10 @@ private:
   void onCreateClicked();
 
   QWidget *m_cardWidget{nullptr};
-  QLabel *m_titleLabel{nullptr};
+  QWidget *m_headerWidget{nullptr};
+  QLabel *m_headerIcon{nullptr};
+  QLabel *m_headerTitle{nullptr};
+  QPushButton *m_closeBtn{nullptr};
   QLabel *m_descLabel{nullptr};
 
   QLineEdit *m_nameEdit{nullptr};
