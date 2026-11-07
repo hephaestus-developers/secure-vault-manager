@@ -9,12 +9,12 @@
 #include "app/clipboard_manager.h"
 #include "app/theme_manager.h"
 #include "components/dialog_drag_helper.h"
+#include "components/window_resize_handler.h"
 #include "core/core_bridge.h"
 #include "views/item_list/item_card_delegate.h"
 
 #include <QApplication>
 #include <QEvent>
-#include <QGraphicsDropShadowEffect>
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QKeyEvent>
@@ -27,10 +27,11 @@ CommandPaletteDialog::CommandPaletteDialog(ItemListModel *sourceModel,
                                            QWidget *parent)
     : QDialog(parent, Qt::FramelessWindowHint | Qt::Dialog) {
   setObjectName(QStringLiteral("CommandPaletteDialog"));
-  setAttribute(Qt::WA_TranslucentBackground, true);
+  setAttribute(Qt::WA_TranslucentBackground, false);
   setModal(false);
   setWindowModality(Qt::NonModal);
-  setFixedSize(580, 420);
+  setMinimumSize(460, 320);
+  resize(580, 420);
 
   m_proxyModel = new ItemSortFilterProxy(this);
   m_proxyModel->setSourceModel(sourceModel);
@@ -41,20 +42,17 @@ CommandPaletteDialog::CommandPaletteDialog(ItemListModel *sourceModel,
 
   // Bắt sự kiện phím từ Search Box để điều khiển danh sách
   m_searchEdit->installEventFilter(this);
+
+  new components::WindowResizeHandler(this);
 }
 
 void CommandPaletteDialog::setupUI() {
   auto *rootLayout = new QVBoxLayout(this);
-  rootLayout->setContentsMargins(16, 16, 16, 16);
+  rootLayout->setContentsMargins(0, 0, 0, 0);
 
   auto *mainCard = new QWidget(this);
   mainCard->setObjectName(QStringLiteral("CommandPaletteCard"));
-
-  auto *shadow = new QGraphicsDropShadowEffect(this);
-  shadow->setBlurRadius(24);
-  shadow->setColor(QColor(0, 0, 0, 160));
-  shadow->setOffset(0, 8);
-  mainCard->setGraphicsEffect(shadow);
+  mainCard->setAttribute(Qt::WA_StyledBackground, true);
 
   auto *layout = new QVBoxLayout(mainCard);
   layout->setContentsMargins(14, 14, 14, 12);

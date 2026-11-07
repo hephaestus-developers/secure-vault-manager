@@ -50,6 +50,11 @@ public:
    */
   void setSettingsVisible(bool visible);
 
+  /**
+   * @brief Ẩn/Hiện nút Command Palette (chỉ hiển thị khi đã mở khóa).
+   */
+  void setCommandPaletteVisible(bool visible);
+
 signals:
   void minimizeRequested();
   void maximizeRestoreRequested();

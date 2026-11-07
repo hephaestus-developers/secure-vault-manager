@@ -67,8 +67,6 @@ private:
   QLineEdit *m_titleInput{nullptr};
   QLabel *m_categoryBadge{nullptr};
   QComboBox *m_categoryCombo{nullptr};
-  QLabel *m_vaultBadge{nullptr};
-  QComboBox *m_vaultCombo{nullptr};
   QLabel *m_updatedLabel{nullptr};
   QString m_vaultId{QStringLiteral("personal")};
   QPushButton *m_favBtn{nullptr};

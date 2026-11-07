@@ -173,9 +173,12 @@ void UnifiedHeaderBar::repositionTitleOverlay() {
                                 : m_logoLabel->geometry().right()) +
                      12;
   int rightOccupied =
-      (m_paletteBtn
+      (m_paletteBtn && m_paletteBtn->isVisible()
            ? (width() - m_paletteBtn->geometry().left())
-           : (m_minBtn ? (width() - m_minBtn->geometry().left()) : 46 * 3)) +
+           : (m_themeToggleBtn && m_themeToggleBtn->isVisible()
+                  ? (width() - m_themeToggleBtn->geometry().left())
+                  : (m_minBtn ? (width() - m_minBtn->geometry().left())
+                              : 46 * 3))) +
       12;
   int sideMargin = qMax(leftOccupied, rightOccupied);
 
@@ -218,49 +221,35 @@ void UnifiedHeaderBar::updateMaximizeIcon(bool isMaximized) {
 
 void UnifiedHeaderBar::updateThemeIcons(bool darkMode) {
   m_darkMode = darkMode;
-  const QString suffix =
-      darkMode ? QStringLiteral("dark") : QStringLiteral("light");
+  auto &tm = app::ThemeManager::instance();
 
-  m_minBtn->setIcon(
-      QIcon(QStringLiteral(":/icons/win_min_%1.svg").arg(suffix)));
+  m_minBtn->setIcon(tm.icon(QStringLiteral("win_min")));
   if (m_isMaximized) {
-    m_maxBtn->setIcon(
-        QIcon(QStringLiteral(":/icons/win_restore_%1.svg").arg(suffix)));
+    m_maxBtn->setIcon(tm.icon(QStringLiteral("win_restore")));
   } else {
-    m_maxBtn->setIcon(
-        QIcon(QStringLiteral(":/icons/win_max_%1.svg").arg(suffix)));
+    m_maxBtn->setIcon(tm.icon(QStringLiteral("win_max")));
   }
-  m_closeBtn->setIcon(
-      QIcon(QStringLiteral(":/icons/win_close_%1.svg").arg(suffix)));
+  m_closeBtn->setIcon(tm.icon(QStringLiteral("win_close")));
 
   if (m_paletteBtn) {
-    m_paletteBtn->setIcon(
-        QIcon(darkMode ? QStringLiteral(":/icons/search_dark.svg")
-                       : QStringLiteral(":/icons/search_light.svg")));
+    m_paletteBtn->setIcon(tm.icon(QStringLiteral("search")));
   }
 
   if (m_themeToggleBtn) {
+    m_themeToggleBtn->setIcon(tm.icon(QStringLiteral("theme_toggle")));
     if (darkMode) {
-      m_themeToggleBtn->setIcon(
-          QIcon(QStringLiteral(":/icons/theme_toggle_dark.svg")));
       m_themeToggleBtn->setToolTip(tr("Switch to Light theme (Ctrl+T)"));
     } else {
-      m_themeToggleBtn->setIcon(
-          QIcon(QStringLiteral(":/icons/theme_toggle_light.svg")));
       m_themeToggleBtn->setToolTip(tr("Switch to Dark theme (Ctrl+T)"));
     }
   }
 
   if (m_settingsBtn) {
-    m_settingsBtn->setIcon(QIcon(
-        darkMode ? QStringLiteral(":/icons/category_settings_dark.svg")
-                 : QStringLiteral(":/icons/category_settings_light.svg")));
+    m_settingsBtn->setIcon(tm.icon(QStringLiteral("category_settings")));
   }
 
   if (m_aboutBtn) {
-    m_aboutBtn->setIcon(QIcon(darkMode
-                                  ? QStringLiteral(":/icons/info_dark.svg")
-                                  : QStringLiteral(":/icons/info_light.svg")));
+    m_aboutBtn->setIcon(tm.icon(QStringLiteral("info")));
   }
 }
 
@@ -298,6 +287,14 @@ void UnifiedHeaderBar::retranslateUi() {
 void UnifiedHeaderBar::setSettingsVisible(bool visible) {
   if (m_settingsBtn) {
     m_settingsBtn->setVisible(visible);
+    repositionTitleOverlay();
+  }
+}
+
+void UnifiedHeaderBar::setCommandPaletteVisible(bool visible) {
+  if (m_paletteBtn) {
+    m_paletteBtn->setVisible(visible);
+    repositionTitleOverlay();
   }
 }
 

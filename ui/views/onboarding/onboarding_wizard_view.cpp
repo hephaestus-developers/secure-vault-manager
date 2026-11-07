@@ -15,7 +15,6 @@
 #include <QEvent>
 #include <QFile>
 #include <QFileDialog>
-#include <QGraphicsDropShadowEffect>
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QStandardPaths>
@@ -27,6 +26,7 @@ namespace svm::views {
 
 OnboardingWizardView::OnboardingWizardView(QWidget *parent) : QWidget(parent) {
   setObjectName(QStringLiteral("OnboardingWizardView"));
+  setAttribute(Qt::WA_StyledBackground, true);
   setupUI();
   resetWizard();
 
@@ -45,12 +45,6 @@ void OnboardingWizardView::setupUI() {
   m_cardWidget = new QWidget(this);
   m_cardWidget->setObjectName(QStringLiteral("OnboardingCard"));
   m_cardWidget->setFixedSize(840, 520);
-
-  auto *shadow = new QGraphicsDropShadowEffect(this);
-  shadow->setBlurRadius(40);
-  shadow->setColor(QColor(0, 0, 0, 160));
-  shadow->setOffset(0, 14);
-  m_cardWidget->setGraphicsEffect(shadow);
 
   auto *cardLayout = new QHBoxLayout(m_cardWidget);
   cardLayout->setContentsMargins(0, 0, 0, 0);

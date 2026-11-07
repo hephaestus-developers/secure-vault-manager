@@ -8,6 +8,7 @@
 #include "tab_ssh.h"
 #include "app/clipboard_manager.h"
 #include "app/settings_manager.h"
+#include "components/in_window_combobox.h"
 #include "core/core_bridge.h"
 
 #include <QDir>
@@ -95,13 +96,15 @@ void TabSsh::setupUI() {
   // 2. Authorization Policy Card
   m_policyCard = new SettingSectionCard(tr("Authorization Policy"), this);
 
-  m_policyCombo = new QComboBox(m_policyCard);
+  m_policyCombo = new svm::ui::InWindowComboBox(m_policyCard);
   m_policyCombo->addItem(tr("Prompt to approve each request (Recommended)"),
                          true);
   m_policyCombo->addItem(tr("Automatically allow when vault is unlocked"),
                          false);
   m_policyCombo->setCurrentIndex(settings.sshPromptApproval() ? 0 : 1);
   m_policyCombo->setFixedWidth(280);
+  m_policyCombo->setFixedHeight(32);
+  m_policyCombo->setCursor(Qt::PointingHandCursor);
   connect(m_policyCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
           this, [this](int index) {
             const bool prompt = m_policyCombo->itemData(index).toBool();

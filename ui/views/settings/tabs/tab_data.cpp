@@ -7,10 +7,17 @@
 
 #include "tab_data.h"
 #include "app/settings_manager.h"
+#include "app/theme_manager.h"
+#include "app/vault_manager.h"
+#include "components/dialog_drag_helper.h"
+#include "components/in_window_combobox.h"
+#include "components/window_resize_handler.h"
 #include "core/core_bridge.h"
 
 #include <QFileDialog>
 #include <QHBoxLayout>
+#include <QLabel>
+#include <QLineEdit>
 #include <QMessageBox>
 #include <QStandardPaths>
 #include <QVBoxLayout>
@@ -37,12 +44,14 @@ void TabData::setupUI() {
   importLayout->setContentsMargins(0, 0, 0, 0);
   importLayout->setSpacing(8);
 
-  m_importFormatCombo = new QComboBox(importControl);
+  m_importFormatCombo = new svm::ui::InWindowComboBox(importControl);
   m_importFormatCombo->addItem(QStringLiteral("Bitwarden (JSON)"));
   m_importFormatCombo->addItem(QStringLiteral("1Password (1PUX)"));
   m_importFormatCombo->addItem(QStringLiteral("KeePass (XML)"));
   m_importFormatCombo->addItem(QStringLiteral("CSV Spreadsheet"));
   m_importFormatCombo->setFixedWidth(160);
+  m_importFormatCombo->setFixedHeight(32);
+  m_importFormatCombo->setCursor(Qt::PointingHandCursor);
   importLayout->addWidget(m_importFormatCombo);
 
   m_importBtn = new QPushButton(tr("Select File & Import..."), importControl);
@@ -123,6 +132,25 @@ void TabData::setupUI() {
   m_trashCard->addRow(m_emptyTrashNowRow);
 
   layout->addWidget(m_trashCard);
+
+  // 4. Danger Zone - Factory Reset
+  m_dangerCard = new SettingSectionCard(tr("Danger Zone"), this);
+
+  m_factoryResetBtn = new QPushButton(tr("Factory Reset..."), m_dangerCard);
+  m_factoryResetBtn->setObjectName(QStringLiteral("DangerButton"));
+  m_factoryResetBtn->setFixedHeight(32);
+  m_factoryResetBtn->setCursor(Qt::PointingHandCursor);
+  connect(m_factoryResetBtn, &QPushButton::clicked, this,
+          &TabData::onFactoryResetClicked);
+
+  m_factoryResetRow = new SettingRowWidget(
+      tr("Reset All Data & Return to Setup"),
+      tr("Permanently erase all vaults, secrets, and master passwords. "
+         "Restores the application to its initial onboarding state."),
+      m_factoryResetBtn, m_dangerCard);
+  m_dangerCard->addRow(m_factoryResetRow);
+
+  layout->addWidget(m_dangerCard);
   layout->addStretch(1);
 }
 
@@ -267,6 +295,125 @@ void TabData::retranslateUi() {
         tr("Manual Trash Clean"),
         tr("Immediately empty all discarded credentials across your vaults."));
   }
+
+  if (m_dangerCard) {
+    m_dangerCard->setTitle(tr("Danger Zone"));
+  }
+  if (m_factoryResetBtn) {
+    m_factoryResetBtn->setText(tr("Factory Reset..."));
+  }
+  if (m_factoryResetRow) {
+    m_factoryResetRow->updateText(
+        tr("Reset All Data & Return to Setup"),
+        tr("Permanently erase all vaults, secrets, and master passwords. "
+           "Restores the application to its initial onboarding state."));
+  }
+}
+
+void TabData::onFactoryResetClicked() {
+  QDialog dlg(this, Qt::FramelessWindowHint | Qt::Dialog);
+  dlg.setAttribute(Qt::WA_TranslucentBackground, false);
+  dlg.setModal(false);
+  dlg.setWindowModality(Qt::NonModal);
+  dlg.setMinimumSize(420, 260);
+  dlg.resize(480, 290);
+
+  auto *rootLayout = new QVBoxLayout(&dlg);
+  rootLayout->setContentsMargins(0, 0, 0, 0);
+
+  auto *card = new QWidget(&dlg);
+  card->setObjectName(QStringLiteral("NewVaultCard"));
+  card->setAttribute(Qt::WA_StyledBackground, true);
+
+  new components::WindowResizeHandler(&dlg);
+
+  auto *cardLayout = new QVBoxLayout(card);
+  cardLayout->setContentsMargins(0, 0, 0, 16);
+  cardLayout->setSpacing(0);
+
+  auto *header = new QWidget(card);
+  header->setObjectName(QStringLiteral("NewVaultHeader"));
+  header->setAttribute(Qt::WA_StyledBackground, true);
+  header->setFixedHeight(44);
+  auto *headerLayout = new QHBoxLayout(header);
+  headerLayout->setContentsMargins(16, 0, 8, 0);
+  headerLayout->setSpacing(10);
+
+  auto *headerIcon = new QLabel(header);
+  headerIcon->setFixedSize(18, 18);
+  headerIcon->setPixmap(app::ThemeManager::instance()
+                            .icon(QStringLiteral("trash"))
+                            .pixmap(18, 18));
+  headerLayout->addWidget(headerIcon);
+
+  auto *title = new QLabel(tr("Factory Reset Secure Vault Manager?"), header);
+  title->setObjectName(QStringLiteral("NewVaultTitle"));
+  headerLayout->addWidget(title, 1);
+
+  auto *closeBtn = new QPushButton(header);
+  closeBtn->setObjectName(QStringLiteral("DialogCloseBtn"));
+  closeBtn->setFixedSize(32, 32);
+  closeBtn->setIconSize(QSize(12, 12));
+  closeBtn->setCursor(Qt::PointingHandCursor);
+  closeBtn->setIcon(
+      app::ThemeManager::instance().icon(QStringLiteral("win_close")));
+  connect(closeBtn, &QPushButton::clicked, &dlg, &QDialog::reject);
+  headerLayout->addWidget(closeBtn);
+
+  cardLayout->addWidget(header);
+
+  auto *body = new QWidget(card);
+  auto *layout = new QVBoxLayout(body);
+  layout->setContentsMargins(20, 16, 20, 0);
+  layout->setSpacing(12);
+
+  auto *warn = new QLabel(
+      tr("This action will PERMANENTLY ERASE all vaults, credentials, and "
+         "master keys. "
+         "Secure Vault Manager will return to the Welcome & Setup wizard.\n\n"
+         "Type \"RESET\" below to confirm:"),
+      body);
+  warn->setObjectName(QStringLiteral("DialogDescLabel"));
+  warn->setWordWrap(true);
+  layout->addWidget(warn);
+
+  auto *confirmEdit = new QLineEdit(body);
+  confirmEdit->setPlaceholderText(QStringLiteral("RESET"));
+  confirmEdit->setFixedHeight(34);
+  layout->addWidget(confirmEdit);
+
+  layout->addStretch(1);
+
+  auto *btnLayout = new QHBoxLayout();
+  auto *cancelBtn = new QPushButton(tr("Cancel"), body);
+  cancelBtn->setFixedHeight(32);
+  cancelBtn->setCursor(Qt::PointingHandCursor);
+  connect(cancelBtn, &QPushButton::clicked, &dlg, &QDialog::reject);
+  btnLayout->addWidget(cancelBtn);
+  btnLayout->addStretch(1);
+
+  auto *confirmBtn = new QPushButton(tr("Erase All Data & Reset"), body);
+  confirmBtn->setObjectName(QStringLiteral("DangerButton"));
+  confirmBtn->setFixedHeight(32);
+  confirmBtn->setCursor(Qt::PointingHandCursor);
+  confirmBtn->setEnabled(false);
+  connect(confirmEdit, &QLineEdit::textChanged, &dlg,
+          [confirmBtn](const QString &t) {
+            confirmBtn->setEnabled(t.trimmed().toUpper() ==
+                                   QStringLiteral("RESET"));
+          });
+  connect(confirmBtn, &QPushButton::clicked, &dlg, [&]() {
+    dlg.accept();
+    app::VaultManager::instance().resetAllData();
+  });
+  btnLayout->addWidget(confirmBtn);
+  layout->addLayout(btnLayout);
+
+  cardLayout->addWidget(body, 1);
+  components::DialogDragHelper::makeDraggable(header, &dlg);
+  rootLayout->addWidget(card);
+
+  components::DialogDragHelper::execDialog(dlg);
 }
 
 } // namespace svm::views

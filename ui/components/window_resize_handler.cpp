@@ -11,6 +11,7 @@
 #include <QCursor>
 #include <QMouseEvent>
 #include <QWindow>
+#include <QtGlobal>
 
 namespace svm::components {
 
@@ -18,6 +19,8 @@ ResizeHandle::ResizeHandle(Qt::Edges edges, QWidget *window)
     : QWidget(window), m_edges(edges), m_window(window) {
   setAttribute(Qt::WA_NoSystemBackground);
   setAttribute(Qt::WA_TranslucentBackground);
+  setAttribute(Qt::WA_Hover, true);
+  setMouseTracking(true);
 
   if ((edges & Qt::LeftEdge && edges & Qt::TopEdge) ||
       (edges & Qt::RightEdge && edges & Qt::BottomEdge)) {
@@ -47,6 +50,7 @@ void ResizeHandle::mousePressEvent(QMouseEvent *event) {
     m_isResizing = true;
     m_dragStartPos = event->globalPosition().toPoint();
     m_dragStartGeometry = m_window->geometry();
+    grabMouse();
     event->accept();
     return;
   }
@@ -58,40 +62,50 @@ void ResizeHandle::mouseMoveEvent(QMouseEvent *event) {
     QPoint delta = event->globalPosition().toPoint() - m_dragStartPos;
     QRect newGeom = m_dragStartGeometry;
 
-    int minW = m_window->minimumWidth();
-    int minH = m_window->minimumHeight();
+    int minW = qMax(m_window->minimumWidth(), 200);
+    int minH = qMax(m_window->minimumHeight(), 150);
+    int maxW = m_window->maximumWidth();
+    int maxH = m_window->maximumHeight();
 
     if (m_edges & Qt::LeftEdge) {
       int newLeft = m_dragStartGeometry.left() + delta.x();
-      if (m_dragStartGeometry.right() - newLeft + 1 >= minW) {
-        newGeom.setLeft(newLeft);
-      } else {
-        newGeom.setLeft(m_dragStartGeometry.right() - minW + 1);
+      int newW = m_dragStartGeometry.right() - newLeft + 1;
+      if (newW < minW) {
+        newLeft = m_dragStartGeometry.right() - minW + 1;
+      } else if (newW > maxW) {
+        newLeft = m_dragStartGeometry.right() - maxW + 1;
       }
+      newGeom.setLeft(newLeft);
     }
     if (m_edges & Qt::RightEdge) {
       int newRight = m_dragStartGeometry.right() + delta.x();
-      if (newRight - m_dragStartGeometry.left() + 1 >= minW) {
-        newGeom.setRight(newRight);
-      } else {
-        newGeom.setRight(m_dragStartGeometry.left() + minW - 1);
+      int newW = newRight - m_dragStartGeometry.left() + 1;
+      if (newW < minW) {
+        newRight = m_dragStartGeometry.left() + minW - 1;
+      } else if (newW > maxW) {
+        newRight = m_dragStartGeometry.left() + maxW - 1;
       }
+      newGeom.setRight(newRight);
     }
     if (m_edges & Qt::TopEdge) {
       int newTop = m_dragStartGeometry.top() + delta.y();
-      if (m_dragStartGeometry.bottom() - newTop + 1 >= minH) {
-        newGeom.setTop(newTop);
-      } else {
-        newGeom.setTop(m_dragStartGeometry.bottom() - minH + 1);
+      int newH = m_dragStartGeometry.bottom() - newTop + 1;
+      if (newH < minH) {
+        newTop = m_dragStartGeometry.bottom() - minH + 1;
+      } else if (newH > maxH) {
+        newTop = m_dragStartGeometry.bottom() - maxH + 1;
       }
+      newGeom.setTop(newTop);
     }
     if (m_edges & Qt::BottomEdge) {
       int newBottom = m_dragStartGeometry.bottom() + delta.y();
-      if (newBottom - m_dragStartGeometry.top() + 1 >= minH) {
-        newGeom.setBottom(newBottom);
-      } else {
-        newGeom.setBottom(m_dragStartGeometry.top() + minH - 1);
+      int newH = newBottom - m_dragStartGeometry.top() + 1;
+      if (newH < minH) {
+        newBottom = m_dragStartGeometry.top() + minH - 1;
+      } else if (newH > maxH) {
+        newBottom = m_dragStartGeometry.top() + maxH - 1;
       }
+      newGeom.setBottom(newBottom);
     }
 
     m_window->setGeometry(newGeom);
@@ -102,7 +116,12 @@ void ResizeHandle::mouseMoveEvent(QMouseEvent *event) {
 }
 
 void ResizeHandle::mouseReleaseEvent(QMouseEvent *event) {
-  m_isResizing = false;
+  if (m_isResizing) {
+    m_isResizing = false;
+    releaseMouse();
+    event->accept();
+    return;
+  }
   QWidget::mouseReleaseEvent(event);
 }
 
@@ -119,7 +138,28 @@ WindowResizeHandler::WindowResizeHandler(QWidget *window)
   m_bottom = new ResizeHandle(Qt::BottomEdge, window);
   m_bottomRight = new ResizeHandle(Qt::BottomEdge | Qt::RightEdge, window);
 
-  updateGeometry();
+  if (m_window) {
+    m_window->installEventFilter(this);
+  }
+
+  setVisible(true);
+}
+
+bool WindowResizeHandler::eventFilter(QObject *obj, QEvent *event) {
+  if (obj == m_window) {
+    switch (event->type()) {
+    case QEvent::Resize:
+    case QEvent::Show:
+      updateGeometry();
+      break;
+    case QEvent::WindowStateChange:
+      setVisible(!m_window->isMaximized());
+      break;
+    default:
+      break;
+    }
+  }
+  return QObject::eventFilter(obj, event);
 }
 
 void WindowResizeHandler::updateGeometry() {

@@ -73,7 +73,6 @@ void ItemCardDelegate::paint(QPainter *painter,
   // 2. Icon danh mục bên trái (36x36 container)
   const int catInt = index.data(ItemListModel::CategoryRole).toInt();
   const auto cat = static_cast<models::ItemCategory>(catInt);
-  const QString iconPath = models::categoryIconPath(cat, isLight);
   const QRect iconRect(rect.left() + 12, rect.top() + (rect.height() - 36) / 2,
                        36, 36);
 
@@ -82,7 +81,8 @@ void ItemCardDelegate::paint(QPainter *painter,
   painter->fillPath(iconBgPath, isLight ? QColor(0xEA, 0xED, 0xF3)
                                         : QColor(0x18, 0x18, 0x25));
 
-  const QIcon itemIcon(iconPath);
+  const QIcon itemIcon =
+      app::ThemeManager::instance().icon(models::categoryIconName(cat));
   itemIcon.paint(painter, iconRect.adjusted(7, 7, -7, -7), Qt::AlignCenter);
 
   // 3. Tính toán không gian Badge chính xác tránh chồng lấn (Overlapping)

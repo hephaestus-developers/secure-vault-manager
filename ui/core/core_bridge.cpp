@@ -9,6 +9,7 @@
 
 #include <QDateTime>
 #include <QDebug>
+#include <QDir>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -181,6 +182,33 @@ bool CoreBridge::initialize(const QString &dataDir) {
           << coreVersion();
   emit initializedChanged(true);
   return true;
+}
+
+bool CoreBridge::resetStorage() {
+  if (m_context) {
+    svm_vault_lock(m_context);
+    svm_context_free(m_context);
+    m_context = nullptr;
+  }
+
+  QStringList candidateDirs;
+  const QString envDir = qEnvironmentVariable("SVM_DATA_DIR");
+  if (!envDir.isEmpty()) {
+    candidateDirs << envDir;
+  }
+  candidateDirs << QDir::homePath() +
+                       QStringLiteral(
+                           "/.local/share/hephaestus/secure-vault-manager");
+  candidateDirs << QStringLiteral("/tmp/hephaestus-svm-data");
+
+  for (const QString &dPath : candidateDirs) {
+    QDir dir(dPath);
+    if (dir.exists()) {
+      dir.removeRecursively();
+    }
+  }
+
+  return initialize();
 }
 
 bool CoreBridge::isInitialized() const { return m_context != nullptr; }
@@ -409,6 +437,20 @@ bool CoreBridge::isVaultUnlocked() const {
     return false;
   }
   return svm_vault_is_unlocked(m_context);
+}
+
+QString CoreBridge::recoveryKey() const {
+  if (!m_context) {
+    return QString();
+  }
+  char *out = nullptr;
+  SvmStatus st = svm_vault_get_recovery_key(m_context, &out);
+  if (st != SVM_OK || !out) {
+    return QString();
+  }
+  QString key = QString::fromUtf8(out);
+  svm_free_secret(out);
+  return key;
 }
 
 bool CoreBridge::changeMasterPassword(const QString &oldPassword,

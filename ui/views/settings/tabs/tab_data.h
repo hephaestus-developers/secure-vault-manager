@@ -30,6 +30,7 @@ private:
   void onImportClicked();
   void onExportEncryptedClicked();
   void onExportPlainClicked();
+  void onFactoryResetClicked();
 
   SettingSectionCard *m_importCard{nullptr};
   QComboBox *m_importFormatCombo{nullptr};
@@ -47,6 +48,10 @@ private:
   SettingRowWidget *m_trashAutoEmptyRow{nullptr};
   QPushButton *m_emptyTrashNowBtn{nullptr};
   SettingRowWidget *m_emptyTrashNowRow{nullptr};
+
+  SettingSectionCard *m_dangerCard{nullptr};
+  QPushButton *m_factoryResetBtn{nullptr};
+  SettingRowWidget *m_factoryResetRow{nullptr};
 };
 
 } // namespace svm::views

@@ -12,6 +12,7 @@
 #include "app/theme_manager.h"
 #include "app/tray_manager.h"
 #include "app/vault_manager.h"
+#include "components/dialog_drag_helper.h"
 #include "components/menubar/app_menu_bar.h"
 #include "components/unified_header_bar.h"
 #include "components/window_resize_handler.h"
@@ -21,7 +22,6 @@
 #include <QApplication>
 #include <QCloseEvent>
 #include <QDateTime>
-#include <QGraphicsDropShadowEffect>
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QLayout>
@@ -200,12 +200,21 @@ void MainWindow::setupUI() {
           [this]() {
             if (!m_aboutDialog) {
               m_aboutDialog = new views::AboutDialog(this);
+              connect(m_aboutDialog, &QDialog::finished, this, [this]() {
+                components::DialogDragHelper::s_activeDialogs.removeOne(
+                    m_aboutDialog);
+              });
             }
             m_aboutDialog->setModal(false);
             m_aboutDialog->setWindowModality(Qt::NonModal);
             const QPoint center = geometry().center();
             m_aboutDialog->move(center.x() - m_aboutDialog->width() / 2,
                                 center.y() - m_aboutDialog->height() / 2);
+            if (!components::DialogDragHelper::s_activeDialogs.contains(
+                    m_aboutDialog)) {
+              components::DialogDragHelper::s_activeDialogs.append(
+                  m_aboutDialog);
+            }
             m_aboutDialog->show();
             m_aboutDialog->raise();
             m_aboutDialog->activateWindow();
@@ -312,7 +321,12 @@ void MainWindow::setupShortcuts() {
 
 void MainWindow::toggleSidebar() { m_sidebarView->toggleCollapsed(); }
 
-void MainWindow::openCommandPalette() { m_commandPalette->openPalette(); }
+void MainWindow::openCommandPalette() {
+  if (!app::VaultManager::instance().isUnlocked()) {
+    return;
+  }
+  m_commandPalette->openPalette();
+}
 
 void MainWindow::onItemSelected(const QString &itemId) {
   const auto opt = m_itemListView->sourceModel()->findItemById(itemId);
@@ -645,16 +659,28 @@ void MainWindow::updateSidebarCounts() {
 
 void MainWindow::updateNavigationState() {
   if (!app::VaultManager::instance().isConfigured()) {
+    if (m_settingsDialog && m_settingsDialog->isVisible()) {
+      m_settingsDialog->reject();
+    }
+    if (m_itemListView) {
+      m_itemListView->setItems({});
+    }
+    if (m_detailView) {
+      m_detailView->clearItem();
+    }
+    updateSidebarCounts();
     m_mainStack->setCurrentWidget(m_onboardingView);
     m_onboardingView->resetWizard();
     m_headerBar->setTitleText(tr("Setup - Secure Vault Manager"));
     m_headerBar->setSettingsVisible(false);
+    m_headerBar->setCommandPaletteVisible(false);
     m_inactivityTimer.stop();
   } else if (app::VaultManager::instance().isLocked()) {
     m_mainStack->setCurrentWidget(m_lockScreenView);
     m_lockScreenView->resetLockScreen();
     m_headerBar->setTitleText(tr("Locked - Secure Vault Manager"));
     m_headerBar->setSettingsVisible(false);
+    m_headerBar->setCommandPaletteVisible(false);
     m_inactivityTimer.stop();
     if (m_settingsDialog && m_settingsDialog->isVisible()) {
       m_settingsDialog->reject();
@@ -666,6 +692,7 @@ void MainWindow::updateNavigationState() {
     m_mainStack->setCurrentWidget(m_mainSplitter);
     m_headerBar->setTitleText(tr("Secure Vault Manager"));
     m_headerBar->setSettingsVisible(true);
+    m_headerBar->setCommandPaletteVisible(true);
     loadItemsFromCore();
     updateSidebarCounts();
     updateInactivityTimer();
@@ -678,12 +705,19 @@ void MainWindow::openSettingsDialog() {
   }
   if (!m_settingsDialog) {
     m_settingsDialog = new views::SettingsDialog(this);
+    connect(m_settingsDialog, &QDialog::finished, this, [this]() {
+      components::DialogDragHelper::s_activeDialogs.removeOne(m_settingsDialog);
+    });
   }
   m_settingsDialog->setModal(false);
   m_settingsDialog->setWindowModality(Qt::NonModal);
   const QPoint center = geometry().center();
   m_settingsDialog->move(center.x() - m_settingsDialog->width() / 2,
                          center.y() - m_settingsDialog->height() / 2);
+  if (!components::DialogDragHelper::s_activeDialogs.contains(
+          m_settingsDialog)) {
+    components::DialogDragHelper::s_activeDialogs.append(m_settingsDialog);
+  }
   m_settingsDialog->show();
   m_settingsDialog->raise();
   m_settingsDialog->activateWindow();
@@ -724,35 +758,29 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event) {
         t == QEvent::KeyRelease || t == QEvent::ShortcutOverride;
 
     if (isBlockedInput) {
-      auto triggerOutsideAlert = [this, activeDlg]() {
-        if (!activeDlg->property("isShaking").toBool()) {
-          QApplication::beep();
-        }
-        activeDlg->raise();
-        activeDlg->activateWindow();
-        shakeDialog(activeDlg);
-        showModalWarning(activeDlg);
-      };
-
-      // 1. Kiểm tra ở cấp độ QWindow (bắt được cả trên Wayland & X11 kể cả khi
-      // cửa sổ nền bị chặn)
-      if (auto *win = qobject_cast<QWindow *>(obj)) {
-        if (win == activeDlg->windowHandle()) {
-          if (isClick && activeDlg->layout() &&
-              activeDlg->layout()->count() == 1 &&
-              activeDlg->layout()->itemAt(0)->widget()) {
-            auto *card = activeDlg->layout()->itemAt(0)->widget();
-            auto *me = static_cast<QMouseEvent *>(event);
-            if (!card->geometry().contains(me->position().toPoint())) {
-              triggerOutsideAlert();
-              return true;
-            }
-          }
+      // 1. Kiểm tra ở cấp độ QWidget (cho phép 100% nếu thuộc về activeDlg)
+      if (auto *widget = qobject_cast<QWidget *>(obj)) {
+        if (widget == activeDlg || widget->window() == activeDlg ||
+            activeDlg->isAncestorOf(widget)) {
           return false;
         }
 
-        // Cho phép các popup con (như QComboBox dropdown, QMenu) thuộc về
-        // activeDlg
+        // Cho phép InWindow child overlay (như popup combobox)
+        if (widget->objectName() == QStringLiteral("InWindowPopupOverlay") ||
+            (widget->parentWidget() &&
+             widget->parentWidget()->objectName() ==
+                 QStringLiteral("InWindowPopupOverlay"))) {
+          return false;
+        }
+      }
+
+      // 2. Kiểm tra ở cấp độ QWindow (cho phép nếu thuộc windowHandle của
+      // activeDlg)
+      if (auto *win = qobject_cast<QWindow *>(obj)) {
+        if (win == activeDlg->windowHandle()) {
+          return false;
+        }
+
         QWindow *tp = win->transientParent();
         while (tp) {
           if (tp == activeDlg->windowHandle()) {
@@ -760,48 +788,22 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event) {
           }
           tp = tp->transientParent();
         }
-        if (QWidget *popup = QApplication::activePopupWidget()) {
-          if (popup == activeDlg || activeDlg->isAncestorOf(popup) ||
-              popup->windowHandle() == win) {
-            return false;
-          }
-        }
-
-        if (isClick) {
-          triggerOutsideAlert();
-        }
-        return true;
       }
 
-      // 2. Kiểm tra ở cấp độ QWidget
-      if (auto *widget = qobject_cast<QWidget *>(obj)) {
-        if (widget == activeDlg || activeDlg->isAncestorOf(widget) ||
-            widget->window() == activeDlg) {
-          if (widget == activeDlg && isClick && activeDlg->layout() &&
-              activeDlg->layout()->count() == 1 &&
-              activeDlg->layout()->itemAt(0)->widget()) {
-            auto *card = activeDlg->layout()->itemAt(0)->widget();
-            auto *me = static_cast<QMouseEvent *>(event);
-            if (!card->geometry().contains(me->position().toPoint())) {
-              triggerOutsideAlert();
-              return true;
-            }
-          }
+      // 3. Cho phép popup widget đang hiển thị
+      if (QWidget *popup = QApplication::activePopupWidget()) {
+        if (popup == activeDlg || popup->window() == activeDlg) {
           return false;
         }
-
-        if (QWidget *popup = QApplication::activePopupWidget()) {
-          if ((widget == popup || popup->isAncestorOf(widget)) &&
-              activeDlg->isAncestorOf(popup)) {
-            return false;
-          }
-        }
-
-        if (isClick) {
-          triggerOutsideAlert();
-        }
-        return true;
       }
+
+      // 4. Nếu là click bên ngoài activeDlg (ví dụ vào SettingsDialog phía sau
+      // hoặc MainWindow)
+      if (isClick) {
+        activeDlg->raise();
+        activeDlg->activateWindow();
+      }
+      return true;
     }
   }
 
@@ -822,17 +824,15 @@ void MainWindow::resizeEvent(QResizeEvent *event) {
   if (m_resizeHandler) {
     m_resizeHandler->updateGeometry();
   }
-  if (m_modalWarningToast && m_modalWarningToast->isVisible()) {
-    const int x = (width() - m_modalWarningToast->width()) / 2;
-    const int y = (m_headerBar ? m_headerBar->height() + 10 : 54);
-    m_modalWarningToast->move(x, y);
-  }
 }
 
 void MainWindow::changeEvent(QEvent *event) {
   if (event->type() == QEvent::WindowStateChange) {
     if (m_headerBar) {
       m_headerBar->updateMaximizeIcon(isMaximized());
+    }
+    if (m_resizeHandler) {
+      m_resizeHandler->setVisible(!isMaximized());
     }
   } else if (event->type() == QEvent::LanguageChange) {
     retranslateUi();
@@ -869,10 +869,6 @@ void MainWindow::retranslateUi() {
   if (m_settingsDialog) {
     m_settingsDialog->retranslateUi();
   }
-  if (m_modalWarningLabel) {
-    m_modalWarningLabel->setText(
-        tr("Please close the dialog before interacting with the main window."));
-  }
 }
 
 void MainWindow::closeEvent(QCloseEvent *event) {
@@ -885,123 +881,20 @@ void MainWindow::closeEvent(QCloseEvent *event) {
 }
 
 QDialog *MainWindow::findActiveModalDialog() const {
-  QList<QDialog *> visibleDialogs;
+  if (auto *topModal = components::DialogDragHelper::activeModalDialog()) {
+    return topModal;
+  }
+
   const auto topLevels = QApplication::topLevelWidgets();
+  QDialog *topDlg = nullptr;
   for (auto *w : topLevels) {
     if (auto *dlg = qobject_cast<QDialog *>(w)) {
       if (dlg->isVisible()) {
-        visibleDialogs.append(dlg);
+        topDlg = dlg;
       }
     }
   }
-  if (visibleDialogs.isEmpty()) {
-    return nullptr;
-  }
-
-  // Ưu tiên chọn Dialog con đang mở ở tầng sâu nhất (ví dụ NewVaultDialog mở
-  // trên SettingsDialog)
-  for (auto *candidate : visibleDialogs) {
-    bool hasVisibleChildDialog = false;
-    for (auto *other : visibleDialogs) {
-      if (other != candidate && candidate->isAncestorOf(other)) {
-        hasVisibleChildDialog = true;
-        break;
-      }
-    }
-    if (!hasVisibleChildDialog) {
-      return candidate;
-    }
-  }
-  return visibleDialogs.last();
-}
-
-void MainWindow::shakeDialog(QWidget *dlg) {
-  if (!dlg) {
-    return;
-  }
-  if (dlg->property("isShaking").toBool()) {
-    return;
-  }
-  dlg->setProperty("isShaking", true);
-
-  // Rung trực tiếp Card Widget bên trong vùng đệm bóng đổ 16px của QDialog
-  // để hoạt động mượt mà 60fps trên cả Wayland lẫn X11/Windows/macOS.
-  QWidget *target = dlg;
-  QLayout *dlgLayout = dlg->layout();
-  if (dlgLayout && dlgLayout->count() == 1 && dlgLayout->itemAt(0) &&
-      dlgLayout->itemAt(0)->widget()) {
-    target = dlgLayout->itemAt(0)->widget();
-    dlgLayout->setEnabled(false);
-  }
-
-  const QPoint origPos = target->pos();
-  auto *anim = new QPropertyAnimation(target, "pos", dlg);
-  anim->setDuration(360);
-
-  anim->setKeyValueAt(0.00, origPos);
-  anim->setKeyValueAt(0.12, origPos + QPoint(-12, 0));
-  anim->setKeyValueAt(0.28, origPos + QPoint(12, 0));
-  anim->setKeyValueAt(0.44, origPos + QPoint(-9, 0));
-  anim->setKeyValueAt(0.60, origPos + QPoint(9, 0));
-  anim->setKeyValueAt(0.76, origPos + QPoint(-5, 0));
-  anim->setKeyValueAt(0.88, origPos + QPoint(5, 0));
-  anim->setKeyValueAt(1.00, origPos);
-
-  connect(anim, &QPropertyAnimation::finished, dlg,
-          [dlg, target, dlgLayout, origPos]() {
-            target->move(origPos);
-            if (dlgLayout) {
-              dlgLayout->setEnabled(true);
-              dlgLayout->activate();
-            }
-            dlg->setProperty("isShaking", false);
-          });
-
-  anim->start(QAbstractAnimation::DeleteWhenStopped);
-}
-
-void MainWindow::showModalWarning(QWidget * /*dlg*/) {
-  if (!m_modalWarningToast) {
-    m_modalWarningToast = new QWidget(this);
-    m_modalWarningToast->setObjectName(QStringLiteral("ModalWarningToast"));
-    auto *layout = new QHBoxLayout(m_modalWarningToast);
-    layout->setContentsMargins(12, 8, 14, 8);
-    layout->setSpacing(8);
-
-    m_modalWarningIcon = new QLabel(m_modalWarningToast);
-    m_modalWarningIcon->setFixedSize(16, 16);
-    m_modalWarningIcon->setPixmap(app::ThemeManager::instance()
-                                      .icon(QStringLiteral("watchtower_weak"))
-                                      .pixmap(16, 16));
-    layout->addWidget(m_modalWarningIcon);
-
-    m_modalWarningLabel = new QLabel(
-        tr("Please close the dialog before interacting with the main window."),
-        m_modalWarningToast);
-    m_modalWarningLabel->setObjectName(QStringLiteral("ModalWarningLabel"));
-    layout->addWidget(m_modalWarningLabel);
-
-    auto *shadow = new QGraphicsDropShadowEffect(m_modalWarningToast);
-    shadow->setBlurRadius(20);
-    shadow->setColor(QColor(0, 0, 0, 140));
-    shadow->setOffset(0, 4);
-    m_modalWarningToast->setGraphicsEffect(shadow);
-
-    connect(&m_modalWarningTimer, &QTimer::timeout, this, [this]() {
-      if (m_modalWarningToast) {
-        m_modalWarningToast->hide();
-      }
-    });
-  }
-
-  m_modalWarningToast->adjustSize();
-  const int x = (width() - m_modalWarningToast->width()) / 2;
-  const int y = (m_headerBar ? m_headerBar->height() + 10 : 54);
-  m_modalWarningToast->move(x, y);
-  m_modalWarningToast->show();
-  m_modalWarningToast->raise();
-
-  m_modalWarningTimer.start(2500);
+  return topDlg;
 }
 
 } // namespace svm

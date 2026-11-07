@@ -64,6 +64,20 @@ public:
     }
   }
 
+  inline static QList<QDialog *> s_activeDialogs;
+
+  /**
+   * @brief Lấy QDialog đang chạy ở tầng cao nhất (topmost modal dialog).
+   */
+  static QDialog *activeModalDialog() {
+    for (int i = s_activeDialogs.size() - 1; i >= 0; --i) {
+      if (s_activeDialogs[i] && s_activeDialogs[i]->isVisible()) {
+        return s_activeDialogs[i];
+      }
+    }
+    return nullptr;
+  }
+
   /**
    * @brief Thực thi QDialog đồng bộ (tương đương QDialog::exec()) nhưng giữ
    * modality ở mức NonModal đối với Window Manager để cho phép kéo thả độc lập
@@ -82,12 +96,43 @@ public:
       }
     }
 
+    if (!s_activeDialogs.contains(&dlg)) {
+      s_activeDialogs.append(&dlg);
+    }
+
     QEventLoop loop;
-    QObject::connect(&dlg, &QDialog::finished, &loop, &QEventLoop::exit);
+    auto conn =
+        QObject::connect(&dlg, &QDialog::finished, &loop, &QEventLoop::exit);
     dlg.show();
     dlg.raise();
     dlg.activateWindow();
-    return loop.exec(QEventLoop::DialogExec);
+    const int result = loop.exec(QEventLoop::DialogExec);
+
+    QObject::disconnect(conn);
+    s_activeDialogs.removeOne(&dlg);
+
+    // Khôi phục focus và trạng thái active cho dialog cha (nếu có)
+    if (!s_activeDialogs.isEmpty() && s_activeDialogs.last() &&
+        s_activeDialogs.last()->isVisible()) {
+      auto *parentDlg = s_activeDialogs.last();
+      parentDlg->raise();
+      parentDlg->activateWindow();
+      if (QWidget *fw = parentDlg->focusWidget()) {
+        fw->setFocus();
+      } else {
+        parentDlg->setFocus();
+      }
+    } else if (QWidget *p = dlg.parentWidget()) {
+      if (QWidget *top = p->window()) {
+        top->raise();
+        top->activateWindow();
+        if (QWidget *fw = top->focusWidget()) {
+          fw->setFocus();
+        }
+      }
+    }
+
+    return result;
   }
 
   explicit DialogDragHelper(QWidget *dialog, QObject *parent = nullptr)

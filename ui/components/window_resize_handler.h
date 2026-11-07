@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <QEvent>
 #include <QObject>
 #include <QPoint>
 #include <QRect>
@@ -40,12 +41,15 @@ class WindowResizeHandler : public QObject {
 
 public:
   static constexpr int BorderWidth = 6;
-  static constexpr int CornerLength = 12;
+  static constexpr int CornerLength = 16;
 
   explicit WindowResizeHandler(QWidget *window);
 
   void updateGeometry();
   void setVisible(bool visible);
+
+protected:
+  bool eventFilter(QObject *obj, QEvent *event) override;
 
 private:
   QWidget *m_window{nullptr};

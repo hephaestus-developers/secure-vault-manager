@@ -8,9 +8,9 @@
 #include "settings_dialog.h"
 #include "app/theme_manager.h"
 #include "components/dialog_drag_helper.h"
+#include "components/window_resize_handler.h"
 
 #include <QEvent>
-#include <QGraphicsDropShadowEffect>
 #include <QHBoxLayout>
 #include <QKeyEvent>
 #include <QMouseEvent>
@@ -46,30 +46,27 @@ public:
 SettingsDialog::SettingsDialog(QWidget *parent)
     : QDialog(parent, Qt::FramelessWindowHint | Qt::Dialog) {
   setObjectName(QStringLiteral("SettingsDialog"));
-  setAttribute(Qt::WA_TranslucentBackground, true);
+  setAttribute(Qt::WA_TranslucentBackground, false);
   setModal(false);
   setWindowModality(Qt::NonModal);
-  setFixedSize(820, 570);
+  setMinimumSize(760, 500);
+  resize(860, 580);
 
   setupUI();
   initNavList();
   selectTab(0);
+
+  new components::WindowResizeHandler(this);
 }
 
 void SettingsDialog::setupUI() {
   auto *rootLayout = new QVBoxLayout(this);
-  rootLayout->setContentsMargins(16, 16, 16, 16);
+  rootLayout->setContentsMargins(0, 0, 0, 0);
 
   // Thẻ Card chính
   m_cardWidget = new QWidget(this);
   m_cardWidget->setObjectName(QStringLiteral("SettingsDialogCard"));
   m_cardWidget->setAttribute(Qt::WA_StyledBackground, true);
-
-  auto *shadow = new QGraphicsDropShadowEffect(this);
-  shadow->setBlurRadius(36);
-  shadow->setColor(QColor(0, 0, 0, 180));
-  shadow->setOffset(0, 10);
-  m_cardWidget->setGraphicsEffect(shadow);
 
   auto *cardLayout = new QVBoxLayout(m_cardWidget);
   cardLayout->setContentsMargins(0, 0, 0, 0);
@@ -124,10 +121,10 @@ void SettingsDialog::setupUI() {
   bodyLayout->setContentsMargins(0, 0, 0, 0);
   bodyLayout->setSpacing(0);
 
-  // Cột trái: Navigation Sidebar (200px)
+  // Cột trái: Navigation Sidebar (240px)
   m_navList = new QListWidget(bodyWidget);
   m_navList->setObjectName(QStringLiteral("SettingsNavList"));
-  m_navList->setFixedWidth(200);
+  m_navList->setFixedWidth(240);
   m_navList->setFrameShape(QFrame::NoFrame);
   m_navList->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
   m_navList->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
@@ -144,22 +141,13 @@ void SettingsDialog::setupUI() {
   vLine->setFrameShadow(QFrame::Plain);
   bodyLayout->addWidget(vLine);
 
-  // Cột phải: Header danh mục + QScrollArea chứa StackedWidget
+  // Cột phải: QScrollArea chứa StackedWidget
   auto *rightPane = new QWidget(bodyWidget);
   rightPane->setObjectName(QStringLiteral("SettingsRightPane"));
   rightPane->setAttribute(Qt::WA_StyledBackground, true);
   auto *rightLayout = new QVBoxLayout(rightPane);
   rightLayout->setContentsMargins(20, 16, 20, 16);
-  rightLayout->setSpacing(12);
-
-  m_rightCategoryTitle = new QLabel(rightPane);
-  m_rightCategoryTitle->setObjectName(
-      QStringLiteral("SettingsRightCategoryTitle"));
-  QFont catFont = m_rightCategoryTitle->font();
-  catFont.setPointSize(14);
-  catFont.setBold(true);
-  m_rightCategoryTitle->setFont(catFont);
-  rightLayout->addWidget(m_rightCategoryTitle);
+  rightLayout->setSpacing(0);
 
   m_scrollArea = new QScrollArea(rightPane);
   m_scrollArea->setObjectName(QStringLiteral("SettingsScrollArea"));
@@ -207,12 +195,24 @@ void SettingsDialog::setupUI() {
               m_closeBtn->setIcon(app::ThemeManager::instance().icon(
                   QStringLiteral("win_close")));
             }
-            const int cur = m_navList ? m_navList->currentRow() : 0;
-            initNavList();
-            if (m_navList && cur >= 0) {
-              m_navList->setCurrentRow(cur);
-            }
+            updateNavListIcons();
           });
+}
+
+void SettingsDialog::updateNavListIcons() {
+  if (!m_navList) {
+    return;
+  }
+  const QString iconNames[] = {
+      QStringLiteral("category_settings"), QStringLiteral("shield_check"),
+      QStringLiteral("folder_open"),       QStringLiteral("category_server"),
+      QStringLiteral("category_ssh"),      QStringLiteral("trash"),
+  };
+  for (int i = 0; i < m_navList->count() && i < 6; ++i) {
+    if (auto *item = m_navList->item(i)) {
+      item->setIcon(app::ThemeManager::instance().icon(iconNames[i]));
+    }
+  }
 }
 
 void SettingsDialog::initNavList() {
@@ -233,31 +233,17 @@ void SettingsDialog::initNavList() {
   for (const auto &item : items) {
     auto *listItem = new QListWidgetItem(
         app::ThemeManager::instance().icon(item.icon), item.title, m_navList);
-    listItem->setSizeHint(QSize(180, 36));
+    listItem->setSizeHint(QSize(224, 36));
   }
 }
 
 void SettingsDialog::selectTab(int index) {
   if (index >= 0 && index < m_stack->count()) {
     m_stack->setCurrentIndex(index);
-    updateCategoryHeader(index);
     m_stack->updateGeometry();
     if (m_scrollArea && m_scrollArea->verticalScrollBar()) {
       m_scrollArea->verticalScrollBar()->setValue(0);
     }
-  }
-}
-
-void SettingsDialog::updateCategoryHeader(int index) {
-  const QString titles[] = {tr("General Settings"),
-                            tr("Security & Privacy"),
-                            tr("Vaults Management"),
-                            tr("Browser Integration"),
-                            tr("SSH Agent & Developer Tools"),
-                            tr("Data & Backup")};
-
-  if (index >= 0 && index < 6) {
-    m_rightCategoryTitle->setText(titles[index]);
   }
 }
 
@@ -270,7 +256,6 @@ void SettingsDialog::retranslateUi() {
   initNavList();
   if (cur >= 0) {
     m_navList->setCurrentRow(cur);
-    updateCategoryHeader(cur);
   }
 
   if (m_tabGeneral)

@@ -8,6 +8,7 @@
 
 #include <QApplication>
 #include <QDebug>
+#include <QListWidget>
 #include <QPixmap>
 #include <QPushButton>
 #include <QScrollArea>
@@ -15,6 +16,7 @@
 #include <QTimer>
 
 #include "app/language_manager.h"
+#include "app/settings_manager.h"
 #include "app/theme_manager.h"
 #include "app/tray_manager.h"
 #include "app/vault_manager.h"
@@ -42,10 +44,13 @@ int main(int argc, char *argv[]) {
                   "offline/degraded mode.";
   }
 
-  // 2. Khởi tạo Đa ngôn ngữ, Quản lý Vault và Theme
+  // 2. Khởi tạo Đa ngôn ngữ, Quản lý Vault, Settings và Theme
   svm::app::LanguageManager::instance().initialize();
   svm::app::VaultManager::instance().initialize();
-  svm::app::ThemeManager::instance().applyTheme(svm::app::ThemeMode::Dark);
+  svm::app::ThemeManager::instance().initialize();
+
+  const auto initialTheme = svm::app::SettingsManager::instance().themeMode();
+  svm::app::ThemeManager::instance().applyTheme(initialTheme);
 
   // 3. Khởi tạo cửa sổ chính và TrayManager
   svm::MainWindow mainWindow;
@@ -63,9 +68,13 @@ int main(int argc, char *argv[]) {
           svm::app::LanguageManager::languageFromCode(lang));
     } else if (arg == QStringLiteral("--theme") && i + 1 < argc) {
       QString theme = QString::fromLatin1(argv[++i]);
-      if (theme == QStringLiteral("light")) {
+      if (theme.compare(QStringLiteral("light"), Qt::CaseInsensitive) == 0) {
         svm::app::ThemeManager::instance().applyTheme(
             svm::app::ThemeMode::Light);
+      } else if (theme.compare(QStringLiteral("dark"), Qt::CaseInsensitive) ==
+                 0) {
+        svm::app::ThemeManager::instance().applyTheme(
+            svm::app::ThemeMode::Dark);
       }
     } else if (arg == QStringLiteral("--minimized") ||
                arg == QStringLiteral("--tray")) {
@@ -75,6 +84,23 @@ int main(int argc, char *argv[]) {
       if (mainWindow.sidebarView()) {
         mainWindow.sidebarView()->setCollapsed(true);
       }
+    } else if (arg == QStringLiteral("--unlock")) {
+      svm::app::VaultManager::instance().unlockWithBiometrics();
+    } else if (arg == QStringLiteral("--settings")) {
+      int tabIdx = 2;
+      if (i + 1 < argc && argv[i + 1][0] >= '0' && argv[i + 1][0] <= '9') {
+        tabIdx = QString::fromLatin1(argv[++i]).toInt();
+      }
+      QTimer::singleShot(100, [&mainWindow, tabIdx]() {
+        mainWindow.openSettingsDialog();
+        if (auto *dlg = mainWindow.findChild<QDialog *>(
+                QStringLiteral("SettingsDialog"))) {
+          if (auto *navList = dlg->findChild<QListWidget *>(
+                  QStringLiteral("SettingsNavList"))) {
+            navList->setCurrentRow(tabIdx);
+          }
+        }
+      });
     } else if (arg == QStringLiteral("--edit")) {
       QTimer::singleShot(50, [&mainWindow]() {
         if (auto *editBtn = mainWindow.findChild<QPushButton *>(
@@ -101,6 +127,24 @@ int main(int argc, char *argv[]) {
         i + 1 < argc) {
       QString path = QString::fromLocal8Bit(argv[++i]);
       QTimer::singleShot(400, [&mainWindow, path, scrollBottom, &app]() {
+        if (auto *dlg = mainWindow.findChild<QDialog *>(
+                QStringLiteral("SettingsDialog"))) {
+          if (dlg->isVisible()) {
+            if (scrollBottom) {
+              for (auto *sa : dlg->findChildren<QScrollArea *>()) {
+                if (sa->verticalScrollBar()) {
+                  sa->verticalScrollBar()->setValue(
+                      sa->verticalScrollBar()->maximum());
+                }
+              }
+            }
+            QPixmap pix = dlg->grab();
+            pix.save(path);
+            qInfo() << "[Main] Dialog screenshot saved to:" << path;
+            app.quit();
+            return;
+          }
+        }
         if (scrollBottom) {
           for (auto *sa : mainWindow.findChildren<QScrollArea *>()) {
             if (sa->verticalScrollBar()) {

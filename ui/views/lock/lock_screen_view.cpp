@@ -13,7 +13,6 @@
 
 #include <QApplication>
 #include <QEvent>
-#include <QGraphicsDropShadowEffect>
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QKeyEvent>
@@ -24,6 +23,7 @@ namespace svm::views {
 
 LockScreenView::LockScreenView(QWidget *parent) : QWidget(parent) {
   setObjectName(QStringLiteral("LockScreenView"));
+  setAttribute(Qt::WA_StyledBackground, true);
   setupUI();
 }
 
@@ -35,12 +35,6 @@ void LockScreenView::setupUI() {
   m_cardWidget = new QWidget(this);
   m_cardWidget->setObjectName(QStringLiteral("LockScreenCard"));
   m_cardWidget->setFixedSize(440, 390);
-
-  auto *shadow = new QGraphicsDropShadowEffect(this);
-  shadow->setBlurRadius(36);
-  shadow->setColor(QColor(0, 0, 0, 180));
-  shadow->setOffset(0, 12);
-  m_cardWidget->setGraphicsEffect(shadow);
 
   auto *cardLayout = new QVBoxLayout(m_cardWidget);
   cardLayout->setContentsMargins(32, 28, 32, 28);

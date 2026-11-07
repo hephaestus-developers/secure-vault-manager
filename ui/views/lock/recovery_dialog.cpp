@@ -9,9 +9,9 @@
 #include "app/theme_manager.h"
 #include "app/vault_manager.h"
 #include "components/dialog_drag_helper.h"
+#include "components/window_resize_handler.h"
 
 #include <QEvent>
-#include <QGraphicsDropShadowEffect>
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QKeyEvent>
@@ -22,26 +22,24 @@ namespace svm::views {
 RecoveryDialog::RecoveryDialog(QWidget *parent)
     : QDialog(parent, Qt::FramelessWindowHint | Qt::Dialog) {
   setObjectName(QStringLiteral("RecoveryDialog"));
-  setAttribute(Qt::WA_TranslucentBackground, true);
+  setAttribute(Qt::WA_TranslucentBackground, false);
   setModal(false);
   setWindowModality(Qt::NonModal);
-  setFixedSize(500, 480);
+  setMinimumSize(440, 420);
+  resize(500, 480);
 
   setupUI();
+
+  new components::WindowResizeHandler(this);
 }
 
 void RecoveryDialog::setupUI() {
   auto *rootLayout = new QVBoxLayout(this);
-  rootLayout->setContentsMargins(16, 16, 16, 16);
+  rootLayout->setContentsMargins(0, 0, 0, 0);
 
   m_cardWidget = new QWidget(this);
   m_cardWidget->setObjectName(QStringLiteral("RecoveryDialogCard"));
-
-  auto *shadow = new QGraphicsDropShadowEffect(this);
-  shadow->setBlurRadius(28);
-  shadow->setColor(QColor(0, 0, 0, 160));
-  shadow->setOffset(0, 8);
-  m_cardWidget->setGraphicsEffect(shadow);
+  m_cardWidget->setAttribute(Qt::WA_StyledBackground, true);
 
   auto *cardLayout = new QVBoxLayout(m_cardWidget);
   cardLayout->setContentsMargins(0, 0, 0, 16);
@@ -50,6 +48,7 @@ void RecoveryDialog::setupUI() {
   // 1. Thanh tiêu đề kéo thả tích hợp
   m_headerWidget = new QWidget(m_cardWidget);
   m_headerWidget->setObjectName(QStringLiteral("RecoveryDialogHeader"));
+  m_headerWidget->setAttribute(Qt::WA_StyledBackground, true);
   m_headerWidget->setFixedHeight(44);
 
   auto *headerLayout = new QHBoxLayout(m_headerWidget);

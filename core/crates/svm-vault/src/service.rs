@@ -67,7 +67,16 @@ impl VaultService {
     /// Khóa kho dữ liệu và thu hồi toàn bộ khóa giải mã khỏi bộ nhớ RAM.
     pub fn lock(&mut self) {
         zeroize_slice(&mut self.dek);
+        self.recovery_key.clear();
         self.unlocked = false;
+    }
+
+    /// Lấy Emergency Recovery Key (chỉ khi kho đang mở khóa).
+    pub fn recovery_key(&self) -> &str {
+        if !self.unlocked {
+            return "";
+        }
+        &self.recovery_key
     }
 
     /// Đánh dấu mở khóa kho dữ liệu (dùng cho kiểm thử nhanh hoặc bộ nhớ tạm).

@@ -41,7 +41,7 @@ protected:
 private:
   void setupUI();
   void initNavList();
-  void updateCategoryHeader(int index);
+  void updateNavListIcons();
 
   QWidget *m_cardWidget{nullptr};
   QWidget *m_headerWidget{nullptr};
@@ -49,7 +49,6 @@ private:
   QPushButton *m_closeBtn{nullptr};
 
   QListWidget *m_navList{nullptr};
-  QLabel *m_rightCategoryTitle{nullptr};
   QStackedWidget *m_stack{nullptr};
   QScrollArea *m_scrollArea{nullptr};
 

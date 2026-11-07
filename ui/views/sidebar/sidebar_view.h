@@ -20,6 +20,10 @@
 #include <QStackedWidget>
 #include <QWidget>
 
+namespace svm::ui {
+class InWindowComboBox;
+}
+
 namespace svm::views {
 
 class SidebarView : public QWidget {
@@ -53,14 +57,13 @@ protected:
 private slots:
   void onListItemClicked(QListWidgetItem *item);
   void onCompactItemClicked(QListWidgetItem *item);
-  void onVaultMenuActionTriggered(QAction *action);
 
 private:
   void setupUI();
   void setupExpandedUI();
   void setupCollapsedUI();
   void populateNavItems();
-  void populateVaultMenu();
+  void populateVaultCombo();
   void updateThemeIcons();
   void syncSelectionToCompact(SidebarFilterType type,
                               models::ItemCategory category);
@@ -74,16 +77,12 @@ private:
 
   // Trang 0: Expanded View
   QWidget *m_expandedWidget{nullptr};
-  QPushButton *m_vaultProfileBtn{nullptr};
-  QLabel *m_vaultIconLabel{nullptr};
-  QLabel *m_vaultTitleLabel{nullptr};
-  QLabel *m_chevronLabel{nullptr};
-  QMenu *m_vaultMenu{nullptr};
-  QPushButton *m_collapseBtn{nullptr};
+  svm::ui::InWindowComboBox *m_vaultComboBox{nullptr};
+  QPushButton *m_newVaultBtn{nullptr};
   QListWidget *m_navList{nullptr};
   SidebarItemDelegate *m_itemDelegate{nullptr};
   QPushButton *m_lockBtn{nullptr};
-  QPushButton *m_settingsBtn{nullptr};
+  QPushButton *m_collapseBtn{nullptr};
   QLabel *m_lockIconLabel{nullptr};
 
   QListWidgetItem *m_allItem{nullptr};
@@ -100,12 +99,11 @@ private:
 
   // Trang 1: Collapsed View (Icon Rail)
   QWidget *m_collapsedWidget{nullptr};
-  QPushButton *m_expandBtn{nullptr};
   QPushButton *m_collapsedVaultBtn{nullptr};
   QListWidget *m_compactList{nullptr};
   CompactSidebarDelegate *m_compactDelegate{nullptr};
-  QPushButton *m_collapsedSettingsBtn{nullptr};
   QPushButton *m_collapsedLockBtn{nullptr};
+  QPushButton *m_expandBtn{nullptr};
 
   QMap<SidebarFilterType, QListWidgetItem *> m_compactFilterItems;
   QMap<models::ItemCategory, QListWidgetItem *> m_compactCategoryItems;

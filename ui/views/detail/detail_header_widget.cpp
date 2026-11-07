@@ -9,6 +9,7 @@
 #include "app/theme_manager.h"
 #include "app/vault_manager.h"
 #include "components/combobox_popup_helper.h"
+#include "components/in_window_combobox.h"
 
 #include <QHBoxLayout>
 #include <QIcon>
@@ -157,13 +158,13 @@ void DetailHeaderWidget::setupUI() {
   m_categoryBadge->setObjectName(QStringLiteral("DetailCategoryBadge"));
   metaRowLayout->addWidget(m_categoryBadge);
 
-  m_categoryCombo = new QComboBox(this);
-  m_categoryCombo->setObjectName(QStringLiteral("DetailCategoryCombo"));
-  m_categoryCombo->setFixedHeight(28);
-  m_categoryCombo->setMinimumWidth(150);
-  m_categoryCombo->setMaxVisibleItems(9);
-  svm::ui::setupFramelessComboBoxPopup(m_categoryCombo, 190);
-  m_categoryCombo->setCursor(Qt::PointingHandCursor);
+  auto *catCombo = new svm::ui::InWindowComboBox(this);
+  catCombo->setObjectName(QStringLiteral("DetailCategoryCombo"));
+  catCombo->setFixedHeight(28);
+  catCombo->setMinimumWidth(150);
+  catCombo->setMaxVisibleItems(9);
+  catCombo->setPopupMinWidth(190);
+  m_categoryCombo = catCombo;
 
   const std::array<models::ItemCategory, 9> allCategories = {
       models::ItemCategory::Login,      models::ItemCategory::Passkey,
@@ -181,19 +182,6 @@ void DetailHeaderWidget::setupUI() {
   connect(m_categoryCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
           this, &DetailHeaderWidget::onCategoryIndexChanged);
   metaRowLayout->addWidget(m_categoryCombo);
-
-  m_vaultBadge = new QLabel(this);
-  m_vaultBadge->setObjectName(QStringLiteral("DetailVaultBadge"));
-  metaRowLayout->addWidget(m_vaultBadge);
-
-  m_vaultCombo = new QComboBox(this);
-  m_vaultCombo->setObjectName(QStringLiteral("DetailVaultCombo"));
-  m_vaultCombo->setFixedHeight(28);
-  m_vaultCombo->setMinimumWidth(130);
-  svm::ui::setupFramelessComboBoxPopup(m_vaultCombo, 170);
-  m_vaultCombo->setCursor(Qt::PointingHandCursor);
-  m_vaultCombo->hide();
-  metaRowLayout->addWidget(m_vaultCombo);
 
   m_updatedLabel = new QLabel(this);
   m_updatedLabel->setObjectName(QStringLiteral("DetailUpdatedLabel"));
@@ -217,7 +205,7 @@ void DetailHeaderWidget::updateThemeIcons() {
 
   if (m_iconLabel) {
     m_iconLabel->setPixmap(
-        QIcon(models::categoryIconPath(m_category, isLight)).pixmap(32, 32));
+        tm.icon(models::categoryIconName(m_category)).pixmap(32, 32));
   }
   if (m_favBtn) {
     m_favBtn->setIcon(tm.icon(m_isFavorite ? QStringLiteral("star_filled")
@@ -233,8 +221,7 @@ void DetailHeaderWidget::updateThemeIcons() {
     for (int i = 0; i < m_categoryCombo->count(); ++i) {
       const auto cat = static_cast<models::ItemCategory>(
           m_categoryCombo->itemData(i).toInt());
-      m_categoryCombo->setItemIcon(
-          i, QIcon(models::categoryIconPath(cat, isLight)));
+      m_categoryCombo->setItemIcon(i, tm.icon(models::categoryIconName(cat)));
     }
   }
 }
@@ -312,35 +299,9 @@ void DetailHeaderWidget::focusTitleInput() {
 
 void DetailHeaderWidget::setVaultId(const QString &vaultId) {
   m_vaultId = vaultId.isEmpty() ? QStringLiteral("personal") : vaultId;
-  const auto v = app::VaultManager::instance().vault(m_vaultId);
-  if (m_vaultBadge) {
-    m_vaultBadge->setText(v.name.isEmpty() ? tr("Personal Vault") : v.name);
-  }
-
-  if (m_vaultCombo) {
-    m_vaultCombo->blockSignals(true);
-    m_vaultCombo->clear();
-    const auto vaults = app::VaultManager::instance().vaults();
-    int selectedIdx = 0;
-    for (int i = 0; i < vaults.size(); ++i) {
-      m_vaultCombo->addItem(
-          app::ThemeManager::instance().icon(vaults[i].iconName),
-          vaults[i].name, vaults[i].id);
-      if (vaults[i].id == m_vaultId) {
-        selectedIdx = i;
-      }
-    }
-    m_vaultCombo->setCurrentIndex(selectedIdx);
-    m_vaultCombo->blockSignals(false);
-  }
 }
 
-QString DetailHeaderWidget::vaultId() const {
-  if (m_isEditMode && m_vaultCombo && m_vaultCombo->currentIndex() >= 0) {
-    return m_vaultCombo->currentData().toString();
-  }
-  return m_vaultId;
-}
+QString DetailHeaderWidget::vaultId() const { return m_vaultId; }
 
 void DetailHeaderWidget::setEditMode(bool edit) {
   m_isEditMode = edit;
@@ -353,8 +314,6 @@ void DetailHeaderWidget::setEditMode(bool edit) {
 
     m_categoryBadge->hide();
     m_categoryCombo->show();
-    m_vaultBadge->hide();
-    m_vaultCombo->show();
     m_updatedLabel->hide();
 
     m_favBtn->hide();
@@ -376,8 +335,6 @@ void DetailHeaderWidget::setEditMode(bool edit) {
 
     m_categoryCombo->hide();
     m_categoryBadge->show();
-    m_vaultCombo->hide();
-    m_vaultBadge->show();
     m_updatedLabel->show();
 
     m_cancelBtn->hide();

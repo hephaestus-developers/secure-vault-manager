@@ -62,6 +62,19 @@ models::UiVault VaultManager::vault(const QString &vaultId) const {
   return {};
 }
 
+models::UiVault VaultManager::activeVault() const {
+  return vault(m_activeVaultId);
+}
+
+models::UiVault VaultManager::defaultVault() const {
+  for (const auto &v : m_vaults) {
+    if (v.isDefault) {
+      return v;
+    }
+  }
+  return m_vaults.isEmpty() ? models::UiVault{} : m_vaults.first();
+}
+
 void VaultManager::refreshVaultsFromCore() {
   auto &bridge = core::CoreBridge::instance();
   if (!bridge.isInitialized() || !bridge.isVaultUnlocked()) {
@@ -133,7 +146,7 @@ bool VaultManager::deleteVault(const QString &vaultId) {
       }
       m_vaults.removeAt(i);
       if (m_activeVaultId == vaultId) {
-        m_activeVaultId = QStringLiteral("all");
+        m_activeVaultId = defaultVault().id;
         emit activeVaultChanged(m_activeVaultId);
       }
       saveSettings();
@@ -142,6 +155,34 @@ bool VaultManager::deleteVault(const QString &vaultId) {
     }
   }
   return false;
+}
+
+bool VaultManager::resetAllData() {
+  auto &bridge = core::CoreBridge::instance();
+  if (bridge.isInitialized()) {
+    bridge.resetStorage();
+  }
+
+  m_vaults.clear();
+  m_activeVaultId.clear();
+  m_passwordHash.clear();
+  m_passwordSalt.clear();
+  m_recoveryKey.clear();
+  m_biometricEnabled = false;
+  m_isConfigured = false;
+  m_isLocked = false;
+
+  QSettings settings;
+  settings.remove(QStringLiteral("Security"));
+  settings.remove(QStringLiteral("Vaults"));
+  settings.sync();
+
+  emit configuredChanged(false);
+  emit lockStateChanged(false);
+  emit vaultListChanged();
+  emit activeVaultChanged(QString());
+
+  return true;
 }
 
 bool VaultManager::setDefaultVault(const QString &vaultId) {
@@ -218,7 +259,7 @@ bool VaultManager::setupInitialMasterPassword(const QString &password,
 
   m_isConfigured = true;
   m_isLocked = false;
-  m_activeVaultId = QStringLiteral("all");
+  m_activeVaultId = defaultVault.id;
 
   saveSettings();
   emit configuredChanged(m_isConfigured);
@@ -362,10 +403,25 @@ void VaultManager::lock() {
   if (bridge.isInitialized()) {
     bridge.lockVault();
   }
+  m_recoveryKey.clear();
   if (!m_isLocked) {
     m_isLocked = true;
     emit lockStateChanged(m_isLocked);
   }
+}
+
+QString VaultManager::recoveryKey() const {
+  if (!isUnlocked()) {
+    return QString();
+  }
+  if (!m_recoveryKey.isEmpty()) {
+    return m_recoveryKey;
+  }
+  auto &bridge = core::CoreBridge::instance();
+  if (bridge.isInitialized() && bridge.isVaultUnlocked()) {
+    return bridge.recoveryKey();
+  }
+  return QString();
 }
 
 QString VaultManager::generateRecoveryKey() {
@@ -398,8 +454,8 @@ void VaultManager::loadSettings() {
       settings.value(QStringLiteral("Security/PasswordHash")).toString();
   m_passwordSalt =
       settings.value(QStringLiteral("Security/PasswordSalt")).toString();
-  m_recoveryKey =
-      settings.value(QStringLiteral("Security/RecoveryKey")).toString();
+  settings.remove(QStringLiteral("Security/RecoveryKey"));
+  m_recoveryKey.clear();
   m_biometricEnabled =
       settings.value(QStringLiteral("Security/BiometricEnabled"), false)
           .toBool();
@@ -468,6 +524,10 @@ void VaultManager::loadSettings() {
     m_vaults.append(workVault);
     saveSettings();
   }
+
+  if (m_activeVaultId.isEmpty() || m_activeVaultId == QStringLiteral("all")) {
+    m_activeVaultId = defaultVault().id;
+  }
 }
 
 void VaultManager::saveSettings() {
@@ -475,7 +535,7 @@ void VaultManager::saveSettings() {
   settings.setValue(QStringLiteral("Security/IsConfigured"), m_isConfigured);
   settings.setValue(QStringLiteral("Security/PasswordHash"), m_passwordHash);
   settings.setValue(QStringLiteral("Security/PasswordSalt"), m_passwordSalt);
-  settings.setValue(QStringLiteral("Security/RecoveryKey"), m_recoveryKey);
+  settings.remove(QStringLiteral("Security/RecoveryKey"));
   settings.setValue(QStringLiteral("Security/BiometricEnabled"),
                     m_biometricEnabled);
 

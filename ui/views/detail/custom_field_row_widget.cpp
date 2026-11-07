@@ -9,6 +9,7 @@
 #include "app/clipboard_manager.h"
 #include "app/theme_manager.h"
 #include "components/combobox_popup_helper.h"
+#include "components/in_window_combobox.h"
 
 #include <QCalendarWidget>
 #include <QHBoxLayout>
@@ -111,10 +112,11 @@ void CustomFieldRowWidget::setupUI() {
   m_labelEdit->setPlaceholderText(tr("Field Name (e.g. PIN, Recovery Code)"));
   headerRowLayout->addWidget(m_labelEdit, 1);
 
-  m_kindCombo = new QComboBox(this);
-  m_kindCombo->setObjectName(QStringLiteral("CustomFieldKindCombo"));
-  m_kindCombo->setFixedHeight(30);
-  svm::ui::setupFramelessComboBoxPopup(m_kindCombo, 130);
+  auto *kindCombo = new svm::ui::InWindowComboBox(this);
+  kindCombo->setObjectName(QStringLiteral("CustomFieldKindCombo"));
+  kindCombo->setFixedHeight(30);
+  kindCombo->setPopupMinWidth(130);
+  m_kindCombo = kindCombo;
   m_kindCombo->addItem(tr("Text"),
                        static_cast<int>(models::CustomFieldKind::Text));
   m_kindCombo->addItem(tr("Concealed"),

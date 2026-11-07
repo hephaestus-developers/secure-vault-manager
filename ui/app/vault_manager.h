@@ -51,7 +51,7 @@ public:
   }
 
   /**
-   * @brief Lấy định danh Vault đang active. Trống hoặc "all" là All Vaults.
+   * @brief Lấy định danh Vault đang active. Luôn đại diện cho 1 vault duy nhất.
    */
   [[nodiscard]] QString activeVaultId() const;
   void setActiveVaultId(const QString &vaultId);
@@ -67,6 +67,16 @@ public:
   [[nodiscard]] models::UiVault vault(const QString &vaultId) const;
 
   /**
+   * @brief Lấy thông tin Vault đang được chọn (active).
+   */
+  [[nodiscard]] models::UiVault activeVault() const;
+
+  /**
+   * @brief Lấy thông tin Vault mặc định.
+   */
+  [[nodiscard]] models::UiVault defaultVault() const;
+
+  /**
    * @brief Tạo mới một Vault.
    */
   bool createVault(const models::UiVault &vault);
@@ -80,6 +90,12 @@ public:
    * @brief Xóa một Vault.
    */
   bool deleteVault(const QString &vaultId);
+
+  /**
+   * @brief Xóa toàn bộ dữ liệu (Factory Reset) và đưa ứng dụng về màn hình
+   * Onboarding Wizard.
+   */
+  bool resetAllData();
 
   /**
    * @brief Đặt một Vault làm mặc định.
@@ -132,9 +148,9 @@ public:
   [[nodiscard]] bool validateMasterPassword(const QString &password) const;
 
   /**
-   * @brief Lấy mã Emergency Recovery Key hiện tại.
+   * @brief Lấy mã Emergency Recovery Key hiện tại (chỉ khi kho đang mở khóa).
    */
-  [[nodiscard]] QString recoveryKey() const { return m_recoveryKey; }
+  [[nodiscard]] QString recoveryKey() const;
 
   /**
    * @brief Lấy thông tin Vault đang hoạt động.
@@ -165,7 +181,7 @@ private:
 
   bool m_isConfigured{false};
   bool m_isLocked{true};
-  QString m_activeVaultId{QStringLiteral("all")};
+  QString m_activeVaultId{QStringLiteral("personal")};
   QString m_passwordHash;
   QString m_passwordSalt;
   QString m_recoveryKey;

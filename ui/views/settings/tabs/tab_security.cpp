@@ -11,11 +11,12 @@
 #include "app/theme_manager.h"
 #include "app/vault_manager.h"
 #include "components/dialog_drag_helper.h"
+#include "components/in_window_combobox.h"
+#include "components/window_resize_handler.h"
 #include "core/core_bridge.h"
 #include "views/onboarding/password_entropy_meter.h"
 
 #include <QDialog>
-#include <QGraphicsDropShadowEffect>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMessageBox>
@@ -38,7 +39,7 @@ void TabSecurity::setupUI() {
   // 1. Auto-Lock Card
   m_autoLockCard = new SettingSectionCard(tr("Auto-Lock"), this);
 
-  m_timeoutCombo = new QComboBox(m_autoLockCard);
+  m_timeoutCombo = new svm::ui::InWindowComboBox(m_autoLockCard);
   m_timeoutCombo->addItem(tr("1 minute"), 1);
   m_timeoutCombo->addItem(tr("5 minutes"), 5);
   m_timeoutCombo->addItem(tr("15 minutes (Default)"), 15);
@@ -53,6 +54,8 @@ void TabSecurity::setupUI() {
   }
   m_timeoutCombo->setCurrentIndex(foundIdx);
   m_timeoutCombo->setFixedWidth(160);
+  m_timeoutCombo->setFixedHeight(32);
+  m_timeoutCombo->setCursor(Qt::PointingHandCursor);
   connect(m_timeoutCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
           this, [this](int index) {
             const int minutes = m_timeoutCombo->itemData(index).toInt();
@@ -82,7 +85,7 @@ void TabSecurity::setupUI() {
   // 2. Clipboard Security Card
   m_clipboardCard = new SettingSectionCard(tr("Clipboard Security"), this);
 
-  m_clipTimeoutCombo = new QComboBox(m_clipboardCard);
+  m_clipTimeoutCombo = new svm::ui::InWindowComboBox(m_clipboardCard);
   m_clipTimeoutCombo->addItem(tr("10 seconds"), 10);
   m_clipTimeoutCombo->addItem(tr("30 seconds (Default)"), 30);
   m_clipTimeoutCombo->addItem(tr("60 seconds"), 60);
@@ -96,6 +99,8 @@ void TabSecurity::setupUI() {
   }
   m_clipTimeoutCombo->setCurrentIndex(foundSecIdx);
   m_clipTimeoutCombo->setFixedWidth(160);
+  m_clipTimeoutCombo->setFixedHeight(32);
+  m_clipTimeoutCombo->setCursor(Qt::PointingHandCursor);
   connect(m_clipTimeoutCombo,
           QOverload<int>::of(&QComboBox::currentIndexChanged), this,
           [this](int index) {
@@ -182,21 +187,20 @@ void TabSecurity::setupUI() {
 
 void TabSecurity::openChangePasswordDialog() {
   QDialog dlg(this, Qt::FramelessWindowHint | Qt::Dialog);
-  dlg.setAttribute(Qt::WA_TranslucentBackground, true);
+  dlg.setAttribute(Qt::WA_TranslucentBackground, false);
   dlg.setModal(false);
   dlg.setWindowModality(Qt::NonModal);
-  dlg.setFixedSize(480, 440);
+  dlg.setMinimumSize(420, 380);
+  dlg.resize(480, 440);
 
   auto *rootLayout = new QVBoxLayout(&dlg);
-  rootLayout->setContentsMargins(16, 16, 16, 16);
+  rootLayout->setContentsMargins(0, 0, 0, 0);
 
   auto *card = new QWidget(&dlg);
   card->setObjectName(QStringLiteral("RecoveryDialogCard"));
-  auto *shadow = new QGraphicsDropShadowEffect(&dlg);
-  shadow->setBlurRadius(28);
-  shadow->setColor(QColor(0, 0, 0, 160));
-  shadow->setOffset(0, 8);
-  card->setGraphicsEffect(shadow);
+  card->setAttribute(Qt::WA_StyledBackground, true);
+
+  new components::WindowResizeHandler(&dlg);
 
   auto *cardLayout = new QVBoxLayout(card);
   cardLayout->setContentsMargins(0, 0, 0, 16);
@@ -204,6 +208,7 @@ void TabSecurity::openChangePasswordDialog() {
 
   auto *header = new QWidget(card);
   header->setObjectName(QStringLiteral("RecoveryDialogHeader"));
+  header->setAttribute(Qt::WA_StyledBackground, true);
   header->setFixedHeight(44);
   auto *headerLayout = new QHBoxLayout(header);
   headerLayout->setContentsMargins(16, 0, 8, 0);
@@ -314,7 +319,7 @@ void TabSecurity::openChangePasswordDialog() {
   layout->addLayout(btnLayout);
 
   cardLayout->addWidget(body, 1);
-  components::DialogDragHelper::makeDraggable(card, &dlg);
+  components::DialogDragHelper::makeDraggable(header, &dlg);
   rootLayout->addWidget(card);
 
   components::DialogDragHelper::execDialog(dlg);
@@ -322,21 +327,20 @@ void TabSecurity::openChangePasswordDialog() {
 
 void TabSecurity::openViewRecoveryKeyDialog() {
   QDialog dlg(this, Qt::FramelessWindowHint | Qt::Dialog);
-  dlg.setAttribute(Qt::WA_TranslucentBackground, true);
+  dlg.setAttribute(Qt::WA_TranslucentBackground, false);
   dlg.setModal(false);
   dlg.setWindowModality(Qt::NonModal);
-  dlg.setFixedSize(480, 300);
+  dlg.setMinimumSize(420, 260);
+  dlg.resize(480, 300);
 
   auto *rootLayout = new QVBoxLayout(&dlg);
-  rootLayout->setContentsMargins(16, 16, 16, 16);
+  rootLayout->setContentsMargins(0, 0, 0, 0);
 
   auto *card = new QWidget(&dlg);
   card->setObjectName(QStringLiteral("RecoveryDialogCard"));
-  auto *shadow = new QGraphicsDropShadowEffect(&dlg);
-  shadow->setBlurRadius(28);
-  shadow->setColor(QColor(0, 0, 0, 160));
-  shadow->setOffset(0, 8);
-  card->setGraphicsEffect(shadow);
+  card->setAttribute(Qt::WA_StyledBackground, true);
+
+  new components::WindowResizeHandler(&dlg);
 
   auto *cardLayout = new QVBoxLayout(card);
   cardLayout->setContentsMargins(0, 0, 0, 16);
@@ -344,6 +348,7 @@ void TabSecurity::openViewRecoveryKeyDialog() {
 
   auto *header = new QWidget(card);
   header->setObjectName(QStringLiteral("RecoveryDialogHeader"));
+  header->setAttribute(Qt::WA_StyledBackground, true);
   header->setFixedHeight(44);
   auto *headerLayout = new QHBoxLayout(header);
   headerLayout->setContentsMargins(16, 0, 8, 0);
@@ -415,21 +420,20 @@ void TabSecurity::openViewRecoveryKeyDialog() {
     dlg.accept();
 
     QDialog showDlg(this, Qt::FramelessWindowHint | Qt::Dialog);
-    showDlg.setAttribute(Qt::WA_TranslucentBackground, true);
+    showDlg.setAttribute(Qt::WA_TranslucentBackground, false);
     showDlg.setModal(false);
     showDlg.setWindowModality(Qt::NonModal);
-    showDlg.setFixedSize(500, 270);
+    showDlg.setMinimumSize(440, 240);
+    showDlg.resize(500, 270);
 
     auto *showRoot = new QVBoxLayout(&showDlg);
-    showRoot->setContentsMargins(16, 16, 16, 16);
+    showRoot->setContentsMargins(0, 0, 0, 0);
 
     auto *showCard = new QWidget(&showDlg);
     showCard->setObjectName(QStringLiteral("RecoveryDialogCard"));
-    auto *showShadow = new QGraphicsDropShadowEffect(&showDlg);
-    showShadow->setBlurRadius(28);
-    showShadow->setColor(QColor(0, 0, 0, 160));
-    showShadow->setOffset(0, 8);
-    showCard->setGraphicsEffect(showShadow);
+    showCard->setAttribute(Qt::WA_StyledBackground, true);
+
+    new components::WindowResizeHandler(&showDlg);
 
     auto *showCardLayout = new QVBoxLayout(showCard);
     showCardLayout->setContentsMargins(0, 0, 0, 16);
@@ -437,6 +441,7 @@ void TabSecurity::openViewRecoveryKeyDialog() {
 
     auto *showHeader = new QWidget(showCard);
     showHeader->setObjectName(QStringLiteral("RecoveryDialogHeader"));
+    showHeader->setAttribute(Qt::WA_StyledBackground, true);
     showHeader->setFixedHeight(44);
     auto *showHeaderLayout = new QHBoxLayout(showHeader);
     showHeaderLayout->setContentsMargins(16, 0, 8, 0);
@@ -494,7 +499,7 @@ void TabSecurity::openViewRecoveryKeyDialog() {
     showLayout->addWidget(copyBtn);
 
     showCardLayout->addWidget(showBody, 1);
-    components::DialogDragHelper::makeDraggable(showCard, &showDlg);
+    components::DialogDragHelper::makeDraggable(showHeader, &showDlg);
     showRoot->addWidget(showCard);
 
     components::DialogDragHelper::execDialog(showDlg);
@@ -503,7 +508,7 @@ void TabSecurity::openViewRecoveryKeyDialog() {
   layout->addLayout(btnLayout);
 
   cardLayout->addWidget(body, 1);
-  components::DialogDragHelper::makeDraggable(card, &dlg);
+  components::DialogDragHelper::makeDraggable(header, &dlg);
   rootLayout->addWidget(card);
 
   components::DialogDragHelper::execDialog(dlg);

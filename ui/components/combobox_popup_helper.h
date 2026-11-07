@@ -32,9 +32,9 @@ public:
   QSize sizeHint(const QStyleOptionViewItem &option,
                  const QModelIndex &index) const override {
     Q_UNUSED(index);
-    int h = 30;
-    if (option.fontMetrics.height() + 10 > h) {
-      h = option.fontMetrics.height() + 10;
+    int h = 34;
+    if (option.fontMetrics.height() + 12 > h) {
+      h = option.fontMetrics.height() + 12;
     }
     return {option.rect.width(), h};
   }
@@ -56,22 +56,31 @@ public:
     const QRect rect = option.rect.adjusted(2, 1, -2, -1);
 
     // 1. Vẽ nền bo góc nổi bật khi Hover hoặc Selected
-    if (isSelected || isHovered) {
+    if (isHovered) {
       QPainterPath bgPath;
       bgPath.addRoundedRect(rect, 6, 6);
 
       if (isLight) {
-        painter->fillPath(bgPath, QColor(0xEA, 0xEE, 0xF5));
-        painter->setPen(QPen(QColor(0xCD, 0xD4, 0xE2), 1));
+        painter->fillPath(bgPath, QColor(0xE6, 0xE9, 0xEF));
+        painter->setPen(QPen(QColor(0xBC, 0xC0, 0xCC), 1));
         painter->drawPath(bgPath);
       } else {
-        painter->fillPath(bgPath, QColor(0x36, 0x3D, 0x59));
-        painter->setPen(QPen(QColor(0x54, 0x5E, 0x85), 1));
+        painter->fillPath(bgPath, QColor(0x31, 0x32, 0x44));
+        painter->setPen(QPen(QColor(0x45, 0x47, 0x5A), 1));
         painter->drawPath(bgPath);
+      }
+    } else if (isSelected) {
+      QPainterPath bgPath;
+      bgPath.addRoundedRect(rect, 6, 6);
+
+      if (isLight) {
+        painter->fillPath(bgPath, QColor(0xF2, 0xF4, 0xF8));
+      } else {
+        painter->fillPath(bgPath, QColor(0x23, 0x26, 0x34));
       }
     }
 
-    // 2. Vẽ Icon nếu có
+    // 2. Vẽ Icon nếu có (căn giữa theo chiều dọc, lề trái 8px)
     const QVariant iconData = index.data(Qt::DecorationRole);
     int textLeft = rect.left() + 8;
     if (iconData.isValid() && !iconData.isNull()) {
@@ -85,16 +94,34 @@ public:
       }
     }
 
-    // 3. Vẽ Tiêu đề / Tên item
+    // 3. Vẽ Checkmark Icon phía bên phải nếu mục đang được chọn (Selected)
+    int textRight = rect.right() - 8;
+    if (isSelected) {
+      const int checkSize = 14;
+      const int checkX = rect.right() - checkSize - 8;
+      const int checkY = rect.top() + (rect.height() - checkSize) / 2;
+      const QRect checkRect(checkX, checkY, checkSize, checkSize);
+      const QIcon checkIcon(
+          isLight ? QStringLiteral(":/icons/menu_check_light.svg")
+                  : QStringLiteral(":/icons/menu_check_dark.svg"));
+      checkIcon.paint(painter, checkRect, Qt::AlignCenter);
+      textRight = checkX - 6;
+    }
+
+    // 4. Vẽ Tiêu đề / Tên item
     const QString text = index.data(Qt::DisplayRole).toString();
-    const QRect textRect(textLeft, rect.top(), rect.right() - textLeft - 6,
+    const QRect textRect(textLeft, rect.top(), textRight - textLeft,
                          rect.height());
 
     QFont font = option.font;
     font.setPointSize(9);
-    if (isSelected || isHovered) {
+    if (isSelected) {
       font.setBold(true);
-      painter->setPen(isLight ? QColor(0x1E, 0x1E, 0x2E)
+      painter->setPen(isLight ? QColor(0x1E, 0x66, 0xF5)
+                              : QColor(0x89, 0xB4, 0xFA));
+    } else if (isHovered) {
+      font.setBold(true);
+      painter->setPen(isLight ? QColor(0x00, 0x00, 0x00)
                               : QColor(0xFF, 0xFF, 0xFF));
     } else {
       font.setBold(false);

@@ -7,6 +7,7 @@
 
 #include "tab_general.h"
 #include "app/settings_manager.h"
+#include "components/in_window_combobox.h"
 
 #include <QVBoxLayout>
 
@@ -27,7 +28,7 @@ void TabGeneral::setupUI() {
   // 1. Thẻ Appearance
   m_appearanceCard = new SettingSectionCard(tr("Appearance"), this);
 
-  m_themeCombo = new QComboBox(m_appearanceCard);
+  m_themeCombo = new svm::ui::InWindowComboBox(m_appearanceCard);
   m_themeCombo->addItem(tr("Dark Theme"),
                         static_cast<int>(app::ThemeMode::Dark));
   m_themeCombo->addItem(tr("Light Theme"),
@@ -35,6 +36,8 @@ void TabGeneral::setupUI() {
   m_themeCombo->setCurrentIndex(
       (settings.themeMode() == app::ThemeMode::Dark) ? 0 : 1);
   m_themeCombo->setFixedWidth(150);
+  m_themeCombo->setFixedHeight(32);
+  m_themeCombo->setCursor(Qt::PointingHandCursor);
   connect(m_themeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
           this, [this](int index) {
             const auto mode =
@@ -48,7 +51,7 @@ void TabGeneral::setupUI() {
       m_appearanceCard);
   m_appearanceCard->addRow(m_themeRow);
 
-  m_densityCombo = new QComboBox(m_appearanceCard);
+  m_densityCombo = new svm::ui::InWindowComboBox(m_appearanceCard);
   m_densityCombo->addItem(tr("Comfortable"),
                           static_cast<int>(app::ListDensity::Comfortable));
   m_densityCombo->addItem(tr("Compact"),
@@ -56,6 +59,8 @@ void TabGeneral::setupUI() {
   m_densityCombo->setCurrentIndex(
       (settings.listDensity() == app::ListDensity::Comfortable) ? 0 : 1);
   m_densityCombo->setFixedWidth(150);
+  m_densityCombo->setFixedHeight(32);
+  m_densityCombo->setCursor(Qt::PointingHandCursor);
   connect(m_densityCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
           this, [this](int index) {
             const auto density = (index == 0) ? app::ListDensity::Comfortable
@@ -74,7 +79,7 @@ void TabGeneral::setupUI() {
   // 2. Thẻ Language
   m_languageCard = new SettingSectionCard(tr("Language"), this);
 
-  m_langCombo = new QComboBox(m_languageCard);
+  m_langCombo = new svm::ui::InWindowComboBox(m_languageCard);
   m_langCombo->addItem(QStringLiteral("English (US)"),
                        static_cast<int>(app::AppLanguage::English));
   m_langCombo->addItem(QStringLiteral("Tiếng Việt"),
@@ -82,6 +87,8 @@ void TabGeneral::setupUI() {
   m_langCombo->setCurrentIndex(
       (settings.language() == app::AppLanguage::English) ? 0 : 1);
   m_langCombo->setFixedWidth(150);
+  m_langCombo->setFixedHeight(32);
+  m_langCombo->setCursor(Qt::PointingHandCursor);
   connect(m_langCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
           this, [this](int index) {
             const auto lang = (index == 0) ? app::AppLanguage::English

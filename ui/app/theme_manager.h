@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <QHash>
 #include <QIcon>
 #include <QObject>
 #include <QString>
@@ -28,7 +29,12 @@ public:
   ThemeManager &operator=(const ThemeManager &) = delete;
 
   /**
-   * @brief Áp dụng Theme cho toàn bộ ứng dụng từ tài nguyên QRC.
+   * @brief Khởi tạo và nạp sẵn stylesheet vào bộ nhớ RAM, làm ấm bộ đệm icon.
+   */
+  void initialize();
+
+  /**
+   * @brief Áp dụng Theme cho toàn bộ ứng dụng từ tài nguyên đã cache.
    */
   void applyTheme(ThemeMode mode);
 
@@ -38,22 +44,38 @@ public:
   [[nodiscard]] ThemeMode currentMode() const;
 
   /**
-   * @brief Lấy đường dẫn tài nguyên QRC của icon tương ứng với chủ đề hiện tại.
+   * @brief Lấy đường dẫn tài nguyên QRC của icon tương ứng với chủ đề hiện tại
+   * (có cache O(1)).
    */
   [[nodiscard]] QString iconPath(const QString &baseName) const;
 
   /**
-   * @brief Tạo đối tượng QIcon từ iconPath theo chủ đề hiện tại.
+   * @brief Lấy đối tượng QIcon từ iconPath theo chủ đề hiện tại (có cache O(1),
+   * không đọc đĩa/SVG).
    */
   [[nodiscard]] QIcon icon(const QString &baseName) const;
+
+  /**
+   * @brief Xóa toàn bộ bộ đệm icon (nếu cần giải phóng RAM).
+   */
+  void clearIconCache();
 
 signals:
   void themeChanged(ThemeMode newMode);
 
 private:
   ThemeManager();
+  void ensureStylesheetsLoaded();
+  void prewarmIcons();
 
   ThemeMode m_currentMode{ThemeMode::Dark};
+  bool m_initialized{false};
+  bool m_appliedOnce{false};
+  QString m_darkQss;
+  QString m_lightQss;
+
+  mutable QHash<QString, QIcon> m_iconCache;
+  mutable QHash<QString, QString> m_resolvedPathCache;
 };
 
 } // namespace svm::app

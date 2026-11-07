@@ -10,6 +10,7 @@
 #include "app/theme_manager.h"
 #include "app/vault_manager.h"
 #include "components/dialog_drag_helper.h"
+#include "components/in_window_combobox.h"
 #include "views/vaults/new_vault_dialog.h"
 
 #include <QAction>
@@ -76,70 +77,73 @@ void SidebarView::setupExpandedUI() {
   headerLayout->setContentsMargins(10, 10, 10, 8);
   headerLayout->setSpacing(6);
 
-  // Vault Profile Button với Icon và Chữ căn thẳng tắp với list bên dưới
-  m_vaultProfileBtn = new QPushButton(headerWidget);
-  m_vaultProfileBtn->setObjectName(QStringLiteral("VaultProfileBtn"));
-  m_vaultProfileBtn->setFixedHeight(32);
-  m_vaultProfileBtn->setCursor(Qt::PointingHandCursor);
+  // Vault Profile ComboBox dạng In-Window Child Overlay (không sử dụng OS
+  // Popup)
+  m_vaultComboBox = new ui::InWindowComboBox(headerWidget);
+  m_vaultComboBox->setObjectName(QStringLiteral("VaultProfileComboBox"));
+  m_vaultComboBox->setFixedHeight(32);
+  m_vaultComboBox->setIconSize(QSize(16, 16));
+  m_vaultComboBox->setCursor(Qt::PointingHandCursor);
+  m_vaultComboBox->setPopupMinWidth(180);
 
-  auto *vaultBtnLayout = new QHBoxLayout(m_vaultProfileBtn);
-  vaultBtnLayout->setContentsMargins(8, 0, 8, 0);
-  vaultBtnLayout->setSpacing(10);
-
-  m_vaultIconLabel = new QLabel(m_vaultProfileBtn);
-  m_vaultIconLabel->setFixedSize(16, 16);
-  m_vaultIconLabel->setPixmap(
-      QIcon(QStringLiteral(":/icons/folder_open.svg")).pixmap(16, 16));
-  vaultBtnLayout->addWidget(m_vaultIconLabel);
-
-  m_vaultTitleLabel = new QLabel(m_currentVaultName, m_vaultProfileBtn);
-  m_vaultTitleLabel->setObjectName(QStringLiteral("VaultTitleLabel"));
-  vaultBtnLayout->addWidget(m_vaultTitleLabel, 1);
-
-  m_chevronLabel = new QLabel(m_vaultProfileBtn);
-  m_chevronLabel->setObjectName(QStringLiteral("VaultChevronLabel"));
-  m_chevronLabel->setFixedSize(12, 12);
-  m_chevronLabel->setPixmap(
-      QIcon(QStringLiteral(":/icons/chevron_down.svg")).pixmap(12, 12));
-  vaultBtnLayout->addWidget(m_chevronLabel);
-
-  m_vaultMenu = new QMenu(m_vaultProfileBtn);
-  m_vaultMenu->setObjectName(QStringLiteral("VaultSwitchMenu"));
-  populateVaultMenu();
+  populateVaultCombo();
 
   connect(&app::VaultManager::instance(), &app::VaultManager::vaultListChanged,
-          this, &SidebarView::populateVaultMenu);
+          this, &SidebarView::populateVaultCombo);
+
+  connect(m_vaultComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
+          this, [this](int index) {
+            if (index >= 0 && index < m_vaultComboBox->count()) {
+              const QString vaultId =
+                  m_vaultComboBox->itemData(index).toString();
+              if (!vaultId.isEmpty() &&
+                  vaultId != app::VaultManager::instance().activeVaultId()) {
+                app::VaultManager::instance().setActiveVaultId(vaultId);
+              }
+            }
+          });
+
   connect(
       &app::VaultManager::instance(), &app::VaultManager::activeVaultChanged,
       this, [this](const QString &vId) {
-        if (vId == QStringLiteral("all") || vId.isEmpty()) {
-          m_currentVaultName = tr("All Vaults");
-        } else {
-          const auto v = app::VaultManager::instance().vault(vId);
-          m_currentVaultName = v.name.isEmpty() ? tr("Personal Vault") : v.name;
-        }
-        m_vaultTitleLabel->setText(m_currentVaultName);
+        const auto v = app::VaultManager::instance().vault(vId);
+        m_currentVaultName = v.name.isEmpty() ? tr("Personal Vault") : v.name;
         m_collapsedVaultBtn->setToolTip(m_currentVaultName);
+        const QString iconName =
+            v.iconName.isEmpty() ? QStringLiteral("folder_open") : v.iconName;
+        if (m_collapsedVaultBtn) {
+          m_collapsedVaultBtn->setIcon(
+              app::ThemeManager::instance().icon(iconName));
+        }
+        for (int i = 0; i < m_vaultComboBox->count(); ++i) {
+          if (m_vaultComboBox->itemData(i).toString() == vId) {
+            if (m_vaultComboBox->currentIndex() != i) {
+              m_vaultComboBox->blockSignals(true);
+              m_vaultComboBox->setCurrentIndex(i);
+              m_vaultComboBox->blockSignals(false);
+            }
+            break;
+          }
+        }
+        emit vaultChanged(m_currentVaultName);
       });
 
-  connect(m_vaultProfileBtn, &QPushButton::clicked, this, [this]() {
-    m_vaultMenu->exec(m_vaultProfileBtn->mapToGlobal(
-        QPoint(0, m_vaultProfileBtn->height() + 2)));
+  headerLayout->addWidget(m_vaultComboBox, 1);
+
+  // Nút tạo mới Vault (Dấu cộng cạnh Vault Profile)
+  m_newVaultBtn = new QPushButton(headerWidget);
+  m_newVaultBtn->setObjectName(QStringLiteral("SidebarNewVaultBtn"));
+  m_newVaultBtn->setIcon(
+      app::ThemeManager::instance().icon(QStringLiteral("plus")));
+  m_newVaultBtn->setIconSize(QSize(16, 16));
+  m_newVaultBtn->setFixedSize(32, 32);
+  m_newVaultBtn->setToolTip(tr("Create New Vault..."));
+  m_newVaultBtn->setCursor(Qt::PointingHandCursor);
+  connect(m_newVaultBtn, &QPushButton::clicked, this, [this]() {
+    NewVaultDialog dlg(this);
+    components::DialogDragHelper::execDialog(dlg);
   });
-
-  headerLayout->addWidget(m_vaultProfileBtn, 1);
-
-  // Nút Collapse Sidebar
-  m_collapseBtn = new QPushButton(headerWidget);
-  m_collapseBtn->setObjectName(QStringLiteral("SidebarToggleBtn"));
-  m_collapseBtn->setIcon(QIcon(QStringLiteral(":/icons/sidebar_collapse.svg")));
-  m_collapseBtn->setIconSize(QSize(18, 18));
-  m_collapseBtn->setFixedSize(32, 32);
-  m_collapseBtn->setToolTip(tr("Collapse Sidebar (Ctrl+B)"));
-  m_collapseBtn->setCursor(Qt::PointingHandCursor);
-  connect(m_collapseBtn, &QPushButton::clicked, this,
-          &SidebarView::toggleCollapsed);
-  headerLayout->addWidget(m_collapseBtn, 0, Qt::AlignVCenter);
+  headerLayout->addWidget(m_newVaultBtn, 0, Qt::AlignVCenter);
 
   layout->addWidget(headerWidget);
 
@@ -189,17 +193,17 @@ void SidebarView::setupExpandedUI() {
           &SidebarView::lockVaultRequested);
   footerLayout->addWidget(m_lockBtn, 1);
 
-  m_settingsBtn = new QPushButton(footerWidget);
-  m_settingsBtn->setObjectName(QStringLiteral("SidebarSettingsBtn"));
-  m_settingsBtn->setFixedSize(32, 32);
-  m_settingsBtn->setIconSize(QSize(16, 16));
-  m_settingsBtn->setIcon(
-      app::ThemeManager::instance().icon(QStringLiteral("category_settings")));
-  m_settingsBtn->setToolTip(tr("Settings (Ctrl+,)"));
-  m_settingsBtn->setCursor(Qt::PointingHandCursor);
-  connect(m_settingsBtn, &QPushButton::clicked, this,
-          &SidebarView::settingsRequested);
-  footerLayout->addWidget(m_settingsBtn, 0);
+  m_collapseBtn = new QPushButton(footerWidget);
+  m_collapseBtn->setObjectName(QStringLiteral("SidebarCollapseBtn"));
+  m_collapseBtn->setFixedSize(32, 32);
+  m_collapseBtn->setIconSize(QSize(16, 16));
+  m_collapseBtn->setIcon(
+      app::ThemeManager::instance().icon(QStringLiteral("sidebar_collapse")));
+  m_collapseBtn->setToolTip(tr("Collapse Sidebar (Ctrl+B)"));
+  m_collapseBtn->setCursor(Qt::PointingHandCursor);
+  connect(m_collapseBtn, &QPushButton::clicked, this,
+          &SidebarView::toggleCollapsed);
+  footerLayout->addWidget(m_collapseBtn, 0);
 
   layout->addWidget(footerWidget);
 }
@@ -214,23 +218,14 @@ void SidebarView::setupCollapsedUI() {
   layout->setSpacing(6);
   layout->setAlignment(Qt::AlignHCenter);
 
-  // 1. Expand Toggle Button (36x36, icon 18x18)
-  m_expandBtn = new QPushButton(m_collapsedWidget);
-  m_expandBtn->setObjectName(QStringLiteral("SidebarToggleBtn"));
-  m_expandBtn->setIcon(QIcon(QStringLiteral(":/icons/sidebar_expand.svg")));
-  m_expandBtn->setIconSize(QSize(18, 18));
-  m_expandBtn->setFixedSize(36, 36);
-  m_expandBtn->setToolTip(tr("Expand Sidebar (Ctrl+B)"));
-  m_expandBtn->setCursor(Qt::PointingHandCursor);
-  connect(m_expandBtn, &QPushButton::clicked, this,
-          &SidebarView::toggleCollapsed);
-  layout->addWidget(m_expandBtn, 0, Qt::AlignHCenter);
-
-  // 2. Vault Icon Button (36x36, icon 18x18)
+  // 1. Vault Icon Button (36x36, icon 18x18)
   m_collapsedVaultBtn = new QPushButton(m_collapsedWidget);
   m_collapsedVaultBtn->setObjectName(QStringLiteral("SidebarCompactVaultBtn"));
-  m_collapsedVaultBtn->setIcon(
-      QIcon(QStringLiteral(":/icons/folder_open.svg")));
+  const auto activeV = app::VaultManager::instance().activeVault();
+  const QString vaultIcon = activeV.iconName.isEmpty()
+                                ? QStringLiteral("folder_open")
+                                : activeV.iconName;
+  m_collapsedVaultBtn->setIcon(app::ThemeManager::instance().icon(vaultIcon));
   m_collapsedVaultBtn->setIconSize(QSize(18, 18));
   m_collapsedVaultBtn->setFixedSize(36, 36);
   m_collapsedVaultBtn->setToolTip(m_currentVaultName);
@@ -239,7 +234,7 @@ void SidebarView::setupCollapsedUI() {
           &SidebarView::toggleCollapsed);
   layout->addWidget(m_collapsedVaultBtn, 0, Qt::AlignHCenter);
 
-  // 3. Compact Navigation Icon List
+  // 2. Compact Navigation Icon List
   m_compactList = new QListWidget(m_collapsedWidget);
   m_compactList->setObjectName(QStringLiteral("SidebarCompactList"));
   m_compactList->setFixedWidth(60);
@@ -255,23 +250,11 @@ void SidebarView::setupCollapsedUI() {
           &SidebarView::onCompactItemClicked);
   layout->addWidget(m_compactList, 1, Qt::AlignHCenter);
 
-  // 4. Bottom Collapsed Settings & Lock Buttons (36x36, icon 18x18)
-  m_collapsedSettingsBtn = new QPushButton(m_collapsedWidget);
-  m_collapsedSettingsBtn->setObjectName(
-      QStringLiteral("SidebarCompactSettingsBtn"));
-  m_collapsedSettingsBtn->setIcon(
-      app::ThemeManager::instance().icon(QStringLiteral("category_settings")));
-  m_collapsedSettingsBtn->setIconSize(QSize(18, 18));
-  m_collapsedSettingsBtn->setFixedSize(36, 36);
-  m_collapsedSettingsBtn->setToolTip(tr("Settings (Ctrl+,)"));
-  m_collapsedSettingsBtn->setCursor(Qt::PointingHandCursor);
-  connect(m_collapsedSettingsBtn, &QPushButton::clicked, this,
-          &SidebarView::settingsRequested);
-  layout->addWidget(m_collapsedSettingsBtn, 0, Qt::AlignHCenter);
-
+  // 3. Bottom Lock & Expand Toggle Buttons (36x36, icon 18x18)
   m_collapsedLockBtn = new QPushButton(m_collapsedWidget);
   m_collapsedLockBtn->setObjectName(QStringLiteral("SidebarCompactLockBtn"));
-  m_collapsedLockBtn->setIcon(QIcon(QStringLiteral(":/icons/lock.svg")));
+  m_collapsedLockBtn->setIcon(
+      app::ThemeManager::instance().icon(QStringLiteral("lock")));
   m_collapsedLockBtn->setIconSize(QSize(18, 18));
   m_collapsedLockBtn->setFixedSize(36, 36);
   m_collapsedLockBtn->setToolTip(tr("Lock Vault (Ctrl+L)"));
@@ -279,6 +262,18 @@ void SidebarView::setupCollapsedUI() {
   connect(m_collapsedLockBtn, &QPushButton::clicked, this,
           &SidebarView::lockVaultRequested);
   layout->addWidget(m_collapsedLockBtn, 0, Qt::AlignHCenter);
+
+  m_expandBtn = new QPushButton(m_collapsedWidget);
+  m_expandBtn->setObjectName(QStringLiteral("SidebarToggleBtn"));
+  m_expandBtn->setIcon(
+      app::ThemeManager::instance().icon(QStringLiteral("sidebar_expand")));
+  m_expandBtn->setIconSize(QSize(18, 18));
+  m_expandBtn->setFixedSize(36, 36);
+  m_expandBtn->setToolTip(tr("Expand Sidebar (Ctrl+B)"));
+  m_expandBtn->setCursor(Qt::PointingHandCursor);
+  connect(m_expandBtn, &QPushButton::clicked, this,
+          &SidebarView::toggleCollapsed);
+  layout->addWidget(m_expandBtn, 0, Qt::AlignHCenter);
 }
 
 void SidebarView::populateNavItems() {
@@ -401,16 +396,21 @@ void SidebarView::updateThemeIcons() {
       (app::ThemeManager::instance().currentMode() == app::ThemeMode::Light);
   auto &tm = app::ThemeManager::instance();
 
-  if (m_vaultIconLabel) {
-    m_vaultIconLabel->setPixmap(
-        tm.icon(QStringLiteral("folder_open")).pixmap(16, 16));
-  }
+  const auto activeV = app::VaultManager::instance().activeVault();
+  const QString vaultIcon = activeV.iconName.isEmpty()
+                                ? QStringLiteral("folder_open")
+                                : activeV.iconName;
   if (m_collapsedVaultBtn) {
-    m_collapsedVaultBtn->setIcon(tm.icon(QStringLiteral("folder_open")));
+    m_collapsedVaultBtn->setIcon(tm.icon(vaultIcon));
   }
-  if (m_chevronLabel) {
-    m_chevronLabel->setPixmap(
-        tm.icon(QStringLiteral("chevron_down")).pixmap(12, 12));
+  if (m_vaultComboBox) {
+    for (int i = 0; i < m_vaultComboBox->count(); ++i) {
+      const QString vId = m_vaultComboBox->itemData(i).toString();
+      const auto v = app::VaultManager::instance().vault(vId);
+      const QString iconName =
+          v.iconName.isEmpty() ? QStringLiteral("folder_open") : v.iconName;
+      m_vaultComboBox->setItemIcon(i, tm.icon(iconName));
+    }
   }
   if (m_lockIconLabel) {
     m_lockIconLabel->setPixmap(tm.icon(QStringLiteral("lock")).pixmap(18, 18));
@@ -418,14 +418,9 @@ void SidebarView::updateThemeIcons() {
   if (m_collapsedLockBtn) {
     m_collapsedLockBtn->setIcon(tm.icon(QStringLiteral("lock")));
   }
-  if (m_settingsBtn) {
-    m_settingsBtn->setIcon(tm.icon(QStringLiteral("category_settings")));
+  if (m_newVaultBtn) {
+    m_newVaultBtn->setIcon(tm.icon(QStringLiteral("plus")));
   }
-  if (m_collapsedSettingsBtn) {
-    m_collapsedSettingsBtn->setIcon(
-        tm.icon(QStringLiteral("category_settings")));
-  }
-
   if (m_collapseBtn) {
     m_collapseBtn->setIcon(tm.icon(QStringLiteral("sidebar_collapse")));
   }
@@ -461,7 +456,7 @@ void SidebarView::updateThemeIcons() {
   }
 
   for (auto it = m_categoryItems.begin(); it != m_categoryItems.end(); ++it) {
-    const QIcon catIcon(models::categoryIconPath(it.key(), isLight));
+    const QIcon catIcon = tm.icon(models::categoryIconName(it.key()));
     it.value()->setIcon(catIcon);
     if (auto *ci = m_compactCategoryItems.value(it.key(), nullptr)) {
       ci->setIcon(catIcon);
@@ -495,13 +490,14 @@ void SidebarView::setCollapsed(bool collapsed) {
 
   if (m_isCollapsed) {
     setFixedWidth(60);
-    m_expandBtn->setIcon(QIcon(QStringLiteral(":/icons/sidebar_expand.svg")));
+    m_expandBtn->setIcon(
+        app::ThemeManager::instance().icon(QStringLiteral("sidebar_expand")));
     m_stackedWidget->setCurrentIndex(1);
   } else {
     setMinimumWidth(200);
     setMaximumWidth(QWIDGETSIZE_MAX);
     m_collapseBtn->setIcon(
-        QIcon(QStringLiteral(":/icons/sidebar_collapse.svg")));
+        app::ThemeManager::instance().icon(QStringLiteral("sidebar_collapse")));
     m_stackedWidget->setCurrentIndex(0);
   }
 
@@ -546,60 +542,34 @@ void SidebarView::onCompactItemClicked(QListWidgetItem *item) {
   emit filterSelected(filterType, category);
 }
 
-void SidebarView::populateVaultMenu() {
-  if (!m_vaultMenu) {
+void SidebarView::populateVaultCombo() {
+  if (!m_vaultComboBox) {
     return;
   }
-  m_vaultMenu->clear();
+  m_vaultComboBox->blockSignals(true);
+  m_vaultComboBox->clear();
+
   const auto vaults = app::VaultManager::instance().vaults();
   const QString activeId = app::VaultManager::instance().activeVaultId();
+  int activeIndex = 0;
 
-  auto *vaultGroup = new QActionGroup(this);
-
-  // 1. Danh sách Vaults hiện có
-  for (const auto &v : vaults) {
-    auto *act = m_vaultMenu->addAction(
-        app::ThemeManager::instance().icon(v.iconName), v.name);
-    act->setCheckable(true);
-    act->setChecked(v.id == activeId);
-    act->setProperty("vaultId", v.id);
-    vaultGroup->addAction(act);
-    connect(act, &QAction::triggered, this,
-            [v]() { app::VaultManager::instance().setActiveVaultId(v.id); });
+  for (int i = 0; i < vaults.size(); ++i) {
+    const auto &v = vaults[i];
+    const QString iconName =
+        v.iconName.isEmpty() ? QStringLiteral("folder_open") : v.iconName;
+    m_vaultComboBox->addItem(app::ThemeManager::instance().icon(iconName),
+                             v.name, v.id);
+    if (v.id == activeId) {
+      activeIndex = i;
+    }
   }
 
-  // 2. Chế độ xem gộp All Vaults
-  auto *allAct = m_vaultMenu->addAction(
-      app::ThemeManager::instance().icon(QStringLiteral("shield_check")),
-      tr("All Vaults"));
-  allAct->setCheckable(true);
-  allAct->setChecked(activeId == QStringLiteral("all") || activeId.isEmpty());
-  allAct->setProperty("vaultId", QStringLiteral("all"));
-  vaultGroup->addAction(allAct);
-  connect(allAct, &QAction::triggered, this, []() {
-    app::VaultManager::instance().setActiveVaultId(QStringLiteral("all"));
-  });
-
-  m_vaultMenu->addSeparator();
-
-  // 3. Nút tạo mới Vault
-  auto *newVaultAct = m_vaultMenu->addAction(
-      app::ThemeManager::instance().icon(QStringLiteral("plus")),
-      tr("+ New Vault..."));
-  connect(newVaultAct, &QAction::triggered, this, [this]() {
-    NewVaultDialog dlg(this);
-    components::DialogDragHelper::execDialog(dlg);
-  });
-}
-
-void SidebarView::onVaultMenuActionTriggered(QAction *action) {
-  if (!action) {
-    return;
+  if (!vaults.isEmpty()) {
+    m_vaultComboBox->setCurrentIndex(activeIndex);
+    m_currentVaultName = m_vaultComboBox->currentText();
   }
-  m_currentVaultName = action->text();
-  m_vaultTitleLabel->setText(m_currentVaultName);
-  m_collapsedVaultBtn->setToolTip(m_currentVaultName);
-  emit vaultChanged(m_currentVaultName);
+
+  m_vaultComboBox->blockSignals(false);
 }
 
 void SidebarView::syncSelectionToCompact(SidebarFilterType type,
@@ -706,7 +676,10 @@ void SidebarView::updateCounts(
 }
 
 void SidebarView::retranslateUi() {
-  populateVaultMenu();
+  populateVaultCombo();
+  if (m_newVaultBtn) {
+    m_newVaultBtn->setToolTip(tr("Create New Vault..."));
+  }
   if (m_collapseBtn) {
     m_collapseBtn->setToolTip(tr("Collapse Sidebar (Ctrl+B)"));
   }
@@ -715,12 +688,6 @@ void SidebarView::retranslateUi() {
   }
   if (m_lockBtn) {
     m_lockBtn->setToolTip(tr("Lock vault immediately (Ctrl+L)"));
-  }
-  if (m_settingsBtn) {
-    m_settingsBtn->setToolTip(tr("Settings (Ctrl+,)"));
-  }
-  if (m_collapsedSettingsBtn) {
-    m_collapsedSettingsBtn->setToolTip(tr("Settings (Ctrl+,)"));
   }
   if (m_collapsedLockBtn) {
     m_collapsedLockBtn->setToolTip(tr("Lock Vault (Ctrl+L)"));

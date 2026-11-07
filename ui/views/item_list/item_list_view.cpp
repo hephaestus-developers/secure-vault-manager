@@ -9,6 +9,7 @@
 #include "app/theme_manager.h"
 #include "app/vault_manager.h"
 #include "components/combobox_popup_helper.h"
+#include "components/in_window_combobox.h"
 
 #include <QAction>
 #include <QHBoxLayout>
@@ -72,24 +73,19 @@ void ItemListView::setupUI() {
 
   toolLayout->addStretch(1);
 
-  m_sortCombo = new QComboBox(toolContainer);
-  m_sortCombo->setObjectName(QStringLiteral("ItemListSortCombo"));
-  m_sortCombo->setFixedHeight(28);
-  m_sortCombo->setIconSize(QSize(16, 16));
-  m_sortCombo->setCursor(Qt::PointingHandCursor);
-  svm::ui::setupFramelessComboBoxPopup(m_sortCombo, 175);
+  auto *sortCombo = new svm::ui::InWindowComboBox(toolContainer);
+  sortCombo->setObjectName(QStringLiteral("ItemListSortCombo"));
+  sortCombo->setFixedHeight(28);
+  sortCombo->setIconSize(QSize(16, 16));
+  sortCombo->setCursor(Qt::PointingHandCursor);
+  sortCombo->setPopupMinWidth(175);
+  m_sortCombo = sortCombo;
 
   auto updateSortIcons = [this]() {
-    const bool isLight =
-        (app::ThemeManager::instance().currentMode() == app::ThemeMode::Light);
-    const QString suffix =
-        isLight ? QStringLiteral("_light.svg") : QStringLiteral("_dark.svg");
-    m_sortCombo->setItemIcon(
-        0, QIcon(QStringLiteral(":/icons/sort_time") + suffix));
-    m_sortCombo->setItemIcon(
-        1, QIcon(QStringLiteral(":/icons/sort_alpha_asc") + suffix));
-    m_sortCombo->setItemIcon(
-        2, QIcon(QStringLiteral(":/icons/sort_alpha_desc") + suffix));
+    auto &tm = app::ThemeManager::instance();
+    m_sortCombo->setItemIcon(0, tm.icon(QStringLiteral("sort_time")));
+    m_sortCombo->setItemIcon(1, tm.icon(QStringLiteral("sort_alpha_asc")));
+    m_sortCombo->setItemIcon(2, tm.icon(QStringLiteral("sort_alpha_desc")));
   };
 
   m_sortCombo->addItem(

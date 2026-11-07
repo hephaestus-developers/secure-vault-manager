@@ -70,6 +70,7 @@ set(UI_HEADERS
     components/window_resize_handler.h
     components/elided_label.h
     components/combobox_popup_helper.h
+    components/in_window_combobox.h
     views/sidebar/sidebar_types.h
     views/sidebar/sidebar_item_delegate.h
     views/sidebar/sidebar_view.h

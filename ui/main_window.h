@@ -53,6 +53,7 @@ public:
   }
 
   void retranslateUi();
+  void openSettingsDialog();
 
 protected:
   void resizeEvent(QResizeEvent *event) override;
@@ -107,18 +108,10 @@ private:
 
   // Settings Dialog
   views::SettingsDialog *m_settingsDialog{nullptr};
-  void openSettingsDialog();
   void updateInactivityTimer();
 
-  // Modal Dialog Guardian & Warning System
+  // Modal Dialog Guardian
   QDialog *findActiveModalDialog() const;
-  void shakeDialog(QWidget *dlg);
-  void showModalWarning(QWidget *dlg);
-
-  QWidget *m_modalWarningToast{nullptr};
-  QLabel *m_modalWarningLabel{nullptr};
-  QLabel *m_modalWarningIcon{nullptr};
-  QTimer m_modalWarningTimer;
 
   // Inactivity Auto-Lock Timer
   QTimer m_inactivityTimer;

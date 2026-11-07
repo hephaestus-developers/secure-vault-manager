@@ -316,6 +316,16 @@ SvmStatus svm_vault_lock(SvmContext *ctx);
 bool svm_vault_is_unlocked(const SvmContext *ctx);
 
 /**
+ * @brief Đọc Emergency Recovery Key của Vault (chỉ khả dụng khi kho đang MỞ
+ * KHÓA).
+ * @param[in] ctx Con trỏ ngữ cảnh ứng dụng.
+ * @param[out] out_key Con trỏ nhận chuỗi ký tự chứa Recovery Key. Giải phóng
+ * bằng @ref svm_free_secret.
+ * @return Mã trạng thái @ref SvmStatus.
+ */
+SvmStatus svm_vault_get_recovery_key(SvmContext *ctx, char **out_key);
+
+/**
  * @brief Đổi tên hiển thị của một Vault.
  * @param[in] ctx Con trỏ ngữ cảnh ứng dụng.
  * @param[in] vault_id Định danh UUID của Vault.

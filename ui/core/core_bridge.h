@@ -47,6 +47,12 @@ public:
   bool initialize(const QString &dataDir = QString());
 
   /**
+   * @brief Đặt lại toàn bộ dữ liệu lưu trữ vật lý của kho và khởi tạo lại ngữ
+   * cảnh.
+   */
+  bool resetStorage();
+
+  /**
    * @brief Kiểm tra xem Context đã khởi tạo thành công chưa.
    */
   [[nodiscard]] bool isInitialized() const;
@@ -131,6 +137,11 @@ public:
    * @brief Kiểm tra xem kho trên Rust Core hiện đang mở khóa hay không.
    */
   [[nodiscard]] bool isVaultUnlocked() const;
+
+  /**
+   * @brief Lấy Recovery Key hiện tại từ Rust Core (chỉ khi kho đang mở khóa).
+   */
+  [[nodiscard]] QString recoveryKey() const;
 
   /**
    * @brief Thay đổi Master Password và bọc lại DEK mà không mất dữ liệu.

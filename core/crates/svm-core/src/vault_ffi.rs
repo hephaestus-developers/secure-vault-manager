@@ -31,6 +31,29 @@ pub unsafe extern "C" fn svm_vault_list(
     SvmStatusCode::Ok
 }
 
+/// Đọc Recovery Key của Vault (chỉ khả dụng khi kho đang MỞ KHÓA).
+///
+/// # Safety
+/// Mọi tham số con trỏ không được là NULL.
+#[no_mangle]
+pub unsafe extern "C" fn svm_vault_get_recovery_key(
+    ctx: *mut SvmContext,
+    out_key: *mut *mut c_char,
+) -> SvmStatusCode {
+    if ctx.is_null() || out_key.is_null() {
+        return SvmStatusCode::InvalidArg;
+    }
+    let Ok(rt) = (*ctx).runtime.lock() else {
+        return SvmStatusCode::Panic;
+    };
+    if !rt.vault_service.is_unlocked() {
+        return SvmStatusCode::Locked;
+    }
+    let key = rt.vault_service.recovery_key();
+    *out_key = alloc_c_string(key);
+    SvmStatusCode::Ok
+}
+
 /// Tạo mới một Vault hoàn chỉnh với Master Password.
 ///
 /// # Safety

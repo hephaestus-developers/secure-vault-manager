@@ -26,6 +26,7 @@ public:
 
   void retranslateUi();
   void refreshVaultList();
+  void updateThemeIcons();
 
 private:
   void setupUI();

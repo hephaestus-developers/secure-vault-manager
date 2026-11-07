@@ -9,10 +9,11 @@
 #include "app/theme_manager.h"
 #include "app/vault_manager.h"
 #include "components/dialog_drag_helper.h"
+#include "components/in_window_combobox.h"
+#include "components/window_resize_handler.h"
 #include "views/vaults/new_vault_dialog.h"
 
 #include <QDialog>
-#include <QGraphicsDropShadowEffect>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
@@ -28,7 +29,7 @@ TabVaults::TabVaults(QWidget *parent) : QWidget(parent) {
   connect(&app::VaultManager::instance(), &app::VaultManager::vaultListChanged,
           this, &TabVaults::refreshVaultList);
   connect(&app::ThemeManager::instance(), &app::ThemeManager::themeChanged,
-          this, &TabVaults::refreshVaultList);
+          this, &TabVaults::updateThemeIcons);
 }
 
 void TabVaults::setupUI() {
@@ -80,8 +81,10 @@ void TabVaults::setupUI() {
   delLayout->setContentsMargins(0, 0, 0, 0);
   delLayout->setSpacing(8);
 
-  m_deleteCombo = new QComboBox(delControl);
+  m_deleteCombo = new svm::ui::InWindowComboBox(delControl);
   m_deleteCombo->setFixedWidth(160);
+  m_deleteCombo->setFixedHeight(32);
+  m_deleteCombo->setCursor(Qt::PointingHandCursor);
   delLayout->addWidget(m_deleteCombo);
 
   m_deleteBtn = new QPushButton(tr("Delete Vault..."), delControl);
@@ -141,6 +144,7 @@ void TabVaults::refreshVaultList() {
 
     // Icon
     auto *iconLbl = new QLabel(rowWidget);
+    iconLbl->setObjectName(QStringLiteral("SettingsVaultRowIcon"));
     iconLbl->setFixedSize(18, 18);
     iconLbl->setPixmap(
         app::ThemeManager::instance().icon(v.iconName).pixmap(18, 18));
@@ -193,9 +197,52 @@ void TabVaults::refreshVaultList() {
     m_vaultsContainerLayout->addWidget(rowWidget);
   }
 
-  // Khóa nút xóa nếu không còn vault nào có thể xóa hoặc tổng vault <= 1
+  // Nếu chỉ còn đúng 1 vault duy nhất (chính là vault mặc định), cho phép chọn
+  // để xóa và đặt lại ứng dụng về Onboarding
+  if (vaults.size() == 1 && m_deleteCombo) {
+    m_deleteCombo->addItem(vaults.first().name, vaults.first().id);
+  }
+
+  // Cập nhật trạng thái combobox xóa và nút xóa
+  if (m_deleteCombo) {
+    if (m_deleteCombo->count() == 0) {
+      m_deleteCombo->addItem(tr("No deletable vaults"), QString());
+      m_deleteCombo->setEnabled(false);
+    } else {
+      m_deleteCombo->setEnabled(true);
+    }
+  }
+
   if (m_deleteBtn) {
-    m_deleteBtn->setEnabled(vaults.size() > 1 && m_deleteCombo->count() > 0);
+    const bool canDelete = (m_deleteCombo && m_deleteCombo->isEnabled() &&
+                            !m_deleteCombo->currentData().toString().isEmpty());
+    m_deleteBtn->setEnabled(canDelete);
+    if (vaults.size() <= 1) {
+      m_deleteBtn->setToolTip(
+          tr("Delete this vault and reset application to setup wizard"));
+    } else {
+      m_deleteBtn->setToolTip(tr("Permanently delete selected vault"));
+    }
+  }
+}
+
+void TabVaults::updateThemeIcons() {
+  if (!m_vaultsContainerLayout) {
+    return;
+  }
+  const auto vaults = app::VaultManager::instance().vaults();
+  for (int i = 0; i < m_vaultsContainerLayout->count() && i < vaults.size();
+       ++i) {
+    if (auto *item = m_vaultsContainerLayout->itemAt(i)) {
+      if (auto *rowWidget = item->widget()) {
+        if (auto *iconLbl = rowWidget->findChild<QLabel *>(
+                QStringLiteral("SettingsVaultRowIcon"))) {
+          iconLbl->setPixmap(app::ThemeManager::instance()
+                                 .icon(vaults[i].iconName)
+                                 .pixmap(18, 18));
+        }
+      }
+    }
   }
 }
 
@@ -215,28 +262,29 @@ void TabVaults::onEditVaultClicked(const models::UiVault &vault) {
 }
 
 void TabVaults::onDeleteVaultClicked() {
-  if (!m_deleteCombo || m_deleteCombo->count() == 0) {
+  if (!m_deleteCombo || m_deleteCombo->count() == 0 ||
+      m_deleteCombo->currentData().toString().isEmpty()) {
     return;
   }
   const QString vId = m_deleteCombo->currentData().toString();
   const QString vName = m_deleteCombo->currentText();
+  const bool isOnlyVault = (app::VaultManager::instance().vaults().size() <= 1);
 
   QDialog dlg(this, Qt::FramelessWindowHint | Qt::Dialog);
-  dlg.setAttribute(Qt::WA_TranslucentBackground, true);
+  dlg.setAttribute(Qt::WA_TranslucentBackground, false);
   dlg.setModal(false);
   dlg.setWindowModality(Qt::NonModal);
-  dlg.setFixedSize(480, 290);
+  dlg.setMinimumSize(420, 260);
+  dlg.resize(480, 290);
 
   auto *rootLayout = new QVBoxLayout(&dlg);
-  rootLayout->setContentsMargins(16, 16, 16, 16);
+  rootLayout->setContentsMargins(0, 0, 0, 0);
 
   auto *card = new QWidget(&dlg);
   card->setObjectName(QStringLiteral("NewVaultCard"));
-  auto *shadow = new QGraphicsDropShadowEffect(&dlg);
-  shadow->setBlurRadius(28);
-  shadow->setColor(QColor(0, 0, 0, 160));
-  shadow->setOffset(0, 8);
-  card->setGraphicsEffect(shadow);
+  card->setAttribute(Qt::WA_StyledBackground, true);
+
+  new components::WindowResizeHandler(&dlg);
 
   auto *cardLayout = new QVBoxLayout(card);
   cardLayout->setContentsMargins(0, 0, 0, 16);
@@ -244,6 +292,7 @@ void TabVaults::onDeleteVaultClicked() {
 
   auto *header = new QWidget(card);
   header->setObjectName(QStringLiteral("NewVaultHeader"));
+  header->setAttribute(Qt::WA_StyledBackground, true);
   header->setFixedHeight(44);
   auto *headerLayout = new QHBoxLayout(header);
   headerLayout->setContentsMargins(16, 0, 8, 0);
@@ -256,7 +305,9 @@ void TabVaults::onDeleteVaultClicked() {
                             .pixmap(18, 18));
   headerLayout->addWidget(headerIcon);
 
-  auto *title = new QLabel(tr("Permanently Delete Vault?"), header);
+  auto *title = new QLabel(isOnlyVault ? tr("Delete Vault & Reset App?")
+                                       : tr("Permanently Delete Vault?"),
+                           header);
   title->setObjectName(QStringLiteral("NewVaultTitle"));
   headerLayout->addWidget(title, 1);
 
@@ -277,10 +328,18 @@ void TabVaults::onDeleteVaultClicked() {
   layout->setContentsMargins(20, 16, 20, 0);
   layout->setSpacing(12);
 
-  auto *warn = new QLabel(tr("This action will erase ALL secrets inside "
-                             "\"%1\". Type the vault name below to confirm:")
-                              .arg(vName),
-                          body);
+  auto *warn = new QLabel(
+      isOnlyVault
+          ? tr("This is your only remaining vault. Deleting \"%1\" will "
+               "permanently erase "
+               "ALL secrets, reset your Master Password, and return Secure "
+               "Vault Manager to the "
+               "initial Setup Wizard.\n\nType the vault name below to confirm:")
+                .arg(vName)
+          : tr("This action will erase ALL secrets inside \"%1\". Type the "
+               "vault name below to confirm:")
+                .arg(vName),
+      body);
   warn->setObjectName(QStringLiteral("DialogDescLabel"));
   warn->setWordWrap(true);
   layout->addWidget(warn);
@@ -301,7 +360,9 @@ void TabVaults::onDeleteVaultClicked() {
   btnLayout->addStretch(1);
 
   auto *confirmBtn =
-      new QPushButton(tr("I understand, delete this vault"), body);
+      new QPushButton(isOnlyVault ? tr("Delete Vault & Reset to Setup")
+                                  : tr("I understand, delete this vault"),
+                      body);
   confirmBtn->setObjectName(QStringLiteral("DangerButton"));
   confirmBtn->setFixedHeight(32);
   confirmBtn->setCursor(Qt::PointingHandCursor);
@@ -310,16 +371,21 @@ void TabVaults::onDeleteVaultClicked() {
           [confirmBtn, vName](const QString &t) {
             confirmBtn->setEnabled(t == vName);
           });
-  connect(confirmBtn, &QPushButton::clicked, &dlg, [&]() {
-    app::VaultManager::instance().deleteVault(vId);
-    dlg.accept();
-    refreshVaultList();
+  connect(confirmBtn, &QPushButton::clicked, &dlg, [&, isOnlyVault, vId]() {
+    if (isOnlyVault) {
+      dlg.accept();
+      app::VaultManager::instance().resetAllData();
+    } else {
+      app::VaultManager::instance().deleteVault(vId);
+      dlg.accept();
+      refreshVaultList();
+    }
   });
   btnLayout->addWidget(confirmBtn);
   layout->addLayout(btnLayout);
 
   cardLayout->addWidget(body, 1);
-  components::DialogDragHelper::makeDraggable(card, &dlg);
+  components::DialogDragHelper::makeDraggable(header, &dlg);
   rootLayout->addWidget(card);
 
   components::DialogDragHelper::execDialog(dlg);

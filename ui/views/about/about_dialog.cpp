@@ -8,9 +8,9 @@
 #include "about_dialog.h"
 #include "app/theme_manager.h"
 #include "components/dialog_drag_helper.h"
+#include "components/window_resize_handler.h"
 
 #include <QEvent>
-#include <QGraphicsDropShadowEffect>
 #include <QGridLayout>
 #include <QHBoxLayout>
 #include <QIcon>
@@ -23,38 +23,37 @@ namespace svm::views {
 AboutDialog::AboutDialog(QWidget *parent)
     : QDialog(parent, Qt::FramelessWindowHint | Qt::Dialog) {
   setObjectName(QStringLiteral("AboutDialog"));
-  setAttribute(Qt::WA_TranslucentBackground, true);
+  setAttribute(Qt::WA_TranslucentBackground, false);
   setModal(false);
   setWindowModality(Qt::NonModal);
-  setFixedSize(540, 480);
+  setMinimumSize(480, 420);
+  resize(540, 480);
 
   setupUI();
+
+  new components::WindowResizeHandler(this);
 }
 
 void AboutDialog::setupUI() {
   auto *rootLayout = new QVBoxLayout(this);
-  rootLayout->setContentsMargins(16, 16, 16, 16);
+  rootLayout->setContentsMargins(0, 0, 0, 0);
 
   m_cardWidget = new QWidget(this);
   m_cardWidget->setObjectName(QStringLiteral("AboutDialogCard"));
-
-  auto *shadow = new QGraphicsDropShadowEffect(this);
-  shadow->setBlurRadius(24);
-  shadow->setColor(QColor(0, 0, 0, 160));
-  shadow->setOffset(0, 8);
-  m_cardWidget->setGraphicsEffect(shadow);
+  m_cardWidget->setAttribute(Qt::WA_StyledBackground, true);
 
   auto *cardLayout = new QVBoxLayout(m_cardWidget);
   cardLayout->setContentsMargins(0, 0, 0, 14);
-  cardLayout->setSpacing(12);
+  cardLayout->setSpacing(0);
 
   // 1. Header Bar
   m_headerWidget = new QWidget(m_cardWidget);
   m_headerWidget->setObjectName(QStringLiteral("AboutDialogHeader"));
-  m_headerWidget->setFixedHeight(40);
+  m_headerWidget->setAttribute(Qt::WA_StyledBackground, true);
+  m_headerWidget->setFixedHeight(44);
 
   auto *headerLayout = new QHBoxLayout(m_headerWidget);
-  headerLayout->setContentsMargins(12, 0, 8, 0);
+  headerLayout->setContentsMargins(14, 0, 10, 0);
   headerLayout->setSpacing(8);
 
   auto *logoIconLabel = new QLabel(m_headerWidget);
@@ -82,8 +81,9 @@ void AboutDialog::setupUI() {
 
   // 2. Nội dung thân: QTabWidget
   auto *contentContainer = new QWidget(m_cardWidget);
+  contentContainer->setAttribute(Qt::WA_StyledBackground, true);
   auto *contentLayout = new QVBoxLayout(contentContainer);
-  contentLayout->setContentsMargins(14, 0, 14, 0);
+  contentLayout->setContentsMargins(14, 12, 14, 0);
   contentLayout->setSpacing(10);
 
   m_tabWidget = new QTabWidget(contentContainer);
