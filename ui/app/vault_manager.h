@@ -160,10 +160,16 @@ public:
   }
 
   /**
-   * @brief Sinh mã Recovery Key ngẫu nhiên theo định dạng chuẩn
-   * SVM-XXXX-XXXX-XXXX-XXXX.
+   * @brief Sinh mã Recovery Key ngẫu nhiên theo chuẩn 24 ký tự
+   * XXXX-XXXX-XXXX-XXXX-XXXX-XXXX (6 cụm 4 ký tự).
    */
   static QString generateRecoveryKey();
+
+  /**
+   * @brief Chuẩn hóa mã Recovery Key (loại bỏ khoảng trắng, format chuẩn 6
+   * cụm).
+   */
+  static QString normalizeRecoveryKey(const QString &raw);
 
 signals:
   void configuredChanged(bool configured);

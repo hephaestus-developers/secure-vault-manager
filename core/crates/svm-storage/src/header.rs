@@ -1,6 +1,8 @@
 //! Cấu trúc Header nhị phân của tệp kho dữ liệu `vault.svm` và cơ chế bọc khóa kép (Master + Recovery DEK).
 
-use svm_crypto::{chacha20_poly1305_encrypt, derive_kek, random_bytes, zeroize_slice};
+use svm_crypto::{
+    chacha20_poly1305_encrypt, derive_kek, normalize_recovery_key, random_bytes, zeroize_slice,
+};
 
 /// Magic bytes nhận diện tệp `vault.svm` phiên bản 1.
 pub const VAULT_MAGIC: &[u8; 4] = b"SVM1";
@@ -56,7 +58,7 @@ impl VaultHeader {
         random_bytes(&mut recovery_salt);
         random_bytes(&mut recovery_nonce);
 
-        let norm_rec = recovery_key.trim().to_uppercase();
+        let norm_rec = normalize_recovery_key(recovery_key);
         let mut recovery_kek = derive_kek(&norm_rec, &recovery_salt);
         let wrapped_r =
             chacha20_poly1305_encrypt(&recovery_kek, &recovery_nonce, AAD_RECOVERY_DEK, dek);

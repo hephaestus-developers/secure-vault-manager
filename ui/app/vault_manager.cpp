@@ -355,7 +355,7 @@ bool VaultManager::unlockWithRecoveryKey(const QString &recoveryKey,
   if (!m_isConfigured) {
     return false;
   }
-  const QString normalizedKey = recoveryKey.trimmed().toUpper();
+  const QString normalizedKey = normalizeRecoveryKey(recoveryKey);
   auto &bridge = core::CoreBridge::instance();
   bool coreOk = false;
   if (bridge.isInitialized()) {
@@ -428,7 +428,7 @@ QString VaultManager::generateRecoveryKey() {
   const char chars[] = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // Loại bỏ O, 0, I, 1
   const int charCount = sizeof(chars) - 1;
   QStringList groups;
-  for (int g = 0; g < 4; ++g) {
+  for (int g = 0; g < 6; ++g) {
     QString grp;
     for (int i = 0; i < 4; ++i) {
       const int idx = QRandomGenerator::system()->bounded(charCount);
@@ -436,7 +436,36 @@ QString VaultManager::generateRecoveryKey() {
     }
     groups.append(grp);
   }
-  return QStringLiteral("SVM-%1").arg(groups.join(QLatin1Char('-')));
+  return groups.join(QLatin1Char('-'));
+}
+
+QString VaultManager::normalizeRecoveryKey(const QString &raw) {
+  QString clean;
+  for (const QChar &ch : raw.trimmed().toUpper()) {
+    if (ch.isLetterOrNumber()) {
+      clean.append(ch);
+    }
+  }
+  QString body = clean;
+  if (body.startsWith(QStringLiteral("SVM")) &&
+      (body.length() == 19 || body.length() == 27)) {
+    body = body.mid(3);
+  }
+  if (body.length() == 24) {
+    QStringList groups;
+    for (int i = 0; i < 24; i += 4) {
+      groups.append(body.mid(i, 4));
+    }
+    return groups.join(QLatin1Char('-'));
+  }
+  if (body.length() == 16) {
+    QStringList groups;
+    for (int i = 0; i < 16; i += 4) {
+      groups.append(body.mid(i, 4));
+    }
+    return QStringLiteral("SVM-%1").arg(groups.join(QLatin1Char('-')));
+  }
+  return raw.trimmed().toUpper();
 }
 
 QString VaultManager::hashPassword(const QString &password,

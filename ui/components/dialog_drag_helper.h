@@ -16,10 +16,12 @@
 #include <QEvent>
 #include <QEventLoop>
 #include <QLabel>
+#include <QLayout>
 #include <QLineEdit>
 #include <QMouseEvent>
 #include <QObject>
 #include <QPoint>
+#include <QPropertyAnimation>
 #include <QScrollBar>
 #include <QTabBar>
 #include <QWidget>
@@ -76,6 +78,56 @@ public:
       }
     }
     return nullptr;
+  }
+
+  /**
+   * @brief Kích hoạt hiệu ứng rung nhẹ (Shake Animation) trên dialog được chỉ
+   * định (thường là dialog con nhỏ nhất ở tầng trên cùng) khi người dùng click
+   * bên ngoài.
+   */
+  static void shakeDialog(QWidget *dlg) {
+    if (!dlg || !dlg->isVisible()) {
+      return;
+    }
+    if (dlg->property("_svm_is_shaking").toBool()) {
+      return;
+    }
+    dlg->setProperty("_svm_is_shaking", true);
+
+    QWidget *target = dlg;
+    QLayout *dlgLayout = dlg->layout();
+    if (dlgLayout && dlgLayout->count() > 0 && dlgLayout->itemAt(0) &&
+        dlgLayout->itemAt(0)->widget()) {
+      target = dlgLayout->itemAt(0)->widget();
+    }
+
+    const QPoint origPos = target->pos();
+    if (dlgLayout && target != dlg) {
+      dlgLayout->setEnabled(false);
+    }
+
+    auto *anim = new QPropertyAnimation(target, "pos", dlg);
+    anim->setDuration(280);
+    anim->setKeyValueAt(0.00, origPos);
+    anim->setKeyValueAt(0.12, origPos + QPoint(-10, 0));
+    anim->setKeyValueAt(0.28, origPos + QPoint(10, 0));
+    anim->setKeyValueAt(0.44, origPos + QPoint(-7, 0));
+    anim->setKeyValueAt(0.60, origPos + QPoint(7, 0));
+    anim->setKeyValueAt(0.76, origPos + QPoint(-4, 0));
+    anim->setKeyValueAt(0.88, origPos + QPoint(4, 0));
+    anim->setKeyValueAt(1.00, origPos);
+
+    QObject::connect(anim, &QPropertyAnimation::finished, dlg,
+                     [dlg, target, dlgLayout, origPos]() {
+                       target->move(origPos);
+                       if (dlgLayout && target != dlg) {
+                         dlgLayout->setEnabled(true);
+                         dlgLayout->activate();
+                       }
+                       dlg->setProperty("_svm_is_shaking", false);
+                     });
+
+    anim->start(QAbstractAnimation::DeleteWhenStopped);
   }
 
   /**

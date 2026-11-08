@@ -802,6 +802,7 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event) {
       if (isClick) {
         activeDlg->raise();
         activeDlg->activateWindow();
+        components::DialogDragHelper::shakeDialog(activeDlg);
       }
       return true;
     }

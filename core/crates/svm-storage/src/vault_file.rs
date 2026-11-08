@@ -4,8 +4,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use svm_crypto::{
-    chacha20_poly1305_decrypt, chacha20_poly1305_encrypt, derive_kek, random_bytes, sha256,
-    zeroize_slice,
+    chacha20_poly1305_decrypt, chacha20_poly1305_encrypt, derive_kek, normalize_recovery_key,
+    random_bytes, sha256, zeroize_slice,
 };
 use svm_domain::{DomainError, JsonValue};
 
@@ -200,16 +200,35 @@ impl VaultStorage {
         recovery_key: &str,
     ) -> Result<(VaultHeader, [u8; 32], String), DomainError> {
         let (header, payload_nonce, encrypted_payload) = self.read_raw_envelope()?;
-        let norm_rec = recovery_key.trim().to_uppercase();
+        let norm_rec = normalize_recovery_key(recovery_key);
         let mut recovery_kek = derive_kek(&norm_rec, &header.recovery_salt);
-        let dek_vec = chacha20_poly1305_decrypt(
+        let dek_res = chacha20_poly1305_decrypt(
             &recovery_kek,
             &header.recovery_nonce,
             AAD_RECOVERY_DEK,
             &header.recovery_wrapped_dek,
-        )
-        .map_err(|_| DomainError::WrongPassword)?;
+        );
         zeroize_slice(&mut recovery_kek);
+
+        let dek_vec = match dek_res {
+            Ok(v) => v,
+            Err(_) => {
+                let raw_norm = recovery_key.trim().to_uppercase();
+                if raw_norm != norm_rec {
+                    let mut fallback_kek = derive_kek(&raw_norm, &header.recovery_salt);
+                    let res = chacha20_poly1305_decrypt(
+                        &fallback_kek,
+                        &header.recovery_nonce,
+                        AAD_RECOVERY_DEK,
+                        &header.recovery_wrapped_dek,
+                    );
+                    zeroize_slice(&mut fallback_kek);
+                    res.map_err(|_| DomainError::WrongPassword)?
+                } else {
+                    return Err(DomainError::WrongPassword);
+                }
+            }
+        };
 
         let mut dek = [0u8; 32];
         dek.copy_from_slice(&dek_vec[..32]);

@@ -20,7 +20,8 @@ pub use encoding::{base32_decode, base64_decode, base64_encode, hex_decode, hex_
 pub use hash::{hmac_sha1, hmac_sha256, sha1, sha256};
 pub use kdf::{derive_kek, pbkdf2_hmac_sha256};
 pub use mem::{
-    generate_recovery_key, generate_uuid_v4, mem_lock, random_bytes, seed_entropy, zeroize_slice,
+    generate_recovery_key, generate_uuid_v4, mem_lock, normalize_recovery_key, random_bytes,
+    seed_entropy, zeroize_slice,
 };
 pub use password::{evaluate_password_strength, generate_password, PasswordStrength};
 

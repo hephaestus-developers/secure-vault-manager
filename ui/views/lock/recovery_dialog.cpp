@@ -101,7 +101,8 @@ void RecoveryDialog::setupUI() {
   layout->addWidget(keyLabel);
 
   m_recKeyEdit = new QLineEdit(bodyWidget);
-  m_recKeyEdit->setPlaceholderText(QStringLiteral("SVM-XXXX-XXXX-XXXX-XXXX"));
+  m_recKeyEdit->setPlaceholderText(
+      QStringLiteral("XXXX-XXXX-XXXX-XXXX-XXXX-XXXX"));
   m_recKeyEdit->setStyleSheet(
       QStringLiteral("font-family: monospace; font-size: 13px;"));
   m_recKeyEdit->setFixedHeight(36);
@@ -157,7 +158,7 @@ void RecoveryDialog::setupUI() {
   layout->addLayout(btnLayout);
   cardLayout->addWidget(bodyWidget, 1);
 
-  components::DialogDragHelper::makeDraggable(m_cardWidget, this);
+  components::DialogDragHelper::makeDraggable(m_headerWidget, this);
   rootLayout->addWidget(m_cardWidget);
 }
 

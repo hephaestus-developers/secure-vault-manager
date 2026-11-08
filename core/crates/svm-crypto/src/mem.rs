@@ -100,13 +100,13 @@ pub fn generate_uuid_v4() -> String {
     )
 }
 
-/// Sinh mã Emergency Recovery Key chuẩn `SVM-XXXX-XXXX-XXXX-XXXX`.
+/// Sinh mã Emergency Recovery Key chuẩn 24 ký tự `XXXX-XXXX-XXXX-XXXX-XXXX-XXXX` (6 cụm 4 ký tự).
 pub fn generate_recovery_key() -> String {
     const ALPHABET: &[u8] = b"ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-    let mut rand = [0u8; 16];
+    let mut rand = [0u8; 24];
     random_bytes(&mut rand);
-    let mut groups = Vec::with_capacity(4);
-    for g in 0..4 {
+    let mut groups = Vec::with_capacity(6);
+    for g in 0..6 {
         let mut s = String::with_capacity(4);
         for i in 0..4 {
             let idx = (rand[g * 4 + i] as usize) % ALPHABET.len();
@@ -114,5 +114,71 @@ pub fn generate_recovery_key() -> String {
         }
         groups.push(s);
     }
-    format!("SVM-{}", groups.join("-"))
+    groups.join("-")
+}
+
+/// Chuẩn hóa mã Recovery Key (loại bỏ ký tự phân tách, hỗ trợ cả định dạng 24 ký tự mới và 16 ký tự cũ).
+pub fn normalize_recovery_key(raw: &str) -> String {
+    let clean: String = raw
+        .trim()
+        .to_uppercase()
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric())
+        .collect();
+    let body = if clean.starts_with("SVM") && (clean.len() == 19 || clean.len() == 27) {
+        &clean[3..]
+    } else {
+        &clean
+    };
+    if body.len() == 24 {
+        let mut groups = Vec::with_capacity(6);
+        for chunk in body.as_bytes().chunks(4) {
+            if let Ok(s) = std::str::from_utf8(chunk) {
+                groups.push(s);
+            }
+        }
+        return groups.join("-");
+    }
+    if body.len() == 16 {
+        let mut groups = Vec::with_capacity(4);
+        for chunk in body.as_bytes().chunks(4) {
+            if let Ok(s) = std::str::from_utf8(chunk) {
+                groups.push(s);
+            }
+        }
+        return format!("SVM-{}", groups.join("-"));
+    }
+    raw.trim().to_uppercase()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_generate_and_normalize_recovery_key() {
+        let key = generate_recovery_key();
+        // 6 groups of 4 chars + 5 dashes = 29 chars total
+        assert_eq!(key.len(), 29);
+        let groups: Vec<&str> = key.split('-').collect();
+        assert_eq!(groups.len(), 6);
+        for g in &groups {
+            assert_eq!(g.len(), 4);
+        }
+
+        // Test normalization
+        let no_dashes: String = key.chars().filter(|&c| c != '-').collect();
+        assert_eq!(normalize_recovery_key(&no_dashes), key);
+
+        let lowercase = key.to_lowercase();
+        assert_eq!(normalize_recovery_key(&lowercase), key);
+
+        let with_spaces = key.replace('-', " ");
+        assert_eq!(normalize_recovery_key(&with_spaces), key);
+
+        // Test legacy 16-char format
+        let legacy = "SVM-ABCD-EFGH-JKLM-NPQR";
+        assert_eq!(normalize_recovery_key(legacy), legacy);
+        assert_eq!(normalize_recovery_key("abcd efgh jklm npqr"), legacy);
+    }
 }
