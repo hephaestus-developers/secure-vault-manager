@@ -8,12 +8,12 @@
 
 #include "main_window.h"
 #include "app/clipboard_manager.h"
+#include "app/dev_logger.h"
 #include "app/settings_manager.h"
 #include "app/theme_manager.h"
 #include "app/tray_manager.h"
 #include "app/vault_manager.h"
 #include "components/dialog_drag_helper.h"
-#include "components/menubar/app_menu_bar.h"
 #include "components/unified_header_bar.h"
 #include "components/window_resize_handler.h"
 #include "core/core_bridge.h"
@@ -25,7 +25,6 @@
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QLayout>
-#include <QMessageBox>
 #include <QMouseEvent>
 #include <QPropertyAnimation>
 #include <QVBoxLayout>
@@ -43,7 +42,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 
   setupUI();
   setupShortcuts();
-  populateMockData();
+  m_itemListView->setItems({});
+  m_detailView->clearItem();
 
   // Khởi tạo bộ xử lý co giãn kích thước cửa sổ không viền 8 hướng
   m_resizeHandler = new components::WindowResizeHandler(this);
@@ -55,13 +55,14 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 void MainWindow::setupUI() {
   auto *centralWidget = new QWidget(this);
   centralWidget->setObjectName(QStringLiteral("CentralWidget"));
+  centralWidget->setAttribute(Qt::WA_StyledBackground, true);
   auto *layout = new QVBoxLayout(centralWidget);
-  layout->setContentsMargins(0, 0, 0, 0);
+  const int m = isMaximized() ? 0 : 1;
+  layout->setContentsMargins(m, m, m, m);
   layout->setSpacing(0);
 
-  // 1. Khởi tạo AppMenuBar và UnifiedHeaderBar
-  m_menuBar = new components::AppMenuBar(this);
-  m_headerBar = new components::UnifiedHeaderBar(m_menuBar, this);
+  // 1. Khởi tạo UnifiedHeaderBar
+  m_headerBar = new components::UnifiedHeaderBar(this);
   m_headerBar->setTitleText(windowTitle());
   layout->addWidget(m_headerBar);
 
@@ -122,11 +123,7 @@ void MainWindow::setupUI() {
             }
           });
 
-  // 3. Command Palette Dialog
-  m_commandPalette =
-      new views::CommandPaletteDialog(m_itemListView->sourceModel(), this);
-
-  // 4. Kết nối tín hiệu Header Bar
+  // 3. Kết nối tín hiệu Header Bar
   connect(m_headerBar, &components::UnifiedHeaderBar::minimizeRequested, this,
           &MainWindow::showMinimized);
   connect(m_headerBar, &components::UnifiedHeaderBar::maximizeRestoreRequested,
@@ -139,8 +136,6 @@ void MainWindow::setupUI() {
           });
   connect(m_headerBar, &components::UnifiedHeaderBar::closeRequested, this,
           &MainWindow::close);
-  connect(m_headerBar, &components::UnifiedHeaderBar::commandPaletteRequested,
-          this, &MainWindow::openCommandPalette);
   connect(m_headerBar, &components::UnifiedHeaderBar::themeToggleRequested,
           this, []() {
             auto &tm = app::ThemeManager::instance();
@@ -163,13 +158,6 @@ void MainWindow::setupUI() {
   connect(m_sidebarView, &views::SidebarView::filterSelected, m_itemListView,
           &views::ItemListView::setFilter);
   connect(m_sidebarView, &views::SidebarView::lockVaultRequested, this,
-          [this]() {
-            app::VaultManager::instance().lock();
-            if (m_trayManager) {
-              m_trayManager->setVaultLocked(true);
-            }
-          });
-  connect(m_menuBar, &components::AppMenuBar::lockVaultRequested, this,
           [this]() {
             app::VaultManager::instance().lock();
             if (m_trayManager) {
@@ -224,9 +212,6 @@ void MainWindow::setupUI() {
   connect(m_sidebarView, &views::SidebarView::settingsRequested, this,
           &MainWindow::openSettingsDialog);
 
-  connect(m_menuBar, &components::AppMenuBar::exitRequested, qApp,
-          &QApplication::quit);
-
   // 7. Thiết lập Inactivity Timer tự động khóa Vault
   connect(&m_inactivityTimer, &QTimer::timeout, this, [this]() {
     if (app::VaultManager::instance().isUnlocked()) {
@@ -262,14 +247,6 @@ void MainWindow::setupShortcuts() {
                               ? app::ThemeMode::Light
                               : app::ThemeMode::Dark;
     tm.applyTheme(nextMode);
-  });
-
-  m_commandPaletteShortcut =
-      new QShortcut(QKeySequence(QStringLiteral("Ctrl+K")), this);
-  connect(m_commandPaletteShortcut, &QShortcut::activated, this, [this]() {
-    if (!app::VaultManager::instance().isLocked()) {
-      openCommandPalette();
-    }
   });
 
   m_searchShortcut =
@@ -317,22 +294,37 @@ void MainWindow::setupShortcuts() {
       new QShortcut(QKeySequence(QStringLiteral("Ctrl+,")), this);
   connect(settingsShortcut, &QShortcut::activated, this,
           &MainWindow::openSettingsDialog);
+
+  auto *lockShortcut =
+      new QShortcut(QKeySequence(QStringLiteral("Ctrl+L")), this);
+  connect(lockShortcut, &QShortcut::activated, this, [this]() {
+    if (!app::VaultManager::instance().isLocked()) {
+      app::VaultManager::instance().lock();
+      if (m_trayManager) {
+        m_trayManager->setVaultLocked(true);
+      }
+    }
+  });
+
+  auto *quitShortcut = new QShortcut(QKeySequence::Quit, this);
+  connect(quitShortcut, &QShortcut::activated, this, &QWidget::close);
 }
 
 void MainWindow::toggleSidebar() { m_sidebarView->toggleCollapsed(); }
 
-void MainWindow::openCommandPalette() {
-  if (!app::VaultManager::instance().isUnlocked()) {
+void MainWindow::onItemSelected(const QString &itemId) {
+  if (itemId.isEmpty()) {
+    m_previousSelectedItemId.clear();
+    m_detailView->clearItem();
     return;
   }
-  m_commandPalette->openPalette();
-}
-
-void MainWindow::onItemSelected(const QString &itemId) {
   const auto opt = m_itemListView->sourceModel()->findItemById(itemId);
   if (opt.has_value()) {
     m_previousSelectedItemId = itemId;
     m_detailView->setItem(opt.value());
+  } else {
+    m_previousSelectedItemId.clear();
+    m_detailView->clearItem();
   }
 }
 
@@ -445,6 +437,7 @@ void MainWindow::onQuickCopyRequested(const QString &itemId,
 }
 
 void MainWindow::loadItemsFromCore() {
+  SVM_ACTION_SCOPE("UI", "MainWindow::loadItemsFromCore");
   auto &bridge = core::CoreBridge::instance();
   if (!bridge.isInitialized() || !bridge.isVaultUnlocked()) {
     return;
@@ -455,162 +448,24 @@ void MainWindow::loadItemsFromCore() {
     m_itemListView->setItems(coreItems);
     updateSidebarCounts();
 
-    QString targetId = prevId;
-    if (targetId.isEmpty() ||
-        !m_itemListView->sourceModel()->findItemById(targetId).has_value()) {
-      targetId = coreItems.first().id;
-    }
-    const auto opt = m_itemListView->sourceModel()->findItemById(targetId);
-    if (opt.has_value()) {
-      m_itemListView->selectItem(targetId);
-      m_detailView->setItem(opt.value());
+    if (!prevId.isEmpty()) {
+      const auto opt = m_itemListView->sourceModel()->findItemById(prevId);
+      if (opt.has_value()) {
+        m_itemListView->selectItem(prevId);
+        m_detailView->setItem(opt.value());
+      } else {
+        m_itemListView->clearSelection();
+        m_detailView->clearItem();
+      }
+    } else {
+      m_itemListView->clearSelection();
+      m_detailView->clearItem();
     }
   } else {
     m_itemListView->setItems({});
     m_detailView->clearItem();
     updateSidebarCounts();
   }
-}
-
-void MainWindow::populateMockData() {
-  QList<models::UiVaultItem> items;
-
-  // 1. GitHub Work
-  models::UiVaultItem git;
-  git.id = QStringLiteral("item-001");
-  git.title = QStringLiteral("GitHub (Work Account)");
-  git.category = models::ItemCategory::Login;
-  git.vaultId = QStringLiteral("personal");
-  git.username = QStringLiteral("octocat@hephaestus.io");
-  git.password = QStringLiteral("ghp_9284Fja9028Fh2q8fh0283fh90q");
-  git.websiteUrl = QStringLiteral("https://github.com/login");
-  git.hasTotp = true;
-  git.totpSecret = QStringLiteral("JBSWY3DPEHPK3PXP");
-  git.isFavorite = true;
-  git.notes = QStringLiteral(
-      "Main engineering organization account with SSH & 2FA enabled.");
-  git.updatedAt = QDateTime::currentDateTime().addDays(-2);
-
-  models::UiCustomField gitField1;
-  gitField1.id = QStringLiteral("cf-git-1");
-  gitField1.label = QStringLiteral("Personal Access Token");
-  gitField1.value = QStringLiteral("ghp_98418fha09283fhkjashf9283");
-  gitField1.kind = models::CustomFieldKind::Concealed;
-  git.customFields.append(gitField1);
-
-  models::UiCustomField gitField2;
-  gitField2.id = QStringLiteral("cf-git-2");
-  gitField2.label = QStringLiteral("Organization Team");
-  gitField2.value = QStringLiteral("Core Infrastructure & Security");
-  gitField2.kind = models::CustomFieldKind::Text;
-  git.customFields.append(gitField2);
-
-  models::UiCustomField gitField3;
-  gitField3.id = QStringLiteral("cf-git-3");
-  gitField3.label = QStringLiteral("Hardware Key (FIDO2) Required");
-  gitField3.value = QStringLiteral("true");
-  gitField3.kind = models::CustomFieldKind::Boolean;
-  git.customFields.append(gitField3);
-
-  models::UiCustomField gitField4;
-  gitField4.id = QStringLiteral("cf-git-4");
-  gitField4.label = QStringLiteral("Token Expiration Date");
-  gitField4.value = QStringLiteral("2026-12-31");
-  gitField4.kind = models::CustomFieldKind::Date;
-  git.customFields.append(gitField4);
-
-  items.append(git);
-
-  // 2. AWS Root Account
-  models::UiVaultItem aws;
-  aws.id = QStringLiteral("item-002");
-  aws.title = QStringLiteral("AWS Console (Production)");
-  aws.category = models::ItemCategory::Login;
-  aws.vaultId = QStringLiteral("work");
-  aws.username = QStringLiteral("devops-admin@corp.internal");
-  aws.password = QStringLiteral("K8s!Aws#Secure2026$Production");
-  aws.websiteUrl = QStringLiteral("https://aws.amazon.com/console");
-  aws.hasTotp = true;
-  aws.totpSecret = QStringLiteral("HXDMVJECJJWSRB3H");
-  aws.isFavorite = true;
-  aws.updatedAt = QDateTime::currentDateTime().addDays(-5);
-
-  models::UiCustomField awsField1;
-  awsField1.id = QStringLiteral("cf-aws-1");
-  awsField1.label = QStringLiteral("AWS Account ID");
-  awsField1.value = QStringLiteral("8491-0294-8172");
-  awsField1.kind = models::CustomFieldKind::Text;
-  aws.customFields.append(awsField1);
-
-  models::UiCustomField awsField2;
-  awsField2.id = QStringLiteral("cf-aws-2");
-  awsField2.label = QStringLiteral("IAM Role Name");
-  awsField2.value = QStringLiteral("DevOpsAdministratorAccess");
-  awsField2.kind = models::CustomFieldKind::Text;
-  aws.customFields.append(awsField2);
-
-  items.append(aws);
-
-  // 3. SSH Key Production
-  models::UiVaultItem ssh;
-  ssh.id = QStringLiteral("item-003");
-  ssh.title = QStringLiteral("id_ed25519 (Prod Bastion)");
-  ssh.category = models::ItemCategory::SshKey;
-  ssh.vaultId = QStringLiteral("work");
-  ssh.username = QStringLiteral("root@bastion.infra.net");
-  ssh.sshFingerprint =
-      QStringLiteral("SHA256:7mP0e5K2q9N8w1X4v6Z3t7Y0u5W2r8O1p4Q7s");
-  ssh.sshPublicKey = QStringLiteral(
-      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleProdKeyhephaestus "
-      "root@bastion");
-  ssh.password = QStringLiteral("Passphrase#SSH#2026");
-  ssh.isSshLoaded = true;
-  ssh.updatedAt = QDateTime::currentDateTime().addDays(-10);
-  items.append(ssh);
-
-  // 4. PostgreSQL Cluster
-  models::UiVaultItem db;
-  db.id = QStringLiteral("item-004");
-  db.title = QStringLiteral("Postgres Cloud Cluster");
-  db.category = models::ItemCategory::Database;
-  db.vaultId = QStringLiteral("work");
-  db.username = QStringLiteral("postgres_superadmin");
-  db.password = QStringLiteral("PgSQL#SecurePass!Cluster2026");
-  db.dbHost = QStringLiteral("pg-primary.prod.svc.cluster.local:5432");
-  db.dbName = QStringLiteral("vault_core_db");
-  db.updatedAt = QDateTime::currentDateTime().addDays(-1);
-  items.append(db);
-
-  // 5. Office Wi-Fi
-  models::UiVaultItem wifi;
-  wifi.id = QStringLiteral("item-005");
-  wifi.title = QStringLiteral("Hephaestus Studio Wi-Fi");
-  wifi.category = models::ItemCategory::Wifi;
-  wifi.vaultId = QStringLiteral("work");
-  wifi.wifiSsid = QStringLiteral("Hephaestus_5GHz_HighSec");
-  wifi.password = QStringLiteral("IronForge#Wifi#2026");
-  wifi.updatedAt = QDateTime::currentDateTime().addDays(-30);
-  items.append(wifi);
-
-  // 6. Corporate Credit Card
-  models::UiVaultItem card;
-  card.id = QStringLiteral("item-006");
-  card.title = QStringLiteral("Corporate Visa Platinum");
-  card.category = models::ItemCategory::Card;
-  card.vaultId = QStringLiteral("personal");
-  card.username = QStringLiteral("HAI PHAM NGOC");
-  card.cardNumber = QStringLiteral("4111 2222 3333 4444");
-  card.cardExpiry = QStringLiteral("12/28");
-  card.cardCvv = QStringLiteral("888");
-  card.updatedAt = QDateTime::currentDateTime().addDays(-15);
-  items.append(card);
-
-  m_itemListView->setItems(items);
-  updateSidebarCounts();
-
-  // Chọn mặc định item đầu tiên
-  m_itemListView->selectItem(git.id);
-  m_detailView->setItem(git);
 }
 
 void MainWindow::updateSidebarCounts() {
@@ -620,10 +475,19 @@ void MainWindow::updateSidebarCounts() {
   QMap<views::SidebarFilterType, int> filterCounts;
   QMap<models::ItemCategory, int> categoryCounts;
 
+  const std::array<models::ItemCategory, 9> allCategories = {
+      models::ItemCategory::Login,      models::ItemCategory::Passkey,
+      models::ItemCategory::Card,       models::ItemCategory::Identity,
+      models::ItemCategory::SecureNote, models::ItemCategory::SshKey,
+      models::ItemCategory::Database,   models::ItemCategory::Server,
+      models::ItemCategory::Wifi};
+  for (const auto cat : allCategories) {
+    categoryCounts[cat] = 0;
+  }
+
   int allCount = 0;
   int favCount = 0;
   int trashCount = 0;
-  int weakCount = 0;
 
   for (const auto &item : items) {
     if (!activeVId.isEmpty() && activeVId != QStringLiteral("all")) {
@@ -641,18 +505,12 @@ void MainWindow::updateSidebarCounts() {
       if (item.isFavorite) {
         ++favCount;
       }
-      if (item.passwordStrengthScore < 60) {
-        ++weakCount;
-      }
     }
   }
 
   filterCounts[views::SidebarFilterType::AllItems] = allCount;
   filterCounts[views::SidebarFilterType::Favorites] = favCount;
   filterCounts[views::SidebarFilterType::Trash] = trashCount;
-  filterCounts[views::SidebarFilterType::WatchtowerWeak] = weakCount;
-  filterCounts[views::SidebarFilterType::WatchtowerExpiring] =
-      (allCount > 0) ? 1 : 0;
 
   m_sidebarView->updateCounts(filterCounts, categoryCounts);
 }
@@ -673,15 +531,19 @@ void MainWindow::updateNavigationState() {
     m_onboardingView->resetWizard();
     m_headerBar->setTitleText(tr("Setup - Secure Vault Manager"));
     m_headerBar->setSettingsVisible(false);
-    m_headerBar->setCommandPaletteVisible(false);
     m_inactivityTimer.stop();
   } else if (app::VaultManager::instance().isLocked()) {
     m_mainStack->setCurrentWidget(m_lockScreenView);
     m_lockScreenView->resetLockScreen();
     m_headerBar->setTitleText(tr("Locked - Secure Vault Manager"));
     m_headerBar->setSettingsVisible(false);
-    m_headerBar->setCommandPaletteVisible(false);
     m_inactivityTimer.stop();
+    if (m_itemListView) {
+      m_itemListView->clearSelection();
+    }
+    if (m_detailView) {
+      m_detailView->clearItem();
+    }
     if (m_settingsDialog && m_settingsDialog->isVisible()) {
       m_settingsDialog->reject();
     }
@@ -692,7 +554,6 @@ void MainWindow::updateNavigationState() {
     m_mainStack->setCurrentWidget(m_mainSplitter);
     m_headerBar->setTitleText(tr("Secure Vault Manager"));
     m_headerBar->setSettingsVisible(true);
-    m_headerBar->setCommandPaletteVisible(true);
     loadItemsFromCore();
     updateSidebarCounts();
     updateInactivityTimer();
@@ -829,11 +690,21 @@ void MainWindow::resizeEvent(QResizeEvent *event) {
 
 void MainWindow::changeEvent(QEvent *event) {
   if (event->type() == QEvent::WindowStateChange) {
+    const bool max = isMaximized();
     if (m_headerBar) {
-      m_headerBar->updateMaximizeIcon(isMaximized());
+      m_headerBar->updateMaximizeIcon(max);
     }
     if (m_resizeHandler) {
-      m_resizeHandler->setVisible(!isMaximized());
+      m_resizeHandler->setVisible(!max);
+    }
+    if (centralWidget()) {
+      const int m = max ? 0 : 1;
+      if (centralWidget()->layout()) {
+        centralWidget()->layout()->setContentsMargins(m, m, m, m);
+      }
+      centralWidget()->setProperty("maximized", max);
+      centralWidget()->style()->unpolish(centralWidget());
+      centralWidget()->style()->polish(centralWidget());
     }
   } else if (event->type() == QEvent::LanguageChange) {
     retranslateUi();
@@ -843,9 +714,6 @@ void MainWindow::changeEvent(QEvent *event) {
 
 void MainWindow::retranslateUi() {
   setWindowTitle(tr("Secure Vault Manager"));
-  if (m_menuBar) {
-    m_menuBar->retranslateUi();
-  }
   if (m_headerBar) {
     m_headerBar->retranslateUi();
   }

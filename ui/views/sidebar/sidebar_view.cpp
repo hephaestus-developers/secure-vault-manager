@@ -364,23 +364,6 @@ void SidebarView::populateNavItems() {
     m_compactCategoryItems.insert(cat, compactItem);
   }
 
-  // 3. Nhóm Watchtower
-  m_watchtowerHeaderItem = addHeader(tr("WATCHTOWER"));
-
-  m_weakPassItem =
-      addNavItem(QIcon(QStringLiteral(":/icons/watchtower_weak.svg")),
-                 tr("Weak Passwords"), SidebarFilterType::WatchtowerWeak);
-  m_compactFilterItems[SidebarFilterType::WatchtowerWeak] = addCompactItem(
-      QIcon(QStringLiteral(":/icons/watchtower_weak.svg")),
-      tr("Weak Passwords (0)"), SidebarFilterType::WatchtowerWeak);
-
-  m_expiringItem =
-      addNavItem(QIcon(QStringLiteral(":/icons/watchtower_expiring.svg")),
-                 tr("Expiring Tokens"), SidebarFilterType::WatchtowerExpiring);
-  m_compactFilterItems[SidebarFilterType::WatchtowerExpiring] = addCompactItem(
-      QIcon(QStringLiteral(":/icons/watchtower_expiring.svg")),
-      tr("Expiring Tokens (0)"), SidebarFilterType::WatchtowerExpiring);
-
   // Chọn mặc định All Items
   m_navList->setCurrentItem(m_allItem);
   if (auto *allCompact =
@@ -461,24 +444,6 @@ void SidebarView::updateThemeIcons() {
     if (auto *ci = m_compactCategoryItems.value(it.key(), nullptr)) {
       ci->setIcon(catIcon);
     }
-  }
-
-  const QIcon weakIcon = tm.icon(QStringLiteral("watchtower_weak"));
-  if (m_weakPassItem) {
-    m_weakPassItem->setIcon(weakIcon);
-  }
-  if (auto *ci = m_compactFilterItems.value(SidebarFilterType::WatchtowerWeak,
-                                            nullptr)) {
-    ci->setIcon(weakIcon);
-  }
-
-  const QIcon expIcon = tm.icon(QStringLiteral("watchtower_expiring"));
-  if (m_expiringItem) {
-    m_expiringItem->setIcon(expIcon);
-  }
-  if (auto *ci = m_compactFilterItems.value(
-          SidebarFilterType::WatchtowerExpiring, nullptr)) {
-    ci->setIcon(expIcon);
   }
 }
 
@@ -602,11 +567,7 @@ void SidebarView::syncSelectionToList(SidebarFilterType type,
     case SidebarFilterType::Trash:
       m_navList->setCurrentItem(m_trashItem);
       break;
-    case SidebarFilterType::WatchtowerWeak:
-      m_navList->setCurrentItem(m_weakPassItem);
-      break;
-    case SidebarFilterType::WatchtowerExpiring:
-      m_navList->setCurrentItem(m_expiringItem);
+    default:
       break;
     }
   }
@@ -627,16 +588,10 @@ void SidebarView::updateCounts(
   const int allCount = filterCounts.value(SidebarFilterType::AllItems, 0);
   const int favCount = filterCounts.value(SidebarFilterType::Favorites, 0);
   const int trashCount = filterCounts.value(SidebarFilterType::Trash, 0);
-  const int weakCount =
-      filterCounts.value(SidebarFilterType::WatchtowerWeak, 0);
-  const int expCount =
-      filterCounts.value(SidebarFilterType::WatchtowerExpiring, 0);
 
   updateCount(m_allItem, allCount);
   updateCount(m_favItem, favCount);
   updateCount(m_trashItem, trashCount);
-  updateCount(m_weakPassItem, weakCount);
-  updateCount(m_expiringItem, expCount);
 
   // Cập nhật Compact Tooltips
   if (auto *it =
@@ -651,20 +606,13 @@ void SidebarView::updateCounts(
           m_compactFilterItems.value(SidebarFilterType::Trash, nullptr)) {
     it->setToolTip(tr("Trash (%1)").arg(trashCount));
   }
-  if (auto *it = m_compactFilterItems.value(SidebarFilterType::WatchtowerWeak,
-                                            nullptr)) {
-    it->setToolTip(tr("Weak Passwords (%1)").arg(weakCount));
-  }
-  if (auto *it = m_compactFilterItems.value(
-          SidebarFilterType::WatchtowerExpiring, nullptr)) {
-    it->setToolTip(tr("Expiring Tokens (%1)").arg(expCount));
-  }
 
-  // Cập nhật Danh mục
-  for (auto it = categoryCounts.begin(); it != categoryCounts.end(); ++it) {
-    const int count = it.value();
-    if (auto *listItem = m_categoryItems.value(it.key(), nullptr)) {
-      listItem->setData(SidebarItemDelegate::CountRole, count);
+  // Cập nhật Danh mục: Duyệt toàn bộ m_categoryItems để đảm bảo danh mục không
+  // có item luôn reset về 0
+  for (auto it = m_categoryItems.begin(); it != m_categoryItems.end(); ++it) {
+    const int count = categoryCounts.value(it.key(), 0);
+    if (it.value()) {
+      it.value()->setData(SidebarItemDelegate::CountRole, count);
     }
     if (auto *compactItem = m_compactCategoryItems.value(it.key(), nullptr)) {
       compactItem->setToolTip(
@@ -705,18 +653,9 @@ void SidebarView::retranslateUi() {
   if (m_trashItem) {
     m_trashItem->setText(tr("Trash"));
   }
-  if (m_weakPassItem) {
-    m_weakPassItem->setText(tr("Weak Passwords"));
-  }
-  if (m_expiringItem) {
-    m_expiringItem->setText(tr("Expiring Tokens"));
-  }
 
   if (m_categoriesHeaderItem) {
     m_categoriesHeaderItem->setText(tr("CATEGORIES"));
-  }
-  if (m_watchtowerHeaderItem) {
-    m_watchtowerHeaderItem->setText(tr("WATCHTOWER"));
   }
 
   for (auto it = m_categoryItems.begin(); it != m_categoryItems.end(); ++it) {

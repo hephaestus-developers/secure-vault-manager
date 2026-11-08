@@ -15,15 +15,23 @@
 #include <QScrollBar>
 #include <QTimer>
 
+#include "app/dev_logger.h"
 #include "app/language_manager.h"
 #include "app/settings_manager.h"
 #include "app/theme_manager.h"
 #include "app/tray_manager.h"
 #include "app/vault_manager.h"
+#include "components/notification_dialog.h"
 #include "core/core_bridge.h"
 #include "main_window.h"
+#include "views/detail/empty_state_widget.h"
 
 int main(int argc, char *argv[]) {
+  // Cài đặt bộ ghi log và đo latency cho môi trường Dev / Debug
+  if (svm::app::DevLogger::isEnabled()) {
+    svm::app::DevLogger::install();
+  }
+
   // Kích hoạt hỗ trợ High-DPI
   QApplication::setHighDpiScaleFactorRoundingPolicy(
       Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
@@ -93,11 +101,35 @@ int main(int argc, char *argv[]) {
       }
       QTimer::singleShot(100, [&mainWindow, tabIdx]() {
         mainWindow.openSettingsDialog();
-        if (auto *dlg = mainWindow.findChild<QDialog *>(
-                QStringLiteral("SettingsDialog"))) {
+        QDialog *dlg = nullptr;
+        for (auto *child : mainWindow.findChildren<QDialog *>()) {
+          if (child->isVisible()) {
+            dlg = child;
+            break;
+          }
+        }
+        if (dlg) {
           if (auto *navList = dlg->findChild<QListWidget *>(
                   QStringLiteral("SettingsNavList"))) {
             navList->setCurrentRow(tabIdx);
+          }
+        }
+      });
+    } else if (arg == QStringLiteral("--about")) {
+      QTimer::singleShot(50, [&mainWindow]() {
+        if (auto *aboutBtn = mainWindow.findChild<QPushButton *>(
+                QStringLiteral("HeaderAboutBtn"))) {
+          aboutBtn->click();
+        }
+      });
+    } else if (arg == QStringLiteral("--select-sidebar-row") && i + 1 < argc) {
+      int row = QString::fromLatin1(argv[++i]).toInt();
+      QTimer::singleShot(100, [&mainWindow, row]() {
+        for (auto *listWidget : mainWindow.findChildren<QListWidget *>()) {
+          if (listWidget->count() > row) {
+            listWidget->setCurrentRow(row);
+            emit listWidget->itemClicked(listWidget->item(row));
+            break;
           }
         }
       });
@@ -106,6 +138,59 @@ int main(int argc, char *argv[]) {
         if (auto *editBtn = mainWindow.findChild<QPushButton *>(
                 QStringLiteral("DetailHeaderEditBtn"))) {
           editBtn->click();
+        }
+      });
+    } else if (arg == QStringLiteral("--preview-notification")) {
+      QString notifType = (i + 1 < argc) ? QString::fromLatin1(argv[++i])
+                                         : QStringLiteral("info");
+      QTimer::singleShot(50, [&mainWindow, notifType]() {
+        auto *dlg = new svm::components::NotificationDialog(&mainWindow);
+        if (notifType == QStringLiteral("success")) {
+          dlg->setType(svm::components::NotificationType::Success);
+          dlg->setTitle(QObject::tr("Success"));
+          dlg->setMessage(QObject::tr("Master Password updated successfully!"));
+          dlg->setButtons(QObject::tr("OK"));
+        } else if (notifType == QStringLiteral("warning")) {
+          dlg->setType(svm::components::NotificationType::Warning);
+          dlg->setTitle(QObject::tr("Export Failed"));
+          dlg->setMessage(
+              QObject::tr("Could not parse or import the selected file."));
+          dlg->setButtons(QObject::tr("OK"));
+        } else if (notifType == QStringLiteral("question")) {
+          dlg->setType(svm::components::NotificationType::Question);
+          dlg->setTitle(QObject::tr("Security Risk Warning"));
+          dlg->setMessage(
+              QObject::tr("You are about to export your entire password vault "
+                          "in PLAINTEXT format.\nAnyone who accesses this file "
+                          "will be able to read your passwords, cards, and "
+                          "keys.\n\nAre you sure you want to proceed?"));
+          dlg->setButtons(QObject::tr("Export Anyway"), QObject::tr("Cancel"),
+                          true);
+        } else {
+          dlg->setType(svm::components::NotificationType::Information);
+          dlg->setTitle(QObject::tr("Trash Purged"));
+          dlg->setMessage(
+              QObject::tr("All deleted items in trash have been purged."));
+          dlg->setButtons(QObject::tr("OK"));
+        }
+        dlg->show();
+      });
+    } else if (arg == QStringLiteral("--preview-empty-state")) {
+      QTimer::singleShot(50, [&mainWindow]() {
+        auto *dlg = new QDialog(&mainWindow);
+        dlg->setObjectName(QStringLiteral("EmptyStatePreviewDialog"));
+        dlg->resize(620, 620);
+        auto *l = new QVBoxLayout(dlg);
+        l->setContentsMargins(0, 0, 0, 0);
+        l->addWidget(new svm::views::EmptyStateWidget(dlg));
+        dlg->show();
+      });
+    } else if (arg == QStringLiteral("--onboarding-step") && i + 1 < argc) {
+      int step = QString::fromLatin1(argv[++i]).toInt();
+      QTimer::singleShot(150, [&mainWindow, step]() {
+        if (auto *createVaultBtn = mainWindow.findChild<QPushButton *>(
+                QStringLiteral("OnboardingPrimaryBtn"))) {
+          createVaultBtn->click();
         }
       });
     }
@@ -126,9 +211,15 @@ int main(int argc, char *argv[]) {
     if (QString::fromLatin1(argv[i]) == QStringLiteral("--screenshot") &&
         i + 1 < argc) {
       QString path = QString::fromLocal8Bit(argv[++i]);
-      QTimer::singleShot(400, [&mainWindow, path, scrollBottom, &app]() {
-        if (auto *dlg = mainWindow.findChild<QDialog *>(
-                QStringLiteral("SettingsDialog"))) {
+      QTimer::singleShot(600, [&mainWindow, path, scrollBottom, &app]() {
+        QDialog *dlg = nullptr;
+        for (auto *child : mainWindow.findChildren<QDialog *>()) {
+          if (child->isVisible()) {
+            dlg = child;
+            break;
+          }
+        }
+        if (dlg) {
           if (dlg->isVisible()) {
             if (scrollBottom) {
               for (auto *sa : dlg->findChildren<QScrollArea *>()) {

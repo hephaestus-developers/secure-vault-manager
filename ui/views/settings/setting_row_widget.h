@@ -8,8 +8,9 @@
 
 #pragma once
 
-#include <QHBoxLayout>
+#include <QBoxLayout>
 #include <QLabel>
+#include <QResizeEvent>
 #include <QVBoxLayout>
 #include <QWidget>
 
@@ -25,10 +26,18 @@ public:
 
   void updateText(const QString &title, const QString &description);
 
+protected:
+  void resizeEvent(QResizeEvent *event) override;
+
 private:
+  void adjustLayoutForWidth(int width);
+
   QLabel *m_titleLabel{nullptr};
   QLabel *m_descLabel{nullptr};
   QWidget *m_controlWidget{nullptr};
+  QBoxLayout *m_layout{nullptr};
+  QVBoxLayout *m_textLayout{nullptr};
+  bool m_isStacked{false};
 };
 
 /**

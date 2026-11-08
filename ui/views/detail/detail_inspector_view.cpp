@@ -7,6 +7,7 @@
  */
 
 #include "detail_inspector_view.h"
+#include "app/dev_logger.h"
 #include "app/theme_manager.h"
 #include "app/vault_manager.h"
 
@@ -45,6 +46,8 @@ void DetailInspectorView::setupUI() {
 
   // 1. Trang 0: Empty State
   m_emptyState = new EmptyStateWidget(this);
+  connect(m_emptyState, &EmptyStateWidget::createItemRequested, this,
+          [this]() { createNewItem(models::ItemCategory::Login); });
   m_stackedWidget->addWidget(m_emptyState);
 
   // 2. Trang 1: ScrollArea chứa Form chi tiết
@@ -175,7 +178,7 @@ void DetailInspectorView::setupUI() {
   m_addTotpBtn->setIcon(
       app::ThemeManager::instance().icon(QStringLiteral("plus")));
   m_addTotpBtn->setIconSize(QSize(14, 14));
-  m_addTotpBtn->setText(tr("+ Set Up 2FA (One-Time Code)"));
+  m_addTotpBtn->setText(tr("Set Up 2FA (One-Time Code)"));
   m_addTotpBtn->setFixedHeight(32);
   m_addTotpBtn->setCursor(Qt::PointingHandCursor);
   m_addTotpBtn->hide();
@@ -272,6 +275,8 @@ void DetailInspectorView::refreshPrimaryCard(
 }
 
 void DetailInspectorView::setItem(const models::UiVaultItem &item) {
+  SVM_ACTION_SCOPE_DETAIL("UI", "DetailInspectorView::setItem",
+                          QStringLiteral("title=\"%1\"").arg(item.title));
   m_currentItem = item;
   m_isNewItem = false;
   m_isTotpActive = (!item.totpSecret.trimmed().isEmpty() || item.hasTotp);
@@ -586,7 +591,7 @@ void DetailInspectorView::retranslateUi() {
     m_notesField->retranslateUi();
   }
   if (m_addTotpBtn) {
-    m_addTotpBtn->setText(tr("+ Set Up 2FA (One-Time Code)"));
+    m_addTotpBtn->setText(tr("Set Up 2FA (One-Time Code)"));
   }
   for (auto *f : m_allPrimaryFields) {
     if (f) {

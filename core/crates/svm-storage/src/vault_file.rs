@@ -91,6 +91,11 @@ impl VaultStorage {
         header.rewrap_master_password(dek, new_password);
     }
 
+    /// Cập nhật lại khóa bọc Recovery Key trên `VaultHeader` hiện có (giữ nguyên DEK và Master Password).
+    pub fn rewrap_recovery_key(header: &mut VaultHeader, dek: &[u8; 32], new_recovery_key: &str) {
+        header.rewrap_recovery_key(dek, new_recovery_key);
+    }
+
     /// Mã hóa payload JSON bằng DEK và lưu nguyên tử xuống tệp `vault.svm`.
     pub fn save_vault_payload(
         &self,

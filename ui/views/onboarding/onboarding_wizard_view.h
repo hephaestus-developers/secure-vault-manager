@@ -80,10 +80,13 @@ private:
   QLabel *m_welcomeDesc{nullptr};
   QLabel *m_featTitle1{nullptr};
   QLabel *m_featDesc1{nullptr};
+  QLabel *m_featIcon1{nullptr};
   QLabel *m_featTitle2{nullptr};
   QLabel *m_featDesc2{nullptr};
+  QLabel *m_featIcon2{nullptr};
   QLabel *m_featTitle3{nullptr};
   QLabel *m_featDesc3{nullptr};
+  QLabel *m_featIcon3{nullptr};
   QPushButton *m_createVaultBtn{nullptr};
   QLabel *m_welcomeFootnote{nullptr};
 

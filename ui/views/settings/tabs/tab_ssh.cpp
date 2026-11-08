@@ -25,7 +25,7 @@ TabSsh::TabSsh(QWidget *parent) : QWidget(parent) {
 
 void TabSsh::setupUI() {
   auto *layout = new QVBoxLayout(this);
-  layout->setContentsMargins(0, 0, 0, 0);
+  layout->setContentsMargins(18, 14, 14, 16);
   layout->setSpacing(16);
 
   auto &settings = app::SettingsManager::instance();

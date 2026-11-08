@@ -7,10 +7,13 @@
  */
 
 #include "theme_manager.h"
+
+#include "app/dev_logger.h"
 #include <QApplication>
 #include <QDebug>
 #include <QElapsedTimer>
 #include <QFile>
+#include <QSettings>
 #include <QWidget>
 
 namespace svm::app {
@@ -26,6 +29,17 @@ void ThemeManager::initialize() {
   if (m_initialized) {
     return;
   }
+  QSettings iniSettings(QSettings::IniFormat, QSettings::UserScope,
+                        QStringLiteral("Hephaestus"),
+                        QStringLiteral("SecureVaultManager"));
+  const int savedMode = iniSettings
+                            .value(QStringLiteral("general/theme"),
+                                   static_cast<int>(ThemeMode::Dark))
+                            .toInt();
+  m_currentMode = (savedMode == static_cast<int>(ThemeMode::Light))
+                      ? ThemeMode::Light
+                      : ThemeMode::Dark;
+
   ensureStylesheetsLoaded();
   prewarmIcons();
   m_initialized = true;
@@ -73,6 +87,7 @@ void ThemeManager::prewarmIcons() {
       QStringLiteral("chevron_left"),
       QStringLiteral("chevron_right"),
       QStringLiteral("lock"),
+      QStringLiteral("lock_neutral"),
       QStringLiteral("unlock"),
       QStringLiteral("star"),
       QStringLiteral("star_filled"),
@@ -103,6 +118,9 @@ void ThemeManager::prewarmIcons() {
 }
 
 void ThemeManager::applyTheme(ThemeMode mode) {
+  SVM_ACTION_SCOPE_DETAIL("ThemeManager", "applyTheme",
+                          mode == ThemeMode::Dark ? QStringLiteral("Dark")
+                                                  : QStringLiteral("Light"));
   if (m_appliedOnce && m_currentMode == mode) {
     return;
   }
@@ -130,7 +148,13 @@ void ThemeManager::applyTheme(ThemeMode mode) {
   // 3. Thông báo cho các widget cập nhật icon / trạng thái
   emit themeChanged(mode);
 
-  // 4. Mở khóa và vẽ lại 1 lần đồng nhất (Atomic Repaint)
+  // 4. Lưu đồng bộ vào cấu hình để tự động nhớ cho các lần chạy tiếp theo
+  QSettings iniSettings(QSettings::IniFormat, QSettings::UserScope,
+                        QStringLiteral("Hephaestus"),
+                        QStringLiteral("SecureVaultManager"));
+  iniSettings.setValue(QStringLiteral("general/theme"), static_cast<int>(mode));
+
+  // 5. Mở khóa và vẽ lại 1 lần đồng nhất (Atomic Repaint)
   for (QWidget *w : topWidgets) {
     if (w && w->isVisible()) {
       w->setUpdatesEnabled(true);

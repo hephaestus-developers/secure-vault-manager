@@ -117,11 +117,11 @@ public:
     font.setPointSize(9);
     if (isSelected) {
       font.setBold(true);
-      painter->setPen(isLight ? QColor(0x1E, 0x66, 0xF5)
-                              : QColor(0x89, 0xB4, 0xFA));
+      painter->setPen(isLight ? QColor(0x1E, 0x1E, 0x2E)
+                              : QColor(0xFF, 0xFF, 0xFF));
     } else if (isHovered) {
       font.setBold(true);
-      painter->setPen(isLight ? QColor(0x00, 0x00, 0x00)
+      painter->setPen(isLight ? QColor(0x1E, 0x1E, 0x2E)
                               : QColor(0xFF, 0xFF, 0xFF));
     } else {
       font.setBold(false);

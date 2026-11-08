@@ -10,7 +10,6 @@
 
 #include "models/vault_item.h"
 #include "views/about/about_dialog.h"
-#include "views/command_palette/command_palette_dialog.h"
 #include "views/detail/detail_inspector_view.h"
 #include "views/item_list/item_list_view.h"
 #include "views/lock/lock_screen_view.h"
@@ -27,14 +26,12 @@ class TrayManager;
 } // namespace svm::app
 
 namespace svm::components {
-class AppMenuBar;
 class UnifiedHeaderBar;
 class WindowResizeHandler;
 } // namespace svm::components
 
 namespace svm::views {
 class AboutDialog;
-class CommandPaletteDialog;
 class SettingsDialog;
 } // namespace svm::views
 
@@ -63,7 +60,6 @@ protected:
 
 private slots:
   void toggleSidebar();
-  void openCommandPalette();
   void onItemSelected(const QString &itemId);
   void onItemSaved(const models::UiVaultItem &item);
   void onItemTrashRequested(const QString &itemId);
@@ -77,12 +73,10 @@ private:
   void setupUI();
   void setupShortcuts();
   void loadItemsFromCore();
-  void populateMockData();
   void updateSidebarCounts();
   void updateNavigationState();
 
   app::TrayManager *m_trayManager{nullptr};
-  components::AppMenuBar *m_menuBar{nullptr};
   components::UnifiedHeaderBar *m_headerBar{nullptr};
   components::WindowResizeHandler *m_resizeHandler{nullptr};
 
@@ -100,9 +94,6 @@ private:
   // Trạng thái điều hướng
   QString m_previousSelectedItemId;
 
-  // Command Palette
-  views::CommandPaletteDialog *m_commandPalette{nullptr};
-
   // About Dialog
   views::AboutDialog *m_aboutDialog{nullptr};
 
@@ -119,7 +110,6 @@ private:
   // Phím tắt toàn cục
   QShortcut *m_toggleSidebarShortcut{nullptr};
   QShortcut *m_toggleThemeShortcut{nullptr};
-  QShortcut *m_commandPaletteShortcut{nullptr};
   QShortcut *m_searchShortcut{nullptr};
   QShortcut *m_newItemShortcut{nullptr};
   QShortcut *m_saveShortcut{nullptr};

@@ -17,7 +17,6 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
-#include <QMessageBox>
 #include <QVBoxLayout>
 
 namespace svm::views {
@@ -34,7 +33,7 @@ TabVaults::TabVaults(QWidget *parent) : QWidget(parent) {
 
 void TabVaults::setupUI() {
   auto *layout = new QVBoxLayout(this);
-  layout->setContentsMargins(0, 0, 0, 0);
+  layout->setContentsMargins(18, 14, 14, 16);
   layout->setSpacing(16);
 
   // 1. Vaults List Card
@@ -82,7 +81,7 @@ void TabVaults::setupUI() {
   delLayout->setSpacing(8);
 
   m_deleteCombo = new svm::ui::InWindowComboBox(delControl);
-  m_deleteCombo->setFixedWidth(160);
+  m_deleteCombo->setFixedWidth(200);
   m_deleteCombo->setFixedHeight(32);
   m_deleteCombo->setCursor(Qt::PointingHandCursor);
   delLayout->addWidget(m_deleteCombo);
@@ -167,8 +166,10 @@ void TabVaults::refreshVaultList() {
 
     // Default badge
     if (v.isDefault) {
-      auto *badge = new QLabel(tr("DEFAULT"), rowWidget);
+      auto *badge = new QLabel(tr("Default"), rowWidget);
       badge->setObjectName(QStringLiteral("SettingsDefaultBadge"));
+      badge->setAttribute(Qt::WA_StyledBackground, true);
+      badge->setAlignment(Qt::AlignCenter);
       rowLayout->addWidget(badge);
     } else {
       auto *setDefaultBtn = new QPushButton(tr("Set Default"), rowWidget);
@@ -293,9 +294,9 @@ void TabVaults::onDeleteVaultClicked() {
   auto *header = new QWidget(card);
   header->setObjectName(QStringLiteral("NewVaultHeader"));
   header->setAttribute(Qt::WA_StyledBackground, true);
-  header->setFixedHeight(44);
+  header->setFixedHeight(38);
   auto *headerLayout = new QHBoxLayout(header);
-  headerLayout->setContentsMargins(16, 0, 8, 0);
+  headerLayout->setContentsMargins(16, 0, 0, 0);
   headerLayout->setSpacing(10);
 
   auto *headerIcon = new QLabel(header);
@@ -312,9 +313,11 @@ void TabVaults::onDeleteVaultClicked() {
   headerLayout->addWidget(title, 1);
 
   auto *closeBtn = new QPushButton(header);
-  closeBtn->setObjectName(QStringLiteral("DialogCloseBtn"));
-  closeBtn->setFixedSize(32, 32);
+  closeBtn->setObjectName(QStringLiteral("WinCloseBtn"));
+  closeBtn->setFixedSize(46, 38);
   closeBtn->setIconSize(QSize(12, 12));
+  closeBtn->setFlat(true);
+  closeBtn->setFocusPolicy(Qt::NoFocus);
   closeBtn->setCursor(Qt::PointingHandCursor);
   closeBtn->setIcon(
       app::ThemeManager::instance().icon(QStringLiteral("win_close")));

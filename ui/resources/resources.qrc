@@ -29,6 +29,9 @@
         <file>icons/lock.svg</file>
         <file>icons/lock_dark.svg</file>
         <file>icons/lock_light.svg</file>
+        <file>icons/lock_neutral.svg</file>
+        <file>icons/lock_neutral_dark.svg</file>
+        <file>icons/lock_neutral_light.svg</file>
         <file>icons/unlock.svg</file>
         <file>icons/unlock_dark.svg</file>
         <file>icons/unlock_light.svg</file>
@@ -52,6 +55,8 @@
         <file>icons/plus.svg</file>
         <file>icons/plus_dark.svg</file>
         <file>icons/plus_light.svg</file>
+        <file>icons/plus_on_dark.svg</file>
+        <file>icons/plus_on_light.svg</file>
         <file>icons/folder_empty.svg</file>
         <file>icons/folder_empty_dark.svg</file>
         <file>icons/folder_empty_light.svg</file>

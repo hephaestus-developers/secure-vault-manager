@@ -311,6 +311,33 @@ pub unsafe extern "C" fn svm_vault_change_password(
     }
 }
 
+/// Tạo lại (xoay) Recovery Key mới cho Vault (yêu cầu Master Password hợp lệ).
+/// Trả về chuỗi khóa mới qua `out_key` (cần giải phóng bằng `svm_free_secret`).
+///
+/// # Safety
+/// Mọi tham số con trỏ không được là NULL.
+#[no_mangle]
+pub unsafe extern "C" fn svm_vault_rotate_recovery_key(
+    ctx: *mut SvmContext,
+    master_pw: *const c_char,
+    out_key: *mut *mut c_char,
+) -> SvmStatusCode {
+    if ctx.is_null() || master_pw.is_null() || out_key.is_null() {
+        return SvmStatusCode::InvalidArg;
+    }
+    let pw_s = c_str_to_string(master_pw).unwrap_or_default();
+    let Ok(mut rt) = (*ctx).runtime.lock() else {
+        return SvmStatusCode::Panic;
+    };
+    match rt.vault_service.rotate_recovery_key(&pw_s) {
+        Ok(new_key) => {
+            *out_key = alloc_c_string(&new_key);
+            SvmStatusCode::Ok
+        }
+        Err(e) => handle_domain_err(e),
+    }
+}
+
 /// Báo cáo số mili-giây nhàn rỗi của hệ thống phục vụ bộ đếm Auto-Lock.
 ///
 /// # Safety

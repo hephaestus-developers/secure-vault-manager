@@ -51,10 +51,10 @@ void NewVaultDialog::setupUI() {
   m_headerWidget = new QWidget(m_cardWidget);
   m_headerWidget->setObjectName(QStringLiteral("NewVaultHeader"));
   m_headerWidget->setAttribute(Qt::WA_StyledBackground, true);
-  m_headerWidget->setFixedHeight(44);
+  m_headerWidget->setFixedHeight(38);
 
   auto *headerLayout = new QHBoxLayout(m_headerWidget);
-  headerLayout->setContentsMargins(16, 0, 8, 0);
+  headerLayout->setContentsMargins(16, 0, 0, 0);
   headerLayout->setSpacing(10);
 
   m_headerIcon = new QLabel(m_headerWidget);
@@ -67,15 +67,17 @@ void NewVaultDialog::setupUI() {
   m_headerTitle = new QLabel(tr("Create New Vault"), m_headerWidget);
   m_headerTitle->setObjectName(QStringLiteral("NewVaultTitle"));
   QFont hf = m_headerTitle->font();
-  hf.setPointSize(12);
+  hf.setPointSize(11);
   hf.setBold(true);
   m_headerTitle->setFont(hf);
   headerLayout->addWidget(m_headerTitle, 1);
 
   m_closeBtn = new QPushButton(m_headerWidget);
-  m_closeBtn->setObjectName(QStringLiteral("DialogCloseBtn"));
-  m_closeBtn->setFixedSize(32, 32);
+  m_closeBtn->setObjectName(QStringLiteral("WinCloseBtn"));
+  m_closeBtn->setFixedSize(46, 38);
   m_closeBtn->setIconSize(QSize(12, 12));
+  m_closeBtn->setFlat(true);
+  m_closeBtn->setFocusPolicy(Qt::NoFocus);
   m_closeBtn->setCursor(Qt::PointingHandCursor);
   m_closeBtn->setIcon(
       app::ThemeManager::instance().icon(QStringLiteral("win_close")));

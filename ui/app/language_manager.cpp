@@ -83,9 +83,22 @@ LanguageManager::LanguageManager(QObject *parent) : QObject(parent) {
 
 void LanguageManager::initialize() {
   QSettings settings;
-  const QString savedCode =
-      settings.value(QStringLiteral("General/Language"), QStringLiteral("en"))
-          .toString();
+  QString savedCode =
+      settings.value(QStringLiteral("General/Language")).toString();
+  if (savedCode.isEmpty()) {
+    QSettings iniSettings(QSettings::IniFormat, QSettings::UserScope,
+                          QStringLiteral("Hephaestus"),
+                          QStringLiteral("SecureVaultManager"));
+    const int val =
+        iniSettings.value(QStringLiteral("general/language"), -1).toInt();
+    if (val == static_cast<int>(AppLanguage::Vietnamese)) {
+      savedCode = QStringLiteral("vi");
+    } else if (val == static_cast<int>(AppLanguage::English)) {
+      savedCode = QStringLiteral("en");
+    } else {
+      savedCode = QStringLiteral("vi");
+    }
+  }
   setLanguage(languageFromCode(savedCode));
 }
 
@@ -106,6 +119,12 @@ void LanguageManager::setLanguage(AppLanguage lang) {
 
   QSettings settings;
   settings.setValue(QStringLiteral("General/Language"), languageCode());
+
+  QSettings iniSettings(QSettings::IniFormat, QSettings::UserScope,
+                        QStringLiteral("Hephaestus"),
+                        QStringLiteral("SecureVaultManager"));
+  iniSettings.setValue(QStringLiteral("general/language"),
+                       static_cast<int>(lang));
 
   emit languageChanged(lang);
 }

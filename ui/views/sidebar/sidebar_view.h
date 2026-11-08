@@ -89,11 +89,8 @@ private:
   QListWidgetItem *m_favItem{nullptr};
   QListWidgetItem *m_trashItem{nullptr};
   QListWidgetItem *m_categoriesHeaderItem{nullptr};
-  QListWidgetItem *m_watchtowerHeaderItem{nullptr};
   QLabel *m_lockTextLabel{nullptr};
   QMap<models::ItemCategory, QListWidgetItem *> m_categoryItems;
-  QListWidgetItem *m_weakPassItem{nullptr};
-  QListWidgetItem *m_expiringItem{nullptr};
   QMap<SidebarFilterType, int> m_lastFilterCounts;
   QMap<models::ItemCategory, int> m_lastCategoryCounts;
 

@@ -19,7 +19,7 @@ struct UiVault {
   QString id;
   QString name;
   QString iconName{QStringLiteral("folder_open")};
-  QString accentColor{QStringLiteral("#3B82F6")};
+  QString accentColor{QStringLiteral("#64748B")};
   QString description;
   int itemCount{0};
   bool isDefault{false};

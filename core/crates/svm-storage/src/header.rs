@@ -86,4 +86,16 @@ impl VaultHeader {
         zeroize_slice(&mut master_kek);
         self.master_wrapped_dek.copy_from_slice(&wrapped_m[..48]);
     }
+
+    /// Cập nhật lại khóa bọc Recovery Key trên `VaultHeader` hiện có (giữ nguyên DEK và Master Password).
+    pub fn rewrap_recovery_key(&mut self, dek: &[u8; 32], new_recovery_key: &str) {
+        random_bytes(&mut self.recovery_salt);
+        random_bytes(&mut self.recovery_nonce);
+        let norm_rec = normalize_recovery_key(new_recovery_key);
+        let mut recovery_kek = derive_kek(&norm_rec, &self.recovery_salt);
+        let wrapped_r =
+            chacha20_poly1305_encrypt(&recovery_kek, &self.recovery_nonce, AAD_RECOVERY_DEK, dek);
+        zeroize_slice(&mut recovery_kek);
+        self.recovery_wrapped_dek.copy_from_slice(&wrapped_r[..48]);
+    }
 }

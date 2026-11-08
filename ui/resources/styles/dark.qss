@@ -26,12 +26,17 @@ QLabel {
     border: 1px solid #45475a;
 }
 
+#CentralWidget[maximized="true"] {
+    border: none;
+}
+
 /* ==============================================================================
  * Thanh Tiêu Đề Tích Hợp (UnifiedHeaderBar)
  * ============================================================================== */
 #UnifiedHeaderBar {
     background-color: #181825;
-    border: 1px solid #45475a;
+    border: none;
+    border-bottom: 1px solid #45475a;
     border-radius: 0px;
 }
 
@@ -45,25 +50,6 @@ QLabel {
     font-size: 13px;
     font-weight: 500;
     background: transparent;
-}
-
-/* Thanh Menu nhúng trực tiếp trên HeaderBar */
-#EmbeddedMenuBar {
-    background: transparent;
-    color: #cdd6f4;
-}
-
-#EmbeddedMenuBar::item {
-    background: transparent;
-    padding: 4px 8px;
-    border-radius: 4px;
-    color: #cdd6f4;
-}
-
-#EmbeddedMenuBar::item:selected,
-#EmbeddedMenuBar::item:pressed {
-    background-color: #313244;
-    color: #ffffff;
 }
 
 /* Menu xổ xuống (QMenu) cho Dark Theme */
@@ -130,18 +116,18 @@ QMenu::indicator:unchecked {
 }
 
 /* Nút Close: Màu đỏ chuẩn với icon dấu X trắng nổi bật khi hover/pressed */
-#WinCloseBtn {
+#WinCloseBtn, #DialogCloseBtn, #AboutCloseIconBtn {
     background: transparent;
     border: none;
     border-radius: 0px;
 }
 
-#WinCloseBtn:hover {
+#WinCloseBtn:hover, #DialogCloseBtn:hover, #AboutCloseIconBtn:hover {
     background-color: #e81123;
     qproperty-icon: url(:/icons/win_close_white.svg);
 }
 
-#WinCloseBtn:pressed {
+#WinCloseBtn:pressed, #DialogCloseBtn:pressed, #AboutCloseIconBtn:pressed {
     background-color: #c40e1d;
     qproperty-icon: url(:/icons/win_close_white.svg);
 }
@@ -357,18 +343,18 @@ QStatusBar::item {
 }
 
 /* Header Action Buttons */
-#HeaderSidebarToggleBtn, #HeaderCommandPaletteBtn, #HeaderThemeToggleBtn, #HeaderSettingsBtn, #HeaderAboutBtn {
+#HeaderSidebarToggleBtn, #HeaderThemeToggleBtn, #HeaderSettingsBtn, #HeaderAboutBtn {
     background: transparent;
     border: none;
     border-radius: 4px;
     padding: 4px;
 }
 
-#HeaderSidebarToggleBtn:hover, #HeaderCommandPaletteBtn:hover, #HeaderThemeToggleBtn:hover, #HeaderSettingsBtn:hover, #HeaderAboutBtn:hover {
+#HeaderSidebarToggleBtn:hover, #HeaderThemeToggleBtn:hover, #HeaderSettingsBtn:hover, #HeaderAboutBtn:hover {
     background-color: #313244;
 }
 
-#HeaderSidebarToggleBtn:pressed, #HeaderCommandPaletteBtn:pressed, #HeaderThemeToggleBtn:pressed, #HeaderSettingsBtn:pressed, #HeaderAboutBtn:pressed {
+#HeaderSidebarToggleBtn:pressed, #HeaderThemeToggleBtn:pressed, #HeaderSettingsBtn:pressed, #HeaderAboutBtn:pressed {
     background-color: #45475a;
 }
 
@@ -455,7 +441,7 @@ QStatusBar::item {
 }
 
 #VaultProfileComboBox:focus {
-    border-color: #89b4fa;
+    border-color: #6c7086;
 }
 
 #VaultProfileComboBox::drop-down {
@@ -536,31 +522,6 @@ QStatusBar::item {
 #ItemListSearchEdit:focus {
     border-color: #cdd6f4;
     background-color: #1e1e2e;
-}
-
-#ItemListCountLabel {
-    color: #9399b2;
-    font-size: 11px;
-    font-weight: 600;
-}
-
-#ItemListSortCombo {
-    background-color: #181825;
-    border: 1px solid #313244;
-    border-radius: 6px;
-    padding: 2px 22px 2px 8px;
-    color: #cdd6f4;
-    font-size: 12px;
-    font-weight: 500;
-}
-
-#ItemListSortCombo:hover {
-    border-color: #585b70;
-    color: #ffffff;
-}
-
-#ItemListSortCombo:focus {
-    border-color: #cdd6f4;
 }
 
 QComboBox {
@@ -682,6 +643,58 @@ QCheckBox::indicator:checked {
     outline: none;
 }
 
+#ItemListStack {
+    background: transparent;
+    border: none;
+}
+
+#ItemListEmptyWidget {
+    background: transparent;
+    border: none;
+}
+
+#ItemListEmptyIconContainer {
+    background-color: #181825;
+    border: 1px solid #313244;
+    border-radius: 16px;
+}
+
+#ItemListEmptyTitle {
+    color: #cdd6f4;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+#ItemListEmptyDesc {
+    color: #a6adc8;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+#ItemListEmptyActionBtn {
+    background-color: #ffffff;
+    color: #11111b;
+    border: 1px solid #ffffff;
+    border-radius: 6px;
+    padding: 0 16px;
+    font-size: 12px;
+    font-weight: 700;
+    min-height: 32px;
+    max-height: 32px;
+}
+
+#ItemListEmptyActionBtn:hover {
+    background-color: #eff1f5;
+    border-color: #eff1f5;
+    color: #11111b;
+}
+
+#ItemListEmptyActionBtn:pressed {
+    background-color: #dce0e8;
+    border-color: #dce0e8;
+    color: #11111b;
+}
+
 /* 3. Cột 3: DetailInspectorView */
 #DetailInspectorView,
 #DetailScrollArea,
@@ -699,9 +712,76 @@ QCheckBox::indicator:checked {
 }
 
 #EmptyStateDesc {
-    color: #6c7086;
+    color: #a6adc8;
     font-size: 13px;
-    line-height: 1.6;
+    line-height: 1.5;
+}
+
+#EmptyStateIconContainer {
+    background-color: #181825;
+    border: 1px solid #313244;
+    border-radius: 20px;
+}
+
+#EmptyStateCard {
+    background-color: #181825;
+    border: 1px solid #313244;
+    border-radius: 12px;
+}
+
+#EmptyStateActionLabel {
+    color: #cdd6f4;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+#EmptyStateKeycap {
+    background-color: #313244;
+    color: #cdd6f4;
+    border: 1px solid #45475a;
+    border-bottom: 2px solid #585b70;
+    border-radius: 5px;
+    padding: 2px 7px;
+    font-size: 11px;
+    font-weight: 600;
+    min-width: 22px;
+}
+
+#EmptyStateKeycapPlus {
+    color: #6c7086;
+    font-size: 11px;
+    font-weight: bold;
+}
+
+#EmptyStateDivider {
+    background-color: #2b2b3d;
+    max-height: 1px;
+    min-height: 1px;
+    border: none;
+}
+
+#EmptyStateActionBtn {
+    background-color: #ffffff;
+    color: #11111b;
+    border: 1px solid #ffffff;
+    border-radius: 8px;
+    padding: 0 24px;
+    font-size: 13px;
+    font-weight: 700;
+    min-height: 38px;
+    max-height: 38px;
+}
+
+#EmptyStateActionBtn:hover {
+    background-color: #eff1f5;
+    border-color: #eff1f5;
+    color: #11111b;
+}
+
+#EmptyStateActionBtn:pressed {
+    background-color: #dce0e8;
+    border-color: #dce0e8;
+    color: #11111b;
 }
 
 #DetailHeaderCard {
@@ -1212,33 +1292,7 @@ QCalendarWidget QHeaderView::section {
     color: #ffffff;
 }
 
-/* 4. Command Palette Dialog */
-#CommandPaletteCard {
-    background-color: #181825;
-    border: 1px solid #45475a;
-    border-radius: 0px;
-}
-
-#PaletteSearchInput {
-    background-color: #232634;
-    border: 1px solid #45475a;
-    border-radius: 8px;
-    padding: 10px 14px;
-    color: #ffffff;
-    font-size: 15px;
-}
-
-#PaletteSearchInput:focus {
-    border-color: #ffffff;
-}
-
-#PaletteResultList {
-    background: transparent;
-    border: none;
-    outline: none;
-}
-
-/* 5. About Dialog */
+/* 4. About Dialog */
 #AboutDialogCard {
     background-color: #181825;
     border: 1px solid #45475a;
@@ -1256,21 +1310,6 @@ QCalendarWidget QHeaderView::section {
     color: #cdd6f4;
     font-size: 13px;
     font-weight: 600;
-}
-
-#AboutCloseIconBtn {
-    background: transparent;
-    border: none;
-    border-radius: 4px;
-    padding: 2px;
-}
-
-#AboutCloseIconBtn:hover {
-    background-color: rgba(243, 139, 168, 0.18);
-}
-
-#AboutCloseIconBtn:pressed {
-    background-color: #f38ba8;
 }
 
 #AboutTabWidget::pane {
@@ -1516,6 +1555,19 @@ QCalendarWidget QHeaderView::section {
     border-color: #45475a;
 }
 
+#OnboardingSummaryBox {
+    background-color: #181825;
+    border: 1px solid #313244;
+    border-radius: 8px;
+    padding: 6px;
+}
+
+#OnboardingSummaryItem {
+    color: #cdd6f4;
+    font-size: 11px;
+    font-weight: 500;
+}
+
 #OnboardingSecondaryBtn {
     background-color: #313244;
     border: 1px solid #45475a;
@@ -1662,28 +1714,103 @@ QCalendarWidget QHeaderView::section {
     border-radius: 0px;
 }
 
-#SettingsDialogTitle, #NewVaultTitle, #RecoveryDialogTitle {
+/* 7. Notification & Message Dialogs */
+#NotificationDialogCard {
+    background-color: #181825;
+    border: 1px solid #45475a;
+    border-radius: 0px;
+}
+
+#NotificationDialogHeader {
+    background-color: #11111b;
+    border: none;
+    border-bottom: 1px solid #313244;
+    border-radius: 0px;
+}
+
+#NotificationDialogTitle {
     color: #cdd6f4;
     font-size: 13px;
     font-weight: 600;
 }
 
-#DialogCloseBtn {
-    background: transparent;
-    border: none;
-    border-radius: 4px;
-    padding: 2px;
+#NotificationIconContainer {
+    background-color: #1e1e2e;
+    border: 1px solid #313244;
+    border-radius: 8px;
 }
 
-#DialogCloseBtn:hover {
-    background-color: rgba(243, 139, 168, 0.18);
+#NotificationDialogMessage {
+    color: #cdd6f4;
+    font-size: 13px;
+    line-height: 1.4;
 }
 
-#DialogCloseBtn:pressed {
-    background-color: #f38ba8;
+#NotificationCancelBtn {
+    background-color: #232634;
+    border: 1px solid #313244;
+    border-radius: 6px;
+    color: #cdd6f4;
+    padding: 0 16px;
+    font-size: 12px;
+    font-weight: 600;
 }
 
+#NotificationCancelBtn:hover {
+    background-color: #313244;
+    border-color: #45475a;
+    color: #ffffff;
+}
 
+#NotificationCancelBtn:pressed {
+    background-color: #1e1e2e;
+}
+
+#NotificationPrimaryBtn {
+    background-color: #ffffff;
+    border: 1px solid #ffffff;
+    border-radius: 6px;
+    color: #11111b;
+    padding: 0 18px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+#NotificationPrimaryBtn:hover {
+    background-color: #eff1f5;
+    border-color: #eff1f5;
+}
+
+#NotificationPrimaryBtn:pressed {
+    background-color: #dce0e8;
+    border-color: #dce0e8;
+}
+
+#NotificationDangerBtn {
+    background-color: #ed8796;
+    border: 1px solid #ed8796;
+    border-radius: 6px;
+    color: #11111b;
+    padding: 0 18px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+#NotificationDangerBtn:hover {
+    background-color: #ee99a0;
+    border-color: #ee99a0;
+}
+
+#NotificationDangerBtn:pressed {
+    background-color: #ea76cb;
+    border-color: #ea76cb;
+}
+
+#SettingsDialogTitle, #NewVaultTitle, #RecoveryDialogTitle {
+    color: #cdd6f4;
+    font-size: 13px;
+    font-weight: 600;
+}
 
 #SettingsBodyWidget {
     background-color: #181825;
@@ -1724,7 +1851,8 @@ QCalendarWidget QHeaderView::section {
 #SettingsRightPane {
     background-color: #1e1e2e;
     background: #1e1e2e;
-    border: none;
+    border-top: none;
+    border-left: none;
     border-right: 1px solid #45475a;
     border-bottom: 1px solid #45475a;
 }
@@ -1791,12 +1919,13 @@ QCalendarWidget QHeaderView::section {
 }
 
 #SettingsDefaultBadge {
-    background-color: #ffffff;
-    color: #11111b;
-    font-size: 9.5px;
-    font-weight: 700;
-    border-radius: 3px;
-    padding: 2px 6px;
+    background-color: #313244;
+    color: #cdd6f4;
+    border: 1px solid #45475a;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 4px;
+    padding: 3px 8px;
 }
 
 #SshSnippetBox {

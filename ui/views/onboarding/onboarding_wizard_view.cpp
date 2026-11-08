@@ -8,6 +8,7 @@
 
 #include "onboarding_wizard_view.h"
 #include "app/clipboard_manager.h"
+#include "app/dev_logger.h"
 #include "app/theme_manager.h"
 #include "app/vault_manager.h"
 
@@ -246,9 +247,10 @@ QWidget *OnboardingWizardView::createStepWelcome() {
   layout->addSpacing(4);
 
   // 3 Thẻ tính năng bảo mật nổi bật (Feature Cards)
-  auto createFeatureCard = [page](const QString &iconPath, const QString &title,
+  auto createFeatureCard = [page](const QString &iconName, const QString &title,
                                   const QString &desc, QLabel *&outTitle,
-                                  QLabel *&outDesc) -> QWidget * {
+                                  QLabel *&outDesc,
+                                  QLabel *&outIcon) -> QWidget * {
     auto *card = new QWidget(page);
     card->setObjectName(QStringLiteral("OnboardingFeatureCard"));
     auto *row = new QHBoxLayout(card);
@@ -256,8 +258,10 @@ QWidget *OnboardingWizardView::createStepWelcome() {
     row->setSpacing(12);
 
     auto *iconLbl = new QLabel(card);
-    iconLbl->setPixmap(QIcon(iconPath).pixmap(24, 24));
+    iconLbl->setPixmap(
+        app::ThemeManager::instance().icon(iconName).pixmap(24, 24));
     row->addWidget(iconLbl);
+    outIcon = iconLbl;
 
     auto *texts = new QVBoxLayout();
     texts->setSpacing(2);
@@ -283,23 +287,22 @@ QWidget *OnboardingWizardView::createStepWelcome() {
   };
 
   layout->addWidget(createFeatureCard(
-      QStringLiteral(":/icons/shield_check.svg"), tr("Private Local Storage"),
+      QStringLiteral("shield_check"), tr("Private Local Storage"),
       tr("Your data is strongly encrypted and stored only on your computer. "
          "Nothing is ever sent to external servers."),
-      m_featTitle1, m_featDesc1));
+      m_featTitle1, m_featDesc1, m_featIcon1));
 
   layout->addWidget(createFeatureCard(
-      QStringLiteral(":/icons/lock.svg"), tr("Single Master Key"),
+      QStringLiteral("lock_neutral"), tr("Single Master Key"),
       tr("One master password unlocks all your credentials. Simple, secure, "
          "and completely in your control."),
-      m_featTitle2, m_featDesc2));
+      m_featTitle2, m_featDesc2, m_featIcon2));
 
   layout->addWidget(createFeatureCard(
-      QStringLiteral(":/icons/category_passkey.svg"),
-      tr("Emergency Backup Key"),
+      QStringLiteral("category_passkey"), tr("Emergency Backup Key"),
       tr("A generated recovery key guarantees you can restore access "
          "if you ever forget your master password."),
-      m_featTitle3, m_featDesc3));
+      m_featTitle3, m_featDesc3, m_featIcon3));
 
   layout->addStretch(1);
 
@@ -751,29 +754,23 @@ QWidget *OnboardingWizardView::createStepVaultSetup() {
 
   // Tóm tắt trạng thái sẵn sàng
   auto *summaryBox = new QWidget(page);
-  summaryBox->setStyleSheet(
-      QStringLiteral("background-color: rgba(166, 227, 161, 0.08); "
-                     "border: 1px solid rgba(166, 227, 161, 0.25); "
-                     "border-radius: 8px; padding: 6px;"));
+  summaryBox->setObjectName(QStringLiteral("OnboardingSummaryBox"));
   auto *sumLayout = new QVBoxLayout(summaryBox);
   sumLayout->setContentsMargins(12, 8, 12, 8);
   sumLayout->setSpacing(3);
 
   m_summaryItem1 = new QLabel(tr("Encrypted vault storage ready"), summaryBox);
-  m_summaryItem1->setStyleSheet(
-      QStringLiteral("color: #a6e3a1; font-size: 10.5px; font-weight: 500;"));
+  m_summaryItem1->setObjectName(QStringLiteral("OnboardingSummaryItem"));
   sumLayout->addWidget(m_summaryItem1);
 
   m_summaryItem2 =
       new QLabel(tr("Master password protection active"), summaryBox);
-  m_summaryItem2->setStyleSheet(
-      QStringLiteral("color: #a6e3a1; font-size: 10.5px; font-weight: 500;"));
+  m_summaryItem2->setObjectName(QStringLiteral("OnboardingSummaryItem"));
   sumLayout->addWidget(m_summaryItem2);
 
   m_summaryItem3 =
       new QLabel(tr("Emergency recovery key generated"), summaryBox);
-  m_summaryItem3->setStyleSheet(
-      QStringLiteral("color: #a6e3a1; font-size: 10.5px; font-weight: 500;"));
+  m_summaryItem3->setObjectName(QStringLiteral("OnboardingSummaryItem"));
   sumLayout->addWidget(m_summaryItem3);
 
   layout->addWidget(summaryBox);
@@ -814,6 +811,8 @@ QWidget *OnboardingWizardView::createStepVaultSetup() {
 }
 
 void OnboardingWizardView::goToStep(int stepIndex) {
+  SVM_ACTION_SCOPE_DETAIL("Onboarding", "goToStep",
+                          QStringLiteral("step=%1").arg(stepIndex + 1));
   m_currentStep = qBound(0, stepIndex, 3);
   m_stack->setCurrentIndex(m_currentStep);
   updateStepIndicator();
@@ -838,32 +837,34 @@ void OnboardingWizardView::updateStepIndicator() {
                         : QStringLiteral(":/icons/checkbox_check_dark.svg"))
               .pixmap(12, 12));
       item.badge->setStyleSheet(
-          isLight ? QStringLiteral("background-color: #40a02b; "
+          isLight ? QStringLiteral("background-color: #1e1e2e; "
                                    "border-radius: 12px;")
-                  : QStringLiteral("background-color: #a6e3a1; "
+                  : QStringLiteral("background-color: #ffffff; "
                                    "border-radius: 12px;"));
       item.title->setStyleSheet(
           isLight ? QStringLiteral("color: #4c4f69; font-weight: 600;")
                   : QStringLiteral("color: #cdd6f4; font-weight: 600;"));
-      item.subtitle->setStyleSheet(QStringLiteral("color: #6c7086;"));
+      item.subtitle->setStyleSheet(
+          isLight ? QStringLiteral("color: #5c5f77; font-weight: 500;")
+                  : QStringLiteral("color: #a6adc8; font-weight: 500;"));
     } else if (i == m_currentStep) {
       // Đang active
       item.container->setObjectName(QStringLiteral("OnboardingStepItemActive"));
       item.badge->setPixmap(QPixmap());
       item.badge->setText(QString::number(i + 1));
       item.badge->setStyleSheet(
-          isLight ? QStringLiteral("background-color: #1e66f5; color: #ffffff; "
+          isLight ? QStringLiteral("background-color: #1e1e2e; color: #ffffff; "
                                    "border-radius: 12px; font-weight: 700; "
                                    "font-size: 11px;")
-                  : QStringLiteral("background-color: #89b4fa; color: #11111b; "
+                  : QStringLiteral("background-color: #ffffff; color: #11111b; "
                                    "border-radius: 12px; font-weight: 700; "
                                    "font-size: 11px;"));
       item.title->setStyleSheet(
-          isLight ? QStringLiteral("color: #1e66f5; font-weight: 700;")
+          isLight ? QStringLiteral("color: #1e1e2e; font-weight: 700;")
                   : QStringLiteral("color: #ffffff; font-weight: 700;"));
       item.subtitle->setStyleSheet(
-          isLight ? QStringLiteral("color: #1e66f5; font-weight: 500;")
-                  : QStringLiteral("color: #89b4fa; font-weight: 500;"));
+          isLight ? QStringLiteral("color: #5c5f77; font-weight: 500;")
+                  : QStringLiteral("color: #a6adc8; font-weight: 500;"));
     } else {
       // Chưa tới (Upcoming)
       item.container->setObjectName(QStringLiteral("OnboardingStepItem"));
@@ -907,6 +908,18 @@ void OnboardingWizardView::updateThemeIcons() {
   if (m_trustIconLabel) {
     m_trustIconLabel->setPixmap(
         tm.icon(QStringLiteral("shield_check")).pixmap(22, 22));
+  }
+  if (m_featIcon1) {
+    m_featIcon1->setPixmap(
+        tm.icon(QStringLiteral("shield_check")).pixmap(24, 24));
+  }
+  if (m_featIcon2) {
+    m_featIcon2->setPixmap(
+        tm.icon(QStringLiteral("lock_neutral")).pixmap(24, 24));
+  }
+  if (m_featIcon3) {
+    m_featIcon3->setPixmap(
+        tm.icon(QStringLiteral("category_passkey")).pixmap(24, 24));
   }
   updateStepIndicator();
 }

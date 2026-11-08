@@ -58,6 +58,17 @@ mod tests {
         assert!(storage.unlock_with_password("MasterPass123!").is_err());
         assert!(storage.unlock_with_password("NewMasterPass999!").is_ok());
 
+        // Rotate recovery key
+        let new_rec_key = "ABCD-EFGH-JKLM-NPQR-STUV-WXYZ";
+        VaultStorage::rewrap_recovery_key(&mut header, &dek, new_rec_key);
+        storage
+            .save_vault_payload(&header, &dek, payload)
+            .expect("save rewrapped recovery key");
+        assert!(storage
+            .unlock_with_recovery("SECURE-VAULT-RECOVERY-KEY-1")
+            .is_err());
+        assert!(storage.unlock_with_recovery(new_rec_key).is_ok());
+
         let _ = fs::remove_dir_all(&dir);
     }
 }

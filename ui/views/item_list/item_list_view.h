@@ -9,16 +9,16 @@
 #pragma once
 
 #include "item_card_delegate.h"
+#include "item_list_empty_widget.h"
 #include "item_list_model.h"
 #include "item_sort_filter_proxy.h"
 #include "models/vault_item.h"
 #include "views/sidebar/sidebar_types.h"
 
-#include <QComboBox>
-#include <QLabel>
 #include <QLineEdit>
 #include <QListView>
 #include <QPushButton>
+#include <QStackedWidget>
 #include <QWidget>
 
 namespace svm::views {
@@ -57,24 +57,24 @@ protected:
 
 private slots:
   void onSearchTextChanged(const QString &text);
-  void onSortChanged(int index);
   void onListSelectionChanged(const QItemSelection &selected,
                               const QItemSelection &deselected);
 
 private:
   void setupUI();
-  void updateCountLabel();
+  void updateEmptyStateVisibility();
 
   QLineEdit *m_searchEdit{nullptr};
-  QLabel *m_countLabel{nullptr};
-  QComboBox *m_sortCombo{nullptr};
   QPushButton *m_newBtn{nullptr};
   QListView *m_listView{nullptr};
+  QStackedWidget *m_stack{nullptr};
+  ItemListEmptyWidget *m_emptyWidget{nullptr};
 
   ItemListModel *m_model{nullptr};
   ItemSortFilterProxy *m_proxyModel{nullptr};
   ItemCardDelegate *m_delegate{nullptr};
 
+  SidebarFilterType m_currentFilterType{SidebarFilterType::AllItems};
   models::ItemCategory m_currentCategory{models::ItemCategory::Login};
 };
 

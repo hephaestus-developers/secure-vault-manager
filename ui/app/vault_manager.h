@@ -153,6 +153,12 @@ public:
   [[nodiscard]] QString recoveryKey() const;
 
   /**
+   * @brief Tạo lại (xoay) Recovery Key mới cho Vault (yêu cầu Master Password
+   * hợp lệ).
+   */
+  QString rotateRecoveryKey(const QString &masterPassword);
+
+  /**
    * @brief Lấy thông tin Vault đang hoạt động.
    */
   [[nodiscard]] models::UiVault currentVault() const {

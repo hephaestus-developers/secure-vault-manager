@@ -6,9 +6,11 @@
  */
 
 #include "tab_general.h"
+#include "app/language_manager.h"
 #include "app/settings_manager.h"
 #include "components/in_window_combobox.h"
 
+#include <QSignalBlocker>
 #include <QVBoxLayout>
 
 namespace svm::views {
@@ -20,7 +22,7 @@ TabGeneral::TabGeneral(QWidget *parent) : QWidget(parent) {
 
 void TabGeneral::setupUI() {
   auto *layout = new QVBoxLayout(this);
-  layout->setContentsMargins(0, 0, 0, 0);
+  layout->setContentsMargins(18, 14, 14, 16);
   layout->setSpacing(16);
 
   auto &settings = app::SettingsManager::instance();
@@ -33,9 +35,9 @@ void TabGeneral::setupUI() {
                         static_cast<int>(app::ThemeMode::Dark));
   m_themeCombo->addItem(tr("Light Theme"),
                         static_cast<int>(app::ThemeMode::Light));
-  m_themeCombo->setCurrentIndex(
-      (settings.themeMode() == app::ThemeMode::Dark) ? 0 : 1);
-  m_themeCombo->setFixedWidth(150);
+  const auto currentTheme = app::ThemeManager::instance().currentMode();
+  m_themeCombo->setCurrentIndex((currentTheme == app::ThemeMode::Dark) ? 0 : 1);
+  m_themeCombo->setFixedWidth(220);
   m_themeCombo->setFixedHeight(32);
   m_themeCombo->setCursor(Qt::PointingHandCursor);
   connect(m_themeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
@@ -43,6 +45,14 @@ void TabGeneral::setupUI() {
             const auto mode =
                 (index == 0) ? app::ThemeMode::Dark : app::ThemeMode::Light;
             app::SettingsManager::instance().setThemeMode(mode);
+          });
+  connect(&app::ThemeManager::instance(), &app::ThemeManager::themeChanged,
+          this, [this](app::ThemeMode mode) {
+            if (m_themeCombo) {
+              const QSignalBlocker blocker(m_themeCombo);
+              m_themeCombo->setCurrentIndex((mode == app::ThemeMode::Dark) ? 0
+                                                                           : 1);
+            }
           });
 
   m_themeRow = new SettingRowWidget(
@@ -58,7 +68,7 @@ void TabGeneral::setupUI() {
                           static_cast<int>(app::ListDensity::Compact));
   m_densityCombo->setCurrentIndex(
       (settings.listDensity() == app::ListDensity::Comfortable) ? 0 : 1);
-  m_densityCombo->setFixedWidth(150);
+  m_densityCombo->setFixedWidth(220);
   m_densityCombo->setFixedHeight(32);
   m_densityCombo->setCursor(Qt::PointingHandCursor);
   connect(m_densityCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
@@ -84,9 +94,10 @@ void TabGeneral::setupUI() {
                        static_cast<int>(app::AppLanguage::English));
   m_langCombo->addItem(QStringLiteral("Tiếng Việt"),
                        static_cast<int>(app::AppLanguage::Vietnamese));
-  m_langCombo->setCurrentIndex(
-      (settings.language() == app::AppLanguage::English) ? 0 : 1);
-  m_langCombo->setFixedWidth(150);
+  const auto currentLang = app::LanguageManager::instance().currentLanguage();
+  m_langCombo->setCurrentIndex((currentLang == app::AppLanguage::English) ? 0
+                                                                          : 1);
+  m_langCombo->setFixedWidth(220);
   m_langCombo->setFixedHeight(32);
   m_langCombo->setCursor(Qt::PointingHandCursor);
   connect(m_langCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
@@ -155,8 +166,12 @@ void TabGeneral::retranslateUi() {
         tr("Choose your preferred application visual appearance."));
   }
   if (m_themeCombo) {
+    const auto currentTheme = app::ThemeManager::instance().currentMode();
+    const QSignalBlocker blocker(m_themeCombo);
     m_themeCombo->setItemText(0, tr("Dark Theme"));
     m_themeCombo->setItemText(1, tr("Light Theme"));
+    m_themeCombo->setCurrentIndex((currentTheme == app::ThemeMode::Dark) ? 0
+                                                                         : 1);
   }
   if (m_densityRow) {
     m_densityRow->updateText(
@@ -164,8 +179,12 @@ void TabGeneral::retranslateUi() {
         tr("Adjust item row height and spacing in the vault list."));
   }
   if (m_densityCombo) {
+    const auto density = app::SettingsManager::instance().listDensity();
+    const QSignalBlocker blocker(m_densityCombo);
     m_densityCombo->setItemText(0, tr("Comfortable"));
     m_densityCombo->setItemText(1, tr("Compact"));
+    m_densityCombo->setCurrentIndex(
+        (density == app::ListDensity::Comfortable) ? 0 : 1);
   }
 
   if (m_languageCard) {
@@ -175,6 +194,12 @@ void TabGeneral::retranslateUi() {
     m_langRow->updateText(
         tr("Application Language"),
         tr("Select the language for all user interface text."));
+  }
+  if (m_langCombo) {
+    const auto currentLang = app::LanguageManager::instance().currentLanguage();
+    const QSignalBlocker blocker(m_langCombo);
+    m_langCombo->setCurrentIndex(
+        (currentLang == app::AppLanguage::English) ? 0 : 1);
   }
 
   if (m_systemCard) {

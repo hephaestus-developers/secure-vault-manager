@@ -50,16 +50,11 @@ SettingsManager::SettingsManager(QObject *parent)
 }
 
 ThemeMode SettingsManager::themeMode() const {
-  const int val = m_settings
-                      .value(QStringLiteral("general/theme"),
-                             static_cast<int>(ThemeMode::Dark))
-                      .toInt();
-  return (val == static_cast<int>(ThemeMode::Light)) ? ThemeMode::Light
-                                                     : ThemeMode::Dark;
+  return ThemeManager::instance().currentMode();
 }
 
 void SettingsManager::setThemeMode(ThemeMode mode) {
-  if (themeMode() != mode) {
+  if (ThemeManager::instance().currentMode() != mode) {
     m_settings.setValue(QStringLiteral("general/theme"),
                         static_cast<int>(mode));
     ThemeManager::instance().applyTheme(mode);
@@ -68,17 +63,11 @@ void SettingsManager::setThemeMode(ThemeMode mode) {
 }
 
 AppLanguage SettingsManager::language() const {
-  const int val = m_settings
-                      .value(QStringLiteral("general/language"),
-                             static_cast<int>(AppLanguage::English))
-                      .toInt();
-  return (val == static_cast<int>(AppLanguage::Vietnamese))
-             ? AppLanguage::Vietnamese
-             : AppLanguage::English;
+  return LanguageManager::instance().currentLanguage();
 }
 
 void SettingsManager::setLanguage(AppLanguage lang) {
-  if (language() != lang) {
+  if (LanguageManager::instance().currentLanguage() != lang) {
     m_settings.setValue(QStringLiteral("general/language"),
                         static_cast<int>(lang));
     LanguageManager::instance().setLanguage(lang);

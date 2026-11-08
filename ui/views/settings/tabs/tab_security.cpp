@@ -12,6 +12,7 @@
 #include "app/vault_manager.h"
 #include "components/dialog_drag_helper.h"
 #include "components/in_window_combobox.h"
+#include "components/notification_dialog.h"
 #include "components/window_resize_handler.h"
 #include "core/core_bridge.h"
 #include "views/onboarding/password_entropy_meter.h"
@@ -19,7 +20,6 @@
 #include <QDialog>
 #include <QLabel>
 #include <QLineEdit>
-#include <QMessageBox>
 #include <QVBoxLayout>
 
 namespace svm::views {
@@ -31,7 +31,7 @@ TabSecurity::TabSecurity(QWidget *parent) : QWidget(parent) {
 
 void TabSecurity::setupUI() {
   auto *layout = new QVBoxLayout(this);
-  layout->setContentsMargins(0, 0, 0, 0);
+  layout->setContentsMargins(18, 14, 14, 16);
   layout->setSpacing(16);
 
   auto &settings = app::SettingsManager::instance();
@@ -53,7 +53,7 @@ void TabSecurity::setupUI() {
     foundIdx = 2; // Default 15m
   }
   m_timeoutCombo->setCurrentIndex(foundIdx);
-  m_timeoutCombo->setFixedWidth(160);
+  m_timeoutCombo->setFixedWidth(200);
   m_timeoutCombo->setFixedHeight(32);
   m_timeoutCombo->setCursor(Qt::PointingHandCursor);
   connect(m_timeoutCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
@@ -98,7 +98,7 @@ void TabSecurity::setupUI() {
     foundSecIdx = 1; // Default 30s
   }
   m_clipTimeoutCombo->setCurrentIndex(foundSecIdx);
-  m_clipTimeoutCombo->setFixedWidth(160);
+  m_clipTimeoutCombo->setFixedWidth(200);
   m_clipTimeoutCombo->setFixedHeight(32);
   m_clipTimeoutCombo->setCursor(Qt::PointingHandCursor);
   connect(m_clipTimeoutCombo,
@@ -168,17 +168,17 @@ void TabSecurity::setupUI() {
                                   m_changePwdBtn, m_credentialsCard);
   m_credentialsCard->addRow(m_pwdRow);
 
-  m_viewRecKeyBtn =
-      new QPushButton(tr("View Emergency Key..."), m_credentialsCard);
-  m_viewRecKeyBtn->setFixedHeight(32);
-  m_viewRecKeyBtn->setCursor(Qt::PointingHandCursor);
-  connect(m_viewRecKeyBtn, &QPushButton::clicked, this,
-          &TabSecurity::openViewRecoveryKeyDialog);
-  m_recKeyRow =
-      new SettingRowWidget(tr("Emergency Recovery Key"),
-                           tr("Inspect your 24-character recovery key. "
-                              "Required if you ever forget your password."),
-                           m_viewRecKeyBtn, m_credentialsCard);
+  m_rotateRecKeyBtn =
+      new QPushButton(tr("Regenerate Key..."), m_credentialsCard);
+  m_rotateRecKeyBtn->setFixedHeight(32);
+  m_rotateRecKeyBtn->setCursor(Qt::PointingHandCursor);
+  connect(m_rotateRecKeyBtn, &QPushButton::clicked, this,
+          &TabSecurity::openRotateRecoveryKeyDialog);
+  m_recKeyRow = new SettingRowWidget(
+      tr("Emergency Recovery Key"),
+      tr("Generate a new 24-character recovery key. "
+         "The current key will be permanently invalidated."),
+      m_rotateRecKeyBtn, m_credentialsCard);
   m_credentialsCard->addRow(m_recKeyRow);
 
   layout->addWidget(m_credentialsCard);
@@ -209,9 +209,9 @@ void TabSecurity::openChangePasswordDialog() {
   auto *header = new QWidget(card);
   header->setObjectName(QStringLiteral("RecoveryDialogHeader"));
   header->setAttribute(Qt::WA_StyledBackground, true);
-  header->setFixedHeight(44);
+  header->setFixedHeight(38);
   auto *headerLayout = new QHBoxLayout(header);
-  headerLayout->setContentsMargins(16, 0, 8, 0);
+  headerLayout->setContentsMargins(16, 0, 0, 0);
   headerLayout->setSpacing(10);
 
   auto *headerIcon = new QLabel(header);
@@ -226,9 +226,11 @@ void TabSecurity::openChangePasswordDialog() {
   headerLayout->addWidget(title, 1);
 
   auto *closeBtn = new QPushButton(header);
-  closeBtn->setObjectName(QStringLiteral("DialogCloseBtn"));
-  closeBtn->setFixedSize(32, 32);
+  closeBtn->setObjectName(QStringLiteral("WinCloseBtn"));
+  closeBtn->setFixedSize(46, 38);
   closeBtn->setIconSize(QSize(12, 12));
+  closeBtn->setFlat(true);
+  closeBtn->setFocusPolicy(Qt::NoFocus);
   closeBtn->setCursor(Qt::PointingHandCursor);
   closeBtn->setIcon(
       app::ThemeManager::instance().icon(QStringLiteral("win_close")));
@@ -311,8 +313,8 @@ void TabSecurity::openChangePasswordDialog() {
       errorLabel->setText(tr("Failed to update master password."));
       return;
     }
-    QMessageBox::information(&dlg, tr("Success"),
-                             tr("Master Password updated successfully!"));
+    components::NotificationDialog::success(
+        &dlg, tr("Success"), tr("Master Password updated successfully!"));
     dlg.accept();
   });
   btnLayout->addWidget(okBtn);
@@ -325,106 +327,152 @@ void TabSecurity::openChangePasswordDialog() {
   components::DialogDragHelper::execDialog(dlg);
 }
 
-void TabSecurity::openViewRecoveryKeyDialog() {
-  QDialog dlg(this, Qt::FramelessWindowHint | Qt::Dialog);
-  dlg.setAttribute(Qt::WA_TranslucentBackground, false);
-  dlg.setModal(false);
-  dlg.setWindowModality(Qt::NonModal);
-  dlg.setMinimumSize(420, 260);
-  dlg.resize(480, 300);
+void TabSecurity::openRotateRecoveryKeyDialog() {
+  QString newKey;
+  bool confirmed = false;
 
-  auto *rootLayout = new QVBoxLayout(&dlg);
-  rootLayout->setContentsMargins(0, 0, 0, 0);
+  // Bước 1: Hộp thoại xác minh Master Password & Cảnh báo
+  {
+    QDialog dlg(window(), Qt::FramelessWindowHint | Qt::Dialog);
+    dlg.setAttribute(Qt::WA_TranslucentBackground, false);
+    dlg.setModal(false);
+    dlg.setWindowModality(Qt::NonModal);
+    dlg.setMinimumSize(440, 310);
+    dlg.resize(480, 330);
 
-  auto *card = new QWidget(&dlg);
-  card->setObjectName(QStringLiteral("RecoveryDialogCard"));
-  card->setAttribute(Qt::WA_StyledBackground, true);
+    auto *rootLayout = new QVBoxLayout(&dlg);
+    rootLayout->setContentsMargins(0, 0, 0, 0);
 
-  new components::WindowResizeHandler(&dlg);
+    auto *card = new QWidget(&dlg);
+    card->setObjectName(QStringLiteral("RecoveryDialogCard"));
+    card->setAttribute(Qt::WA_StyledBackground, true);
 
-  auto *cardLayout = new QVBoxLayout(card);
-  cardLayout->setContentsMargins(0, 0, 0, 16);
-  cardLayout->setSpacing(0);
+    new components::WindowResizeHandler(&dlg);
 
-  auto *header = new QWidget(card);
-  header->setObjectName(QStringLiteral("RecoveryDialogHeader"));
-  header->setAttribute(Qt::WA_StyledBackground, true);
-  header->setFixedHeight(44);
-  auto *headerLayout = new QHBoxLayout(header);
-  headerLayout->setContentsMargins(16, 0, 8, 0);
-  headerLayout->setSpacing(10);
+    auto *cardLayout = new QVBoxLayout(card);
+    cardLayout->setContentsMargins(0, 0, 0, 16);
+    cardLayout->setSpacing(0);
 
-  auto *headerIcon = new QLabel(header);
-  headerIcon->setFixedSize(18, 18);
-  headerIcon->setPixmap(app::ThemeManager::instance()
-                            .icon(QStringLiteral("shield_check"))
-                            .pixmap(18, 18));
-  headerLayout->addWidget(headerIcon);
+    auto *header = new QWidget(card);
+    header->setObjectName(QStringLiteral("RecoveryDialogHeader"));
+    header->setAttribute(Qt::WA_StyledBackground, true);
+    header->setFixedHeight(38);
+    auto *headerLayout = new QHBoxLayout(header);
+    headerLayout->setContentsMargins(16, 0, 0, 0);
+    headerLayout->setSpacing(10);
 
-  auto *title = new QLabel(tr("Verify Identity to View Recovery Key"), header);
-  title->setObjectName(QStringLiteral("RecoveryDialogTitle"));
-  headerLayout->addWidget(title, 1);
+    auto *headerIcon = new QLabel(header);
+    headerIcon->setFixedSize(18, 18);
+    headerIcon->setPixmap(app::ThemeManager::instance()
+                              .icon(QStringLiteral("watchtower_weak"))
+                              .pixmap(18, 18));
+    headerLayout->addWidget(headerIcon);
 
-  auto *closeBtn = new QPushButton(header);
-  closeBtn->setObjectName(QStringLiteral("DialogCloseBtn"));
-  closeBtn->setFixedSize(32, 32);
-  closeBtn->setIconSize(QSize(12, 12));
-  closeBtn->setCursor(Qt::PointingHandCursor);
-  closeBtn->setIcon(
-      app::ThemeManager::instance().icon(QStringLiteral("win_close")));
-  connect(closeBtn, &QPushButton::clicked, &dlg, &QDialog::reject);
-  headerLayout->addWidget(closeBtn);
+    auto *title = new QLabel(tr("Regenerate Emergency Key"), header);
+    title->setObjectName(QStringLiteral("RecoveryDialogTitle"));
+    headerLayout->addWidget(title, 1);
 
-  cardLayout->addWidget(header);
+    auto *closeBtn = new QPushButton(header);
+    closeBtn->setObjectName(QStringLiteral("WinCloseBtn"));
+    closeBtn->setFixedSize(46, 38);
+    closeBtn->setIconSize(QSize(12, 12));
+    closeBtn->setFlat(true);
+    closeBtn->setFocusPolicy(Qt::NoFocus);
+    closeBtn->setCursor(Qt::PointingHandCursor);
+    closeBtn->setIcon(
+        app::ThemeManager::instance().icon(QStringLiteral("win_close")));
+    connect(closeBtn, &QPushButton::clicked, &dlg, &QDialog::reject);
+    headerLayout->addWidget(closeBtn);
 
-  auto *body = new QWidget(card);
-  auto *layout = new QVBoxLayout(body);
-  layout->setContentsMargins(20, 16, 20, 0);
-  layout->setSpacing(10);
+    cardLayout->addWidget(header);
 
-  auto *pwdLabel = new QLabel(tr("Enter your Master Password:"), body);
-  pwdLabel->setObjectName(QStringLiteral("DialogFieldLabel"));
-  layout->addWidget(pwdLabel);
+    auto *body = new QWidget(card);
+    auto *layout = new QVBoxLayout(body);
+    layout->setContentsMargins(20, 14, 20, 0);
+    layout->setSpacing(10);
 
-  auto *pwdEdit = new QLineEdit(body);
-  pwdEdit->setEchoMode(QLineEdit::Password);
-  pwdEdit->setFixedHeight(34);
-  layout->addWidget(pwdEdit);
+    auto *warningLabel = new QLabel(
+        tr("Warning: Regenerating your recovery key will immediately and "
+           "permanently invalidate your existing recovery key. Anyone holding "
+           "the previous key will no longer be able to restore your vault."),
+        body);
+    warningLabel->setObjectName(QStringLiteral("DialogFieldLabel"));
+    warningLabel->setWordWrap(true);
+    layout->addWidget(warningLabel);
 
-  auto *errorLabel = new QLabel(body);
-  errorLabel->setObjectName(QStringLiteral("DialogErrorLabel"));
-  layout->addWidget(errorLabel);
+    auto *pwdLabel =
+        new QLabel(tr("Enter your Master Password to confirm:"), body);
+    pwdLabel->setObjectName(QStringLiteral("DialogFieldLabel"));
+    layout->addWidget(pwdLabel);
 
-  layout->addStretch(1);
+    auto *pwdEdit = new QLineEdit(body);
+    pwdEdit->setEchoMode(QLineEdit::Password);
+    pwdEdit->setFixedHeight(34);
+    layout->addWidget(pwdEdit);
 
-  auto *btnLayout = new QHBoxLayout();
-  auto *cancelBtn = new QPushButton(tr("Cancel"), body);
-  cancelBtn->setFixedHeight(32);
-  cancelBtn->setCursor(Qt::PointingHandCursor);
-  connect(cancelBtn, &QPushButton::clicked, &dlg, &QDialog::reject);
-  btnLayout->addWidget(cancelBtn);
-  btnLayout->addStretch(1);
+    auto *errorLabel = new QLabel(body);
+    errorLabel->setObjectName(QStringLiteral("DialogErrorLabel"));
+    layout->addWidget(errorLabel);
 
-  auto *verifyBtn = new QPushButton(tr("Reveal Key"), body);
-  verifyBtn->setObjectName(QStringLiteral("OnboardingPrimaryBtn"));
-  verifyBtn->setFixedHeight(32);
-  verifyBtn->setCursor(Qt::PointingHandCursor);
-  connect(verifyBtn, &QPushButton::clicked, &dlg, [&]() {
-    const QString pwd = pwdEdit->text();
-    if (!app::VaultManager::instance().validateMasterPassword(pwd)) {
-      errorLabel->setText(tr("Incorrect master password."));
+    layout->addStretch(1);
+
+    auto *btnLayout = new QHBoxLayout();
+    auto *cancelBtn = new QPushButton(tr("Cancel"), body);
+    cancelBtn->setFixedHeight(32);
+    cancelBtn->setCursor(Qt::PointingHandCursor);
+    connect(cancelBtn, &QPushButton::clicked, &dlg, &QDialog::reject);
+    btnLayout->addWidget(cancelBtn);
+    btnLayout->addStretch(1);
+
+    auto *rotateBtn = new QPushButton(tr("Regenerate Key"), body);
+    rotateBtn->setObjectName(QStringLiteral("NotificationDangerBtn"));
+    rotateBtn->setFixedHeight(32);
+    rotateBtn->setCursor(Qt::PointingHandCursor);
+
+    auto doRotate = [&]() {
+      const QString pwd = pwdEdit->text();
+      if (pwd.isEmpty()) {
+        errorLabel->setText(tr("Please enter your Master Password."));
+        return;
+      }
+      if (!app::VaultManager::instance().validateMasterPassword(pwd)) {
+        errorLabel->setText(tr("Incorrect master password."));
+        return;
+      }
+
+      newKey = app::VaultManager::instance().rotateRecoveryKey(pwd);
+      if (newKey.isEmpty()) {
+        errorLabel->setText(tr("Failed to regenerate recovery key."));
+        return;
+      }
+
+      confirmed = true;
+      dlg.accept();
+    };
+
+    connect(rotateBtn, &QPushButton::clicked, &dlg, doRotate);
+    connect(pwdEdit, &QLineEdit::returnPressed, &dlg, doRotate);
+    btnLayout->addWidget(rotateBtn);
+    layout->addLayout(btnLayout);
+
+    cardLayout->addWidget(body, 1);
+    components::DialogDragHelper::makeDraggable(header, &dlg);
+    rootLayout->addWidget(card);
+
+    if (components::DialogDragHelper::execDialog(dlg) != QDialog::Accepted ||
+        !confirmed || newKey.isEmpty()) {
       return;
     }
+  }
 
-    // Hiển thị mã
-    dlg.accept();
-
-    QDialog showDlg(this, Qt::FramelessWindowHint | Qt::Dialog);
+  // Bước 2: Hiển thị mã khôi phục mới 1 lần duy nhất (hoàn toàn tách biệt)
+  {
+    QDialog showDlg(window(), Qt::FramelessWindowHint | Qt::Dialog);
     showDlg.setAttribute(Qt::WA_TranslucentBackground, false);
     showDlg.setModal(false);
     showDlg.setWindowModality(Qt::NonModal);
-    showDlg.setMinimumSize(440, 240);
-    showDlg.resize(500, 270);
+    showDlg.setMinimumSize(480, 280);
+    showDlg.resize(520, 310);
 
     auto *showRoot = new QVBoxLayout(&showDlg);
     showRoot->setContentsMargins(0, 0, 0, 0);
@@ -442,9 +490,9 @@ void TabSecurity::openViewRecoveryKeyDialog() {
     auto *showHeader = new QWidget(showCard);
     showHeader->setObjectName(QStringLiteral("RecoveryDialogHeader"));
     showHeader->setAttribute(Qt::WA_StyledBackground, true);
-    showHeader->setFixedHeight(44);
+    showHeader->setFixedHeight(38);
     auto *showHeaderLayout = new QHBoxLayout(showHeader);
-    showHeaderLayout->setContentsMargins(16, 0, 8, 0);
+    showHeaderLayout->setContentsMargins(16, 0, 0, 0);
     showHeaderLayout->setSpacing(10);
 
     auto *showIcon = new QLabel(showHeader);
@@ -454,14 +502,16 @@ void TabSecurity::openViewRecoveryKeyDialog() {
                             .pixmap(18, 18));
     showHeaderLayout->addWidget(showIcon);
 
-    auto *h = new QLabel(tr("Your Emergency Recovery Key"), showHeader);
+    auto *h = new QLabel(tr("Your New Emergency Recovery Key"), showHeader);
     h->setObjectName(QStringLiteral("RecoveryDialogTitle"));
     showHeaderLayout->addWidget(h, 1);
 
     auto *showCloseBtn = new QPushButton(showHeader);
-    showCloseBtn->setObjectName(QStringLiteral("DialogCloseBtn"));
-    showCloseBtn->setFixedSize(32, 32);
+    showCloseBtn->setObjectName(QStringLiteral("WinCloseBtn"));
+    showCloseBtn->setFixedSize(46, 38);
     showCloseBtn->setIconSize(QSize(12, 12));
+    showCloseBtn->setFlat(true);
+    showCloseBtn->setFocusPolicy(Qt::NoFocus);
     showCloseBtn->setCursor(Qt::PointingHandCursor);
     showCloseBtn->setIcon(
         app::ThemeManager::instance().icon(QStringLiteral("win_close")));
@@ -472,46 +522,57 @@ void TabSecurity::openViewRecoveryKeyDialog() {
 
     auto *showBody = new QWidget(showCard);
     auto *showLayout = new QVBoxLayout(showBody);
-    showLayout->setContentsMargins(20, 16, 20, 0);
-    showLayout->setSpacing(14);
+    showLayout->setContentsMargins(20, 14, 20, 0);
+    showLayout->setSpacing(12);
+
+    auto *noticeLabel =
+        new QLabel(tr("Important: This new recovery key is shown ONCE ONLY. "
+                      "Write it down or save it in a safe offline location. "
+                      "Your old key is now completely invalid."),
+                   showBody);
+    noticeLabel->setObjectName(QStringLiteral("DialogFieldLabel"));
+    noticeLabel->setWordWrap(true);
+    showLayout->addWidget(noticeLabel);
 
     auto *box = new QWidget(showBody);
     box->setObjectName(QStringLiteral("RecoveryBox"));
     auto *boxLayout = new QVBoxLayout(box);
     boxLayout->setContentsMargins(14, 12, 14, 12);
 
-    const QString key = app::VaultManager::instance().recoveryKey();
-    auto *keyLabel = new QLabel(key, box);
+    auto *keyLabel = new QLabel(newKey, box);
     keyLabel->setObjectName(QStringLiteral("RecoveryKeyDisplay"));
     keyLabel->setAlignment(Qt::AlignCenter);
     keyLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
     boxLayout->addWidget(keyLabel);
     showLayout->addWidget(box);
 
+    auto *btnRow = new QHBoxLayout();
     auto *copyBtn = new QPushButton(tr("Copy to Clipboard"), showBody);
     copyBtn->setObjectName(QStringLiteral("RecoveryActionBtn"));
     copyBtn->setFixedHeight(34);
     copyBtn->setCursor(Qt::PointingHandCursor);
-    connect(copyBtn, &QPushButton::clicked, &showDlg, [&]() {
-      app::ClipboardManager::instance().copySensitive(key, tr("Recovery Key"));
+    connect(copyBtn, &QPushButton::clicked, &showDlg, [copyBtn, newKey]() {
+      app::ClipboardManager::instance().copySensitive(newKey,
+                                                      tr("Recovery Key"));
       copyBtn->setText(tr("Copied!"));
     });
-    showLayout->addWidget(copyBtn);
+    btnRow->addWidget(copyBtn);
+
+    auto *doneBtn = new QPushButton(tr("I Have Saved My Key"), showBody);
+    doneBtn->setObjectName(QStringLiteral("OnboardingPrimaryBtn"));
+    doneBtn->setFixedHeight(34);
+    doneBtn->setCursor(Qt::PointingHandCursor);
+    connect(doneBtn, &QPushButton::clicked, &showDlg, &QDialog::accept);
+    btnRow->addWidget(doneBtn);
+
+    showLayout->addLayout(btnRow);
 
     showCardLayout->addWidget(showBody, 1);
     components::DialogDragHelper::makeDraggable(showHeader, &showDlg);
     showRoot->addWidget(showCard);
 
     components::DialogDragHelper::execDialog(showDlg);
-  });
-  btnLayout->addWidget(verifyBtn);
-  layout->addLayout(btnLayout);
-
-  cardLayout->addWidget(body, 1);
-  components::DialogDragHelper::makeDraggable(header, &dlg);
-  rootLayout->addWidget(card);
-
-  components::DialogDragHelper::execDialog(dlg);
+  }
 }
 
 void TabSecurity::retranslateUi() {
@@ -564,12 +625,13 @@ void TabSecurity::retranslateUi() {
     m_changePwdBtn->setText(tr("Change Master Password..."));
   }
   if (m_recKeyRow) {
-    m_recKeyRow->updateText(tr("Emergency Recovery Key"),
-                            tr("Inspect your 24-character recovery key. "
-                               "Required if you ever forget your password."));
+    m_recKeyRow->updateText(
+        tr("Emergency Recovery Key"),
+        tr("Generate a new 24-character recovery key. "
+           "The current key will be permanently invalidated."));
   }
-  if (m_viewRecKeyBtn) {
-    m_viewRecKeyBtn->setText(tr("View Emergency Key..."));
+  if (m_rotateRecKeyBtn) {
+    m_rotateRecKeyBtn->setText(tr("Regenerate Key..."));
   }
 }
 

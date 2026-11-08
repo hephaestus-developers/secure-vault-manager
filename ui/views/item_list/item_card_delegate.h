@@ -8,7 +8,6 @@
 
 #pragma once
 
-#include <QPoint>
 #include <QStyledItemDelegate>
 
 namespace svm::views {
@@ -24,19 +23,6 @@ public:
              const QModelIndex &index) const override;
   [[nodiscard]] QSize sizeHint(const QStyleOptionViewItem &option,
                                const QModelIndex &index) const override;
-
-signals:
-  void quickCopyUsernameRequested(const QString &itemId);
-  void quickCopyPasswordRequested(const QString &itemId);
-
-protected:
-  bool editorEvent(QEvent *event, QAbstractItemModel *model,
-                   const QStyleOptionViewItem &option,
-                   const QModelIndex &index) override;
-
-private:
-  mutable QPoint m_hoverPos;
-  mutable QModelIndex m_hoverIndex;
 };
 
 } // namespace svm::views

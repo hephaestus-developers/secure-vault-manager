@@ -9,9 +9,7 @@
 #include "app/theme_manager.h"
 #include "item_list_model.h"
 
-#include <QEvent>
 #include <QIcon>
-#include <QMouseEvent>
 #include <QPainter>
 #include <QPainterPath>
 
@@ -98,8 +96,7 @@ void ItemCardDelegate::paint(QPainter *painter,
   }
 
   const int textLeft = iconRect.right() + 12;
-  const int rightReserved =
-      isHovered ? 76 : (badgesWidth > 0 ? (badgesWidth + 8) : 12);
+  const int rightReserved = (badgesWidth > 0 ? (badgesWidth + 8) : 12);
   const int textWidth = std::max(20, rect.right() - textLeft - rightReserved);
 
   // 4. Tiêu đề và Username/Subtitle
@@ -142,95 +139,35 @@ void ItemCardDelegate::paint(QPainter *painter,
   painter->drawText(QRect(textLeft, rect.top() + 35, textWidth, 18),
                     Qt::AlignLeft | Qt::AlignVCenter, elidedSub);
 
-  // 5. Badges & Icons bên phải (Chỉ vẽ khi không Hover)
-  if (!isHovered) {
-    int badgeX = rect.right() - 10;
+  // 5. Badges & Icons bên phải (Favorite star, 2FA)
+  int badgeX = rect.right() - 10;
 
-    if (isFav) {
-      const QRect starRect(badgeX - 16, rect.top() + (rect.height() - 16) / 2,
-                           16, 16);
-      const QIcon starIcon(
-          isLight ? QStringLiteral(":/icons/star_filled_light.svg")
-                  : QStringLiteral(":/icons/star_filled_dark.svg"));
-      starIcon.paint(painter, starRect);
-      badgeX -= 22;
-    }
+  if (isFav) {
+    const QRect starRect(badgeX - 16, rect.top() + (rect.height() - 16) / 2, 16,
+                         16);
+    const QIcon starIcon(isLight
+                             ? QStringLiteral(":/icons/star_filled_light.svg")
+                             : QStringLiteral(":/icons/star_filled_dark.svg"));
+    starIcon.paint(painter, starRect);
+    badgeX -= 22;
+  }
 
-    if (hasTotp) {
-      const QRect totpRect(badgeX - 34, rect.top() + (rect.height() - 18) / 2,
-                           34, 18);
-      QPainterPath badgePath;
-      badgePath.addRoundedRect(totpRect, 4, 4);
-      painter->fillPath(badgePath,
-                        isLight ? QColor(0x88, 0x39, 0xEF, 0x22)
-                                : QColor(0x8B, 0x5C, 0xF6, 0x33)); // Purple
-      painter->setPen(isLight ? QColor(0x88, 0x39, 0xEF)
-                              : QColor(0xA7, 0x8B, 0xFA));
-      QFont badgeFont(QStringLiteral("sans-serif"), 7, QFont::Bold);
-      painter->setFont(badgeFont);
-      painter->drawText(totpRect, Qt::AlignCenter, QStringLiteral("2FA"));
-    }
-  } else {
-    // 6. Hover Actions (Nút Copy Username & Copy Password)
-    const int btnY = rect.top() + (rect.height() - 26) / 2;
-    const QRect copyPassRect(rect.right() - 34, btnY, 26, 26);
-    const QRect copyUserRect(rect.right() - 66, btnY, 26, 26);
-
-    QPainterPath btnPassPath;
-    btnPassPath.addRoundedRect(copyPassRect, 5, 5);
-    painter->fillPath(btnPassPath, isLight ? QColor(0xDC, 0xE0, 0xE8)
-                                           : QColor(0x31, 0x32, 0x44));
-    painter->setPen(
-        QPen(isLight ? QColor(0xCC, 0xD0, 0xDA) : QColor(0x45, 0x47, 0x5A), 1));
-    painter->drawPath(btnPassPath);
-    QIcon(isLight ? QStringLiteral(":/icons/lock_light.svg")
-                  : QStringLiteral(":/icons/lock_dark.svg"))
-        .paint(painter, copyPassRect.adjusted(5, 5, -5, -5));
-
-    QPainterPath btnUserPath;
-    btnUserPath.addRoundedRect(copyUserRect, 5, 5);
-    painter->fillPath(btnUserPath, isLight ? QColor(0xDC, 0xE0, 0xE8)
-                                           : QColor(0x31, 0x32, 0x44));
-    painter->setPen(
-        QPen(isLight ? QColor(0xCC, 0xD0, 0xDA) : QColor(0x45, 0x47, 0x5A), 1));
-    painter->drawPath(btnUserPath);
-    QIcon(isLight ? QStringLiteral(":/icons/copy_light.svg")
-                  : QStringLiteral(":/icons/copy_dark.svg"))
-        .paint(painter, copyUserRect.adjusted(5, 5, -5, -5));
+  if (hasTotp) {
+    const QRect totpRect(badgeX - 34, rect.top() + (rect.height() - 18) / 2, 34,
+                         18);
+    QPainterPath badgePath;
+    badgePath.addRoundedRect(totpRect, 4, 4);
+    painter->fillPath(badgePath,
+                      isLight ? QColor(0x88, 0x39, 0xEF, 0x22)
+                              : QColor(0x8B, 0x5C, 0xF6, 0x33)); // Purple
+    painter->setPen(isLight ? QColor(0x88, 0x39, 0xEF)
+                            : QColor(0xA7, 0x8B, 0xFA));
+    QFont badgeFont(QStringLiteral("sans-serif"), 7, QFont::Bold);
+    painter->setFont(badgeFont);
+    painter->drawText(totpRect, Qt::AlignCenter, QStringLiteral("2FA"));
   }
 
   painter->restore();
-}
-
-bool ItemCardDelegate::editorEvent(QEvent *event, QAbstractItemModel *model,
-                                   const QStyleOptionViewItem &option,
-                                   const QModelIndex &index) {
-  if (!index.isValid()) {
-    return false;
-  }
-
-  if (event->type() == QEvent::MouseButtonRelease) {
-    auto *mouseEvent = static_cast<QMouseEvent *>(event);
-    if (mouseEvent->button() == Qt::LeftButton) {
-      const QRect rect = option.rect.adjusted(6, 3, -6, -3);
-      const int btnY = rect.top() + (rect.height() - 26) / 2;
-      const QRect copyPassRect(rect.right() - 34, btnY, 26, 26);
-      const QRect copyUserRect(rect.right() - 66, btnY, 26, 26);
-
-      const QString itemId = index.data(ItemListModel::IdRole).toString();
-
-      if (copyPassRect.contains(mouseEvent->pos())) {
-        emit quickCopyPasswordRequested(itemId);
-        return true;
-      }
-      if (copyUserRect.contains(mouseEvent->pos())) {
-        emit quickCopyUsernameRequested(itemId);
-        return true;
-      }
-    }
-  }
-
-  return QStyledItemDelegate::editorEvent(event, model, option, index);
 }
 
 } // namespace svm::views

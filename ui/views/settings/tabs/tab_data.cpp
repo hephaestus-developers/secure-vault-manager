@@ -11,6 +11,7 @@
 #include "app/vault_manager.h"
 #include "components/dialog_drag_helper.h"
 #include "components/in_window_combobox.h"
+#include "components/notification_dialog.h"
 #include "components/window_resize_handler.h"
 #include "core/core_bridge.h"
 
@@ -18,7 +19,6 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
-#include <QMessageBox>
 #include <QStandardPaths>
 #include <QVBoxLayout>
 
@@ -31,7 +31,7 @@ TabData::TabData(QWidget *parent) : QWidget(parent) {
 
 void TabData::setupUI() {
   auto *layout = new QVBoxLayout(this);
-  layout->setContentsMargins(0, 0, 0, 0);
+  layout->setContentsMargins(18, 14, 14, 16);
   layout->setSpacing(16);
 
   auto &settings = app::SettingsManager::instance();
@@ -49,7 +49,7 @@ void TabData::setupUI() {
   m_importFormatCombo->addItem(QStringLiteral("1Password (1PUX)"));
   m_importFormatCombo->addItem(QStringLiteral("KeePass (XML)"));
   m_importFormatCombo->addItem(QStringLiteral("CSV Spreadsheet"));
-  m_importFormatCombo->setFixedWidth(160);
+  m_importFormatCombo->setFixedWidth(200);
   m_importFormatCombo->setFixedHeight(32);
   m_importFormatCombo->setCursor(Qt::PointingHandCursor);
   importLayout->addWidget(m_importFormatCombo);
@@ -121,7 +121,7 @@ void TabData::setupUI() {
   m_emptyTrashNowBtn->setCursor(Qt::PointingHandCursor);
   connect(m_emptyTrashNowBtn, &QPushButton::clicked, this, [this]() {
     core::CoreBridge::instance().emptyTrash();
-    QMessageBox::information(
+    components::NotificationDialog::information(
         this, tr("Trash Purged"),
         tr("All deleted items in trash have been purged."));
   });
@@ -178,14 +178,14 @@ void TabData::onImportClicked() {
     const int importedCount =
         core::CoreBridge::instance().importItems(fmt, filePath);
     if (importedCount >= 0) {
-      QMessageBox::information(
+      components::NotificationDialog::success(
           this, tr("Import Complete"),
           tr("Successfully parsed import file: %1\nImported "
              "%2 items into your vault.")
               .arg(filePath)
               .arg(importedCount));
     } else {
-      QMessageBox::warning(
+      components::NotificationDialog::warning(
           this, tr("Import Failed"),
           core::CoreBridge::instance().lastError().isEmpty()
               ? tr("Could not parse or import the selected file.")
@@ -202,27 +202,27 @@ void TabData::onExportEncryptedClicked() {
       tr("Secure Vault Backup (*.svm);;All Files (*)"));
   if (!filePath.isEmpty()) {
     if (core::CoreBridge::instance().exportItems(SVM_FORMAT_SVM, filePath)) {
-      QMessageBox::information(
+      components::NotificationDialog::success(
           this, tr("Export Complete"),
           tr("Vault backup successfully encrypted and saved."));
     } else {
-      QMessageBox::warning(this, tr("Export Failed"),
-                           core::CoreBridge::instance().lastError());
+      components::NotificationDialog::warning(
+          this, tr("Export Failed"), core::CoreBridge::instance().lastError());
     }
   }
 }
 
 void TabData::onExportPlainClicked() {
-  auto res =
-      QMessageBox::warning(this, tr("Security Risk Warning"),
-                           tr("You are about to export your entire password "
-                              "vault in PLAINTEXT format.\n"
-                              "Anyone who accesses this file will be able to "
-                              "read your passwords, cards, and keys.\n\n"
-                              "Are you sure you want to proceed?"),
-                           QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+  const bool confirmed = components::NotificationDialog::question(
+      this, tr("Security Risk Warning"),
+      tr("You are about to export your entire password "
+         "vault in PLAINTEXT format.\n"
+         "Anyone who accesses this file will be able to "
+         "read your passwords, cards, and keys.\n\n"
+         "Are you sure you want to proceed?"),
+      tr("Export Anyway"), tr("Cancel"), true);
 
-  if (res == QMessageBox::Yes) {
+  if (confirmed) {
     const QString filePath = QFileDialog::getSaveFileName(
         this, tr("Save Plaintext Export"),
         QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation) +
@@ -234,11 +234,13 @@ void TabData::onExportPlainClicked() {
               ? SVM_FORMAT_BITWARDEN_JSON
               : SVM_FORMAT_CSV;
       if (core::CoreBridge::instance().exportItems(fmt, filePath)) {
-        QMessageBox::information(this, tr("Export Complete"),
-                                 tr("Plaintext file exported successfully."));
+        components::NotificationDialog::success(
+            this, tr("Export Complete"),
+            tr("Plaintext file exported successfully."));
       } else {
-        QMessageBox::warning(this, tr("Export Failed"),
-                             core::CoreBridge::instance().lastError());
+        components::NotificationDialog::warning(
+            this, tr("Export Failed"),
+            core::CoreBridge::instance().lastError());
       }
     }
   }
@@ -334,9 +336,9 @@ void TabData::onFactoryResetClicked() {
   auto *header = new QWidget(card);
   header->setObjectName(QStringLiteral("NewVaultHeader"));
   header->setAttribute(Qt::WA_StyledBackground, true);
-  header->setFixedHeight(44);
+  header->setFixedHeight(38);
   auto *headerLayout = new QHBoxLayout(header);
-  headerLayout->setContentsMargins(16, 0, 8, 0);
+  headerLayout->setContentsMargins(16, 0, 0, 0);
   headerLayout->setSpacing(10);
 
   auto *headerIcon = new QLabel(header);
@@ -351,9 +353,11 @@ void TabData::onFactoryResetClicked() {
   headerLayout->addWidget(title, 1);
 
   auto *closeBtn = new QPushButton(header);
-  closeBtn->setObjectName(QStringLiteral("DialogCloseBtn"));
-  closeBtn->setFixedSize(32, 32);
+  closeBtn->setObjectName(QStringLiteral("WinCloseBtn"));
+  closeBtn->setFixedSize(46, 38);
   closeBtn->setIconSize(QSize(12, 12));
+  closeBtn->setFlat(true);
+  closeBtn->setFocusPolicy(Qt::NoFocus);
   closeBtn->setCursor(Qt::PointingHandCursor);
   closeBtn->setIcon(
       app::ThemeManager::instance().icon(QStringLiteral("win_close")));

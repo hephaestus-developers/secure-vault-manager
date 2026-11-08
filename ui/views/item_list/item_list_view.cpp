@@ -6,12 +6,12 @@
  */
 
 #include "item_list_view.h"
+#include "app/dev_logger.h"
 #include "app/theme_manager.h"
 #include "app/vault_manager.h"
-#include "components/combobox_popup_helper.h"
-#include "components/in_window_combobox.h"
 
 #include <QAction>
+#include <QEvent>
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QVBoxLayout>
@@ -61,53 +61,7 @@ void ItemListView::setupUI() {
 
   layout->addWidget(topBarContainer);
 
-  // 2. Row 2: Metadata Toolbar (Item count & Sort Filter)
-  auto *toolContainer = new QWidget(this);
-  auto *toolLayout = new QHBoxLayout(toolContainer);
-  toolLayout->setContentsMargins(2, 0, 2, 0);
-  toolLayout->setSpacing(8);
-
-  m_countLabel = new QLabel(tr("0 items"), toolContainer);
-  m_countLabel->setObjectName(QStringLiteral("ItemListCountLabel"));
-  toolLayout->addWidget(m_countLabel);
-
-  toolLayout->addStretch(1);
-
-  auto *sortCombo = new svm::ui::InWindowComboBox(toolContainer);
-  sortCombo->setObjectName(QStringLiteral("ItemListSortCombo"));
-  sortCombo->setFixedHeight(28);
-  sortCombo->setIconSize(QSize(16, 16));
-  sortCombo->setCursor(Qt::PointingHandCursor);
-  sortCombo->setPopupMinWidth(175);
-  m_sortCombo = sortCombo;
-
-  auto updateSortIcons = [this]() {
-    auto &tm = app::ThemeManager::instance();
-    m_sortCombo->setItemIcon(0, tm.icon(QStringLiteral("sort_time")));
-    m_sortCombo->setItemIcon(1, tm.icon(QStringLiteral("sort_alpha_asc")));
-    m_sortCombo->setItemIcon(2, tm.icon(QStringLiteral("sort_alpha_desc")));
-  };
-
-  m_sortCombo->addItem(
-      tr("Recently Updated"),
-      static_cast<int>(ItemSortFilterProxy::SortOption::UpdatedDesc));
-  m_sortCombo->addItem(
-      tr("Title (A-Z)"),
-      static_cast<int>(ItemSortFilterProxy::SortOption::TitleAsc));
-  m_sortCombo->addItem(
-      tr("Title (Z-A)"),
-      static_cast<int>(ItemSortFilterProxy::SortOption::TitleDesc));
-  updateSortIcons();
-
-  connect(&app::ThemeManager::instance(), &app::ThemeManager::themeChanged,
-          this, updateSortIcons);
-  connect(m_sortCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-          this, &ItemListView::onSortChanged);
-  toolLayout->addWidget(m_sortCombo);
-
-  layout->addWidget(toolContainer);
-
-  // 3. QListView với Proxy Model & Delegate
+  // 2. QListView với Proxy Model & Delegate
   m_model = new ItemListModel(this);
   m_proxyModel = new ItemSortFilterProxy(this);
   m_proxyModel->setSourceModel(m_model);
@@ -116,7 +70,6 @@ void ItemListView::setupUI() {
           &app::VaultManager::activeVaultChanged, this,
           [this](const QString &vaultId) {
             m_proxyModel->setVaultFilter(vaultId);
-            updateCountLabel();
           });
 
   m_listView = new QListView(this);
@@ -148,41 +101,56 @@ void ItemListView::setupUI() {
             }
           });
 
-  connect(m_delegate, &ItemCardDelegate::quickCopyUsernameRequested, this,
-          [this](const QString &itemId) {
-            emit quickCopyRequested(itemId, QStringLiteral("username"));
-          });
-  connect(m_delegate, &ItemCardDelegate::quickCopyPasswordRequested, this,
-          [this](const QString &itemId) {
-            emit quickCopyRequested(itemId, QStringLiteral("password"));
-          });
-
   connect(m_listView->selectionModel(), &QItemSelectionModel::selectionChanged,
           this, &ItemListView::onListSelectionChanged);
 
-  layout->addWidget(m_listView, 1);
+  m_stack = new QStackedWidget(this);
+  m_stack->setObjectName(QStringLiteral("ItemListStack"));
+  m_stack->addWidget(m_listView);
+
+  m_emptyWidget = new ItemListEmptyWidget(m_stack);
+  connect(m_emptyWidget, &ItemListEmptyWidget::clearSearchRequested,
+          m_searchEdit, &QLineEdit::clear);
+  connect(m_emptyWidget, &ItemListEmptyWidget::createItemRequested, this,
+          &ItemListView::addNewItemRequested);
+  m_stack->addWidget(m_emptyWidget);
+
+  layout->addWidget(m_stack, 1);
+
+  connect(m_proxyModel, &QAbstractItemModel::modelReset, this,
+          &ItemListView::updateEmptyStateVisibility);
+  connect(m_proxyModel, &QAbstractItemModel::rowsInserted, this,
+          &ItemListView::updateEmptyStateVisibility);
+  connect(m_proxyModel, &QAbstractItemModel::rowsRemoved, this,
+          &ItemListView::updateEmptyStateVisibility);
+  connect(m_proxyModel, &QAbstractItemModel::layoutChanged, this,
+          &ItemListView::updateEmptyStateVisibility);
+
+  updateEmptyStateVisibility();
 }
 
 void ItemListView::setItems(const QList<models::UiVaultItem> &items) {
   m_model->setItems(items);
-  updateCountLabel();
 }
 
 void ItemListView::upsertItem(const models::UiVaultItem &item) {
   m_model->upsertItem(item);
-  updateCountLabel();
 }
 
 void ItemListView::removeItem(const QString &itemId) {
   m_model->removeItem(itemId);
-  updateCountLabel();
 }
 
 void ItemListView::setFilter(SidebarFilterType type,
                              models::ItemCategory category) {
+  SVM_ACTION_SCOPE_DETAIL("UI", "ItemListView::setFilter",
+                          QStringLiteral("type=%1, cat=%2")
+                              .arg(static_cast<int>(type))
+                              .arg(static_cast<int>(category)));
+  m_currentFilterType = type;
   m_currentCategory = category;
   m_proxyModel->setFilterType(type, category);
-  updateCountLabel();
+  updateEmptyStateVisibility();
 }
 
 void ItemListView::selectItem(const QString &itemId) {
@@ -215,14 +183,23 @@ void ItemListView::focusSearch() {
 }
 
 void ItemListView::onSearchTextChanged(const QString &text) {
+  SVM_ACTION_SCOPE_DETAIL("UI", "ItemListView::search",
+                          QStringLiteral("query=\"%1\"").arg(text));
   m_proxyModel->setSearchText(text);
-  updateCountLabel();
+  updateEmptyStateVisibility();
 }
 
-void ItemListView::onSortChanged(int index) {
-  const auto opt = static_cast<ItemSortFilterProxy::SortOption>(
-      m_sortCombo->itemData(index).toInt());
-  m_proxyModel->setSortOption(opt);
+void ItemListView::updateEmptyStateVisibility() {
+  if (!m_stack || !m_emptyWidget || !m_proxyModel) {
+    return;
+  }
+  const bool isEmpty = (m_proxyModel->rowCount() == 0);
+  m_stack->setCurrentIndex(isEmpty ? 1 : 0);
+  if (isEmpty) {
+    const QString q = m_searchEdit ? m_searchEdit->text().trimmed() : QString();
+    m_emptyWidget->setState(m_currentFilterType, m_currentCategory,
+                            !q.isEmpty(), q);
+  }
 }
 
 void ItemListView::onListSelectionChanged(const QItemSelection &selected,
@@ -233,15 +210,8 @@ void ItemListView::onListSelectionChanged(const QItemSelection &selected,
     const QString itemId =
         indexes.first().data(ItemListModel::IdRole).toString();
     emit itemSelected(itemId);
-  }
-}
-
-void ItemListView::updateCountLabel() {
-  const int count = m_proxyModel->rowCount();
-  if (count == 1) {
-    m_countLabel->setText(tr("%1 item").arg(count));
-  } else {
-    m_countLabel->setText(tr("%1 items").arg(count));
+  } else if (m_listView->selectionModel()->selectedIndexes().isEmpty()) {
+    emit itemSelected(QString());
   }
 }
 
@@ -252,12 +222,9 @@ void ItemListView::retranslateUi() {
   if (m_newBtn) {
     m_newBtn->setToolTip(tr("Create new item (Ctrl+N)"));
   }
-  if (m_sortCombo && m_sortCombo->count() >= 3) {
-    m_sortCombo->setItemText(0, tr("Recently Updated"));
-    m_sortCombo->setItemText(1, tr("Title (A-Z)"));
-    m_sortCombo->setItemText(2, tr("Title (Z-A)"));
+  if (m_emptyWidget) {
+    m_emptyWidget->retranslateUi();
   }
-  updateCountLabel();
 }
 
 void ItemListView::changeEvent(QEvent *event) {

@@ -15,13 +15,11 @@
 
 namespace svm::components {
 
-class AppMenuBar;
-
 class UnifiedHeaderBar : public QWidget {
   Q_OBJECT
 
 public:
-  explicit UnifiedHeaderBar(AppMenuBar *menuBar, QWidget *parent = nullptr);
+  explicit UnifiedHeaderBar(QWidget *parent = nullptr);
   ~UnifiedHeaderBar() override = default;
 
   /**
@@ -50,16 +48,10 @@ public:
    */
   void setSettingsVisible(bool visible);
 
-  /**
-   * @brief Ẩn/Hiện nút Command Palette (chỉ hiển thị khi đã mở khóa).
-   */
-  void setCommandPaletteVisible(bool visible);
-
 signals:
   void minimizeRequested();
   void maximizeRestoreRequested();
   void closeRequested();
-  void commandPaletteRequested();
   void themeToggleRequested();
   void settingsRequested();
   void aboutRequested();
@@ -77,11 +69,9 @@ private:
   void repositionTitleOverlay();
 
   QLabel *m_logoLabel{nullptr};
-  QPushButton *m_paletteBtn{nullptr};
   QPushButton *m_themeToggleBtn{nullptr};
   QPushButton *m_settingsBtn{nullptr};
   QPushButton *m_aboutBtn{nullptr};
-  AppMenuBar *m_menuBar{nullptr};
   QLabel *m_titleLabel{nullptr};
   QPushButton *m_minBtn{nullptr};
   QPushButton *m_maxBtn{nullptr};

@@ -7,7 +7,7 @@ use svm_domain::{
 use svm_storage::{VaultHeader, VaultStorage};
 
 use crate::attachment::AttachmentMeta;
-use crate::defaults::{build_default_sample_items, build_default_vaults, current_timestamp_ms};
+use crate::defaults::{build_default_vaults, current_timestamp_ms};
 
 /// Dịch vụ quản lý phiên mở khóa và nghiệp vụ kho dữ liệu.
 pub struct VaultService {
@@ -38,8 +38,8 @@ impl VaultService {
             unlocked: false,
             dek: [0u8; 32],
             header: None,
-            vaults: build_default_vaults("Personal Vault"),
-            items: build_default_sample_items(),
+            vaults: Vec::new(),
+            items: Vec::new(),
             folders: Vec::new(),
             revisions: Vec::new(),
             trash: Vec::new(),
@@ -274,9 +274,7 @@ impl VaultService {
                 random_bytes(&mut self.dek);
                 self.recovery_key = rec_key.clone();
                 self.vaults = build_default_vaults(primary_name);
-                if self.items.is_empty() {
-                    self.items = build_default_sample_items();
-                }
+                self.items.clear();
                 let header = VaultStorage::create_header(&self.dek, password, &rec_key);
                 self.header = Some(header);
                 self.unlocked = true;
@@ -314,6 +312,7 @@ impl VaultService {
             let rec_key = generate_recovery_key();
             self.recovery_key = rec_key.clone();
             self.vaults = build_default_vaults(trimmed);
+            self.items.clear();
             let header = VaultStorage::create_header(&self.dek, password, &rec_key);
             self.header = Some(header);
             self.unlocked = true;
@@ -494,6 +493,24 @@ impl VaultService {
             self.persist()?;
         }
         Ok(())
+    }
+
+    /// Tạo lại và xoay Recovery Key mới (tái mã hóa DEK với KEK của recovery key mới).
+    pub fn rotate_recovery_key(&mut self, master_pw: &str) -> Result<String, DomainError> {
+        let new_key = generate_recovery_key();
+        if self.storage.vault_exists() {
+            let (mut header, dek, json_str) = self.storage.unlock_with_password(master_pw)?;
+            self.load_state_from_json(&json_str)?;
+            self.dek = dek;
+            VaultStorage::rewrap_recovery_key(&mut header, &self.dek, &new_key);
+            self.header = Some(header);
+            self.recovery_key = new_key.clone();
+            self.unlocked = true;
+            self.persist()?;
+        } else {
+            self.recovery_key = new_key.clone();
+        }
+        Ok(new_key)
     }
 }
 

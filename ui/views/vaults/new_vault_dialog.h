@@ -52,7 +52,7 @@ private:
   QLabel *m_errorLabel{nullptr};
 
   QString m_selectedIcon{QStringLiteral("folder_open")};
-  QString m_selectedColor{QStringLiteral("#3B82F6")};
+  QString m_selectedColor{QStringLiteral("#64748B")};
 
   QList<QPushButton *> m_iconButtons;
   QList<QPushButton *> m_colorButtons;

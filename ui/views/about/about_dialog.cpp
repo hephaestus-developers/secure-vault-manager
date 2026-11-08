@@ -50,10 +50,10 @@ void AboutDialog::setupUI() {
   m_headerWidget = new QWidget(m_cardWidget);
   m_headerWidget->setObjectName(QStringLiteral("AboutDialogHeader"));
   m_headerWidget->setAttribute(Qt::WA_StyledBackground, true);
-  m_headerWidget->setFixedHeight(44);
+  m_headerWidget->setFixedHeight(38);
 
   auto *headerLayout = new QHBoxLayout(m_headerWidget);
-  headerLayout->setContentsMargins(14, 0, 10, 0);
+  headerLayout->setContentsMargins(14, 0, 0, 0);
   headerLayout->setSpacing(8);
 
   auto *logoIconLabel = new QLabel(m_headerWidget);
@@ -68,9 +68,11 @@ void AboutDialog::setupUI() {
   headerLayout->addStretch(1);
 
   m_closeIconBtn = new QPushButton(m_headerWidget);
-  m_closeIconBtn->setObjectName(QStringLiteral("AboutCloseIconBtn"));
-  m_closeIconBtn->setFixedSize(26, 26);
+  m_closeIconBtn->setObjectName(QStringLiteral("WinCloseBtn"));
+  m_closeIconBtn->setFixedSize(46, 38);
   m_closeIconBtn->setIconSize(QSize(12, 12));
+  m_closeIconBtn->setFlat(true);
+  m_closeIconBtn->setFocusPolicy(Qt::NoFocus);
   m_closeIconBtn->setCursor(Qt::PointingHandCursor);
   m_closeIconBtn->setIcon(
       app::ThemeManager::instance().icon(QStringLiteral("win_close")));

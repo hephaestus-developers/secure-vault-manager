@@ -7,13 +7,13 @@
 
 #include "tab_browser.h"
 #include "app/settings_manager.h"
+#include "components/notification_dialog.h"
 #include "core/core_bridge.h"
 
 #include <QHBoxLayout>
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QLabel>
-#include <QMessageBox>
 
 namespace svm::views {
 
@@ -24,7 +24,7 @@ TabBrowser::TabBrowser(QWidget *parent) : QWidget(parent) {
 
 void TabBrowser::setupUI() {
   auto *layout = new QVBoxLayout(this);
-  layout->setContentsMargins(0, 0, 0, 0);
+  layout->setContentsMargins(18, 14, 14, 16);
   layout->setSpacing(16);
 
   auto &settings = app::SettingsManager::instance();
@@ -57,7 +57,7 @@ void TabBrowser::setupUI() {
   m_manifestBtn->setCursor(Qt::PointingHandCursor);
   connect(m_manifestBtn, &QPushButton::clicked, this, [this]() {
     core::CoreBridge::instance().installNativeHostManifests();
-    QMessageBox::information(
+    components::NotificationDialog::information(
         this, tr("Native Messaging Host"),
         tr("Native Messaging manifests successfully registered for Chrome, "
            "Firefox, Brave, and Edge browsers."));

@@ -7,6 +7,8 @@
 
 #include "core_bridge.h"
 
+#include "app/dev_logger.h"
+
 #include <QDateTime>
 #include <QDebug>
 #include <QDir>
@@ -154,6 +156,9 @@ void CoreBridge::handleRustEvent(int kind, const QString &payloadJson) {
 }
 
 bool CoreBridge::initialize(const QString &dataDir) {
+  SVM_ACTION_SCOPE_DETAIL("CoreBridge", "initialize",
+                          dataDir.isEmpty() ? QStringLiteral("default")
+                                            : dataDir);
   if (m_context) {
     return true;
   }
@@ -185,6 +190,7 @@ bool CoreBridge::initialize(const QString &dataDir) {
 }
 
 bool CoreBridge::resetStorage() {
+  SVM_ACTION_SCOPE("CoreBridge", "resetStorage");
   if (m_context) {
     svm_vault_lock(m_context);
     svm_context_free(m_context);
@@ -247,6 +253,7 @@ QString CoreBridge::listVaults() {
 }
 
 QList<models::UiVault> CoreBridge::fetchVaults(bool *outConfigured) {
+  SVM_ACTION_SCOPE("CoreBridge", "fetchVaults");
   QList<models::UiVault> result;
   const QString jsonStr = listVaults();
   QJsonDocument doc = QJsonDocument::fromJson(jsonStr.toUtf8());
@@ -274,14 +281,16 @@ QList<models::UiVault> CoreBridge::fetchVaults(bool *outConfigured) {
     v.iconName = obj.value(QStringLiteral("iconName"))
                      .toString(QStringLiteral("folder_open"));
     v.accentColor = obj.value(QStringLiteral("accentColor"))
-                        .toString(QStringLiteral("#3B82F6"));
+                        .toString(QStringLiteral("#64748B"));
     v.description = obj.value(QStringLiteral("description")).toString();
     v.itemCount = obj.value(QStringLiteral("itemCount")).toInt(0);
     v.isDefault = obj.value(QStringLiteral("isDefault")).toBool(false);
     const qint64 createdTs =
         static_cast<qint64>(obj.value(QStringLiteral("createdAt")).toDouble(0));
     if (createdTs > 0) {
-      v.createdAt = QDateTime::fromSecsSinceEpoch(createdTs);
+      v.createdAt = (createdTs > 100000000000LL)
+                        ? QDateTime::fromMSecsSinceEpoch(createdTs)
+                        : QDateTime::fromSecsSinceEpoch(createdTs);
     } else {
       v.createdAt = QDateTime::currentDateTime();
     }
@@ -296,6 +305,10 @@ bool CoreBridge::createVault(const models::UiVault &vault,
                              const QString &password,
                              const QString &recoveryKey, bool initialSetup,
                              QString *outVaultId) {
+  SVM_ACTION_SCOPE_DETAIL("CoreBridge", "createVault",
+                          QStringLiteral("name=\"%1\", initial=%2")
+                              .arg(vault.name)
+                              .arg(initialSetup));
   if (!m_context) {
     return false;
   }
@@ -335,6 +348,8 @@ bool CoreBridge::createVault(const models::UiVault &vault,
 }
 
 bool CoreBridge::updateVault(const models::UiVault &vault) {
+  SVM_ACTION_SCOPE_DETAIL("CoreBridge", "updateVault",
+                          QStringLiteral("id=\"%1\"").arg(vault.id));
   if (!m_context || vault.id.isEmpty()) {
     return false;
   }
@@ -358,6 +373,8 @@ bool CoreBridge::updateVault(const models::UiVault &vault) {
 }
 
 bool CoreBridge::deleteVault(const QString &vaultId, const QString &password) {
+  SVM_ACTION_SCOPE_DETAIL("CoreBridge", "deleteVault",
+                          QStringLiteral("id=\"%1\"").arg(vaultId));
   if (!m_context || vaultId.isEmpty()) {
     return false;
   }
@@ -373,6 +390,8 @@ bool CoreBridge::deleteVault(const QString &vaultId, const QString &password) {
 }
 
 bool CoreBridge::setDefaultVault(const QString &vaultId) {
+  SVM_ACTION_SCOPE_DETAIL("CoreBridge", "setDefaultVault",
+                          QStringLiteral("id=\"%1\"").arg(vaultId));
   if (!m_context || vaultId.isEmpty()) {
     return false;
   }
@@ -386,6 +405,8 @@ bool CoreBridge::setDefaultVault(const QString &vaultId) {
 }
 
 bool CoreBridge::unlockVault(const QString &vaultId, const QString &password) {
+  SVM_ACTION_SCOPE_DETAIL("CoreBridge", "unlockVault",
+                          QStringLiteral("id=\"%1\"").arg(vaultId));
   if (!m_context) {
     return false;
   }
@@ -402,6 +423,7 @@ bool CoreBridge::unlockVault(const QString &vaultId, const QString &password) {
 
 bool CoreBridge::unlockWithRecoveryKey(const QString &recoveryKey,
                                        const QString &newPassword) {
+  SVM_ACTION_SCOPE("CoreBridge", "unlockWithRecoveryKey");
   if (!m_context) {
     return false;
   }
@@ -417,6 +439,8 @@ bool CoreBridge::unlockWithRecoveryKey(const QString &recoveryKey,
 }
 
 bool CoreBridge::unlockWithBiometrics(const QString &vaultId) {
+  SVM_ACTION_SCOPE_DETAIL("CoreBridge", "unlockWithBiometrics",
+                          QStringLiteral("id=\"%1\"").arg(vaultId));
   if (!m_context) {
     return false;
   }
@@ -426,6 +450,7 @@ bool CoreBridge::unlockWithBiometrics(const QString &vaultId) {
 }
 
 bool CoreBridge::lockVault() {
+  SVM_ACTION_SCOPE("CoreBridge", "lockVault");
   if (!m_context) {
     return false;
   }
@@ -453,9 +478,28 @@ QString CoreBridge::recoveryKey() const {
   return key;
 }
 
+QString CoreBridge::rotateRecoveryKey(const QString &masterPassword) {
+  SVM_ACTION_SCOPE("CoreBridge", "rotateRecoveryKey");
+  if (!m_context) {
+    return QString();
+  }
+  char *out = nullptr;
+  const QByteArray pwUtf8 = masterPassword.toUtf8();
+  SvmStatus st =
+      svm_vault_rotate_recovery_key(m_context, pwUtf8.constData(), &out);
+  if (st != SVM_OK || !out) {
+    emit errorOccurred(lastError());
+    return QString();
+  }
+  QString newKey = QString::fromUtf8(out);
+  svm_free_secret(out);
+  return newKey;
+}
+
 bool CoreBridge::changeMasterPassword(const QString &oldPassword,
                                       const QString &newPassword,
                                       const QString & /*vaultId*/) {
+  SVM_ACTION_SCOPE("CoreBridge", "changeMasterPassword");
   if (!m_context) {
     return false;
   }
@@ -539,10 +583,17 @@ models::UiVaultItem CoreBridge::itemFromJson(const QJsonObject &obj) {
       static_cast<qint64>(obj.value(QStringLiteral("createdAt")).toDouble(0));
   const qint64 updatedTs =
       static_cast<qint64>(obj.value(QStringLiteral("updatedAt")).toDouble(0));
-  item.createdAt = (createdTs > 0) ? QDateTime::fromSecsSinceEpoch(createdTs)
-                                   : QDateTime::currentDateTime();
-  item.updatedAt = (updatedTs > 0) ? QDateTime::fromSecsSinceEpoch(updatedTs)
-                                   : QDateTime::currentDateTime();
+
+  auto parseEpoch = [](qint64 ts) -> QDateTime {
+    if (ts <= 0) {
+      return QDateTime::currentDateTime();
+    }
+    return (ts > 100000000000LL) ? QDateTime::fromMSecsSinceEpoch(ts)
+                                 : QDateTime::fromSecsSinceEpoch(ts);
+  };
+
+  item.createdAt = parseEpoch(createdTs);
+  item.updatedAt = (updatedTs > 0) ? parseEpoch(updatedTs) : item.createdAt;
 
   const QJsonArray cfArr = obj.value(QStringLiteral("customFields")).toArray();
   for (const auto &cfVal : cfArr) {
@@ -598,14 +649,14 @@ QJsonObject CoreBridge::itemToJson(const models::UiVaultItem &item) {
   obj.insert(QStringLiteral("passwordStrengthScore"),
              item.passwordStrengthScore);
 
-  const qint64 createdSec = item.createdAt.isValid()
-                                ? item.createdAt.toSecsSinceEpoch()
-                                : QDateTime::currentSecsSinceEpoch();
-  const qint64 updatedSec = item.updatedAt.isValid()
-                                ? item.updatedAt.toSecsSinceEpoch()
-                                : QDateTime::currentSecsSinceEpoch();
-  obj.insert(QStringLiteral("createdAt"), createdSec);
-  obj.insert(QStringLiteral("updatedAt"), updatedSec);
+  const qint64 createdMs = item.createdAt.isValid()
+                               ? item.createdAt.toMSecsSinceEpoch()
+                               : QDateTime::currentMSecsSinceEpoch();
+  const qint64 updatedMs = item.updatedAt.isValid()
+                               ? item.updatedAt.toMSecsSinceEpoch()
+                               : QDateTime::currentMSecsSinceEpoch();
+  obj.insert(QStringLiteral("createdAt"), createdMs);
+  obj.insert(QStringLiteral("updatedAt"), updatedMs);
 
   QJsonArray cfArr;
   for (const auto &cf : item.customFields) {
@@ -621,6 +672,9 @@ QJsonObject CoreBridge::itemToJson(const models::UiVaultItem &item) {
 }
 
 QList<models::UiVaultItem> CoreBridge::listItems(const QString &filterJson) {
+  SVM_ACTION_SCOPE_DETAIL("CoreBridge", "listItems",
+                          filterJson.isEmpty() ? QStringLiteral("all")
+                                               : filterJson);
   QList<models::UiVaultItem> items;
   if (!m_context) {
     return items;
@@ -657,6 +711,8 @@ QList<models::UiVaultItem> CoreBridge::listItems(const QString &filterJson) {
 }
 
 std::optional<models::UiVaultItem> CoreBridge::getItem(const QString &itemId) {
+  SVM_ACTION_SCOPE_DETAIL("CoreBridge", "getItem",
+                          QStringLiteral("id=\"%1\"").arg(itemId));
   if (!m_context || itemId.isEmpty()) {
     return std::nullopt;
   }
@@ -677,6 +733,8 @@ std::optional<models::UiVaultItem> CoreBridge::getItem(const QString &itemId) {
 }
 
 QString CoreBridge::upsertItem(const models::UiVaultItem &item) {
+  SVM_ACTION_SCOPE_DETAIL("CoreBridge", "upsertItem",
+                          QStringLiteral("title=\"%1\"").arg(item.title));
   if (!m_context) {
     return QString();
   }
@@ -695,6 +753,8 @@ QString CoreBridge::upsertItem(const models::UiVaultItem &item) {
 }
 
 bool CoreBridge::trashItem(const QString &itemId) {
+  SVM_ACTION_SCOPE_DETAIL("CoreBridge", "trashItem",
+                          QStringLiteral("id=\"%1\"").arg(itemId));
   if (!m_context || itemId.isEmpty()) {
     return false;
   }
@@ -703,6 +763,8 @@ bool CoreBridge::trashItem(const QString &itemId) {
 }
 
 bool CoreBridge::restoreItem(const QString &itemId) {
+  SVM_ACTION_SCOPE_DETAIL("CoreBridge", "restoreItem",
+                          QStringLiteral("id=\"%1\"").arg(itemId));
   if (!m_context || itemId.isEmpty()) {
     return false;
   }
@@ -711,6 +773,8 @@ bool CoreBridge::restoreItem(const QString &itemId) {
 }
 
 bool CoreBridge::purgeItem(const QString &itemId) {
+  SVM_ACTION_SCOPE_DETAIL("CoreBridge", "purgeItem",
+                          QStringLiteral("id=\"%1\"").arg(itemId));
   if (!m_context || itemId.isEmpty()) {
     return false;
   }
@@ -719,6 +783,7 @@ bool CoreBridge::purgeItem(const QString &itemId) {
 }
 
 bool CoreBridge::emptyTrash() {
+  SVM_ACTION_SCOPE("CoreBridge", "emptyTrash");
   if (!m_context) {
     return false;
   }
@@ -726,6 +791,9 @@ bool CoreBridge::emptyTrash() {
 }
 
 QString CoreBridge::revealField(const QString &itemId, const QString &fieldId) {
+  SVM_ACTION_SCOPE_DETAIL(
+      "CoreBridge", "revealField",
+      QStringLiteral("item=\"%1\", field=\"%2\"").arg(itemId, fieldId));
   if (!m_context || itemId.isEmpty() || fieldId.isEmpty()) {
     return QString();
   }
@@ -748,6 +816,7 @@ QString CoreBridge::revealField(const QString &itemId, const QString &fieldId) {
 
 QPair<QString, int> CoreBridge::generateTotp(const QString &itemIdOrSecret,
                                              quint64 unixTs) {
+  SVM_ACTION_SCOPE("CoreBridge", "generateTotp");
   if (!m_context || itemIdOrSecret.trimmed().isEmpty()) {
     return {QStringLiteral("--- ---"), 30};
   }
@@ -777,6 +846,8 @@ QJsonObject CoreBridge::parseOtpAuth(const QString &uri) {
 
 QString CoreBridge::generatePassword(int length, bool upper, bool lower,
                                      bool digits, bool symbols) {
+  SVM_ACTION_SCOPE_DETAIL("CoreBridge", "generatePassword",
+                          QStringLiteral("length=%1").arg(length));
   QJsonObject opts;
   opts.insert(QStringLiteral("length"), length);
   opts.insert(QStringLiteral("uppercase"), upper);
@@ -797,6 +868,7 @@ QString CoreBridge::generatePassword(int length, bool upper, bool lower,
 }
 
 QJsonObject CoreBridge::evaluatePasswordStrength(const QString &password) {
+  SVM_ACTION_SCOPE("CoreBridge", "evaluatePasswordStrength");
   const QByteArray pwdUtf8 = password.toUtf8();
   char *outJson = nullptr;
   if (svm_password_strength(pwdUtf8.constData(), &outJson) != SVM_OK ||
@@ -814,6 +886,8 @@ QJsonObject CoreBridge::evaluatePasswordStrength(const QString &password) {
 
 int CoreBridge::importItems(int format, const QString &filePath,
                             const QString &password) {
+  SVM_ACTION_SCOPE_DETAIL("CoreBridge", "importItems",
+                          QStringLiteral("file=\"%1\"").arg(filePath));
   if (!m_context || filePath.isEmpty()) {
     return -1;
   }
@@ -849,6 +923,8 @@ int CoreBridge::importItems(int format, const QString &filePath,
 
 bool CoreBridge::exportItems(int format, const QString &filePath,
                              const QString &password) {
+  SVM_ACTION_SCOPE_DETAIL("CoreBridge", "exportItems",
+                          QStringLiteral("file=\"%1\"").arg(filePath));
   if (!m_context || filePath.isEmpty()) {
     return false;
   }
@@ -870,6 +946,7 @@ bool CoreBridge::exportItems(int format, const QString &filePath,
 /* ========================================================================= */
 
 bool CoreBridge::startSshAgent() {
+  SVM_ACTION_SCOPE("CoreBridge", "startSshAgent");
   if (!m_context) {
     return false;
   }
@@ -877,6 +954,7 @@ bool CoreBridge::startSshAgent() {
 }
 
 bool CoreBridge::stopSshAgent() {
+  SVM_ACTION_SCOPE("CoreBridge", "stopSshAgent");
   if (!m_context) {
     return false;
   }

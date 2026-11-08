@@ -29,7 +29,7 @@ public:
 private:
   void setupUI();
   void openChangePasswordDialog();
-  void openViewRecoveryKeyDialog();
+  void openRotateRecoveryKeyDialog();
 
   SettingSectionCard *m_autoLockCard{nullptr};
   SettingRowWidget *m_timeoutRow{nullptr};
@@ -51,7 +51,7 @@ private:
   SettingRowWidget *m_pwdRow{nullptr};
   QPushButton *m_changePwdBtn{nullptr};
   SettingRowWidget *m_recKeyRow{nullptr};
-  QPushButton *m_viewRecKeyBtn{nullptr};
+  QPushButton *m_rotateRecKeyBtn{nullptr};
 };
 
 } // namespace svm::views

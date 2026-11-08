@@ -28,7 +28,7 @@ public:
 
   QSize minimumSizeHint() const override {
     if (currentWidget()) {
-      return currentWidget()->minimumSizeHint();
+      return QSize(0, currentWidget()->minimumSizeHint().height());
     }
     return QSize(0, 0);
   }
@@ -49,8 +49,8 @@ SettingsDialog::SettingsDialog(QWidget *parent)
   setAttribute(Qt::WA_TranslucentBackground, false);
   setModal(false);
   setWindowModality(Qt::NonModal);
-  setMinimumSize(760, 500);
-  resize(860, 580);
+  setMinimumSize(840, 540);
+  resize(920, 600);
 
   setupUI();
   initNavList();
@@ -76,10 +76,10 @@ void SettingsDialog::setupUI() {
   m_headerWidget = new QWidget(m_cardWidget);
   m_headerWidget->setObjectName(QStringLiteral("SettingsDialogHeader"));
   m_headerWidget->setAttribute(Qt::WA_StyledBackground, true);
-  m_headerWidget->setFixedHeight(44);
+  m_headerWidget->setFixedHeight(38);
 
   auto *headerLayout = new QHBoxLayout(m_headerWidget);
-  headerLayout->setContentsMargins(16, 0, 8, 0);
+  headerLayout->setContentsMargins(16, 0, 0, 0);
   headerLayout->setSpacing(10);
 
   auto *gearIcon = new QLabel(m_headerWidget);
@@ -92,7 +92,7 @@ void SettingsDialog::setupUI() {
   m_headerTitle = new QLabel(tr("Settings & Preferences"), m_headerWidget);
   m_headerTitle->setObjectName(QStringLiteral("SettingsDialogTitle"));
   QFont titleFont = m_headerTitle->font();
-  titleFont.setPointSize(12);
+  titleFont.setPointSize(11);
   titleFont.setBold(true);
   m_headerTitle->setFont(titleFont);
   headerLayout->addWidget(m_headerTitle);
@@ -101,9 +101,12 @@ void SettingsDialog::setupUI() {
 
   m_closeBtn = new QPushButton(m_headerWidget);
   m_closeBtn->setObjectName(QStringLiteral("WinCloseBtn"));
-  m_closeBtn->setFixedSize(36, 32);
+  m_closeBtn->setFixedSize(46, 38);
   m_closeBtn->setIconSize(QSize(12, 12));
+  m_closeBtn->setFlat(true);
+  m_closeBtn->setFocusPolicy(Qt::NoFocus);
   m_closeBtn->setCursor(Qt::PointingHandCursor);
+  m_closeBtn->setToolTip(tr("Close"));
   m_closeBtn->setIcon(
       app::ThemeManager::instance().icon(QStringLiteral("win_close")));
   connect(m_closeBtn, &QPushButton::clicked, this, &QDialog::reject);
@@ -121,10 +124,10 @@ void SettingsDialog::setupUI() {
   bodyLayout->setContentsMargins(0, 0, 0, 0);
   bodyLayout->setSpacing(0);
 
-  // Cột trái: Navigation Sidebar (240px)
+  // Cột trái: Navigation Sidebar (250px)
   m_navList = new QListWidget(bodyWidget);
   m_navList->setObjectName(QStringLiteral("SettingsNavList"));
-  m_navList->setFixedWidth(240);
+  m_navList->setFixedWidth(250);
   m_navList->setFrameShape(QFrame::NoFrame);
   m_navList->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
   m_navList->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
@@ -146,7 +149,7 @@ void SettingsDialog::setupUI() {
   rightPane->setObjectName(QStringLiteral("SettingsRightPane"));
   rightPane->setAttribute(Qt::WA_StyledBackground, true);
   auto *rightLayout = new QVBoxLayout(rightPane);
-  rightLayout->setContentsMargins(20, 16, 20, 16);
+  rightLayout->setContentsMargins(0, 0, 1, 1);
   rightLayout->setSpacing(0);
 
   m_scrollArea = new QScrollArea(rightPane);
@@ -244,6 +247,9 @@ void SettingsDialog::selectTab(int index) {
     if (m_scrollArea && m_scrollArea->verticalScrollBar()) {
       m_scrollArea->verticalScrollBar()->setValue(0);
     }
+    if (m_navList && m_navList->currentRow() != index) {
+      m_navList->setCurrentRow(index);
+    }
   }
 }
 
@@ -254,9 +260,7 @@ void SettingsDialog::retranslateUi() {
 
   const int cur = m_navList->currentRow();
   initNavList();
-  if (cur >= 0) {
-    m_navList->setCurrentRow(cur);
-  }
+  m_navList->setCurrentRow(cur >= 0 ? cur : 0);
 
   if (m_tabGeneral)
     m_tabGeneral->retranslateUi();

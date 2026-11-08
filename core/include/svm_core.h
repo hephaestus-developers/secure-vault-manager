@@ -364,6 +364,18 @@ SvmStatus svm_vault_change_password(SvmContext *ctx, const char *old_pw,
                                     const char *new_pw);
 
 /**
+ * @brief Tạo lại (xoay) Recovery Key mới cho Vault (yêu cầu Master Password hợp
+ * lệ).
+ * @param[in] ctx Con trỏ ngữ cảnh ứng dụng.
+ * @param[in] master_pw Mật khẩu Master Password hiện tại để xác minh danh tính.
+ * @param[out] out_key Con trỏ nhận chuỗi khóa khôi phục mới (phải giải phóng
+ * bằng @ref svm_free_secret).
+ * @return Mã trạng thái @ref SvmStatus.
+ */
+SvmStatus svm_vault_rotate_recovery_key(SvmContext *ctx, const char *master_pw,
+                                        char **out_key);
+
+/**
  * @brief Báo cáo thời gian nhàn rỗi (idle) của hệ thống phục vụ bộ đếm
  * Auto-Lock.
  * @param[in] ctx Con trỏ ngữ cảnh ứng dụng.

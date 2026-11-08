@@ -144,6 +144,12 @@ public:
   [[nodiscard]] QString recoveryKey() const;
 
   /**
+   * @brief Tạo lại (xoay) Recovery Key mới cho Vault (yêu cầu Master Password
+   * hợp lệ).
+   */
+  QString rotateRecoveryKey(const QString &masterPassword);
+
+  /**
    * @brief Thay đổi Master Password và bọc lại DEK mà không mất dữ liệu.
    */
   bool

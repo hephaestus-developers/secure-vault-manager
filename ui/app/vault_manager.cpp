@@ -6,6 +6,7 @@
  */
 
 #include "vault_manager.h"
+#include "app/dev_logger.h"
 #include "core/core_bridge.h"
 
 #include <QCryptographicHash>
@@ -76,6 +77,7 @@ models::UiVault VaultManager::defaultVault() const {
 }
 
 void VaultManager::refreshVaultsFromCore() {
+  SVM_ACTION_SCOPE("VaultManager", "refreshVaultsFromCore");
   auto &bridge = core::CoreBridge::instance();
   if (!bridge.isInitialized() || !bridge.isVaultUnlocked()) {
     return;
@@ -208,6 +210,7 @@ bool VaultManager::setDefaultVault(const QString &vaultId) {
 bool VaultManager::setupInitialMasterPassword(const QString &password,
                                               const QString &recoveryKey,
                                               const QString &initialVaultName) {
+  SVM_ACTION_SCOPE("VaultManager", "setupInitialMasterPassword");
   if (password.trimmed().isEmpty()) {
     return false;
   }
@@ -229,22 +232,12 @@ bool VaultManager::setupInitialMasterPassword(const QString &password,
                           ? QStringLiteral("Personal Vault")
                           : initialVaultName.trimmed();
   defaultVault.iconName = QStringLiteral("folder_open");
-  defaultVault.accentColor = QStringLiteral("#3B82F6");
+  defaultVault.accentColor = QStringLiteral("#64748B");
   defaultVault.description =
       QStringLiteral("Primary personal credentials & logins");
   defaultVault.isDefault = true;
   defaultVault.createdAt = QDateTime::currentDateTime();
   m_vaults.append(defaultVault);
-
-  models::UiVault workVault;
-  workVault.id = QStringLiteral("work");
-  workVault.name = QStringLiteral("Work Vault");
-  workVault.iconName = QStringLiteral("folder_empty");
-  workVault.accentColor = QStringLiteral("#8B5CF6");
-  workVault.description = QStringLiteral("Company, cloud & server credentials");
-  workVault.isDefault = false;
-  workVault.createdAt = QDateTime::currentDateTime();
-  m_vaults.append(workVault);
 
   // Khởi tạo kho mã hóa trong Rust Core
   auto &bridge = core::CoreBridge::instance();
@@ -271,6 +264,7 @@ bool VaultManager::setupInitialMasterPassword(const QString &password,
 
 bool VaultManager::changeMasterPassword(const QString &oldPassword,
                                         const QString &newPassword) {
+  SVM_ACTION_SCOPE("VaultManager", "changeMasterPassword");
   if (!m_isConfigured || newPassword.trimmed().length() < 8) {
     return false;
   }
@@ -294,6 +288,7 @@ bool VaultManager::changeMasterPassword(const QString &oldPassword,
 }
 
 bool VaultManager::unlock(const QString &password) {
+  SVM_ACTION_SCOPE("VaultManager", "unlock");
   if (!m_isConfigured) {
     return false;
   }
@@ -317,7 +312,7 @@ bool VaultManager::unlock(const QString &password) {
       defaultVault.name = m_vaults.isEmpty() ? QStringLiteral("Personal Vault")
                                              : m_vaults.first().name;
       defaultVault.iconName = QStringLiteral("folder_open");
-      defaultVault.accentColor = QStringLiteral("#3B82F6");
+      defaultVault.accentColor = QStringLiteral("#64748B");
       defaultVault.description =
           QStringLiteral("Primary personal credentials & logins");
       defaultVault.isDefault = true;
@@ -347,11 +342,16 @@ bool VaultManager::validateMasterPassword(const QString &password) const {
       hashPassword(password, m_passwordSalt) == m_passwordHash) {
     return true;
   }
+  auto &bridge = core::CoreBridge::instance();
+  if (bridge.isInitialized()) {
+    return bridge.unlockVault(QStringLiteral("personal"), password);
+  }
   return false;
 }
 
 bool VaultManager::unlockWithRecoveryKey(const QString &recoveryKey,
                                          const QString &newPassword) {
+  SVM_ACTION_SCOPE("VaultManager", "unlockWithRecoveryKey");
   if (!m_isConfigured) {
     return false;
   }
@@ -385,6 +385,7 @@ bool VaultManager::unlockWithRecoveryKey(const QString &recoveryKey,
 }
 
 bool VaultManager::unlockWithBiometrics() {
+  SVM_ACTION_SCOPE("VaultManager", "unlockWithBiometrics");
   if (!m_isConfigured) {
     return false;
   }
@@ -399,6 +400,7 @@ bool VaultManager::unlockWithBiometrics() {
 }
 
 void VaultManager::lock() {
+  SVM_ACTION_SCOPE("VaultManager", "lock");
   auto &bridge = core::CoreBridge::instance();
   if (bridge.isInitialized()) {
     bridge.lockVault();
@@ -422,6 +424,28 @@ QString VaultManager::recoveryKey() const {
     return bridge.recoveryKey();
   }
   return QString();
+}
+
+QString VaultManager::rotateRecoveryKey(const QString &masterPassword) {
+  SVM_ACTION_SCOPE("VaultManager", "rotateRecoveryKey");
+  if (!m_isConfigured || !isUnlocked()) {
+    return QString();
+  }
+  if (!validateMasterPassword(masterPassword)) {
+    return QString();
+  }
+
+  auto &bridge = core::CoreBridge::instance();
+  QString newKey;
+  if (bridge.isInitialized()) {
+    newKey = bridge.rotateRecoveryKey(masterPassword);
+  }
+  if (newKey.isEmpty()) {
+    newKey = generateRecoveryKey();
+  }
+  m_recoveryKey = newKey.trimmed().toUpper();
+  saveSettings();
+  return newKey;
 }
 
 QString VaultManager::generateRecoveryKey() {
@@ -519,7 +543,7 @@ void VaultManager::loadSettings() {
             v.iconName = obj.value(QStringLiteral("iconName"))
                              .toString(QStringLiteral("folder_open"));
             v.accentColor = obj.value(QStringLiteral("accentColor"))
-                                .toString(QStringLiteral("#3B82F6"));
+                                .toString(QStringLiteral("#64748B"));
             v.description = obj.value(QStringLiteral("description")).toString();
             v.itemCount = obj.value(QStringLiteral("itemCount")).toInt(0);
             v.isDefault = obj.value(QStringLiteral("isDefault")).toBool(false);
@@ -534,23 +558,15 @@ void VaultManager::loadSettings() {
     }
   }
 
-  // Nếu đã cấu hình nhưng chưa có danh sách vault, khởi tạo cặp mặc định
+  // Nếu đã cấu hình nhưng chưa có danh sách vault, khởi tạo kho mặc định
   if (m_isConfigured && m_vaults.isEmpty()) {
     models::UiVault defaultVault;
     defaultVault.id = QStringLiteral("personal");
     defaultVault.name = QStringLiteral("Personal Vault");
     defaultVault.iconName = QStringLiteral("folder_open");
-    defaultVault.accentColor = QStringLiteral("#3B82F6");
+    defaultVault.accentColor = QStringLiteral("#64748B");
     defaultVault.isDefault = true;
     m_vaults.append(defaultVault);
-
-    models::UiVault workVault;
-    workVault.id = QStringLiteral("work");
-    workVault.name = QStringLiteral("Work Vault");
-    workVault.iconName = QStringLiteral("folder_empty");
-    workVault.accentColor = QStringLiteral("#8B5CF6");
-    workVault.isDefault = false;
-    m_vaults.append(workVault);
     saveSettings();
   }
 

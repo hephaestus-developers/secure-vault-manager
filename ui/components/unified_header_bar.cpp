@@ -7,7 +7,6 @@
 
 #include "unified_header_bar.h"
 #include "app/theme_manager.h"
-#include "menubar/app_menu_bar.h"
 
 #include <QFontMetrics>
 #include <QHBoxLayout>
@@ -21,10 +20,9 @@
 
 namespace svm::components {
 
-UnifiedHeaderBar::UnifiedHeaderBar(AppMenuBar *menuBar, QWidget *parent)
-    : QWidget(parent), m_menuBar(menuBar),
-      m_darkMode(app::ThemeManager::instance().currentMode() ==
-                 app::ThemeMode::Dark) {
+UnifiedHeaderBar::UnifiedHeaderBar(QWidget *parent)
+    : QWidget(parent), m_darkMode(app::ThemeManager::instance().currentMode() ==
+                                  app::ThemeMode::Dark) {
   setObjectName(QStringLiteral("UnifiedHeaderBar"));
   setAttribute(Qt::WA_StyledBackground, true);
   setFixedHeight(38);
@@ -42,30 +40,8 @@ UnifiedHeaderBar::UnifiedHeaderBar(AppMenuBar *menuBar, QWidget *parent)
   m_logoLabel->setAlignment(Qt::AlignCenter);
   layout->addWidget(m_logoLabel, 0, Qt::AlignVCenter);
 
-  // 2. Thanh menu nhúng trực tiếp (Embedded MenuBar)
-  if (m_menuBar) {
-    m_menuBar->setParent(this);
-    m_menuBar->setObjectName(QStringLiteral("EmbeddedMenuBar"));
-    m_menuBar->setNativeMenuBar(false);
-    m_menuBar->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed);
-    layout->addWidget(m_menuBar, 0, Qt::AlignVCenter);
-  }
-
-  // Khoảng đệm dãn giữa MenuBar và các nút điều khiển cửa sổ góc phải
+  // Khoảng đệm dãn giữa Logo và các nút điều khiển cửa sổ góc phải
   layout->addStretch(1);
-
-  // Nút Spotlight Command Palette (Ctrl+K)
-  m_paletteBtn = new QPushButton(this);
-  m_paletteBtn->setObjectName(QStringLiteral("HeaderCommandPaletteBtn"));
-  m_paletteBtn->setIcon(QIcon(QStringLiteral(":/icons/search.svg")));
-  m_paletteBtn->setIconSize(QSize(14, 14));
-  m_paletteBtn->setFixedSize(28, 28);
-  m_paletteBtn->setFlat(true);
-  m_paletteBtn->setCursor(Qt::PointingHandCursor);
-  m_paletteBtn->setToolTip(tr("Command Palette (Ctrl+K)"));
-  connect(m_paletteBtn, &QPushButton::clicked, this,
-          &UnifiedHeaderBar::commandPaletteRequested);
-  layout->addWidget(m_paletteBtn, 0, Qt::AlignVCenter);
 
   // Nút Chuyển đổi Theme (Dark / Light)
   m_themeToggleBtn = new QPushButton(this);
@@ -169,16 +145,11 @@ void UnifiedHeaderBar::repositionTitleOverlay() {
     return;
   }
 
-  int leftOccupied = (m_menuBar ? m_menuBar->geometry().right()
-                                : m_logoLabel->geometry().right()) +
-                     12;
+  int leftOccupied = (m_logoLabel ? m_logoLabel->geometry().right() : 24) + 12;
   int rightOccupied =
-      (m_paletteBtn && m_paletteBtn->isVisible()
-           ? (width() - m_paletteBtn->geometry().left())
-           : (m_themeToggleBtn && m_themeToggleBtn->isVisible()
-                  ? (width() - m_themeToggleBtn->geometry().left())
-                  : (m_minBtn ? (width() - m_minBtn->geometry().left())
-                              : 46 * 3))) +
+      (m_themeToggleBtn && m_themeToggleBtn->isVisible()
+           ? (width() - m_themeToggleBtn->geometry().left())
+           : (m_minBtn ? (width() - m_minBtn->geometry().left()) : 46 * 3)) +
       12;
   int sideMargin = qMax(leftOccupied, rightOccupied);
 
@@ -231,10 +202,6 @@ void UnifiedHeaderBar::updateThemeIcons(bool darkMode) {
   }
   m_closeBtn->setIcon(tm.icon(QStringLiteral("win_close")));
 
-  if (m_paletteBtn) {
-    m_paletteBtn->setIcon(tm.icon(QStringLiteral("search")));
-  }
-
   if (m_themeToggleBtn) {
     m_themeToggleBtn->setIcon(tm.icon(QStringLiteral("theme_toggle")));
     if (darkMode) {
@@ -256,9 +223,6 @@ void UnifiedHeaderBar::updateThemeIcons(bool darkMode) {
 void UnifiedHeaderBar::retranslateUi() {
   if (m_titleLabel) {
     m_titleLabel->setText(tr("Secure Vault Manager"));
-  }
-  if (m_paletteBtn) {
-    m_paletteBtn->setToolTip(tr("Command Palette (Ctrl+K)"));
   }
   if (m_themeToggleBtn) {
     m_themeToggleBtn->setToolTip(m_darkMode
@@ -287,13 +251,6 @@ void UnifiedHeaderBar::retranslateUi() {
 void UnifiedHeaderBar::setSettingsVisible(bool visible) {
   if (m_settingsBtn) {
     m_settingsBtn->setVisible(visible);
-    repositionTitleOverlay();
-  }
-}
-
-void UnifiedHeaderBar::setCommandPaletteVisible(bool visible) {
-  if (m_paletteBtn) {
-    m_paletteBtn->setVisible(visible);
     repositionTitleOverlay();
   }
 }
