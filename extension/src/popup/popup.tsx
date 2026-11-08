@@ -35,8 +35,8 @@ interface PopupState {
 const state: PopupState = {
   theme: "dark",
   activeTab: "logins",
-  paired: true,
-  unlocked: true,
+  paired: false,
+  unlocked: false,
   activeOrigin: "",
   searchQuery: "",
   credentials: [],
@@ -86,15 +86,27 @@ async function loadInitialData(): Promise<void> {
 
   const statusResp = await sendExtensionBridgeMessage<VaultStatusPayload>("get_vault_status");
   if (statusResp.ok && statusResp.payload) {
-    state.unlocked = statusResp.payload.unlocked;
-    state.paired = statusResp.payload.paired ?? true;
+    state.unlocked = Boolean(statusResp.payload.unlocked);
+    state.paired = Boolean(statusResp.payload.paired);
+  } else {
+    state.unlocked = false;
+    state.paired = false;
   }
 
-  const credsResp = await sendExtensionBridgeMessage<CredentialsListPayload>("get_credentials", {
-    domain: "",
-  });
-  if (credsResp.ok && credsResp.payload?.credentials) {
-    state.credentials = credsResp.payload.credentials;
+  if (state.unlocked && state.paired) {
+    const credsResp = await sendExtensionBridgeMessage<CredentialsListPayload>("get_credentials", {
+      domain: "",
+    });
+    if (credsResp.ok && credsResp.payload?.credentials) {
+      state.credentials = credsResp.payload.credentials;
+    } else {
+      state.credentials = [];
+      if (credsResp.error?.code === "NOT_PAIRED") {
+        state.paired = false;
+      }
+    }
+  } else {
+    state.credentials = [];
   }
 
   await refreshGeneratedPassword(state.generatorOptions);
@@ -162,7 +174,25 @@ function buildFilteredCredentialList(): HTMLElement {
         );
         await copyText(secretResp.payload?.password || "", "Password");
       })(),
-    onCopyTotp: (item) => void copyText(item.totpCode || "", "Verification code"),
+    onCopyTotp: (item) => {
+      void (async () => {
+        const code = item.totpCode || "";
+        await copyText(code, "Mã xác thực 2FA");
+        const chromeApi = (globalThis as Record<string, any>).chrome;
+        if (chromeApi?.tabs?.query && chromeApi?.tabs?.sendMessage && code) {
+          chromeApi.tabs.query({ active: true, currentWindow: true }, (tabs: Array<{ id?: number }>) => {
+            const tabId = tabs?.[0]?.id;
+            if (tabId !== undefined) {
+              chromeApi.tabs.sendMessage(tabId, {
+                type: "SVM_FILL_ACTIVE_TAB",
+                username: item.username,
+                totpCode: code,
+              });
+            }
+          });
+        }
+      })();
+    },
   });
 }
 
@@ -209,6 +239,51 @@ function createLockedVaultView(): HTMLElement {
   return card;
 }
 
+function createUnpairedView(): HTMLElement {
+  const card = document.createElement("div");
+  card.className = "stateCard";
+
+  const title = document.createElement("div");
+  title.className = "stateTitle";
+  title.textContent = "Chưa kết nối Tiện ích";
+
+  const desc = document.createElement("div");
+  desc.className = "stateDesc";
+  desc.textContent =
+    "Quyền kết nối của tiện ích đã bị thu hồi hoặc chưa được ghép nối với ứng dụng Desktop. Vui lòng ghép nối lại để sử dụng.";
+
+  const actions = document.createElement("div");
+  actions.style.cssText = "display: flex; gap: 8px; justify-content: center; margin-top: 4px;";
+
+  const pairBtn = document.createElement("button");
+  pairBtn.type = "button";
+  pairBtn.className = "primaryBtn";
+  pairBtn.textContent = "Ghép nối với Desktop";
+  pairBtn.addEventListener("click", async () => {
+    const resp = await sendExtensionBridgeMessage<PairingChallengePayload>("pairing_begin");
+    state.suggestedPin = resp.payload?.pairing_code || "";
+    state.activeTab = "pairing";
+    renderPopup();
+  });
+
+  const refreshBtn = document.createElement("button");
+  refreshBtn.type = "button";
+  refreshBtn.className = "iconBtn";
+  refreshBtn.style.cssText = "width: auto; padding: 6px 12px;";
+  refreshBtn.textContent = "Làm mới";
+  refreshBtn.addEventListener("click", () => {
+    void loadInitialData();
+  });
+
+  actions.appendChild(pairBtn);
+  actions.appendChild(refreshBtn);
+
+  card.appendChild(title);
+  card.appendChild(desc);
+  card.appendChild(actions);
+  return card;
+}
+
 export function renderPopup(): void {
   const root = document.getElementById("svm-popup-root");
   if (!root) return;
@@ -243,7 +318,7 @@ export function renderPopup(): void {
 
   const listHost = document.createElement("div");
 
-  if (state.activeTab === "logins" && state.unlocked) {
+  if (state.activeTab === "logins" && state.unlocked && state.paired) {
     const searchWrap = document.createElement("div");
     searchWrap.className = "searchBarWrap";
     const searchInput = document.createElement("input");
@@ -288,7 +363,9 @@ export function renderPopup(): void {
   content.className = "contentArea";
 
   if (state.activeTab === "logins") {
-    if (!state.unlocked) {
+    if (!state.paired) {
+      content.appendChild(createUnpairedView());
+    } else if (!state.unlocked) {
       content.appendChild(createLockedVaultView());
     } else {
       listHost.appendChild(buildFilteredCredentialList());
@@ -310,8 +387,10 @@ export function renderPopup(): void {
         onConfirm: async (pin) => {
           const resp = await sendExtensionBridgeMessage("pairing_confirm", { pairingCode: pin });
           if (resp.ok) {
+            state.paired = true;
             state.activeTab = "logins";
             showToast("Connected to Desktop App");
+            await loadInitialData();
           } else {
             showToast("Invalid 6-digit code");
           }

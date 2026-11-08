@@ -43,7 +43,7 @@ pub unsafe extern "C" fn svm_context_new(data_dir: *const c_char) -> *mut SvmCon
     let runtime = CoreRuntime {
         vault_service: VaultService::with_storage(storage),
         ssh_agent: SshAgentServer::new(),
-        bridge: BridgeServer::new(),
+        bridge: BridgeServer::new(dir.clone().unwrap_or_default()),
         webauthn: WebAuthnAuthenticator::new(),
         import_previews: Vec::new(),
         pending_prompts: Vec::new(),

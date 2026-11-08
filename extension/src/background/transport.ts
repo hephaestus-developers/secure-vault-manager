@@ -12,53 +12,28 @@ import { generatePasswordLocal, generateTotpLocal } from "../services/wasm-crypt
 import { HttpLoopbackClient } from "./http_client";
 import { NativeMessagingClient } from "./native_client";
 
-const FALLBACK_CREDENTIALS: CredentialSummary[] = [
-  {
-    id: "item-github-01",
-    title: "GitHub Production",
-    username: "ngochai285nd@gmail.com",
-    password: "GhProd#2026!SecureVault",
-    websiteUrl: "https://github.com/login",
-    hasTotp: true,
-    totpCode: "482910",
-    totpRemaining: 24,
-  },
-  {
-    id: "item-aws-02",
-    title: "AWS Console (Production)",
-    username: "devops-admin@hephaestus.io",
-    password: "AwsRoot#9948!Prod",
-    websiteUrl: "https://console.aws.amazon.com",
-    hasTotp: true,
-    totpCode: "918204",
-    totpRemaining: 24,
-  },
-  {
-    id: "item-gitlab-03",
-    title: "GitLab Self-Hosted",
-    username: "haipn",
-    password: "GlInternal$2026#Key",
-    websiteUrl: "https://gitlab.hephaestus.io",
-    hasTotp: false,
-  },
-];
-
 export class BridgeTransport {
   private nativeClient = new NativeMessagingClient();
   private httpClient = new HttpLoopbackClient();
-  private cachedItems: CredentialSummary[] = [...FALLBACK_CREDENTIALS];
-  private unlocked = true;
+  private cachedItems: CredentialSummary[] = [];
+  private unlocked = false;
 
   public async dispatch<TPayload = Record<string, unknown>>(
     request: BridgeRequest<any>
   ): Promise<BridgeResponse<TPayload>> {
     const nativeResp = await this.nativeClient.send<TPayload>(request);
     if (nativeResp) {
+      if (request.action === "get_vault_status" && nativeResp.ok && nativeResp.payload) {
+        this.unlocked = Boolean((nativeResp.payload as any).unlocked);
+      }
       return nativeResp;
     }
 
     const httpResp = await this.httpClient.send<TPayload>(request);
     if (httpResp) {
+      if (request.action === "get_vault_status" && httpResp.ok && httpResp.payload) {
+        this.unlocked = Boolean((httpResp.payload as any).unlocked);
+      }
       return httpResp;
     }
 
@@ -66,6 +41,8 @@ export class BridgeTransport {
   }
 
   private async handleOfflineFallback(request: BridgeRequest<any>): Promise<BridgeResponse<any>> {
+    this.unlocked = false;
+    this.cachedItems = [];
     const payload = request.payload || {};
 
     switch (request.action) {
@@ -76,71 +53,27 @@ export class BridgeTransport {
           type: "vault_status",
           ok: true,
           payload: {
-            unlocked: this.unlocked,
+            unlocked: false,
             configured: true,
             version: "0.1.0",
-            bridgeListening: true,
+            bridgeListening: false,
+            paired: false,
           },
         };
 
-      case "get_credentials": {
-        const domain = String(payload.domain || payload.origin || payload.url || "").toLowerCase();
-        const filtered = this.cachedItems.filter((item) => {
-          if (!domain) return true;
-          return (
-            item.websiteUrl.toLowerCase().includes(domain) ||
-            item.title.toLowerCase().includes(domain) ||
-            domain.includes(item.title.toLowerCase().split(" ")[0])
-          );
-        });
-        const sourceList = filtered.length > 0 ? filtered : this.cachedItems;
-        const sanitized = sourceList.map(({ password: _pw, ...summary }) => summary);
+      case "get_credentials":
+      case "fill_credential":
+      case "save_credential":
+      case "get_totp":
         return {
           requestId: request.requestId,
-          type: "credentials_list",
-          ok: true,
-          payload: {
-            credentials: sanitized,
+          type: "error",
+          ok: false,
+          error: {
+            code: "VAULT_LOCKED",
+            message: "Kho dữ liệu đang bị khóa hoặc chưa kết nối ứng dụng Desktop.",
           },
         };
-      }
-
-      case "fill_credential": {
-        const itemId = String(payload.itemId || payload.id || "");
-        const found = this.cachedItems.find((c) => c.id === itemId) || this.cachedItems[0];
-        return {
-          requestId: request.requestId,
-          type: "credential_secret",
-          ok: true,
-          payload: {
-            id: found.id,
-            title: found.title,
-            username: found.username,
-            password: found.password || "",
-            totpCode: found.totpCode,
-            totpRemaining: found.totpRemaining,
-          },
-        };
-      }
-
-      case "save_credential": {
-        const newId = `item-${Date.now()}`;
-        const newEntry: CredentialSummary = {
-          id: newId,
-          title: String(payload.title || payload.domain || "Saved Login"),
-          username: String(payload.username || ""),
-          password: String(payload.password || ""),
-          websiteUrl: String(payload.websiteUrl || payload.url || ""),
-          hasTotp: Boolean(payload.totpSecret),
-        };
-        this.cachedItems.unshift(newEntry);
-        return {
-          requestId: request.requestId,
-          type: "credential_saved",
-          ok: true,
-          payload: { id: newId, saved: true },
-        };
-      }
 
       case "generate_password": {
         const generated = await generatePasswordLocal({
@@ -163,22 +96,15 @@ export class BridgeTransport {
         };
       }
 
-      case "get_totp": {
-        const snap = await generateTotpLocal(String(payload.secret || "JBSWY3DPEHPK3PXP"));
-        return {
-          requestId: request.requestId,
-          type: "totp_code",
-          ok: true,
-          payload: snap || { code: "482910", remaining: 25 },
-        };
-      }
-
       default:
         return {
           requestId: request.requestId,
-          type: "ok",
-          ok: true,
-          payload: {},
+          type: "error",
+          ok: false,
+          error: {
+            code: "DESKTOP_DISCONNECTED",
+            message: "Ứng dụng Desktop đang tắt hoặc không phản hồi.",
+          },
         };
     }
   }

@@ -45,6 +45,7 @@ set(UI_SOURCES
     views/lock/lock_screen_view.cpp
     views/vaults/new_vault_dialog.cpp
     views/settings/setting_row_widget.cpp
+    views/settings/pairing_dialog.cpp
     views/settings/tabs/tab_general.cpp
     views/settings/tabs/tab_security.cpp
     views/settings/tabs/tab_vaults.cpp
@@ -95,6 +96,7 @@ set(UI_HEADERS
     views/lock/lock_screen_view.h
     views/vaults/new_vault_dialog.h
     views/settings/setting_row_widget.h
+    views/settings/pairing_dialog.h
     views/settings/tabs/tab_general.h
     views/settings/tabs/tab_security.h
     views/settings/tabs/tab_vaults.h

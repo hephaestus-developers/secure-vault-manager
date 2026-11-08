@@ -9,8 +9,9 @@ export interface ClassifiedFormFields {
   totpInput: HTMLInputElement | null;
 }
 
-const USERNAME_PATTERNS = /user|email|login|account|identifier|id/i;
-const TOTP_PATTERNS = /totp|otp|2fa|mfa|verification|token|one-time-code/i;
+const USERNAME_PATTERNS = /user|email|login|account|identifier|^id$|\bid\b/i;
+const TOTP_PATTERNS =
+  /totp|otp|2fa|mfa|otc|pin|passcode|one[-_ ]?time|two[-_ ]?factor|2[-_ ]?factor|verification|verify|security[-_ ]?code|auth[-_ ]?code|authenticator|challenge|^x{6,8}$/i;
 
 /**
  * Tìm kiếm và phân loại các trường đăng nhập trên trang hiện tại.
@@ -28,18 +29,24 @@ export function classifyDocumentFields(root: Document | Element = document): Cla
 
     const type = (input.type || "text").toLowerCase();
     const autocomplete = (input.getAttribute("autocomplete") || "").toLowerCase();
-    const signature = `${input.name} ${input.id} ${input.placeholder} ${input.getAttribute("aria-label") || ""}`;
+    const inputmode = (input.getAttribute("inputmode") || "").toLowerCase();
+    const placeholder = (input.placeholder || "").trim();
+    const signature = `${input.name} ${input.id} ${placeholder} ${input.className} ${input.getAttribute("aria-label") || ""}`;
 
     if (type === "password" && !passwordInput) {
       passwordInput = input;
       continue;
     }
 
-    if (
+    const isTotpCandidate =
       autocomplete === "one-time-code" ||
       TOTP_PATTERNS.test(signature) ||
-      (input.maxLength === 6 && type === "tel")
-    ) {
+      /^x{6,8}$/i.test(placeholder) ||
+      /^[•·*]{6,8}$/.test(placeholder) ||
+      (input.maxLength === 6 && (type === "tel" || type === "number" || type === "text")) ||
+      (inputmode === "numeric" && input.maxLength >= 6 && input.maxLength <= 8);
+
+    if (isTotpCandidate) {
       if (!totpInput) {
         totpInput = input;
         continue;
@@ -54,6 +61,27 @@ export function classifyDocumentFields(root: Document | Element = document): Cla
     ) {
       if (!usernameInput) {
         usernameInput = input;
+      }
+    }
+  }
+
+  // Heuristic dự phòng: Nếu không tìm thấy totpInput nhưng trang là màn hình Two-Factor Authentication
+  // (ví dụ GitHub "Two-factor authentication", có tiêu đề/URL chứa 2fa và chỉ có 1 ô input văn bản duy nhất)
+  if (!totpInput && !passwordInput) {
+    const pageText = `${document.title} ${window.location.href} ${document.body?.innerText?.slice(0, 800) || ""}`;
+    const is2FaPage = /two-factor|2fa|mfa|verification|verify|authenticator|checkpoint/i.test(pageText);
+    const visibleTextInputs = inputs.filter(
+      (inp) =>
+        !inp.disabled &&
+        !inp.readOnly &&
+        inp.type !== "hidden" &&
+        inp.type !== "submit" &&
+        inp.type !== "button"
+    );
+    if (is2FaPage && visibleTextInputs.length === 1) {
+      totpInput = visibleTextInputs[0];
+      if (usernameInput === totpInput) {
+        usernameInput = null;
       }
     }
   }

@@ -2067,3 +2067,88 @@ QCalendarWidget QHeaderView::section {
     border-color: #ffffff;
     color: #ffffff;
 }
+
+/* PairingDialog */
+#PairingDialogCard {
+    background-color: #1e1e2e;
+    border: 1px solid #45475a;
+    border-radius: 12px;
+}
+
+#PairingDialogTitle {
+    color: #cdd6f4;
+    font-size: 16px;
+    font-weight: 700;
+}
+
+#PairingDialogDesc {
+    color: #a6adc8;
+    font-size: 12.5px;
+    line-height: 1.4;
+}
+
+#PairingPinBox {
+    background-color: #181825;
+    border: 1px solid #313244;
+    border-radius: 8px;
+}
+
+#PairingPinLabel {
+    color: #89b4fa;
+    font-size: 32px;
+    font-weight: 800;
+    font-family: monospace;
+    letter-spacing: 6px;
+}
+
+#PairingTimerLabel {
+    color: #a6adc8;
+    font-size: 12px;
+}
+
+#PairingCopyBtn {
+    background-color: #89b4fa;
+    color: #11111b;
+    border: none;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 0 16px;
+}
+
+#PairingCopyBtn:hover {
+    background-color: #b4befe;
+}
+
+#PairingCloseBtn {
+    background-color: #313244;
+    color: #cdd6f4;
+    border: 1px solid #45475a;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 0 16px;
+}
+
+#PairingCloseBtn:hover {
+    background-color: #45475a;
+}
+
+/* Browser Empty State */
+#BrowserEmptyCard {
+    background-color: #181825;
+    border: 1px dashed #313244;
+    border-radius: 8px;
+}
+
+#BrowserEmptyTitle {
+    color: #cdd6f4;
+    font-size: 13.5px;
+    font-weight: 700;
+}
+
+#BrowserEmptyDesc {
+    color: #a6adc8;
+    font-size: 12px;
+    line-height: 1.4;
+}

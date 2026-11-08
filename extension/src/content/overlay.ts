@@ -9,35 +9,41 @@ import {
   CredentialsListPayload,
   sendExtensionBridgeMessage,
 } from "../services/protocol";
-import { autofillCredentialsOnPage } from "./autofill";
+import { autofillCredentialsOnPage, setNativeInputValue } from "./autofill";
 import { classifyDocumentFields } from "./classifier";
 
 export function setupInlineAutofillOverlay(): void {
-  document.addEventListener(
-    "focusin",
-    async (event) => {
-      const target = event.target;
-      if (!(target instanceof HTMLInputElement)) return;
+  const handleInteraction = async (event: Event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement)) return;
 
-      const fields = classifyDocumentFields(document);
-      if (target !== fields.usernameInput && target !== fields.passwordInput) {
-        return;
-      }
+    const fields = classifyDocumentFields(document);
+    const isTotp = target === fields.totpInput;
+    const isUserOrPass = target === fields.usernameInput || target === fields.passwordInput;
 
-      const resp = await sendExtensionBridgeMessage<CredentialsListPayload>("get_credentials", {
-        domain: window.location.hostname,
-      });
-      if (!resp.ok || !resp.payload?.credentials?.length) {
-        return;
-      }
+    if (!isUserOrPass && !isTotp) {
+      return;
+    }
 
-      renderInlinePopover(target, resp.payload.credentials);
-    },
-    true
-  );
+    const resp = await sendExtensionBridgeMessage<CredentialsListPayload>("get_credentials", {
+      domain: window.location.hostname,
+    });
+    if (!resp.ok || !resp.payload?.credentials?.length) {
+      return;
+    }
+
+    renderInlinePopover(target, resp.payload.credentials, isTotp);
+  };
+
+  document.addEventListener("focusin", handleInteraction, true);
+  document.addEventListener("click", handleInteraction, true);
 }
 
-function renderInlinePopover(anchor: HTMLInputElement, credentials: CredentialSummary[]): void {
+function renderInlinePopover(
+  anchor: HTMLInputElement,
+  credentials: CredentialSummary[],
+  isTotpField: boolean = false
+): void {
   const existing = document.getElementById("svm-inline-overlay-host");
   if (existing) {
     existing.remove();
@@ -151,7 +157,7 @@ function renderInlinePopover(anchor: HTMLInputElement, credentials: CredentialSu
 
   const header = document.createElement("div");
   header.className = "svm-header";
-  header.textContent = "Secure Vault Autofill";
+  header.textContent = isTotpField ? "Secure Vault 2FA" : "Secure Vault Autofill";
   menu.appendChild(header);
 
   const visibleItems = credentials.slice(0, 4);
@@ -161,15 +167,24 @@ function renderInlinePopover(anchor: HTMLInputElement, credentials: CredentialSu
   const triggerFill = (cred: CredentialSummary) => {
     cleanup();
     void (async () => {
+      // Nếu đang ở ô 2FA và đã có sẵn totpCode trong summary, điền ngay tức thì
+      if (isTotpField && cred.totpCode) {
+        setNativeInputValue(anchor, cred.totpCode);
+      }
       const secretResp = await sendExtensionBridgeMessage<CredentialSecretPayload>(
         "fill_credential",
         { itemId: cred.id }
       );
-      autofillCredentialsOnPage({
-        username: secretResp.payload?.username || cred.username,
-        password: secretResp.payload?.password || "",
-        totpCode: secretResp.payload?.totpCode || cred.totpCode,
-      });
+      const code = secretResp.payload?.totpCode || cred.totpCode;
+      if (isTotpField && code) {
+        setNativeInputValue(anchor, code);
+      } else {
+        autofillCredentialsOnPage({
+          username: secretResp.payload?.username || cred.username,
+          password: secretResp.payload?.password || "",
+          totpCode: code,
+        });
+      }
     })();
   };
 
@@ -204,7 +219,7 @@ function renderInlinePopover(anchor: HTMLInputElement, credentials: CredentialSu
     if (cred.hasTotp && cred.totpCode) {
       const badge = document.createElement("span");
       badge.className = "svm-badge";
-      badge.textContent = "2FA";
+      badge.textContent = isTotpField ? `Điền: ${cred.totpCode}` : "2FA";
       row.appendChild(badge);
     }
 

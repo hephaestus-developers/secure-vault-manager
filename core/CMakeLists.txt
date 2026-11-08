@@ -26,10 +26,14 @@ set(SVM_CORE_LIB_NAME "${LIB_PREFIX}svm_core${LIB_SUFFIX}")
 set(SVM_CORE_LIB_PATH "${CMAKE_CURRENT_SOURCE_DIR}/target/${CARGO_TARGET_DIR}/${SVM_CORE_LIB_NAME}")
 
 add_custom_target(svm_core_cargo
-    COMMAND ${CARGO_CMD} build --package svm-core ${CARGO_BUILD_FLAG}
+    COMMAND ${CARGO_CMD} build --package svm-core --package svm-native-host ${CARGO_BUILD_FLAG}
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/core"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_CURRENT_SOURCE_DIR}/target/${CARGO_TARGET_DIR}/svm-native-host"
+        "${CMAKE_BINARY_DIR}/core/svm-native-host"
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    BYPRODUCTS ${SVM_CORE_LIB_PATH}
-    COMMENT "Compiling Rust Core (svm_core) using Cargo..."
+    BYPRODUCTS ${SVM_CORE_LIB_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/target/${CARGO_TARGET_DIR}/svm-native-host" "${CMAKE_BINARY_DIR}/core/svm-native-host"
+    COMMENT "Compiling Rust Core (svm_core & svm-native-host) using Cargo..."
 )
 
 add_library(svm_core SHARED IMPORTED GLOBAL)

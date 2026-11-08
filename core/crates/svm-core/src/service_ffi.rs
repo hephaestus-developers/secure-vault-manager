@@ -1,15 +1,18 @@
 //! Các hàm C-ABI cho TOTP, Sinh mật khẩu, Import/Export, SSH Agent, Passkeys, Browser Bridge và Settings.
 
 use std::ffi::c_char;
+use std::sync::atomic::Ordering;
 
 use svm_crypto::{evaluate_password_strength, generate_password, generate_uuid_v4};
 use svm_domain::status::SvmStatusCode;
-use svm_domain::{Category, JsonValue, VaultItem};
+use svm_domain::{Category, DomainError, JsonValue, VaultItem};
 use svm_ssh_agent::generate_ssh_keypair;
+use svm_totp::generate_totp;
 use svm_transfer::{export_items_to_file, parse_import_file, TransferFormat};
 
 use crate::context::{
-    alloc_c_string, c_str_to_string, handle_domain_err, SvmBuffer, SvmContext, EVENT_BRIDGE_STATUS,
+    alloc_c_string, c_str_to_string, handle_domain_err, SvmBuffer, SvmContext,
+    EVENT_BRIDGE_CLIENTS_CHANGED, EVENT_BRIDGE_PAIRING_REQUESTED, EVENT_BRIDGE_STATUS,
     EVENT_ITEMS_CHANGED, EVENT_SSH_STATUS,
 };
 use crate::item_ffi::svm_item_trash;
@@ -387,6 +390,263 @@ pub unsafe extern "C" fn svm_passkey_delete(
 }
 
 /// Khởi chạy kênh giao tiếp Bridge (Native Messaging IPC listener).
+fn make_ok_envelope(request_id: &str, msg_type: &str, payload: JsonValue) -> String {
+    let mut obj = JsonValue::new_object();
+    obj.insert("requestId", JsonValue::String(request_id.to_string()));
+    obj.insert("type", JsonValue::String(msg_type.to_string()));
+    obj.insert("ok", JsonValue::Bool(true));
+    obj.insert("payload", payload);
+    obj.to_json_string()
+}
+
+fn make_err_envelope(request_id: &str, code: &str, message: &str) -> String {
+    let mut obj = JsonValue::new_object();
+    obj.insert("requestId", JsonValue::String(request_id.to_string()));
+    obj.insert("type", JsonValue::String("error".to_string()));
+    obj.insert("ok", JsonValue::Bool(false));
+    let mut err = JsonValue::new_object();
+    err.insert("code", JsonValue::String(code.to_string()));
+    err.insert("message", JsonValue::String(message.to_string()));
+    obj.insert("error", err);
+    obj.to_json_string()
+}
+
+fn dispatch_bridge_request(ctx_raw: usize, req_json: &str) -> String {
+    let ctx = ctx_raw as *mut SvmContext;
+    if ctx.is_null() {
+        return r#"{"type":"error","ok":false,"error":{"code":"INTERNAL","message":"Context is null"}}"#.to_string();
+    }
+    let req = match JsonValue::parse(req_json) {
+        Ok(v) => v,
+        Err(e) => {
+            return format!(
+                r#"{{"requestId":"unknown","type":"error","ok":false,"error":{{"code":"PARSE_ERROR","message":"{}"}}}}"#,
+                e
+            );
+        }
+    };
+    let request_id = req.get_str_or("requestId", req.get_str_or("id", "req-0"));
+    let action = req.get_str_or("action", req.get_str_or("type", ""));
+    let payload = req.get("payload").cloned().unwrap_or_else(|| req.clone());
+    let session_token = req.get_str_or("sessionToken", "");
+    let client_id = req.get_str_or("clientId", payload.get_str_or("clientId", ""));
+
+    let is_unlocked = unsafe { (*ctx).unlocked.load(Ordering::SeqCst) };
+
+    let is_paired = if let Ok(rt) = unsafe { (*ctx).runtime.lock() } {
+        rt.bridge.has_paired_clients()
+            && (session_token.is_empty()
+                || rt.bridge.is_client_authorized(session_token, client_id))
+    } else {
+        false
+    };
+
+    match action {
+        "ping" | "get_vault_status" => {
+            let mut data = JsonValue::new_object();
+            data.insert("unlocked", JsonValue::Bool(is_unlocked));
+            data.insert("configured", JsonValue::Bool(true));
+            data.insert("version", JsonValue::String("0.1.0".to_string()));
+            data.insert("bridgeListening", JsonValue::Bool(true));
+            data.insert("paired", JsonValue::Bool(is_paired));
+            make_ok_envelope(request_id, "vault_status", data)
+        }
+        "pairing_begin" => {
+            let (code_json, event_json) = if let Ok(mut rt) = unsafe { (*ctx).runtime.lock() } {
+                let j = rt.bridge.begin_pairing();
+                (j.clone(), j)
+            } else {
+                ("{}".to_string(), "{}".to_string())
+            };
+            unsafe {
+                (*ctx).emit_event(EVENT_BRIDGE_PAIRING_REQUESTED, &event_json);
+            }
+            let parsed = JsonValue::parse(&code_json).unwrap_or_else(|_| JsonValue::new_object());
+            make_ok_envelope(request_id, "pairing_challenge", parsed)
+        }
+        "pairing_confirm" => {
+            let code = payload.get_str_or(
+                "pairingCode",
+                payload.get_str_or("code", payload.get_str_or("pairing_code", "")),
+            );
+            let browser = payload.get_str_or("browser", "WebExtension");
+            let version = payload.get_str_or("version", "v1.0.0");
+            let result = if let Ok(mut rt) = unsafe { (*ctx).runtime.lock() } {
+                rt.bridge.confirm_pairing(code, browser, version)
+            } else {
+                Err(DomainError::Internal("Runtime lock failed".to_string()))
+            };
+            match result {
+                Ok(client) => {
+                    let mut data = JsonValue::new_object();
+                    data.insert("paired", JsonValue::Bool(true));
+                    data.insert("clientId", JsonValue::String(client.id));
+                    data.insert("sessionToken", JsonValue::String(client.session_token));
+                    unsafe {
+                        (*ctx).emit_event(EVENT_BRIDGE_CLIENTS_CHANGED, "{}");
+                    }
+                    make_ok_envelope(request_id, "pairing_confirmed", data)
+                }
+                Err(err) => make_err_envelope(request_id, "PAIRING_FAILED", err.message()),
+            }
+        }
+        "get_credentials" => {
+            if !is_paired {
+                return make_err_envelope(
+                    request_id,
+                    "NOT_PAIRED",
+                    "Tiện ích mở rộng chưa được ghép nối hoặc quyền truy cập đã bị thu hồi.",
+                );
+            }
+            if !is_unlocked {
+                return make_err_envelope(
+                    request_id,
+                    "VAULT_LOCKED",
+                    "Kho dữ liệu đang bị khóa. Vui lòng mở khóa trên Desktop.",
+                );
+            }
+            let domain = payload
+                .get_str_or(
+                    "domain",
+                    payload.get_str_or("origin", payload.get_str_or("url", "")),
+                )
+                .to_lowercase();
+            let mut matches = JsonValue::new_array();
+            if let Ok(rt) = unsafe { (*ctx).runtime.lock() } {
+                for item in rt.vault_service.items() {
+                    if item.trashed || item.category != Category::Login {
+                        continue;
+                    }
+                    let url_low = item.website_url.to_lowercase();
+                    let title_low = item.title.to_lowercase();
+                    if domain.is_empty()
+                        || url_low.contains(&domain)
+                        || domain.contains(&url_low)
+                        || title_low.contains(&domain)
+                    {
+                        let mut cred = JsonValue::new_object();
+                        cred.insert("id", JsonValue::String(item.id.clone()));
+                        cred.insert("title", JsonValue::String(item.title.clone()));
+                        cred.insert("username", JsonValue::String(item.username.clone()));
+                        cred.insert("websiteUrl", JsonValue::String(item.website_url.clone()));
+                        cred.insert("hasTotp", JsonValue::Bool(!item.totp_secret.is_empty()));
+                        if !item.totp_secret.is_empty() {
+                            let (code, remaining) = generate_totp(&item.totp_secret, 0);
+                            cred.insert("totpCode", JsonValue::String(code));
+                            cred.insert("totpRemaining", JsonValue::Number(remaining as f64));
+                        }
+                        matches.push(cred);
+                    }
+                }
+            }
+            let mut data = JsonValue::new_object();
+            data.insert("credentials", matches);
+            make_ok_envelope(request_id, "credentials_list", data)
+        }
+        "fill_credential" => {
+            if !is_paired {
+                return make_err_envelope(
+                    request_id,
+                    "NOT_PAIRED",
+                    "Tiện ích mở rộng chưa được ghép nối hoặc quyền truy cập đã bị thu hồi.",
+                );
+            }
+            if !is_unlocked {
+                return make_err_envelope(
+                    request_id,
+                    "VAULT_LOCKED",
+                    "Kho dữ liệu đang bị khóa. Vui lòng mở khóa trên Desktop.",
+                );
+            }
+            let item_id = payload.get_str_or(
+                "itemId",
+                payload.get_str_or("item_id", payload.get_str_or("id", "")),
+            );
+            if let Ok(rt) = unsafe { (*ctx).runtime.lock() } {
+                if let Some(item) = rt.vault_service.items().iter().find(|it| it.id == item_id) {
+                    let mut data = JsonValue::new_object();
+                    data.insert("id", JsonValue::String(item.id.clone()));
+                    data.insert("title", JsonValue::String(item.title.clone()));
+                    data.insert("username", JsonValue::String(item.username.clone()));
+                    data.insert("password", JsonValue::String(item.password.clone()));
+                    if !item.totp_secret.is_empty() {
+                        let (code, remaining) = generate_totp(&item.totp_secret, 0);
+                        data.insert("totpCode", JsonValue::String(code));
+                        data.insert("totpRemaining", JsonValue::Number(remaining as f64));
+                    }
+                    return make_ok_envelope(request_id, "credential_secret", data);
+                }
+            }
+            make_err_envelope(request_id, "NOT_FOUND", "Không tìm thấy bản ghi đăng nhập")
+        }
+        "save_credential" => {
+            if !is_paired {
+                return make_err_envelope(
+                    request_id,
+                    "NOT_PAIRED",
+                    "Tiện ích mở rộng chưa được ghép nối hoặc quyền truy cập đã bị thu hồi.",
+                );
+            }
+            if !is_unlocked {
+                return make_err_envelope(
+                    request_id,
+                    "VAULT_LOCKED",
+                    "Kho dữ liệu đang bị khóa. Vui lòng mở khóa trên Desktop.",
+                );
+            }
+            let title = payload.get_str_or("title", payload.get_str_or("domain", "Saved Login"));
+            let username = payload.get_str_or("username", "");
+            let password = payload.get_str_or("password", "");
+            let url = payload.get_str_or("websiteUrl", payload.get_str_or("url", ""));
+            let totp_secret = payload.get_str_or("totpSecret", "");
+
+            let item = VaultItem {
+                vault_id: "personal".to_string(),
+                title: title.to_string(),
+                category: Category::Login,
+                username: username.to_string(),
+                password: password.to_string(),
+                website_url: url.to_string(),
+                has_totp: !totp_secret.is_empty(),
+                totp_secret: totp_secret.to_string(),
+                ..Default::default()
+            };
+            if let Ok(mut rt) = unsafe { (*ctx).runtime.lock() } {
+                match rt.vault_service.upsert_item(item) {
+                    Ok(saved_id) => {
+                        let mut data = JsonValue::new_object();
+                        data.insert("id", JsonValue::String(saved_id));
+                        data.insert("saved", JsonValue::Bool(true));
+                        unsafe {
+                            (*ctx).emit_event(EVENT_ITEMS_CHANGED, "{}");
+                        }
+                        make_ok_envelope(request_id, "credential_saved", data)
+                    }
+                    Err(e) => make_err_envelope(request_id, "SAVE_FAILED", e.message()),
+                }
+            } else {
+                make_err_envelope(request_id, "INTERNAL", "Lock failed")
+            }
+        }
+        "generate_password" => {
+            let pwd = generate_password(&payload.to_json_string());
+            let eval = evaluate_password_strength(&pwd);
+            let mut data = JsonValue::new_object();
+            data.insert("password", JsonValue::String(pwd));
+            data.insert("score", JsonValue::Number(eval.score as f64));
+            data.insert("percent", JsonValue::Number(eval.percent as f64));
+            data.insert("feedback", JsonValue::String(eval.feedback));
+            make_ok_envelope(request_id, "generated_password", data)
+        }
+        _ => make_err_envelope(
+            request_id,
+            "UNSUPPORTED_ACTION",
+            "Hành động không được hỗ trợ",
+        ),
+    }
+}
+
+/// Khởi động kênh giao tiếp Bridge lắng nghe IPC từ Extension.
 ///
 /// # Safety
 /// `ctx` không được là NULL.
@@ -395,8 +655,10 @@ pub unsafe extern "C" fn svm_bridge_start(ctx: *mut SvmContext) -> SvmStatusCode
     if ctx.is_null() {
         return SvmStatusCode::InvalidArg;
     }
+    let ctx_raw = ctx as usize;
     if let Ok(mut rt) = (*ctx).runtime.lock() {
-        rt.bridge.start();
+        rt.bridge
+            .start(move |req_json| dispatch_bridge_request(ctx_raw, req_json));
     }
     (*ctx).emit_event(EVENT_BRIDGE_STATUS, "{\"listening\":true}");
     SvmStatusCode::Ok
@@ -430,11 +692,16 @@ pub unsafe extern "C" fn svm_bridge_pairing_begin(
     if ctx.is_null() || out_pairing_json.is_null() {
         return SvmStatusCode::InvalidArg;
     }
-    let json = if let Ok(mut rt) = (*ctx).runtime.lock() {
-        rt.bridge.begin_pairing()
+    let (json, emit_json) = if let Ok(mut rt) = (*ctx).runtime.lock() {
+        let j = rt.bridge.begin_pairing();
+        (j.clone(), j)
     } else {
-        "{\"pairing_code\":\"123456\",\"expires_in_secs\":60}".to_string()
+        (
+            "{\"pairing_code\":\"123456\",\"expires_in_secs\":60}".to_string(),
+            "{}".to_string(),
+        )
     };
+    (*ctx).emit_event(EVENT_BRIDGE_PAIRING_REQUESTED, &emit_json);
     *out_pairing_json = alloc_c_string(&json);
     SvmStatusCode::Ok
 }
@@ -476,6 +743,7 @@ pub unsafe extern "C" fn svm_bridge_client_revoke(
     if let Ok(mut rt) = (*ctx).runtime.lock() {
         rt.bridge.revoke_client(&cid);
     }
+    (*ctx).emit_event(EVENT_BRIDGE_CLIENTS_CHANGED, "{}");
     SvmStatusCode::Ok
 }
 

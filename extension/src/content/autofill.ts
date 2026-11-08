@@ -46,6 +46,32 @@ export function autofillCredentialsOnPage(data: {
   if (fields.totpInput && data.totpCode) {
     setNativeInputValue(fields.totpInput, data.totpCode);
     filled = true;
+  } else if (data.totpCode && !fields.passwordInput) {
+    // Fallback khi ở màn hình 2FA chuyên biệt: nếu chưa map được totpInput qua classifier,
+    // ưu tiên điền vào ô input đang được focus (activeElement) hoặc ô input hiển thị duy nhất.
+    const active = document.activeElement;
+    if (
+      active instanceof HTMLInputElement &&
+      active.type !== "hidden" &&
+      active.type !== "submit" &&
+      active.type !== "button"
+    ) {
+      setNativeInputValue(active, data.totpCode);
+      filled = true;
+    } else {
+      const inputs = Array.from(document.querySelectorAll("input")).filter(
+        (inp) =>
+          !inp.disabled &&
+          !inp.readOnly &&
+          inp.type !== "hidden" &&
+          inp.type !== "submit" &&
+          inp.type !== "button"
+      ) as HTMLInputElement[];
+      if (inputs.length === 1) {
+        setNativeInputValue(inputs[0], data.totpCode);
+        filled = true;
+      }
+    }
   }
 
   return filled;

@@ -96,7 +96,11 @@ typedef enum {
       7, /**< Trạng thái kết nối Browser Extension thay đổi. */
   SVM_EVENT_SSH_STATUS = 8, /**< Trạng thái OpenSSH Agent daemon thay đổi. */
   SVM_EVENT_SHOW_WINDOW =
-      9 /**< Yêu cầu đưa cửa sổ ứng dụng lên trên cùng màn hình. */
+      9, /**< Yêu cầu đưa cửa sổ ứng dụng lên trên cùng màn hình. */
+  SVM_EVENT_BRIDGE_CLIENTS_CHANGED =
+      10, /**< Danh sách Extension đã ghép nối có sự thay đổi. */
+  SVM_EVENT_BRIDGE_PAIRING_REQUESTED =
+      11 /**< Có yêu cầu ghép nối tiện ích mới từ Extension. */
 } SvmEventKind;
 
 /**

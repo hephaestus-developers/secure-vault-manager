@@ -32,9 +32,21 @@ pub fn resolve_bridge_socket_path() -> PathBuf {
         }
     }
     if let Ok(home) = env::var("HOME") {
-        return PathBuf::from(home).join(".svm").join("bridge.sock");
+        let p = PathBuf::from(home).join(".svm").join("bridge.sock");
+        if p.exists() {
+            return p;
+        }
     }
-    PathBuf::from("/tmp/hephaestus-svm-data/bridge.sock")
+    let p = PathBuf::from("/tmp/hephaestus-svm-data/bridge.sock");
+    if p.exists() {
+        return p;
+    }
+    // Fallback: nếu không file nào tồn tại, trả về đường dẫn có khả năng được tạo nhất
+    if let Ok(runtime_dir) = env::var("XDG_RUNTIME_DIR") {
+        PathBuf::from(runtime_dir).join("svm").join("bridge.sock")
+    } else {
+        PathBuf::from("/tmp/hephaestus-svm-data/bridge.sock")
+    }
 }
 
 /// Thử chuyển tiếp nguyên vẹn khung bản tin JSON sang tiến trình Desktop đang chạy qua Unix Socket.
@@ -103,12 +115,10 @@ impl NativeHostRouter {
             .map(|s| s.to_string())
             .or_else(|| env::var("SVM_DATA_DIR").ok())
             .unwrap_or_default();
-        let mut vault = VaultService::with_storage(VaultStorage::new(dir));
-        // Mở khóa sẵn kho mẫu trong bộ nhớ nếu chưa cấu hình tệp khóa cứng để phục vụ tự động điền
-        let _ = vault.unlock_biometric();
+        let vault = VaultService::with_storage(VaultStorage::new(dir.clone()));
         Self {
             vault,
-            bridge: BridgeServer::new(),
+            bridge: BridgeServer::new(dir),
             webauthn: WebAuthnAuthenticator::new(),
             session_token: format!("svm-sess-{}", generate_uuid_v4()),
         }
@@ -135,6 +145,12 @@ impl NativeHostRouter {
         let request_id = req.get_str_or("requestId", req.get_str_or("id", "req-0"));
         let action = req.get_str_or("action", req.get_str_or("type", ""));
         let payload = req.get("payload").cloned().unwrap_or_else(|| req.clone());
+        let session_token = req.get_str_or("sessionToken", "");
+        let client_id = req.get_str_or("clientId", payload.get_str_or("clientId", ""));
+
+        let is_paired = self.bridge.has_paired_clients()
+            && (session_token.is_empty()
+                || self.bridge.is_client_authorized(session_token, client_id));
 
         match action {
             "ping" | "get_vault_status" => {
@@ -146,6 +162,7 @@ impl NativeHostRouter {
                     "bridgeListening",
                     JsonValue::Bool(self.bridge.is_listening()),
                 );
+                data.insert("paired", JsonValue::Bool(is_paired));
                 Self::ok_envelope(request_id, "vault_status", data)
             }
             "launch_desktop" => {
@@ -161,7 +178,10 @@ impl NativeHostRouter {
                 Self::ok_envelope(request_id, "pairing_challenge", parsed)
             }
             "pairing_confirm" => {
-                let code = payload.get_str_or("pairingCode", payload.get_str_or("code", ""));
+                let code = payload.get_str_or(
+                    "pairingCode",
+                    payload.get_str_or("code", payload.get_str_or("pairing_code", "")),
+                );
                 if code.len() != 6 || !code.chars().all(|c| c.is_ascii_digit()) {
                     return Self::error_envelope(
                         request_id,
@@ -182,6 +202,13 @@ impl NativeHostRouter {
                 Self::ok_envelope(request_id, "pairing_confirmed", data)
             }
             "get_credentials" => {
+                if !is_paired {
+                    return Self::error_envelope(
+                        request_id,
+                        "NOT_PAIRED",
+                        "Tiện ích mở rộng chưa được ghép nối hoặc quyền truy cập đã bị thu hồi.",
+                    );
+                }
                 if !self.vault.is_unlocked() {
                     return Self::error_envelope(
                         request_id,
@@ -227,6 +254,13 @@ impl NativeHostRouter {
                 Self::ok_envelope(request_id, "credentials_list", data)
             }
             "fill_credential" => {
+                if !is_paired {
+                    return Self::error_envelope(
+                        request_id,
+                        "NOT_PAIRED",
+                        "Tiện ích mở rộng chưa được ghép nối hoặc quyền truy cập đã bị thu hồi.",
+                    );
+                }
                 if !self.vault.is_unlocked() {
                     return Self::error_envelope(
                         request_id,
@@ -254,6 +288,13 @@ impl NativeHostRouter {
                 Self::ok_envelope(request_id, "credential_secret", data)
             }
             "save_credential" => {
+                if !is_paired {
+                    return Self::error_envelope(
+                        request_id,
+                        "NOT_PAIRED",
+                        "Tiện ích mở rộng chưa được ghép nối hoặc quyền truy cập đã bị thu hồi.",
+                    );
+                }
                 if !self.vault.is_unlocked() {
                     return Self::error_envelope(
                         request_id,
@@ -466,16 +507,24 @@ mod tests {
     fn test_native_host_router_actions() {
         let mut router = NativeHostRouter::new(Some("/tmp/svm-native-host-test"));
 
+        // Ở chế độ bảo mật nghiêm ngặt (Strict Security), khi Desktop chưa chạy kho mặc định phải khóa
         let status_resp =
             router.handle_message(r#"{"requestId":"r1","action":"get_vault_status"}"#);
         assert!(status_resp.contains(r#""ok":true"#));
-        assert!(status_resp.contains(r#""unlocked":true"#));
+        assert!(status_resp.contains(r#""unlocked":false"#));
 
+        // Lấy thông tin đăng nhập khi chưa ghép nối / khóa phải bị từ chối
         let creds_resp = router.handle_message(
             r#"{"requestId":"r2","action":"get_credentials","payload":{"domain":"github.com"}}"#,
         );
-        assert!(creds_resp.contains(r#""ok":true"#));
-        assert!(creds_resp.contains(r#""credentials""#));
+        assert!(creds_resp.contains(r#""ok":false"#));
+        assert!(creds_resp.contains(r#""NOT_PAIRED""#));
+
+        // Mở khóa kho
+        let _ = router.vault.unlock_biometric();
+        let unlocked_status =
+            router.handle_message(r#"{"requestId":"r1b","action":"get_vault_status"}"#);
+        assert!(unlocked_status.contains(r#""unlocked":true"#));
 
         let passkey_resp = router.handle_message(
             r#"{"requestId":"r3","action":"passkey_create","payload":{"rpId":"github.com","userName":"octocat","challenge":"abc123"}}"#,

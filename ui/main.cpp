@@ -25,6 +25,7 @@
 #include "core/core_bridge.h"
 #include "main_window.h"
 #include "views/detail/empty_state_widget.h"
+#include "views/settings/pairing_dialog.h"
 
 int main(int argc, char *argv[]) {
   // Cài đặt bộ ghi log và đo latency cho môi trường Dev / Debug
@@ -185,6 +186,12 @@ int main(int argc, char *argv[]) {
         l->addWidget(new svm::views::EmptyStateWidget(dlg));
         dlg->show();
       });
+    } else if (arg == QStringLiteral("--preview-pairing")) {
+      QTimer::singleShot(50, [&mainWindow]() {
+        auto *dlg = new svm::views::PairingDialog(&mainWindow);
+        dlg->startPairing(QStringLiteral("382 915"), 58);
+        dlg->show();
+      });
     } else if (arg == QStringLiteral("--onboarding-step") && i + 1 < argc) {
       int step = QString::fromLatin1(argv[++i]).toInt();
       QTimer::singleShot(150, [&mainWindow, step]() {
@@ -211,12 +218,22 @@ int main(int argc, char *argv[]) {
     if (QString::fromLatin1(argv[i]) == QStringLiteral("--screenshot") &&
         i + 1 < argc) {
       QString path = QString::fromLocal8Bit(argv[++i]);
-      QTimer::singleShot(600, [&mainWindow, path, scrollBottom, &app]() {
+      QTimer::singleShot(900, [&mainWindow, path, scrollBottom, &app]() {
         QDialog *dlg = nullptr;
-        for (auto *child : mainWindow.findChildren<QDialog *>()) {
-          if (child->isVisible()) {
-            dlg = child;
-            break;
+        for (auto *w : QApplication::allWidgets()) {
+          if (auto *pd = qobject_cast<svm::views::PairingDialog *>(w)) {
+            if (pd->isVisible()) {
+              dlg = pd;
+              break;
+            }
+          }
+        }
+        if (!dlg) {
+          for (auto *child : mainWindow.findChildren<QDialog *>()) {
+            if (child->isVisible()) {
+              dlg = child;
+              break;
+            }
           }
         }
         if (dlg) {

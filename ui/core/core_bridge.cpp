@@ -152,6 +152,10 @@ void CoreBridge::handleRustEvent(int kind, const QString &payloadJson) {
     emit vaultUnlockedEvent();
   } else if (kind == SVM_EVENT_ITEMS_CHANGED) {
     emit itemsChangedEvent();
+  } else if (kind == SVM_EVENT_BRIDGE_CLIENTS_CHANGED) {
+    emit bridgeClientsChangedEvent();
+  } else if (kind == SVM_EVENT_BRIDGE_PAIRING_REQUESTED) {
+    emit bridgePairingRequestedEvent(payloadJson);
   }
 }
 
@@ -1036,8 +1040,11 @@ QJsonArray CoreBridge::listBridgeClients() {
   }
   const QByteArray raw(outJson);
   svm_free_string(outJson);
-  const QJsonObject obj = QJsonDocument::fromJson(raw).object();
-  return obj.value(QStringLiteral("clients")).toArray();
+  const QJsonDocument doc = QJsonDocument::fromJson(raw);
+  if (doc.isArray()) {
+    return doc.array();
+  }
+  return doc.object().value(QStringLiteral("clients")).toArray();
 }
 
 bool CoreBridge::revokeBridgeClient(const QString &clientId) {

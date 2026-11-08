@@ -299,6 +299,8 @@ signals:
   void vaultLockedEvent();
   void vaultUnlockedEvent();
   void itemsChangedEvent();
+  void bridgeClientsChangedEvent();
+  void bridgePairingRequestedEvent(const QString &pairingJson);
 
 private:
   CoreBridge();

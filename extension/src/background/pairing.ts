@@ -18,15 +18,52 @@ export interface PairingState {
 
 export class PairingManager {
   private state: PairingState = {
-    paired: true,
-    clientId: "ext-local-default",
-    sessionToken: "svm-local-session",
+    paired: false,
+    clientId: "",
+    sessionToken: "",
   };
 
   private transport: BridgeTransport;
 
   constructor(transport: BridgeTransport) {
     this.transport = transport;
+    this.loadState();
+  }
+
+  private loadState(): void {
+    const chromeApi = (globalThis as Record<string, any>).chrome;
+    if (chromeApi?.storage?.local?.get) {
+      chromeApi.storage.local.get(["svm_pairing_state"], (res: any) => {
+        if (res?.svm_pairing_state) {
+          this.state = res.svm_pairing_state;
+        }
+      });
+    }
+  }
+
+  private persistState(): void {
+    const chromeApi = (globalThis as Record<string, any>).chrome;
+    if (chromeApi?.storage?.local?.set) {
+      chromeApi.storage.local.set({ svm_pairing_state: this.state });
+    }
+  }
+
+  public setUnpaired(): void {
+    this.state = {
+      paired: false,
+      clientId: "",
+      sessionToken: "",
+    };
+    this.persistState();
+  }
+
+  public setPaired(clientId: string, sessionToken: string): void {
+    this.state = {
+      paired: true,
+      clientId,
+      sessionToken,
+    };
+    this.persistState();
   }
 
   public getState(): PairingState {
@@ -40,7 +77,7 @@ export class PairingManager {
       return resp.payload;
     }
     return {
-      pairing_code: "482915",
+      pairing_code: "",
       expires_in_secs: 60,
     };
   }
@@ -49,15 +86,7 @@ export class PairingManager {
     const req = createBridgeRequest("pairing_confirm", { pairingCode });
     const resp = await this.transport.dispatch<PairingConfirmedPayload>(req);
     if (resp.ok && resp.payload?.paired) {
-      this.state = {
-        paired: true,
-        clientId: resp.payload.clientId,
-        sessionToken: resp.payload.sessionToken,
-      };
-      return true;
-    }
-    if (/^\d{6}$/.test(pairingCode.trim())) {
-      this.state.paired = true;
+      this.setPaired(resp.payload.clientId, resp.payload.sessionToken);
       return true;
     }
     return false;
