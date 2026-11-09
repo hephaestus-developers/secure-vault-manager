@@ -30,14 +30,11 @@ public slots:
 
 private:
   void setupUI();
-  void onPairClicked();
   void onInstallManifestsClicked();
 
   SettingSectionCard *m_bridgeCard{nullptr};
   SettingRowWidget *m_enableRow{nullptr};
   QCheckBox *m_enableCheck{nullptr};
-  SettingRowWidget *m_pairRow{nullptr};
-  QPushButton *m_pairBtn{nullptr};
   SettingRowWidget *m_manifestRow{nullptr};
   QPushButton *m_manifestBtn{nullptr};
 

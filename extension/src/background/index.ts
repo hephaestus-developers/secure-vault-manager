@@ -30,6 +30,40 @@ if (chromeApi?.runtime?.onMessage) {
       }
 
       void (async () => {
+        if (message.action === "unlock_vault") {
+          const password = String(message.payload?.password || "");
+          const ok = await pairingManager.unlockVault(password);
+          sendResponse({
+            requestId: message.requestId,
+            type: "vault_unlocked",
+            ok,
+            payload: { unlocked: ok },
+          });
+          return;
+        }
+
+        if (message.action === "unlock_vault_biometric") {
+          const ok = await pairingManager.unlockBiometric();
+          sendResponse({
+            requestId: message.requestId,
+            type: "vault_unlocked",
+            ok,
+            payload: { unlocked: ok },
+          });
+          return;
+        }
+
+        if (message.action === "lock_vault") {
+          const ok = await pairingManager.lockVault();
+          sendResponse({
+            requestId: message.requestId,
+            type: "vault_locked",
+            ok,
+            payload: { unlocked: !ok },
+          });
+          return;
+        }
+
         if (message.action === "pairing_begin") {
           const payload = await pairingManager.beginPairing();
           sendResponse({

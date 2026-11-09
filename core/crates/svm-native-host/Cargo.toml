@@ -18,3 +18,4 @@ svm-totp = { path = "../svm-totp" }
 svm-webauthn = { path = "../svm-webauthn" }
 svm-ipc = { path = "../svm-ipc" }
 svm-bridge = { path = "../svm-bridge" }
+svm-system = { path = "../svm-system" }

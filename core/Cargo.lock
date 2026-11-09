@@ -70,6 +70,7 @@ dependencies = [
  "svm-domain",
  "svm-ipc",
  "svm-storage",
+ "svm-system",
  "svm-totp",
  "svm-vault",
  "svm-webauthn",

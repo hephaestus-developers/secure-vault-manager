@@ -34,6 +34,19 @@ void VaultManager::initialize() {
   connect(&bridge, &core::CoreBridge::vaultLockedEvent, this, [this]() {
     if (!m_isLocked) {
       m_isLocked = true;
+      m_recoveryKey.clear();
+      emit lockStateChanged(m_isLocked);
+    }
+  });
+
+  connect(&bridge, &core::CoreBridge::vaultUnlockedEvent, this, [this]() {
+    if (m_isLocked) {
+      m_isLocked = false;
+      refreshVaultsFromCore();
+      if (m_activeVaultId.isEmpty() && !m_vaults.isEmpty()) {
+        m_activeVaultId = defaultVault().id;
+        emit activeVaultChanged(m_activeVaultId);
+      }
       emit lockStateChanged(m_isLocked);
     }
   });

@@ -413,6 +413,11 @@ impl VaultService {
         self.storage.remove_biometric_envelope()
     }
 
+    /// Kiểm tra xem kho mật khẩu đã được cài đặt khóa mở bằng sinh trắc học hay chưa.
+    pub fn is_biometric_enabled(&self) -> bool {
+        self.storage.biometric_file_path().exists()
+    }
+
     /// Đổi tên hoặc cập nhật thông tin một Vault.
     pub fn rename_vault(&mut self, vault_id: &str, name_or_json: &str) -> Result<(), DomainError> {
         let trimmed = name_or_json.trim();

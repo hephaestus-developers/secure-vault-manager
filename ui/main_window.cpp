@@ -17,7 +17,6 @@
 #include "components/unified_header_bar.h"
 #include "components/window_resize_handler.h"
 #include "core/core_bridge.h"
-#include "views/settings/pairing_dialog.h"
 #include "views/settings/settings_dialog.h"
 
 #include <QApplication>
@@ -237,18 +236,6 @@ void MainWindow::setupUI() {
     core::CoreBridge::instance().startBridge();
     core::CoreBridge::instance().installNativeHostManifests();
   }
-
-  connect(&core::CoreBridge::instance(),
-          &core::CoreBridge::bridgePairingRequestedEvent, this,
-          [](const QString &pairingJson) {
-            const QJsonObject obj =
-                QJsonDocument::fromJson(pairingJson.toUtf8()).object();
-            const QString code =
-                obj.value(QStringLiteral("pairing_code")).toString();
-            if (!code.isEmpty()) {
-              views::PairingDialog::showPairingDialog(code, 60);
-            }
-          });
 }
 
 void MainWindow::setupShortcuts() {
@@ -575,6 +562,7 @@ void MainWindow::updateNavigationState() {
     m_mainStack->setCurrentWidget(m_mainSplitter);
     m_headerBar->setTitleText(tr("Secure Vault Manager"));
     m_headerBar->setSettingsVisible(true);
+    m_lockScreenView->resetLockScreen();
     loadItemsFromCore();
     updateSidebarCounts();
     updateInactivityTimer();

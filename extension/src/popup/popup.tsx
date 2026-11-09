@@ -9,34 +9,36 @@ import {
   CredentialSummary,
   CredentialsListPayload,
   GeneratedPasswordPayload,
-  PairingChallengePayload,
   sendExtensionBridgeMessage,
   VaultStatusPayload,
 } from "../services/protocol";
 import { createCredentialList } from "./components/CredentialList";
 import { createGeneratorTab } from "./components/GeneratorTab";
 import { createHeaderBar } from "./components/HeaderBar";
-import { createPairingView } from "./components/PairingView";
+import { createLockView } from "./components/LockView";
 
 interface PopupState {
   theme: "dark" | "light";
-  activeTab: "logins" | "generator" | "pairing";
+  activeTab: "logins" | "generator";
   paired: boolean;
   unlocked: boolean;
+  desktopRunning: boolean;
+  biometricAvailable: boolean;
   activeOrigin: string;
   searchQuery: string;
   credentials: CredentialSummary[];
   generatedPassword: string;
   generatorOptions: PasswordGeneratorOptions;
-  suggestedPin: string;
   toastMessage: string;
 }
 
 const state: PopupState = {
   theme: "dark",
   activeTab: "logins",
-  paired: false,
+  paired: true,
   unlocked: false,
+  desktopRunning: false,
+  biometricAvailable: false,
   activeOrigin: "",
   searchQuery: "",
   credentials: [],
@@ -48,7 +50,6 @@ const state: PopupState = {
     digits: true,
     symbols: true,
   },
-  suggestedPin: "",
   toastMessage: "",
 };
 
@@ -87,10 +88,14 @@ async function loadInitialData(): Promise<void> {
   const statusResp = await sendExtensionBridgeMessage<VaultStatusPayload>("get_vault_status");
   if (statusResp.ok && statusResp.payload) {
     state.unlocked = Boolean(statusResp.payload.unlocked);
-    state.paired = Boolean(statusResp.payload.paired);
+    state.paired = Boolean(statusResp.payload.paired ?? true);
+    state.desktopRunning = Boolean(statusResp.payload.desktopRunning ?? false);
+    state.biometricAvailable = Boolean(statusResp.payload.biometricAvailable);
   } else {
     state.unlocked = false;
     state.paired = false;
+    state.desktopRunning = false;
+    state.biometricAvailable = false;
   }
 
   if (state.unlocked && state.paired) {
@@ -196,94 +201,6 @@ function buildFilteredCredentialList(): HTMLElement {
   });
 }
 
-function createLockedVaultView(): HTMLElement {
-  const card = document.createElement("div");
-  card.className = "stateCard";
-
-  const title = document.createElement("div");
-  title.className = "stateTitle";
-  title.textContent = "Vault is Locked";
-
-  const desc = document.createElement("div");
-  desc.className = "stateDesc";
-  desc.textContent =
-    "Unlock Secure Vault Manager on your desktop to view and autofill your saved logins.";
-
-  const actions = document.createElement("div");
-  actions.style.cssText = "display: flex; gap: 8px; justify-content: center; margin-top: 4px;";
-
-  const unlockBtn = document.createElement("button");
-  unlockBtn.type = "button";
-  unlockBtn.className = "primaryBtn";
-  unlockBtn.textContent = "Open Desktop App";
-  unlockBtn.addEventListener("click", async () => {
-    await sendExtensionBridgeMessage("launch_desktop", {});
-    showToast("Opening Desktop App...");
-  });
-
-  const refreshBtn = document.createElement("button");
-  refreshBtn.type = "button";
-  refreshBtn.className = "iconBtn";
-  refreshBtn.style.cssText = "width: auto; padding: 6px 12px;";
-  refreshBtn.textContent = "Refresh";
-  refreshBtn.addEventListener("click", () => {
-    void loadInitialData();
-  });
-
-  actions.appendChild(unlockBtn);
-  actions.appendChild(refreshBtn);
-
-  card.appendChild(title);
-  card.appendChild(desc);
-  card.appendChild(actions);
-  return card;
-}
-
-function createUnpairedView(): HTMLElement {
-  const card = document.createElement("div");
-  card.className = "stateCard";
-
-  const title = document.createElement("div");
-  title.className = "stateTitle";
-  title.textContent = "Chưa kết nối Tiện ích";
-
-  const desc = document.createElement("div");
-  desc.className = "stateDesc";
-  desc.textContent =
-    "Quyền kết nối của tiện ích đã bị thu hồi hoặc chưa được ghép nối với ứng dụng Desktop. Vui lòng ghép nối lại để sử dụng.";
-
-  const actions = document.createElement("div");
-  actions.style.cssText = "display: flex; gap: 8px; justify-content: center; margin-top: 4px;";
-
-  const pairBtn = document.createElement("button");
-  pairBtn.type = "button";
-  pairBtn.className = "primaryBtn";
-  pairBtn.textContent = "Ghép nối với Desktop";
-  pairBtn.addEventListener("click", async () => {
-    const resp = await sendExtensionBridgeMessage<PairingChallengePayload>("pairing_begin");
-    state.suggestedPin = resp.payload?.pairing_code || "";
-    state.activeTab = "pairing";
-    renderPopup();
-  });
-
-  const refreshBtn = document.createElement("button");
-  refreshBtn.type = "button";
-  refreshBtn.className = "iconBtn";
-  refreshBtn.style.cssText = "width: auto; padding: 6px 12px;";
-  refreshBtn.textContent = "Làm mới";
-  refreshBtn.addEventListener("click", () => {
-    void loadInitialData();
-  });
-
-  actions.appendChild(pairBtn);
-  actions.appendChild(refreshBtn);
-
-  card.appendChild(title);
-  card.appendChild(desc);
-  card.appendChild(actions);
-  return card;
-}
-
 export function renderPopup(): void {
   const root = document.getElementById("svm-popup-root");
   if (!root) return;
@@ -299,6 +216,7 @@ export function renderPopup(): void {
       theme: state.theme,
       paired: state.paired,
       unlocked: state.unlocked,
+      desktopRunning: state.desktopRunning,
       onToggleTheme: () => {
         state.theme = state.theme === "dark" ? "light" : "dark";
         renderPopup();
@@ -307,18 +225,79 @@ export function renderPopup(): void {
         await sendExtensionBridgeMessage("launch_desktop", {});
         showToast("Opening Desktop App...");
       },
-      onOpenPairing: async () => {
-        const resp = await sendExtensionBridgeMessage<PairingChallengePayload>("pairing_begin");
-        state.suggestedPin = resp.payload?.pairing_code || "482915";
-        state.activeTab = "pairing";
+      onLockVault: async () => {
+        await sendExtensionBridgeMessage("lock_vault");
+        state.unlocked = false;
+        showToast("Kho mật khẩu đã bị khóa");
         renderPopup();
       },
     })
   );
 
+  const content = document.createElement("main");
+  content.className = "contentArea";
+
+  // Khi Vault đang BỊ KHÓA hoặc Desktop App chưa chạy: Hiển thị ngay màn hình mở khóa
+  if (!state.unlocked) {
+    content.appendChild(
+      createLockView({
+        desktopRunning: state.desktopRunning,
+        biometricAvailable: state.biometricAvailable,
+        onUnlockPassword: async (password: string) => {
+          const resp = await sendExtensionBridgeMessage<any>("unlock_vault", {
+            password,
+            browser: "WebExtension",
+            version: "1.0.0",
+          });
+          if (resp.ok && resp.payload?.unlocked) {
+            state.unlocked = true;
+            state.paired = true;
+            showToast("Đã mở khóa kho mật khẩu");
+            await loadInitialData();
+            return true;
+          }
+          return false;
+        },
+        onUnlockBiometric: async () => {
+          const resp = await sendExtensionBridgeMessage<any>("unlock_vault_biometric", {
+            browser: "WebExtension",
+            version: "1.0.0",
+          });
+          if (resp.ok && resp.payload?.unlocked) {
+            state.unlocked = true;
+            state.paired = true;
+            showToast("Đã mở khóa bằng sinh trắc học");
+            await loadInitialData();
+            return true;
+          }
+          return false;
+        },
+        onOpenDesktop: async () => {
+          await sendExtensionBridgeMessage("launch_desktop", {});
+          showToast("Đang mở ứng dụng Desktop...");
+        },
+        onRefresh: () => {
+          void loadInitialData();
+        },
+      })
+    );
+    shell.appendChild(content);
+
+    if (state.toastMessage) {
+      const toast = document.createElement("div");
+      toast.className = "toastBanner";
+      toast.textContent = state.toastMessage;
+      shell.appendChild(toast);
+    }
+
+    root.appendChild(shell);
+    return;
+  }
+
+  // Khi Vault ĐÃ MỞ KHÓA: Hiển thị Search bar và Tabs
   const listHost = document.createElement("div");
 
-  if (state.activeTab === "logins" && state.unlocked && state.paired) {
+  if (state.activeTab === "logins") {
     const searchWrap = document.createElement("div");
     searchWrap.className = "searchBarWrap";
     const searchInput = document.createElement("input");
@@ -359,46 +338,16 @@ export function renderPopup(): void {
   tabs.appendChild(genTabBtn);
   shell.appendChild(tabs);
 
-  const content = document.createElement("main");
-  content.className = "contentArea";
-
   if (state.activeTab === "logins") {
-    if (!state.paired) {
-      content.appendChild(createUnpairedView());
-    } else if (!state.unlocked) {
-      content.appendChild(createLockedVaultView());
-    } else {
-      listHost.appendChild(buildFilteredCredentialList());
-      content.appendChild(listHost);
-    }
-  } else if (state.activeTab === "generator") {
+    listHost.appendChild(buildFilteredCredentialList());
+    content.appendChild(listHost);
+  } else {
     content.appendChild(
       createGeneratorTab({
         password: state.generatedPassword,
         options: state.generatorOptions,
         onRegenerate: (opts) => void refreshGeneratedPassword(opts),
         onCopy: (pw) => void copyText(pw, "Password"),
-      })
-    );
-  } else {
-    content.appendChild(
-      createPairingView({
-        suggestedPin: state.suggestedPin,
-        onConfirm: async (pin) => {
-          const resp = await sendExtensionBridgeMessage("pairing_confirm", { pairingCode: pin });
-          if (resp.ok) {
-            state.paired = true;
-            state.activeTab = "logins";
-            showToast("Connected to Desktop App");
-            await loadInitialData();
-          } else {
-            showToast("Invalid 6-digit code");
-          }
-        },
-        onCancel: () => {
-          state.activeTab = "logins";
-          renderPopup();
-        },
       })
     );
   }
@@ -415,8 +364,35 @@ export function renderPopup(): void {
   root.appendChild(shell);
 }
 
+async function syncStatusSilently(): Promise<void> {
+  try {
+    const statusResp = await sendExtensionBridgeMessage<VaultStatusPayload>("get_vault_status");
+    if (statusResp.ok && statusResp.payload) {
+      const newUnlocked = Boolean(statusResp.payload.unlocked);
+      const newDesktop = Boolean(statusResp.payload.desktopRunning ?? false);
+      const newBio = Boolean(statusResp.payload.biometricAvailable);
+      if (
+        newUnlocked !== state.unlocked ||
+        newDesktop !== state.desktopRunning ||
+        newBio !== state.biometricAvailable
+      ) {
+        await loadInitialData();
+      }
+    } else if (state.desktopRunning || state.unlocked) {
+      state.desktopRunning = false;
+      state.unlocked = false;
+      renderPopup();
+    }
+  } catch {
+    // Ignore silent check errors
+  }
+}
+
 if (typeof document !== "undefined") {
   document.addEventListener("DOMContentLoaded", () => {
     void loadInitialData();
+    setInterval(() => {
+      void syncStatusSilently();
+    }, 1500);
   });
 }

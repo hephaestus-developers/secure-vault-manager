@@ -13,7 +13,7 @@ use svm_transfer::{export_items_to_file, parse_import_file, TransferFormat};
 use crate::context::{
     alloc_c_string, c_str_to_string, handle_domain_err, SvmBuffer, SvmContext,
     EVENT_BRIDGE_CLIENTS_CHANGED, EVENT_BRIDGE_PAIRING_REQUESTED, EVENT_BRIDGE_STATUS,
-    EVENT_ITEMS_CHANGED, EVENT_SSH_STATUS,
+    EVENT_ITEMS_CHANGED, EVENT_SSH_STATUS, EVENT_VAULT_LOCKED, EVENT_VAULT_UNLOCKED,
 };
 use crate::item_ffi::svm_item_trash;
 
@@ -428,28 +428,124 @@ fn dispatch_bridge_request(ctx_raw: usize, req_json: &str) -> String {
     let request_id = req.get_str_or("requestId", req.get_str_or("id", "req-0"));
     let action = req.get_str_or("action", req.get_str_or("type", ""));
     let payload = req.get("payload").cloned().unwrap_or_else(|| req.clone());
-    let session_token = req.get_str_or("sessionToken", "");
+    let _session_token = req.get_str_or("sessionToken", "");
     let client_id = req.get_str_or("clientId", payload.get_str_or("clientId", ""));
 
     let is_unlocked = unsafe { (*ctx).unlocked.load(Ordering::SeqCst) };
 
     let is_paired = if let Ok(rt) = unsafe { (*ctx).runtime.lock() } {
-        rt.bridge.has_paired_clients()
-            && (session_token.is_empty()
-                || rt.bridge.is_client_authorized(session_token, client_id))
+        if !client_id.is_empty()
+            && !rt.bridge.clients().is_empty()
+            && !rt.bridge.clients().iter().any(|c| c.id == client_id)
+        {
+            false
+        } else {
+            true
+        }
     } else {
-        false
+        true
     };
 
     match action {
         "ping" | "get_vault_status" => {
+            let bio_available = svm_system::is_biometric_available()
+                && if let Ok(rt) = unsafe { (*ctx).runtime.lock() } {
+                    rt.vault_service.is_biometric_enabled()
+                } else {
+                    false
+                };
             let mut data = JsonValue::new_object();
             data.insert("unlocked", JsonValue::Bool(is_unlocked));
+            data.insert("desktopRunning", JsonValue::Bool(true));
             data.insert("configured", JsonValue::Bool(true));
             data.insert("version", JsonValue::String("0.1.0".to_string()));
             data.insert("bridgeListening", JsonValue::Bool(true));
             data.insert("paired", JsonValue::Bool(is_paired));
+            data.insert("biometricAvailable", JsonValue::Bool(bio_available));
             make_ok_envelope(request_id, "vault_status", data)
+        }
+        "unlock_vault" => {
+            let password = payload.get_str_or("password", "");
+            let browser = payload.get_str_or("browser", "WebExtension");
+            let version = payload.get_str_or("version", "v1.0.0");
+            let res = if let Ok(mut rt) = unsafe { (*ctx).runtime.lock() } {
+                rt.vault_service.unlock_with_credentials("", password)
+            } else {
+                Err(DomainError::Internal("Runtime lock failed".to_string()))
+            };
+            match res {
+                Ok(()) => {
+                    unsafe {
+                        (*ctx).unlocked.store(true, Ordering::SeqCst);
+                        (*ctx).emit_event(EVENT_VAULT_UNLOCKED, "{\"unlocked\":true}");
+                    }
+                    if let Ok(mut rt) = unsafe { (*ctx).runtime.lock() } {
+                        let client = rt.bridge.record_active_session(browser, version);
+                        unsafe {
+                            (*ctx).emit_event(EVENT_BRIDGE_CLIENTS_CHANGED, "{}");
+                        }
+                        let mut data = JsonValue::new_object();
+                        data.insert("unlocked", JsonValue::Bool(true));
+                        data.insert("paired", JsonValue::Bool(true));
+                        data.insert("clientId", JsonValue::String(client.id));
+                        data.insert("sessionToken", JsonValue::String(client.session_token));
+                        make_ok_envelope(request_id, "vault_unlocked", data)
+                    } else {
+                        let mut data = JsonValue::new_object();
+                        data.insert("unlocked", JsonValue::Bool(true));
+                        data.insert("paired", JsonValue::Bool(true));
+                        make_ok_envelope(request_id, "vault_unlocked", data)
+                    }
+                }
+                Err(err) => make_err_envelope(request_id, "AUTH_FAILED", err.message()),
+            }
+        }
+        "unlock_vault_biometric" => {
+            let browser = payload.get_str_or("browser", "WebExtension");
+            let version = payload.get_str_or("version", "v1.0.0");
+            let res = if let Ok(mut rt) = unsafe { (*ctx).runtime.lock() } {
+                rt.vault_service.unlock_biometric()
+            } else {
+                Err(DomainError::Internal("Runtime lock failed".to_string()))
+            };
+            match res {
+                Ok(()) => {
+                    unsafe {
+                        (*ctx).unlocked.store(true, Ordering::SeqCst);
+                        (*ctx).emit_event(EVENT_VAULT_UNLOCKED, "{\"unlocked\":true}");
+                    }
+                    if let Ok(mut rt) = unsafe { (*ctx).runtime.lock() } {
+                        let client = rt.bridge.record_active_session(browser, version);
+                        unsafe {
+                            (*ctx).emit_event(EVENT_BRIDGE_CLIENTS_CHANGED, "{}");
+                        }
+                        let mut data = JsonValue::new_object();
+                        data.insert("unlocked", JsonValue::Bool(true));
+                        data.insert("paired", JsonValue::Bool(true));
+                        data.insert("clientId", JsonValue::String(client.id));
+                        data.insert("sessionToken", JsonValue::String(client.session_token));
+                        make_ok_envelope(request_id, "vault_unlocked", data)
+                    } else {
+                        let mut data = JsonValue::new_object();
+                        data.insert("unlocked", JsonValue::Bool(true));
+                        data.insert("paired", JsonValue::Bool(true));
+                        make_ok_envelope(request_id, "vault_unlocked", data)
+                    }
+                }
+                Err(err) => make_err_envelope(request_id, "BIOMETRIC_FAILED", err.message()),
+            }
+        }
+        "lock_vault" => {
+            if let Ok(mut rt) = unsafe { (*ctx).runtime.lock() } {
+                rt.vault_service.lock();
+            }
+            unsafe {
+                (*ctx).unlocked.store(false, Ordering::SeqCst);
+                (*ctx).emit_event(EVENT_VAULT_LOCKED, "{\"unlocked\":false}");
+            }
+            let mut data = JsonValue::new_object();
+            data.insert("unlocked", JsonValue::Bool(false));
+            make_ok_envelope(request_id, "vault_locked", data)
         }
         "pairing_begin" => {
             let (code_json, event_json) = if let Ok(mut rt) = unsafe { (*ctx).runtime.lock() } {

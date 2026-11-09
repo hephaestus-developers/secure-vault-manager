@@ -7,6 +7,7 @@ use std::env;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
+use std::time::Duration;
 
 #[cfg(unix)]
 use std::os::unix::net::UnixStream;
@@ -77,13 +78,67 @@ pub fn try_forward_to_desktop_socket(_request_json: &str) -> Option<String> {
     None
 }
 
-/// Khởi chạy tiến trình ứng dụng Desktop `secure-vault-manager` ở chế độ nền (Detached).
+/// Khởi chạy tiến trình ứng dụng Desktop `secure-vault-manager` / `svm_ui` ở chế độ nền (Detached).
 pub fn launch_desktop_app() -> bool {
-    let candidates = [
+    let mut candidates = vec![
         env::var("SVM_DESKTOP_BIN").unwrap_or_default(),
+        "/usr/bin/svm_ui".to_string(),
         "/usr/bin/secure-vault-manager".to_string(),
+        "/usr/local/bin/svm_ui".to_string(),
         "/usr/local/bin/secure-vault-manager".to_string(),
     ];
+
+    if let Ok(exe) = env::current_exe() {
+        if let Some(parent) = exe.parent() {
+            candidates.push(parent.join("svm_ui").to_string_lossy().to_string());
+            candidates.push(
+                parent
+                    .join("secure-vault-manager")
+                    .to_string_lossy()
+                    .to_string(),
+            );
+            if let Some(grandparent) = parent.parent() {
+                candidates.push(
+                    grandparent
+                        .join("ui")
+                        .join("svm_ui")
+                        .to_string_lossy()
+                        .to_string(),
+                );
+                candidates.push(
+                    grandparent
+                        .join("ui")
+                        .join("secure-vault-manager")
+                        .to_string_lossy()
+                        .to_string(),
+                );
+                if let Some(great) = grandparent.parent() {
+                    candidates.push(
+                        great
+                            .join("build")
+                            .join("debug")
+                            .join("ui")
+                            .join("svm_ui")
+                            .to_string_lossy()
+                            .to_string(),
+                    );
+                    candidates.push(
+                        great
+                            .join("build")
+                            .join("ui")
+                            .join("svm_ui")
+                            .to_string_lossy()
+                            .to_string(),
+                    );
+                }
+            }
+        }
+    }
+
+    // Dự phòng đường dẫn build cục bộ
+    candidates.push(
+        "/mnt/storage/hephaestus-studio/secure-vault-manager/build/debug/ui/svm_ui".to_string(),
+    );
 
     for bin in candidates.iter().filter(|s| !s.is_empty()) {
         if std::path::Path::new(bin).exists()
@@ -126,7 +181,7 @@ impl NativeHostRouter {
 
     /// Xử lý một bản tin JSON nhận từ Extension và trả về bản tin JSON phản hồi.
     pub fn handle_message(&mut self, request_json: &str) -> String {
-        // Ưu tiên chuyển tiếp tới ứng dụng Desktop nếu socket trực tuyến
+        // Ưu tiên chuyển tiếp tới ứng dụng Desktop nếu socket trực tuyến (Desktop là Single Source of Truth)
         if let Some(forwarded) = try_forward_to_desktop_socket(request_json) {
             return forwarded;
         }
@@ -155,15 +210,38 @@ impl NativeHostRouter {
         match action {
             "ping" | "get_vault_status" => {
                 let mut data = JsonValue::new_object();
-                data.insert("unlocked", JsonValue::Bool(self.vault.is_unlocked()));
+                // Khi tiến trình Desktop App chưa chạy hoặc chưa kết nối socket,
+                // trạng thái mở khóa bắt buộc phải là false để đảm bảo Desktop là Single Source of Truth.
+                data.insert("unlocked", JsonValue::Bool(false));
+                data.insert("desktopRunning", JsonValue::Bool(false));
                 data.insert("configured", JsonValue::Bool(self.vault.is_configured()));
                 data.insert("version", JsonValue::String("0.1.0".to_string()));
-                data.insert(
-                    "bridgeListening",
-                    JsonValue::Bool(self.bridge.is_listening()),
-                );
-                data.insert("paired", JsonValue::Bool(is_paired));
+                data.insert("bridgeListening", JsonValue::Bool(false));
+                data.insert("paired", JsonValue::Bool(true));
+                data.insert("biometricAvailable", JsonValue::Bool(false));
                 Self::ok_envelope(request_id, "vault_status", data)
+            }
+            "unlock_vault" | "unlock_vault_biometric" => {
+                // Tự động khởi chạy Desktop App ngầm khi người dùng thực hiện mở khóa
+                if launch_desktop_app() {
+                    for _ in 0..10 {
+                        std::thread::sleep(Duration::from_millis(150));
+                        if let Some(forwarded) = try_forward_to_desktop_socket(request_json) {
+                            return forwarded;
+                        }
+                    }
+                }
+                Self::error_envelope(
+                    request_id,
+                    "DESKTOP_NOT_RUNNING",
+                    "Ứng dụng Desktop chưa khởi động. Vui lòng mở ứng dụng Secure Vault Manager trên máy tính.",
+                )
+            }
+            "lock_vault" => {
+                self.vault.lock();
+                let mut data = JsonValue::new_object();
+                data.insert("unlocked", JsonValue::Bool(false));
+                Self::ok_envelope(request_id, "vault_locked", data)
             }
             "launch_desktop" => {
                 let launched = launch_desktop_app();
@@ -520,11 +598,11 @@ mod tests {
         assert!(creds_resp.contains(r#""ok":false"#));
         assert!(creds_resp.contains(r#""NOT_PAIRED""#));
 
-        // Mở khóa kho
-        let _ = router.vault.unlock_biometric();
+        // Khi Desktop App chưa chạy (không có socket), get_vault_status luôn phản hồi unlocked: false
         let unlocked_status =
             router.handle_message(r#"{"requestId":"r1b","action":"get_vault_status"}"#);
-        assert!(unlocked_status.contains(r#""unlocked":true"#));
+        assert!(unlocked_status.contains(r#""unlocked":false"#));
+        assert!(unlocked_status.contains(r#""desktopRunning":false"#));
 
         let passkey_resp = router.handle_message(
             r#"{"requestId":"r3","action":"passkey_create","payload":{"rpId":"github.com","userName":"octocat","challenge":"abc123"}}"#,

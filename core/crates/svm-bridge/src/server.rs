@@ -212,7 +212,40 @@ impl BridgeServer {
         }
     }
 
-    /// Sinh mã PIN ghép nối 6 chữ số ngẫu nhiên có hiệu lực trong 60 giây.
+    /// Ghi nhận hoặc cập nhật phiên trình duyệt đang hoạt động (Active Session).
+    pub fn record_active_session(&mut self, browser: &str, version: &str) -> PairedClient {
+        let b = if browser.trim().is_empty() {
+            "WebExtension"
+        } else {
+            browser.trim()
+        };
+        let v = if version.trim().is_empty() {
+            "v1.0.0"
+        } else {
+            version.trim()
+        };
+
+        if let Some(client) = self.clients.iter_mut().find(|c| c.browser == b) {
+            client.version = v.to_string();
+            client.last_used = "Vừa mới xong".to_string();
+            let updated = client.clone();
+            self.save_clients();
+            return updated;
+        }
+
+        let client = PairedClient {
+            id: format!("ext-{}", generate_uuid_v4()),
+            browser: b.to_string(),
+            version: v.to_string(),
+            last_used: "Vừa mới xong".to_string(),
+            session_token: format!("svm-sess-{}", generate_uuid_v4()),
+        };
+        self.clients.push(client.clone());
+        self.save_clients();
+        client
+    }
+
+    /// Sinh mã PIN ghép nối 6 chữ số ngẫu nhiên có hiệu lực trong 60 giây (tương thích ngược).
     pub fn begin_pairing(&mut self) -> String {
         let mut rnd = [0u8; 4];
         random_bytes(&mut rnd);

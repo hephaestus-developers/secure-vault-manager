@@ -9,7 +9,6 @@
 #include "app/settings_manager.h"
 #include "components/notification_dialog.h"
 #include "core/core_bridge.h"
-#include "views/settings/pairing_dialog.h"
 
 #include <QHBoxLayout>
 #include <QJsonArray>
@@ -53,21 +52,10 @@ void TabBrowser::setupUI() {
   });
   m_enableRow = new SettingRowWidget(
       tr("Bật Tích hợp Trình duyệt"),
-      tr("Cho phép tiện ích trình duyệt Secure Vault Manager đã xác thực "
-         "tự động điền mật khẩu qua Native Messaging."),
+      tr("Cho phép tiện ích trình duyệt Secure Vault Manager tự động phản "
+         "chiếu trạng thái và điền mật khẩu qua Native Messaging."),
       m_enableCheck, m_bridgeCard);
   m_bridgeCard->addRow(m_enableRow);
-
-  // Nút Ghép nối tiện ích mới
-  m_pairBtn = new QPushButton(tr("Ghép nối Tiện ích mới..."), m_bridgeCard);
-  m_pairBtn->setFixedHeight(32);
-  m_pairBtn->setCursor(Qt::PointingHandCursor);
-  connect(m_pairBtn, &QPushButton::clicked, this, &TabBrowser::onPairClicked);
-  m_pairRow = new SettingRowWidget(tr("Ghép nối Tiện ích Mở rộng"),
-                                   tr("Sinh mã PIN 6 số an toàn để xác thực và "
-                                      "cấp quyền cho tiện ích trình duyệt."),
-                                   m_pairBtn, m_bridgeCard);
-  m_bridgeCard->addRow(m_pairRow);
 
   // Nút Cài đặt Manifests
   m_manifestBtn = new QPushButton(tr("Cài đặt Manifests..."), m_bridgeCard);
@@ -85,9 +73,9 @@ void TabBrowser::setupUI() {
 
   layout->addWidget(m_bridgeCard);
 
-  // 2. Tiện ích Trình duyệt Đã kết nối (Paired Extensions Card)
+  // 2. Phiên Trình duyệt Đang hoạt động (Active Sessions Card)
   m_pairedCard =
-      new SettingSectionCard(tr("Tiện ích Trình duyệt Đã kết nối"), this);
+      new SettingSectionCard(tr("Các Phiên Trình duyệt Đang hoạt động"), this);
 
   m_pairedListLayout = new QVBoxLayout();
   m_pairedListLayout->setContentsMargins(0, 4, 0, 0);
@@ -130,15 +118,15 @@ void TabBrowser::refreshClientsList() {
     emptyLayout->setContentsMargins(24, 20, 24, 20);
     emptyLayout->setSpacing(8);
 
-    auto *titleLbl = new QLabel(tr("Chưa có tiện ích nào kết nối"), emptyCard);
+    auto *titleLbl = new QLabel(tr("Chưa có phiên trình duyệt nào"), emptyCard);
     titleLbl->setObjectName(QStringLiteral("BrowserEmptyTitle"));
     titleLbl->setAlignment(Qt::AlignCenter);
     emptyLayout->addWidget(titleLbl);
 
     auto *descLbl = new QLabel(
-        tr("Cài đặt tiện ích mở rộng Secure Vault Manager trên trình duyệt "
-           "và nhấn \"Ghép nối Tiện ích mới\" để tự động điền mật khẩu an "
-           "toàn."),
+        tr("Cài đặt tiện ích mở rộng Secure Vault Manager trên trình duyệt của "
+           "bạn. Tiện ích sẽ tự động kết nối và đồng bộ trạng thái khi sử "
+           "dụng."),
         emptyCard);
     descLbl->setObjectName(QStringLiteral("BrowserEmptyDesc"));
     descLbl->setAlignment(Qt::AlignCenter);
@@ -199,23 +187,6 @@ void TabBrowser::refreshClientsList() {
   }
 }
 
-void TabBrowser::onPairClicked() {
-  if (PairingDialog::isPairingDialogOpen()) {
-    return;
-  }
-
-  // Gọi Core để bắt đầu ghép nối và sinh mã PIN.
-  // CoreBridge sẽ tự động phát sự kiện bridgePairingRequestedEvent,
-  // từ đó MainWindow sẽ hiển thị duy nhất 1 PairingDialog tập trung.
-  const QString rawJson = core::CoreBridge::instance().beginBridgePairing();
-  if (rawJson.isEmpty()) {
-    components::NotificationDialog::warning(
-        this, tr("Lỗi Ghép nối"),
-        tr("Không thể khởi tạo mã PIN ghép nối. Vui lòng kiểm tra lại cầu "
-           "nối."));
-  }
-}
-
 void TabBrowser::onInstallManifestsClicked() {
   const bool ok = core::CoreBridge::instance().installNativeHostManifests();
   if (ok) {
@@ -238,16 +209,8 @@ void TabBrowser::retranslateUi() {
   if (m_enableRow) {
     m_enableRow->updateText(
         tr("Bật Tích hợp Trình duyệt"),
-        tr("Cho phép tiện ích trình duyệt Secure Vault Manager đã xác thực "
-           "tự động điền mật khẩu qua Native Messaging."));
-  }
-  if (m_pairBtn) {
-    m_pairBtn->setText(tr("Ghép nối Tiện ích mới..."));
-  }
-  if (m_pairRow) {
-    m_pairRow->updateText(tr("Ghép nối Tiện ích Mở rộng"),
-                          tr("Sinh mã PIN 6 số an toàn để xác thực và cấp "
-                             "quyền cho tiện ích trình duyệt."));
+        tr("Cho phép tiện ích trình duyệt Secure Vault Manager tự động phản "
+           "chiếu trạng thái và điền mật khẩu qua Native Messaging."));
   }
   if (m_manifestBtn) {
     m_manifestBtn->setText(tr("Cài đặt Manifests..."));
@@ -259,7 +222,7 @@ void TabBrowser::retranslateUi() {
                                  "(Chrome, Firefox, Brave, Edge, Chromium)."));
   }
   if (m_pairedCard) {
-    m_pairedCard->setTitle(tr("Tiện ích Trình duyệt Đã kết nối"));
+    m_pairedCard->setTitle(tr("Các Phiên Trình duyệt Đang hoạt động"));
   }
   refreshClientsList();
 }

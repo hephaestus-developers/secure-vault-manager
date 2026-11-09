@@ -7,9 +7,10 @@ export interface HeaderBarProps {
   theme: "dark" | "light";
   paired: boolean;
   unlocked: boolean;
+  desktopRunning?: boolean;
   onToggleTheme: () => void;
-  onOpenPairing: () => void;
   onLaunchDesktop: () => void;
+  onLockVault?: () => void;
 }
 
 export function createHeaderBar(props: HeaderBarProps): HTMLElement {
@@ -59,10 +60,10 @@ export function createHeaderBar(props: HeaderBarProps): HTMLElement {
   statusPill.className = "statusPill";
   const dot = document.createElement("span");
   dot.className = "statusDot";
-  if (!props.paired) {
-    dot.style.backgroundColor = "var(--status-warning)";
+  if (props.desktopRunning === false) {
+    dot.style.backgroundColor = "var(--text-muted)";
     statusPill.appendChild(dot);
-    statusPill.appendChild(document.createTextNode("Unpaired"));
+    statusPill.appendChild(document.createTextNode("Offline"));
   } else if (props.unlocked) {
     dot.style.backgroundColor = "var(--status-success)";
     statusPill.appendChild(dot);
@@ -80,6 +81,16 @@ export function createHeaderBar(props: HeaderBarProps): HTMLElement {
   const actions = document.createElement("div");
   actions.className = "headerActions";
 
+  if (props.unlocked && props.onLockVault) {
+    const lockBtn = document.createElement("button");
+    lockBtn.type = "button";
+    lockBtn.className = "iconBtn";
+    lockBtn.title = "Khóa kho mật khẩu (Lock Vault)";
+    lockBtn.appendChild(createLockIconSvg());
+    lockBtn.addEventListener("click", props.onLockVault);
+    actions.appendChild(lockBtn);
+  }
+
   const desktopBtn = document.createElement("button");
   desktopBtn.type = "button";
   desktopBtn.className = "iconBtn";
@@ -94,20 +105,34 @@ export function createHeaderBar(props: HeaderBarProps): HTMLElement {
   themeBtn.appendChild(createThemeIconSvg(props.theme));
   themeBtn.addEventListener("click", props.onToggleTheme);
 
-  const pairBtn = document.createElement("button");
-  pairBtn.type = "button";
-  pairBtn.className = "iconBtn";
-  pairBtn.title = props.paired ? "Desktop Pairing Settings" : "Connect to Desktop App";
-  pairBtn.appendChild(createLinkIconSvg());
-  pairBtn.addEventListener("click", props.onOpenPairing);
-
   actions.appendChild(desktopBtn);
   actions.appendChild(themeBtn);
-  actions.appendChild(pairBtn);
 
   header.appendChild(brand);
   header.appendChild(actions);
   return header;
+}
+
+function createLockIconSvg(): SVGSVGElement {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("width", "14");
+  svg.setAttribute("height", "14");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("fill", "none");
+  svg.setAttribute("stroke", "currentColor");
+  svg.setAttribute("stroke-width", "2");
+  const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+  rect.setAttribute("x", "3");
+  rect.setAttribute("y", "11");
+  rect.setAttribute("width", "18");
+  rect.setAttribute("height", "11");
+  rect.setAttribute("rx", "2");
+  rect.setAttribute("ry", "2");
+  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  path.setAttribute("d", "M7 11V7a5 5 0 0110 0v4");
+  svg.appendChild(rect);
+  svg.appendChild(path);
+  return svg;
 }
 
 function createDesktopIconSvg(): SVGSVGElement {

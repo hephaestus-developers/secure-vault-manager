@@ -70,6 +70,43 @@ export class PairingManager {
     return this.state;
   }
 
+  public async unlockVault(password: string): Promise<boolean> {
+    const req = createBridgeRequest("unlock_vault", {
+      password,
+      browser: "WebExtension",
+      version: "1.0.0",
+    });
+    const resp = await this.transport.dispatch<any>(req);
+    if (resp.ok && resp.payload?.unlocked) {
+      if (resp.payload.clientId && resp.payload.sessionToken) {
+        this.setPaired(resp.payload.clientId, resp.payload.sessionToken);
+      }
+      return true;
+    }
+    return false;
+  }
+
+  public async unlockBiometric(): Promise<boolean> {
+    const req = createBridgeRequest("unlock_vault_biometric", {
+      browser: "WebExtension",
+      version: "1.0.0",
+    });
+    const resp = await this.transport.dispatch<any>(req);
+    if (resp.ok && resp.payload?.unlocked) {
+      if (resp.payload.clientId && resp.payload.sessionToken) {
+        this.setPaired(resp.payload.clientId, resp.payload.sessionToken);
+      }
+      return true;
+    }
+    return false;
+  }
+
+  public async lockVault(): Promise<boolean> {
+    const req = createBridgeRequest("lock_vault");
+    const resp = await this.transport.dispatch<any>(req);
+    return Boolean(resp.ok);
+  }
+
   public async beginPairing(): Promise<PairingChallengePayload> {
     const req = createBridgeRequest("pairing_begin");
     const resp = await this.transport.dispatch<PairingChallengePayload>(req);
