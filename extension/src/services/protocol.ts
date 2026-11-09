@@ -6,7 +6,6 @@
 export type BridgeAction =
   | "ping"
   | "get_vault_status"
-  | "launch_desktop"
   | "unlock_vault"
   | "unlock_vault_biometric"
   | "lock_vault"

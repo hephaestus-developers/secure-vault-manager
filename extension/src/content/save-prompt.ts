@@ -10,6 +10,7 @@ export function showSaveCredentialPrompt(data: {
   username: string;
   password: string;
   websiteUrl: string;
+  isUpdate?: boolean;
 }): void {
   const existing = document.getElementById("svm-save-prompt-host");
   if (existing) {
@@ -105,7 +106,9 @@ export function showSaveCredentialPrompt(data: {
 
   const header = document.createElement("div");
   header.className = "svm-header";
-  header.textContent = "Save Login to Secure Vault?";
+  header.textContent = data.isUpdate
+    ? "Update Password in Secure Vault?"
+    : "Save Login to Secure Vault?";
 
   const subtitle = document.createElement("div");
   subtitle.className = "svm-sub";
@@ -123,8 +126,10 @@ export function showSaveCredentialPrompt(data: {
   const saveBtn = document.createElement("button");
   saveBtn.type = "button";
   saveBtn.className = "svm-save";
-  saveBtn.textContent = "Save Login";
+  saveBtn.textContent = data.isUpdate ? "Update Password" : "Save Login";
   saveBtn.addEventListener("click", async () => {
+    saveBtn.disabled = true;
+    saveBtn.textContent = data.isUpdate ? "Updating..." : "Saving...";
     await sendExtensionBridgeMessage("save_credential", data);
     host.remove();
   });

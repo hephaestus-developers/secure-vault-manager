@@ -260,12 +260,12 @@
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 12px;
-  padding: 24px 18px;
-  margin-top: 12px;
-  border-radius: 12px;
+  gap: 14px;
+  padding: 28px 20px;
+  border-radius: 14px;
   background-color: var(--bg-mantle);
   border: 1px solid var(--border-subtle);
+  box-shadow: var(--card-shadow);
 }
 
 .stateTitle {

@@ -221,10 +221,6 @@ export function renderPopup(): void {
         state.theme = state.theme === "dark" ? "light" : "dark";
         renderPopup();
       },
-      onLaunchDesktop: async () => {
-        await sendExtensionBridgeMessage("launch_desktop", {});
-        showToast("Opening Desktop App...");
-      },
       onLockVault: async () => {
         await sendExtensionBridgeMessage("lock_vault");
         state.unlocked = false;
@@ -271,10 +267,6 @@ export function renderPopup(): void {
             return true;
           }
           return false;
-        },
-        onOpenDesktop: async () => {
-          await sendExtensionBridgeMessage("launch_desktop", {});
-          showToast("Đang mở ứng dụng Desktop...");
         },
         onRefresh: () => {
           void loadInitialData();

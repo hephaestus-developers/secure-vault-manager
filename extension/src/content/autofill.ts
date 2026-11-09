@@ -5,6 +5,31 @@
 
 import { classifyDocumentFields } from "./classifier";
 
+let lastAutofilled: {
+  username: string;
+  password: string;
+  domain: string;
+  timestamp: number;
+} | null = null;
+
+export function recordAutofilledCredentials(username: string, password: string): void {
+  lastAutofilled = {
+    username: username.trim(),
+    password,
+    domain: window.location.hostname.toLowerCase(),
+    timestamp: Date.now(),
+  };
+}
+
+export function isRecentlyAutofilled(username: string, password: string): boolean {
+  if (!lastAutofilled) return false;
+  const sameUser = lastAutofilled.username.toLowerCase() === username.trim().toLowerCase();
+  const samePass = lastAutofilled.password === password;
+  const sameDomain = lastAutofilled.domain === window.location.hostname.toLowerCase();
+  const isRecent = Date.now() - lastAutofilled.timestamp < 1000 * 60 * 5; // Trong vòng 5 phút
+  return sameUser && samePass && sameDomain && isRecent;
+}
+
 /**
  * Đặt giá trị cho một phần tử `<input>` và phát chuỗi sự kiện chuẩn để kích hoạt state của các framework SPA.
  */
@@ -72,6 +97,10 @@ export function autofillCredentialsOnPage(data: {
         filled = true;
       }
     }
+  }
+
+  if (data.username && data.password) {
+    recordAutofilledCredentials(data.username, data.password);
   }
 
   return filled;

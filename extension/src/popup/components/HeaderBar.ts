@@ -9,7 +9,6 @@ export interface HeaderBarProps {
   unlocked: boolean;
   desktopRunning?: boolean;
   onToggleTheme: () => void;
-  onLaunchDesktop: () => void;
   onLockVault?: () => void;
 }
 
@@ -91,13 +90,6 @@ export function createHeaderBar(props: HeaderBarProps): HTMLElement {
     actions.appendChild(lockBtn);
   }
 
-  const desktopBtn = document.createElement("button");
-  desktopBtn.type = "button";
-  desktopBtn.className = "iconBtn";
-  desktopBtn.title = "Open Desktop App";
-  desktopBtn.appendChild(createDesktopIconSvg());
-  desktopBtn.addEventListener("click", props.onLaunchDesktop);
-
   const themeBtn = document.createElement("button");
   themeBtn.type = "button";
   themeBtn.className = "iconBtn";
@@ -105,7 +97,6 @@ export function createHeaderBar(props: HeaderBarProps): HTMLElement {
   themeBtn.appendChild(createThemeIconSvg(props.theme));
   themeBtn.addEventListener("click", props.onToggleTheme);
 
-  actions.appendChild(desktopBtn);
   actions.appendChild(themeBtn);
 
   header.appendChild(brand);
@@ -131,20 +122,6 @@ function createLockIconSvg(): SVGSVGElement {
   const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
   path.setAttribute("d", "M7 11V7a5 5 0 0110 0v4");
   svg.appendChild(rect);
-  svg.appendChild(path);
-  return svg;
-}
-
-function createDesktopIconSvg(): SVGSVGElement {
-  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  svg.setAttribute("width", "14");
-  svg.setAttribute("height", "14");
-  svg.setAttribute("viewBox", "0 0 24 24");
-  svg.setAttribute("fill", "none");
-  svg.setAttribute("stroke", "currentColor");
-  svg.setAttribute("stroke-width", "2");
-  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  path.setAttribute("d", "M4 5h16a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1V6a1 1 0 011-1zm4 15h8m-4-3v3");
   svg.appendChild(path);
   return svg;
 }

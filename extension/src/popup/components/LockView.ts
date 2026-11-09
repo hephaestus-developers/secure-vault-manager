@@ -8,27 +8,27 @@ export interface LockViewProps {
   biometricAvailable: boolean;
   onUnlockPassword: (password: string) => Promise<boolean>;
   onUnlockBiometric: () => Promise<boolean>;
-  onOpenDesktop: () => void;
   onRefresh?: () => void;
 }
 
 export function createLockView(props: LockViewProps): HTMLElement {
   const wrap = document.createElement("div");
   wrap.className = "stateCard";
-  wrap.style.cssText = "padding: 32px 18px; gap: 16px;";
+  wrap.style.cssText =
+    "flex: 1; margin: 0; padding: 32px 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;";
 
   const isDesktopOffline = props.desktopRunning === false;
 
   // ==========================================
   // TRƯỜNG HỢP 1: DESKTOP APP ĐANG TẮT (OFFLINE)
-  // Không hiển thị ô mật khẩu, chỉ hiển thị nút Khởi chạy ứng dụng Desktop ở giữa.
+  // Không hiển thị ô mật khẩu, hiển thị nút Kiểm tra lại kết nối ở giữa.
   // ==========================================
   if (isDesktopOffline) {
     const iconWrap = document.createElement("div");
     iconWrap.style.cssText =
-      "width: 52px; height: 52px; border-radius: 50%; background-color: var(--bg-surface0); display: flex; align-items: center; justify-content: center; color: var(--accent-primary); margin-bottom: 2px;";
+      "width: 60px; height: 60px; border-radius: 50%; background-color: var(--bg-surface0); display: flex; align-items: center; justify-content: center; color: var(--accent-primary); border: 1px solid var(--border-subtle); margin-bottom: 4px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);";
     iconWrap.innerHTML = `
-      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
         <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
         <line x1="8" y1="21" x2="16" y2="21"></line>
         <line x1="12" y1="17" x2="12" y2="21"></line>
@@ -37,55 +37,26 @@ export function createLockView(props: LockViewProps): HTMLElement {
 
     const heading = document.createElement("div");
     heading.className = "stateTitle";
-    heading.style.cssText = "font-size: 16px; font-weight: 700;";
+    heading.style.cssText = "font-size: 16px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.2px;";
     heading.textContent = "Ứng dụng Desktop chưa khởi chạy";
 
     const desc = document.createElement("div");
     desc.className = "stateDesc";
-    desc.style.cssText = "max-width: 260px; line-height: 1.5;";
+    desc.style.cssText = "max-width: 270px; line-height: 1.55; font-size: 12.5px; color: var(--text-secondary);";
     desc.textContent =
       "Vui lòng khởi chạy ứng dụng Secure Vault Manager trên máy tính để kết nối và mở khóa kho mật khẩu.";
 
     const actions = document.createElement("div");
     actions.style.cssText =
-      "display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 260px; margin-top: 6px;";
-
-    const launchBtn = document.createElement("button");
-    launchBtn.type = "button";
-    launchBtn.className = "primaryBtn";
-    launchBtn.style.cssText =
-      "height: 38px; font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px;";
-    launchBtn.innerHTML = `
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <polygon points="5 3 19 12 5 21 5 3"></polygon>
-      </svg>
-      <span>Khởi chạy ứng dụng Desktop</span>
-    `;
-    launchBtn.addEventListener("click", () => {
-      launchBtn.disabled = true;
-      launchBtn.innerHTML = `
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 1s linear infinite;">
-          <circle cx="12" cy="12" r="10" stroke-opacity="0.25"></circle>
-          <path d="M12 2a10 10 0 0 1 10 10"></path>
-        </svg>
-        <span>Đang khởi chạy...</span>
-      `;
-      props.onOpenDesktop();
-
-      // Tự động kiểm tra lại trạng thái sau 1.5s và 3s
-      if (props.onRefresh) {
-        setTimeout(props.onRefresh, 1500);
-        setTimeout(props.onRefresh, 3200);
-      }
-    });
+      "display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; max-width: 260px; margin-top: 4px;";
 
     const refreshBtn = document.createElement("button");
     refreshBtn.type = "button";
-    refreshBtn.className = "iconBtn";
+    refreshBtn.className = "primaryBtn";
     refreshBtn.style.cssText =
-      "width: 100%; height: 32px; font-size: 12px; justify-content: center; gap: 6px;";
+      "width: 100%; height: 40px; font-size: 13px; font-weight: 700; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;";
     refreshBtn.innerHTML = `
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M23 4v6h-6"></path>
         <path d="M1 20v-6h6"></path>
         <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
@@ -93,13 +64,30 @@ export function createLockView(props: LockViewProps): HTMLElement {
       <span>Kiểm tra lại kết nối</span>
     `;
     refreshBtn.addEventListener("click", () => {
+      refreshBtn.disabled = true;
+      const originalHtml = refreshBtn.innerHTML;
+      refreshBtn.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 0.8s linear infinite;">
+          <circle cx="12" cy="12" r="10" stroke-opacity="0.25"></circle>
+          <path d="M12 2a10 10 0 0 1 10 10"></path>
+        </svg>
+        <span>Đang kiểm tra kết nối...</span>
+      `;
       if (props.onRefresh) {
         props.onRefresh();
       }
+      setTimeout(() => {
+        refreshBtn.disabled = false;
+        refreshBtn.innerHTML = originalHtml;
+      }, 900);
     });
 
-    actions.appendChild(launchBtn);
+    const hint = document.createElement("div");
+    hint.style.cssText = "font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 2px;";
+    hint.textContent = "Tiện ích sẽ tự động đồng bộ khi ứng dụng khởi động";
+
     actions.appendChild(refreshBtn);
+    actions.appendChild(hint);
 
     wrap.appendChild(iconWrap);
     wrap.appendChild(heading);
@@ -114,9 +102,9 @@ export function createLockView(props: LockViewProps): HTMLElement {
   // ==========================================
   const iconWrap = document.createElement("div");
   iconWrap.style.cssText =
-    "width: 48px; height: 48px; border-radius: 50%; background-color: var(--bg-surface0); display: flex; align-items: center; justify-content: center; color: var(--accent-primary); margin-bottom: 2px;";
+    "width: 56px; height: 56px; border-radius: 50%; background-color: var(--bg-surface0); display: flex; align-items: center; justify-content: center; color: var(--accent-primary); border: 1px solid var(--border-subtle); margin-bottom: 2px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);";
   iconWrap.innerHTML = `
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
       <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
     </svg>
@@ -124,24 +112,26 @@ export function createLockView(props: LockViewProps): HTMLElement {
 
   const heading = document.createElement("div");
   heading.className = "stateTitle";
+  heading.style.cssText = "font-size: 16px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.2px;";
   heading.textContent = "Kho mật khẩu đang khóa";
 
   const desc = document.createElement("div");
   desc.className = "stateDesc";
+  desc.style.cssText = "max-width: 270px; line-height: 1.55; font-size: 12.5px; color: var(--text-secondary);";
   desc.textContent =
     "Nhập Mật khẩu chính để mở khóa đồng thời cả tiện ích và ứng dụng Secure Vault Manager.";
 
   // Khung nhập Password
   const inputContainer = document.createElement("div");
   inputContainer.style.cssText =
-    "position: relative; width: 100%; max-width: 280px; display: flex; align-items: center;";
+    "position: relative; width: 100%; max-width: 270px; display: flex; align-items: center;";
 
   const input = document.createElement("input");
   input.type = "password";
   input.className = "searchInput";
   input.placeholder = "Nhập Mật khẩu chính...";
   input.style.cssText =
-    "width: 100%; padding-right: 36px; padding-left: 12px; height: 36px; font-size: 13px;";
+    "width: 100%; padding-right: 36px; padding-left: 12px; height: 38px; font-size: 13px; border-radius: 8px;";
   input.autocomplete = "current-password";
 
   // Nút Show/Hide password
@@ -176,12 +166,12 @@ export function createLockView(props: LockViewProps): HTMLElement {
   // Nút Thao tác
   const actions = document.createElement("div");
   actions.style.cssText =
-    "display: flex; flex-direction: column; gap: 8px; width: 100%; max-width: 280px; margin-top: 4px;";
+    "display: flex; flex-direction: column; gap: 8px; width: 100%; max-width: 270px; margin-top: 4px;";
 
   const unlockBtn = document.createElement("button");
   unlockBtn.type = "button";
   unlockBtn.className = "primaryBtn";
-  unlockBtn.style.cssText = "height: 36px; font-size: 13px; font-weight: 700;";
+  unlockBtn.style.cssText = "height: 38px; font-size: 13px; font-weight: 700; border-radius: 8px; cursor: pointer;";
   unlockBtn.textContent = "Mở khóa";
 
   const handleUnlock = async () => {
@@ -223,7 +213,7 @@ export function createLockView(props: LockViewProps): HTMLElement {
     bioBtn.type = "button";
     bioBtn.className = "iconBtn";
     bioBtn.style.cssText =
-      "width: 100%; height: 34px; padding: 0 12px; gap: 8px; justify-content: center; font-size: 12px; font-weight: 600;";
+      "width: 100%; height: 36px; padding: 0 12px; gap: 8px; justify-content: center; font-size: 12px; font-weight: 600; border-radius: 8px; cursor: pointer;";
     bioBtn.innerHTML = `
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M12 11c0 2-1 3-2 4s-1 2-1 4"></path>
@@ -246,25 +236,12 @@ export function createLockView(props: LockViewProps): HTMLElement {
     actions.appendChild(bioBtn);
   }
 
-  // Nút mở ứng dụng Desktop
-  const desktopRow = document.createElement("div");
-  desktopRow.style.cssText =
-    "display: flex; justify-content: center; width: 100%; margin-top: 6px;";
-  const desktopLink = document.createElement("button");
-  desktopLink.type = "button";
-  desktopLink.style.cssText =
-    "background: none; border: none; color: var(--text-muted); font-size: 11.5px; cursor: pointer; text-decoration: underline;";
-  desktopLink.textContent = "Mở ứng dụng Desktop Secure Vault Manager";
-  desktopLink.addEventListener("click", props.onOpenDesktop);
-  desktopRow.appendChild(desktopLink);
-
   wrap.appendChild(iconWrap);
   wrap.appendChild(heading);
   wrap.appendChild(desc);
   wrap.appendChild(inputContainer);
   wrap.appendChild(errorLabel);
   wrap.appendChild(actions);
-  wrap.appendChild(desktopRow);
 
   setTimeout(() => input.focus(), 80);
 
