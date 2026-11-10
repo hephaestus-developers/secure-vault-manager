@@ -13,6 +13,7 @@
 #include "app/theme_manager.h"
 #include "app/tray_manager.h"
 #include "app/vault_manager.h"
+#include "components/confirm_delete_dialog.h"
 #include "components/dialog_drag_helper.h"
 #include "components/unified_header_bar.h"
 #include "components/window_resize_handler.h"
@@ -378,17 +379,23 @@ void MainWindow::onItemSaved(const models::UiVaultItem &item) {
 }
 
 void MainWindow::onItemTrashRequested(const QString &itemId) {
+  const auto opt = m_itemListView->sourceModel()->findItemById(itemId);
+  if (!opt.has_value()) {
+    return;
+  }
+
+  if (!components::ConfirmDeleteDialog::confirm(this, opt.value(), false)) {
+    return;
+  }
+
   auto &bridge = core::CoreBridge::instance();
   if (bridge.isInitialized() && bridge.isVaultUnlocked()) {
     bridge.trashItem(itemId);
   }
-  const auto opt = m_itemListView->sourceModel()->findItemById(itemId);
-  if (opt.has_value()) {
-    models::UiVaultItem updated = opt.value();
-    updated.isDeleted = true;
-    updated.updatedAt = QDateTime::currentDateTime();
-    m_itemListView->upsertItem(updated);
-  }
+  models::UiVaultItem updated = opt.value();
+  updated.isDeleted = true;
+  updated.updatedAt = QDateTime::currentDateTime();
+  m_itemListView->upsertItem(updated);
   m_detailView->clearItem();
   updateSidebarCounts();
 }
@@ -410,6 +417,15 @@ void MainWindow::onItemRestoreRequested(const QString &itemId) {
 }
 
 void MainWindow::onItemPurgeRequested(const QString &itemId) {
+  const auto opt = m_itemListView->sourceModel()->findItemById(itemId);
+  if (!opt.has_value()) {
+    return;
+  }
+
+  if (!components::ConfirmDeleteDialog::confirm(this, opt.value(), true)) {
+    return;
+  }
+
   auto &bridge = core::CoreBridge::instance();
   if (bridge.isInitialized() && bridge.isVaultUnlocked()) {
     bridge.purgeItem(itemId);
@@ -548,6 +564,7 @@ void MainWindow::updateNavigationState() {
     m_inactivityTimer.stop();
     if (m_itemListView) {
       m_itemListView->clearSelection();
+      m_itemListView->setItems({});
     }
     if (m_detailView) {
       m_detailView->clearItem();

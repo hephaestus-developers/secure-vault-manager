@@ -58,7 +58,7 @@ void NotificationDialog::setupUI() {
 
   m_headerIconLabel = new QLabel(m_headerWidget);
   m_headerIconLabel->setPixmap(
-      QIcon(QStringLiteral(":/icons/app_logo.svg")).pixmap(16, 16));
+      QIcon(QStringLiteral(":/icons/brand/app_logo.svg")).pixmap(16, 16));
   headerLayout->addWidget(m_headerIconLabel);
 
   m_titleLabel = new QLabel(m_headerWidget);

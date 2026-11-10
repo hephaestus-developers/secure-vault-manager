@@ -1,4 +1,4 @@
-//! Máy chủ cầu nối trình duyệt (`BridgeServer`): điều phối Pairing PIN 6 số, quản lý client,
+//! Máy chủ cầu nối trình duyệt (`BridgeServer`): quản lý phiên kết nối trình duyệt,
 //! lắng nghe kết nối IPC socket cục bộ và cài đặt Native Messaging Host manifest.
 
 use std::fs;
@@ -6,12 +6,12 @@ use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 #[cfg(unix)]
 use std::os::unix::net::{UnixListener, UnixStream};
 
-use svm_crypto::{generate_uuid_v4, random_bytes};
+use svm_crypto::generate_uuid_v4;
 use svm_domain::{DomainError, JsonValue};
 use svm_ipc::IpcEndpoint;
 
@@ -85,7 +85,7 @@ pub struct BridgeServer {
     listening: bool,
     data_dir: String,
     clients: Vec<PairedClient>,
-    pairing_pin: Option<(String, Instant)>,
+    bound_socket_path: Option<PathBuf>,
     shutdown_signal: Arc<AtomicBool>,
     listener_thread: Option<std::thread::JoinHandle<()>>,
 }
@@ -98,7 +98,7 @@ impl BridgeServer {
             listening: false,
             data_dir: dir,
             clients: Vec::new(),
-            pairing_pin: None,
+            bound_socket_path: None,
             shutdown_signal: Arc::new(AtomicBool::new(false)),
             listener_thread: None,
         };
@@ -168,6 +168,7 @@ impl BridgeServer {
             }
 
             if let (Some(listener), Some(socket_path)) = (bound_listener, bound_path) {
+                self.bound_socket_path = Some(socket_path.clone());
                 let handle = std::thread::spawn(move || {
                     while !shutdown.load(Ordering::SeqCst) {
                         match listener.accept() {
@@ -189,6 +190,8 @@ impl BridgeServer {
                     let _ = fs::remove_file(&socket_path);
                 });
                 self.listener_thread = Some(handle);
+            } else {
+                self.listening = false;
             }
         }
     }
@@ -205,9 +208,10 @@ impl BridgeServer {
         }
         #[cfg(unix)]
         {
-            let socket_path = resolve_socket_path();
-            if socket_path.exists() {
-                let _ = fs::remove_file(&socket_path);
+            if let Some(socket_path) = self.bound_socket_path.take() {
+                if socket_path.exists() {
+                    let _ = fs::remove_file(&socket_path);
+                }
             }
         }
     }
@@ -244,74 +248,6 @@ impl BridgeServer {
         self.clients.push(client.clone());
         self.save_clients();
         (client, true)
-    }
-
-    /// Sinh mã PIN ghép nối 6 chữ số ngẫu nhiên có hiệu lực trong 60 giây (tương thích ngược).
-    pub fn begin_pairing(&mut self) -> String {
-        let mut rnd = [0u8; 4];
-        random_bytes(&mut rnd);
-        let num = u32::from_le_bytes(rnd) % 900_000 + 100_000;
-        let code = format!("{num:06}");
-        self.pairing_pin = Some((code.clone(), Instant::now()));
-
-        let mut obj = JsonValue::new_object();
-        obj.insert("pairing_code", JsonValue::String(code));
-        obj.insert("expires_in_secs", JsonValue::Number(60.0));
-        obj.to_json_string()
-    }
-
-    /// Lấy mã PIN ghép nối đang hoạt động (nếu có và còn hạn).
-    pub fn current_pairing_pin(&self) -> Option<String> {
-        if let Some((ref code, created_at)) = self.pairing_pin {
-            if created_at.elapsed() <= Duration::from_secs(60) {
-                return Some(code.clone());
-            }
-        }
-        None
-    }
-
-    /// Xác nhận mã PIN ghép nối từ Extension và cấp phát `PairedClient`.
-    pub fn confirm_pairing(
-        &mut self,
-        code: &str,
-        browser: &str,
-        version: &str,
-    ) -> Result<PairedClient, DomainError> {
-        let Some((ref valid_pin, created_at)) = self.pairing_pin else {
-            return Err(DomainError::InvalidArg(
-                "Không có mã PIN ghép nối nào đang chờ".to_string(),
-            ));
-        };
-        if created_at.elapsed() > Duration::from_secs(60) {
-            self.pairing_pin = None;
-            return Err(DomainError::InvalidArg(
-                "Mã PIN ghép nối đã hết hạn (quá 60 giây)".to_string(),
-            ));
-        }
-        if valid_pin != code.trim() {
-            return Err(DomainError::InvalidArg(
-                "Mã PIN ghép nối không chính xác".to_string(),
-            ));
-        }
-        self.pairing_pin = None;
-        let client = PairedClient {
-            id: format!("ext-{}", generate_uuid_v4()),
-            browser: if browser.is_empty() {
-                "WebExtension".to_string()
-            } else {
-                browser.to_string()
-            },
-            version: if version.is_empty() {
-                "v1.0.0".to_string()
-            } else {
-                version.to_string()
-            },
-            last_used: "Vừa mới xong".to_string(),
-            session_token: format!("svm-sess-{}", generate_uuid_v4()),
-        };
-        self.clients.push(client.clone());
-        self.save_clients();
-        Ok(client)
     }
 
     /// Đường dẫn tệp lưu trữ danh sách client `bridge_clients.json`.
@@ -374,31 +310,9 @@ impl BridgeServer {
         self.save_clients();
     }
 
-    /// Kiểm tra xem đã có bất kỳ tiện ích mở rộng (client) nào được ghép nối hợp lệ hay chưa.
-    pub fn has_paired_clients(&self) -> bool {
-        !self.clients.is_empty()
-    }
-
-    /// Trả về tham chiếu danh sách clients đã ghép nối.
+    /// Trả về tham chiếu danh sách các trình duyệt đã kết nối.
     pub fn clients(&self) -> &[PairedClient] {
         &self.clients
-    }
-
-    /// Xác thực xem một client có tồn tại và token phiên có hợp lệ hay không.
-    pub fn is_client_authorized(&self, session_token: &str, client_id: &str) -> bool {
-        if self.clients.is_empty() {
-            return false;
-        }
-        if !session_token.is_empty() {
-            return self
-                .clients
-                .iter()
-                .any(|c| c.session_token == session_token);
-        }
-        if !client_id.is_empty() {
-            return self.clients.iter().any(|c| c.id == client_id);
-        }
-        true
     }
 
     /// Tự động dò tìm các ID extension Secure Vault Manager đã được cài đặt vào trình duyệt.
@@ -567,6 +481,12 @@ impl BridgeServer {
 impl Default for BridgeServer {
     fn default() -> Self {
         Self::with_default_dir()
+    }
+}
+
+impl Drop for BridgeServer {
+    fn drop(&mut self) {
+        self.stop();
     }
 }
 

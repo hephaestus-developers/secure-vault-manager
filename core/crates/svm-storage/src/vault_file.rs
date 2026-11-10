@@ -9,7 +9,7 @@ use svm_crypto::{
 };
 use svm_domain::{DomainError, JsonValue};
 
-use crate::atomic::{atomic_write_file, resolve_default_data_dir};
+use crate::atomic::{atomic_write_file, ensure_secure_dir, resolve_default_data_dir};
 use crate::header::{
     VaultHeader, AAD_ATTACHMENT, AAD_BIOMETRIC, AAD_MASTER_DEK, AAD_PAYLOAD, AAD_RECOVERY_DEK,
     HEADER_LEN, VAULT_MAGIC, VAULT_VERSION,
@@ -46,9 +46,21 @@ impl VaultStorage {
 
     fn ensure_dirs(&self) -> Result<(), DomainError> {
         let base = Path::new(&self.base_path);
-        fs::create_dir_all(base).map_err(|e| DomainError::Io(e.to_string()))?;
-        fs::create_dir_all(base.join("attachments")).map_err(|e| DomainError::Io(e.to_string()))?;
+        ensure_secure_dir(base)?;
+        ensure_secure_dir(&base.join("attachments"))?;
         Ok(())
+    }
+
+    fn derive_biometric_wrapping_key(&self) -> [u8; 32] {
+        let machine_id = fs::read_to_string("/etc/machine-id")
+            .unwrap_or_default()
+            .trim()
+            .to_string();
+        let user = std::env::var("USER")
+            .or_else(|_| std::env::var("USERNAME"))
+            .unwrap_or_default();
+        let material = format!("svm-bio-v2::{}::{}::{}", machine_id, user, self.base_path);
+        sha256(material.as_bytes())
     }
 
     /// Đường dẫn tới tệp nhị phân kho mã hóa `vault.svm`.
@@ -180,7 +192,7 @@ impl VaultStorage {
     ) -> Result<(VaultHeader, [u8; 32], String), DomainError> {
         let (header, payload_nonce, encrypted_payload) = self.read_raw_envelope()?;
         let mut master_kek = derive_kek(password, &header.master_salt);
-        let dek_vec = chacha20_poly1305_decrypt(
+        let mut dek_vec = chacha20_poly1305_decrypt(
             &master_kek,
             &header.master_nonce,
             AAD_MASTER_DEK,
@@ -191,6 +203,7 @@ impl VaultStorage {
 
         let mut dek = [0u8; 32];
         dek.copy_from_slice(&dek_vec[..32]);
+        zeroize_slice(&mut dek_vec);
 
         let plain_bytes =
             chacha20_poly1305_decrypt(&dek, &payload_nonce, AAD_PAYLOAD, &encrypted_payload)?;
@@ -215,7 +228,7 @@ impl VaultStorage {
         );
         zeroize_slice(&mut recovery_kek);
 
-        let dek_vec = match dek_res {
+        let mut dek_vec = match dek_res {
             Ok(v) => v,
             Err(_) => {
                 let raw_norm = recovery_key.trim().to_uppercase();
@@ -237,6 +250,7 @@ impl VaultStorage {
 
         let mut dek = [0u8; 32];
         dek.copy_from_slice(&dek_vec[..32]);
+        zeroize_slice(&mut dek_vec);
 
         let plain_bytes =
             chacha20_poly1305_decrypt(&dek, &payload_nonce, AAD_PAYLOAD, &encrypted_payload)?;
@@ -248,10 +262,11 @@ impl VaultStorage {
     /// Lưu khóa bọc sinh trắc học vào `biometric.env`.
     pub fn save_biometric_envelope(&self, dek: &[u8; 32]) -> Result<(), DomainError> {
         self.ensure_dirs()?;
-        let bio_key = sha256(format!("svm-bio-keystore::{}", self.base_path).as_bytes());
+        let mut bio_key = self.derive_biometric_wrapping_key();
         let mut nonce = [0u8; 12];
         random_bytes(&mut nonce);
         let wrapped = chacha20_poly1305_encrypt(&bio_key, &nonce, AAD_BIOMETRIC, dek);
+        zeroize_slice(&mut bio_key);
         let mut out = Vec::with_capacity(4 + 12 + wrapped.len());
         out.extend_from_slice(b"SVMB");
         out.extend_from_slice(&nonce);
@@ -280,11 +295,14 @@ impl VaultStorage {
         }
         let mut nonce = [0u8; 12];
         nonce.copy_from_slice(&bio_bytes[4..16]);
-        let bio_key = sha256(format!("svm-bio-keystore::{}", self.base_path).as_bytes());
-        let dek_vec = chacha20_poly1305_decrypt(&bio_key, &nonce, AAD_BIOMETRIC, &bio_bytes[16..])?;
+        let mut bio_key = self.derive_biometric_wrapping_key();
+        let dek_res = chacha20_poly1305_decrypt(&bio_key, &nonce, AAD_BIOMETRIC, &bio_bytes[16..]);
+        zeroize_slice(&mut bio_key);
+        let mut dek_vec = dek_res?;
 
         let mut dek = [0u8; 32];
         dek.copy_from_slice(&dek_vec[..32]);
+        zeroize_slice(&mut dek_vec);
 
         let (header, payload_nonce, encrypted_payload) = self.read_raw_envelope()?;
         let plain_bytes =
@@ -359,7 +377,7 @@ impl VaultStorage {
         def.insert("clipboard_clear_seconds", JsonValue::Number(30.0));
         def.insert("clear_clipboard_on_lock", JsonValue::Bool(true));
         def.insert("lock_on_sleep", JsonValue::Bool(true));
-        def.insert("biometric_enabled", JsonValue::Bool(true));
+        def.insert("biometric_enabled", JsonValue::Bool(false));
         def.insert("browser_bridge_enabled", JsonValue::Bool(true));
         def.insert("ssh_agent_enabled", JsonValue::Bool(false));
         def.insert("ssh_prompt_approval", JsonValue::Bool(true));

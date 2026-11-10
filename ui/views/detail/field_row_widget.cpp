@@ -106,7 +106,7 @@ void FieldRowWidget::setupUI() {
 
     m_revealBtn = new QPushButton(this);
     m_revealBtn->setObjectName(QStringLiteral("FieldRowActionBtn"));
-    m_revealBtn->setIcon(QIcon(QStringLiteral(":/icons/eye.svg")));
+    m_revealBtn->setIcon(QIcon(QStringLiteral(":/icons/actions/eye.svg")));
     m_revealBtn->setIconSize(QSize(16, 16));
     m_revealBtn->setFixedSize(28, 28);
     m_revealBtn->setCursor(Qt::PointingHandCursor);
@@ -120,7 +120,8 @@ void FieldRowWidget::setupUI() {
   if (m_type == FieldType::Url) {
     m_openUrlBtn = new QPushButton(this);
     m_openUrlBtn->setObjectName(QStringLiteral("FieldRowActionBtn"));
-    m_openUrlBtn->setIcon(QIcon(QStringLiteral(":/icons/external_link.svg")));
+    m_openUrlBtn->setIcon(
+        QIcon(QStringLiteral(":/icons/actions/external_link.svg")));
     m_openUrlBtn->setIconSize(QSize(16, 16));
     m_openUrlBtn->setFixedSize(28, 28);
     m_openUrlBtn->setCursor(Qt::PointingHandCursor);
@@ -140,7 +141,7 @@ void FieldRowWidget::setupUI() {
   // 5. Nút Copy
   m_copyBtn = new QPushButton(this);
   m_copyBtn->setObjectName(QStringLiteral("FieldRowActionBtn"));
-  m_copyBtn->setIcon(QIcon(QStringLiteral(":/icons/copy.svg")));
+  m_copyBtn->setIcon(QIcon(QStringLiteral(":/icons/actions/copy.svg")));
   m_copyBtn->setIconSize(QSize(16, 16));
   m_copyBtn->setFixedSize(28, 28);
   m_copyBtn->setCursor(Qt::PointingHandCursor);

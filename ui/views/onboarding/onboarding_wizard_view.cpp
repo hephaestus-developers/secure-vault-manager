@@ -87,7 +87,8 @@ QWidget *OnboardingWizardView::createSidebarPanel() {
   brandRow->setSpacing(12);
 
   auto *logo = new QLabel(sidebar);
-  logo->setPixmap(QIcon(QStringLiteral(":/icons/app_logo.svg")).pixmap(36, 36));
+  logo->setPixmap(
+      QIcon(QStringLiteral(":/icons/brand/app_logo.svg")).pixmap(36, 36));
   brandRow->addWidget(logo);
 
   auto *brandTextLayout = new QVBoxLayout();
@@ -187,7 +188,8 @@ QWidget *OnboardingWizardView::createSidebarPanel() {
 
   m_trustIconLabel = new QLabel(trustCard);
   m_trustIconLabel->setPixmap(
-      QIcon(QStringLiteral(":/icons/shield_check.svg")).pixmap(22, 22));
+      QIcon(QStringLiteral(":/icons/security/shield_check.svg"))
+          .pixmap(22, 22));
   trustLayout->addWidget(m_trustIconLabel);
 
   auto *trustTexts = new QVBoxLayout();
@@ -702,7 +704,7 @@ QWidget *OnboardingWizardView::createStepVaultSetup() {
 
   auto *vIcon = new QLabel(vaultBox);
   vIcon->setPixmap(
-      QIcon(QStringLiteral(":/icons/folder_empty.svg")).pixmap(18, 18));
+      QIcon(QStringLiteral(":/icons/actions/folder_empty.svg")).pixmap(18, 18));
   vaultBoxLayout->addWidget(vIcon);
 
   m_vaultNameEdit = new QLineEdit(vaultBox);
@@ -719,7 +721,8 @@ QWidget *OnboardingWizardView::createStepVaultSetup() {
   bioLayout->setSpacing(12);
 
   auto *bioIcon = new QLabel(bioCard);
-  bioIcon->setPixmap(QIcon(QStringLiteral(":/icons/lock.svg")).pixmap(24, 24));
+  bioIcon->setPixmap(
+      QIcon(QStringLiteral(":/icons/security/lock.svg")).pixmap(24, 24));
   bioLayout->addWidget(bioIcon);
 
   auto *bioTexts = new QVBoxLayout();
@@ -747,7 +750,9 @@ QWidget *OnboardingWizardView::createStepVaultSetup() {
   bioLayout->addLayout(bioTexts, 1);
 
   m_biometricCheck = new QCheckBox(bioCard);
-  m_biometricCheck->setChecked(true);
+  m_biometricCheck->setChecked(false);
+  m_biometricCheck->setEnabled(
+      app::VaultManager::instance().isBiometricAvailable());
   m_biometricCheck->setCursor(Qt::PointingHandCursor);
   bioLayout->addWidget(m_biometricCheck);
   layout->addWidget(bioCard);
@@ -797,9 +802,10 @@ QWidget *OnboardingWizardView::createStepVaultSetup() {
     const QString vName = m_vaultNameEdit->text().trimmed().isEmpty()
                               ? tr("Personal Vault")
                               : m_vaultNameEdit->text().trimmed();
+    const bool bioEnabled = m_biometricCheck && m_biometricCheck->isChecked();
     const bool success =
         app::VaultManager::instance().setupInitialMasterPassword(
-            pwd, m_generatedRecoveryKey, vName);
+            pwd, m_generatedRecoveryKey, vName, bioEnabled);
     if (success) {
       emit onboardingFinished();
     }
@@ -833,8 +839,10 @@ void OnboardingWizardView::updateStepIndicator() {
       item.container->setObjectName(QStringLiteral("OnboardingStepItem"));
       item.badge->setText(QString());
       item.badge->setPixmap(
-          QIcon(isLight ? QStringLiteral(":/icons/checkbox_check_light.svg")
-                        : QStringLiteral(":/icons/checkbox_check_dark.svg"))
+          QIcon(
+              isLight
+                  ? QStringLiteral(":/icons/controls/checkbox_check_light.svg")
+                  : QStringLiteral(":/icons/controls/checkbox_check_dark.svg"))
               .pixmap(12, 12));
       item.badge->setStyleSheet(
           isLight ? QStringLiteral("background-color: #1e1e2e; "

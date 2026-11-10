@@ -54,10 +54,10 @@ export class BridgeTransport {
           ok: true,
           payload: {
             unlocked: false,
-            configured: true,
+            desktopRunning: false,
+            configured: false,
             version: "0.1.0",
             bridgeListening: false,
-            paired: false,
           },
         };
 

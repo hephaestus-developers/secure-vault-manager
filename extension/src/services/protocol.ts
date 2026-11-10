@@ -9,8 +9,6 @@ export type BridgeAction =
   | "unlock_vault"
   | "unlock_vault_biometric"
   | "lock_vault"
-  | "pairing_begin"
-  | "pairing_confirm"
   | "get_credentials"
   | "fill_credential"
   | "save_credential"
@@ -45,7 +43,6 @@ export interface VaultStatusPayload {
   configured: boolean;
   version: string;
   bridgeListening: boolean;
-  paired?: boolean;
   desktopRunning?: boolean;
   biometricAvailable?: boolean;
 }
@@ -58,20 +55,8 @@ export interface UnlockVaultPayload {
 
 export interface UnlockVaultResponsePayload {
   unlocked: boolean;
-  paired?: boolean;
   clientId?: string;
   sessionToken?: string;
-}
-
-export interface PairingChallengePayload {
-  pairing_code: string;
-  expires_in_secs: number;
-}
-
-export interface PairingConfirmedPayload {
-  paired: boolean;
-  clientId: string;
-  sessionToken: string;
 }
 
 export interface CredentialSummary {

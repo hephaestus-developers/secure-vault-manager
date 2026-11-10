@@ -157,6 +157,12 @@ public:
                        const QString &vaultId = QStringLiteral("personal"));
 
   /**
+   * @brief Kiểm tra phần cứng/OS có hỗ trợ xác thực sinh trắc học hoặc OS user
+   * hay không.
+   */
+  [[nodiscard]] bool isBiometricAvailable() const;
+
+  /**
    * @brief Bật mở khóa sinh trắc học cho kho.
    */
   bool enableBiometric(const QString &vaultId, const QString &password);
@@ -277,7 +283,6 @@ public:
 
   bool startBridge();
   bool stopBridge();
-  [[nodiscard]] QString beginBridgePairing();
   [[nodiscard]] QJsonArray listBridgeClients();
   bool revokeBridgeClient(const QString &clientId);
   bool installNativeHostManifests();
@@ -300,7 +305,6 @@ signals:
   void vaultUnlockedEvent();
   void itemsChangedEvent();
   void bridgeClientsChangedEvent();
-  void bridgePairingRequestedEvent(const QString &pairingJson);
 
 private:
   CoreBridge();
@@ -311,6 +315,7 @@ private:
 
   SvmContext *m_context{nullptr};
   bool m_hardened{false};
+  bool m_bridgeStarted{false};
 };
 
 } // namespace svm::core

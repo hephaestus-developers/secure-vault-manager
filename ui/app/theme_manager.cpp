@@ -11,6 +11,7 @@
 #include "app/dev_logger.h"
 #include <QApplication>
 #include <QDebug>
+#include <QDirIterator>
 #include <QElapsedTimer>
 #include <QFile>
 #include <QSettings>
@@ -103,6 +104,14 @@ void ThemeManager::prewarmIcons() {
       QStringLiteral("category_trash"),
       QStringLiteral("sidebar_collapse"),
       QStringLiteral("sidebar_expand"),
+      QStringLiteral("vault_personal"),
+      QStringLiteral("vault_work"),
+      QStringLiteral("vault_home"),
+      QStringLiteral("vault_shield"),
+      QStringLiteral("vault_safe"),
+      QStringLiteral("vault_finance"),
+      QStringLiteral("vault_cloud"),
+      QStringLiteral("vault_team"),
   };
 
   const ThemeMode originalMode = m_currentMode;
@@ -182,18 +191,38 @@ QString ThemeManager::iconPath(const QString &baseName) const {
     return it.value();
   }
 
+  if (m_iconFileIndex.isEmpty()) {
+    QDirIterator dit(QStringLiteral(":/icons"), {QStringLiteral("*.svg")},
+                     QDir::Files, QDirIterator::Subdirectories);
+    while (dit.hasNext()) {
+      const QString fullPath = dit.next();
+      const QString fileName = dit.fileName();
+      if (!m_iconFileIndex.contains(fileName)) {
+        m_iconFileIndex.insert(fileName, fullPath);
+      }
+    }
+  }
+
   const QString suffix = (m_currentMode == ThemeMode::Dark)
                              ? QStringLiteral("_dark.svg")
                              : QStringLiteral("_light.svg");
-  const QString themed = QStringLiteral(":/icons/") + baseName + suffix;
   QString resolved;
-  if (QFile::exists(themed)) {
-    resolved = themed;
+
+  if (baseName.contains(QLatin1Char('/'))) {
+    const QString themed = QStringLiteral(":/icons/") + baseName + suffix;
+    if (QFile::exists(themed)) {
+      resolved = themed;
+    } else {
+      const QString fallback =
+          QStringLiteral(":/icons/") + baseName + QStringLiteral(".svg");
+      if (QFile::exists(fallback)) {
+        resolved = fallback;
+      }
+    }
   } else {
-    const QString fallback =
-        QStringLiteral(":/icons/") + baseName + QStringLiteral(".svg");
-    if (QFile::exists(fallback)) {
-      resolved = fallback;
+    resolved = m_iconFileIndex.value(baseName + suffix);
+    if (resolved.isEmpty()) {
+      resolved = m_iconFileIndex.value(baseName + QStringLiteral(".svg"));
     }
   }
 

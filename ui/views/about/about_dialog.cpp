@@ -58,7 +58,7 @@ void AboutDialog::setupUI() {
 
   auto *logoIconLabel = new QLabel(m_headerWidget);
   logoIconLabel->setPixmap(
-      QIcon(QStringLiteral(":/icons/app_logo.svg")).pixmap(18, 18));
+      QIcon(QStringLiteral(":/icons/brand/app_logo.svg")).pixmap(18, 18));
   headerLayout->addWidget(logoIconLabel);
 
   m_headerTitle = new QLabel(tr("About Secure Vault Manager"), m_headerWidget);
@@ -134,7 +134,7 @@ QWidget *AboutDialog::createInfoTab() {
 
   auto *bigLogo = new QLabel(brandWidget);
   bigLogo->setPixmap(
-      QIcon(QStringLiteral(":/icons/app_logo.svg")).pixmap(52, 52));
+      QIcon(QStringLiteral(":/icons/brand/app_logo.svg")).pixmap(52, 52));
   bigLogo->setFixedSize(56, 56);
   bigLogo->setAlignment(Qt::AlignCenter);
   brandLayout->addWidget(bigLogo);

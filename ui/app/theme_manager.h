@@ -76,6 +76,7 @@ private:
 
   mutable QHash<QString, QIcon> m_iconCache;
   mutable QHash<QString, QString> m_resolvedPathCache;
+  mutable QHash<QString, QString> m_iconFileIndex;
 };
 
 } // namespace svm::app

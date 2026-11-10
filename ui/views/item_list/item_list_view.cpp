@@ -86,8 +86,9 @@ void ItemListView::setupUI() {
   auto updateNewBtnIcon = [this]() {
     const bool isLight =
         (app::ThemeManager::instance().currentMode() == app::ThemeMode::Light);
-    m_newBtn->setIcon(QIcon(isLight ? QStringLiteral(":/icons/plus_light.svg")
-                                    : QStringLiteral(":/icons/plus_dark.svg")));
+    m_newBtn->setIcon(
+        QIcon(isLight ? QStringLiteral(":/icons/actions/plus_light.svg")
+                      : QStringLiteral(":/icons/actions/plus_dark.svg")));
   };
   updateNewBtnIcon();
 

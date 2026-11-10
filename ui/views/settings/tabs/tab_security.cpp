@@ -20,6 +20,7 @@
 #include <QDialog>
 #include <QLabel>
 #include <QLineEdit>
+#include <QSignalBlocker>
 #include <QVBoxLayout>
 
 namespace svm::views {
@@ -132,15 +133,19 @@ void TabSecurity::setupUI() {
   // 3. Biometrics Card
   m_biometricCard = new SettingSectionCard(tr("Biometrics"), this);
 
+  auto &vaultMgr = app::VaultManager::instance();
   m_biometricCheck = new QCheckBox(m_biometricCard);
-  m_biometricCheck->setChecked(settings.biometricEnabled());
-  connect(m_biometricCheck, &QCheckBox::toggled, this, [](bool checked) {
-    app::SettingsManager::instance().setBiometricEnabled(checked);
-    if (checked) {
-      core::CoreBridge::instance().enableBiometric(QStringLiteral("personal"),
-                                                   QString());
-    } else {
-      core::CoreBridge::instance().disableBiometric(QStringLiteral("personal"));
+  const bool bioEnabled = vaultMgr.isBiometricEnabled();
+  m_biometricCheck->setChecked(bioEnabled);
+  m_biometricCheck->setEnabled(bioEnabled || vaultMgr.isBiometricAvailable());
+  connect(m_biometricCheck, &QCheckBox::toggled, this, [this](bool checked) {
+    if (!app::VaultManager::instance().setBiometricEnabled(checked)) {
+      const QSignalBlocker blocker(m_biometricCheck);
+      m_biometricCheck->setChecked(!checked);
+      components::NotificationDialog::warning(
+          this, tr("Biometrics"),
+          tr("Unable to update biometric unlock while the vault is locked or "
+             "OS authentication is unavailable."));
     }
   });
   m_biometricRow =

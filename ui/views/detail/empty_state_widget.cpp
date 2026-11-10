@@ -173,8 +173,8 @@ void EmptyStateWidget::updateThemeIcon() {
   }
   if (m_newItemBtn) {
     m_newItemBtn->setIcon(
-        QIcon(isLight ? QStringLiteral(":/icons/plus_on_dark.svg")
-                      : QStringLiteral(":/icons/plus_on_light.svg")));
+        QIcon(isLight ? QStringLiteral(":/icons/actions/plus_on_dark.svg")
+                      : QStringLiteral(":/icons/actions/plus_on_light.svg")));
   }
 }
 

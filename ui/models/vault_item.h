@@ -64,7 +64,7 @@ inline QString categoryIconName(ItemCategory cat) {
 inline QString categoryIconPath(ItemCategory cat, bool isLight = false) {
   const QString suffix =
       isLight ? QStringLiteral("_light.svg") : QStringLiteral("_dark.svg");
-  return QStringLiteral(":/icons/") + categoryIconName(cat) + suffix;
+  return QStringLiteral(":/icons/categories/") + categoryIconName(cat) + suffix;
 }
 
 /**

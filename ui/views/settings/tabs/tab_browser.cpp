@@ -76,7 +76,8 @@ void TabBrowser::setupUI() {
   hintLayout->setSpacing(10);
 
   auto *hintIcon = new QLabel(m_hintBox);
-  hintIcon->setPixmap(QIcon(QStringLiteral(":/icons/info.svg")).pixmap(18, 18));
+  hintIcon->setPixmap(
+      QIcon(QStringLiteral(":/icons/actions/info.svg")).pixmap(18, 18));
   hintLayout->addWidget(hintIcon);
 
   m_hintLabel = new QLabel(
@@ -162,7 +163,7 @@ void TabBrowser::populateBrowsers() {
       {QStringLiteral("chrome"),
        QStringLiteral("Google Chrome"),
        tr("Trình duyệt Chromium phổ biến • Hỗ trợ mở khóa 2 chiều & Autofill"),
-       QStringLiteral(":/icons/browser_chrome.svg"),
+       QStringLiteral(":/icons/browsers/browser_chrome.svg"),
        {QStringLiteral("google-chrome-stable"),
         QStringLiteral("google-chrome")},
        {QStringLiteral("google-chrome.desktop"),
@@ -174,7 +175,7 @@ void TabBrowser::populateBrowsers() {
       {QStringLiteral("firefox"),
        QStringLiteral("Mozilla Firefox"),
        tr("Bảo mật mã nguồn mở • Tự động điền & Mở khóa đồng thời"),
-       QStringLiteral(":/icons/browser_firefox.svg"),
+       QStringLiteral(":/icons/browsers/browser_firefox.svg"),
        {QStringLiteral("firefox"), QStringLiteral("firefox-esr")},
        {QStringLiteral("firefox.desktop"),
         QStringLiteral("firefox-esr.desktop"),
@@ -186,7 +187,7 @@ void TabBrowser::populateBrowsers() {
       {QStringLiteral("brave"),
        QStringLiteral("Brave Browser"),
        tr("Trình duyệt bảo mật riêng tư • Tương thích hoàn toàn Chromium"),
-       QStringLiteral(":/icons/browser_brave.svg"),
+       QStringLiteral(":/icons/browsers/browser_brave.svg"),
        {QStringLiteral("brave-browser"), QStringLiteral("brave")},
        {QStringLiteral("brave-browser.desktop"),
         QStringLiteral("com.brave.Browser.desktop")},
@@ -197,7 +198,7 @@ void TabBrowser::populateBrowsers() {
       {QStringLiteral("edge"),
        QStringLiteral("Microsoft Edge"),
        tr("Trình duyệt hiện đại đa nền tảng • Tích hợp hệ thống sâu"),
-       QStringLiteral(":/icons/browser_edge.svg"),
+       QStringLiteral(":/icons/browsers/browser_edge.svg"),
        {QStringLiteral("microsoft-edge"),
         QStringLiteral("microsoft-edge-stable")},
        {QStringLiteral("microsoft-edge.desktop"),
@@ -209,7 +210,7 @@ void TabBrowser::populateBrowsers() {
       {QStringLiteral("chromium"),
        QStringLiteral("Chromium"),
        tr("Nền tảng trình duyệt mã nguồn mở tiêu chuẩn"),
-       QStringLiteral(":/icons/browser_chromium.svg"),
+       QStringLiteral(":/icons/browsers/browser_chromium.svg"),
        {QStringLiteral("chromium"), QStringLiteral("chromium-browser")},
        {QStringLiteral("chromium.desktop"),
         QStringLiteral("chromium-browser.desktop"),
@@ -221,7 +222,7 @@ void TabBrowser::populateBrowsers() {
       {QStringLiteral("opera"),
        QStringLiteral("Opera"),
        tr("Trình duyệt web đa tính năng tích hợp AI"),
-       QStringLiteral(":/icons/category_all.svg"),
+       QStringLiteral(":/icons/categories/category_all.svg"),
        {QStringLiteral("opera"), QStringLiteral("opera-stable")},
        {QStringLiteral("opera.desktop"),
         QStringLiteral("com.opera.Opera.desktop")},
@@ -232,7 +233,7 @@ void TabBrowser::populateBrowsers() {
       {QStringLiteral("vivaldi"),
        QStringLiteral("Vivaldi"),
        tr("Trình duyệt tùy biến cao cấp cho người dùng chuyên sâu"),
-       QStringLiteral(":/icons/category_all.svg"),
+       QStringLiteral(":/icons/categories/category_all.svg"),
        {QStringLiteral("vivaldi"), QStringLiteral("vivaldi-stable")},
        {QStringLiteral("vivaldi-stable.desktop"),
         QStringLiteral("com.vivaldi.Vivaldi.desktop")},
@@ -243,7 +244,7 @@ void TabBrowser::populateBrowsers() {
       {QStringLiteral("epiphany"),
        QStringLiteral("GNOME Web (Epiphany)"),
        tr("Trình duyệt mặc định của môi trường desktop GNOME"),
-       QStringLiteral(":/icons/category_all.svg"),
+       QStringLiteral(":/icons/categories/category_all.svg"),
        {QStringLiteral("epiphany"), QStringLiteral("epiphany-browser")},
        {QStringLiteral("org.gnome.Epiphany.desktop")},
        QString(),
@@ -253,7 +254,7 @@ void TabBrowser::populateBrowsers() {
       {QStringLiteral("falkon"),
        QStringLiteral("Falkon"),
        tr("Trình duyệt web nhẹ nền tảng QtWebEngine"),
-       QStringLiteral(":/icons/category_all.svg"),
+       QStringLiteral(":/icons/categories/category_all.svg"),
        {QStringLiteral("falkon")},
        {QStringLiteral("org.kde.falkon.desktop")},
        QString(),
@@ -263,7 +264,7 @@ void TabBrowser::populateBrowsers() {
       {QStringLiteral("tor"),
        QStringLiteral("Tor Browser"),
        tr("Trình duyệt ẩn danh chống theo dõi hành vi"),
-       QStringLiteral(":/icons/category_all.svg"),
+       QStringLiteral(":/icons/categories/category_all.svg"),
        {QStringLiteral("tor-browser"), QStringLiteral("torbrowser-launcher")},
        {QStringLiteral("torbrowser.desktop")},
        QString(),

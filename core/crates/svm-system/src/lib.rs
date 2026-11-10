@@ -6,4 +6,4 @@
 
 pub mod hardening;
 
-pub use hardening::{harden_current_process, is_biometric_available};
+pub use hardening::{authenticate_os_user, harden_current_process, is_biometric_available};

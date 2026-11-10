@@ -5,6 +5,7 @@
 
 export interface LockViewProps {
   desktopRunning?: boolean;
+  configured?: boolean;
   biometricAvailable: boolean;
   onUnlockPassword: (password: string) => Promise<boolean>;
   onUnlockBiometric: () => Promise<boolean>;
@@ -85,6 +86,69 @@ export function createLockView(props: LockViewProps): HTMLElement {
     const hint = document.createElement("div");
     hint.style.cssText = "font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 2px;";
     hint.textContent = "Tiện ích sẽ tự động đồng bộ khi ứng dụng khởi động";
+
+    actions.appendChild(refreshBtn);
+    actions.appendChild(hint);
+
+    wrap.appendChild(iconWrap);
+    wrap.appendChild(heading);
+    wrap.appendChild(desc);
+    wrap.appendChild(actions);
+    return wrap;
+  }
+
+  // ==========================================
+  // TRƯỜNG HỢP 1.5: DESKTOP APP ĐANG Ở MÀN ONBOARDING (CHƯA TẠO KHO)
+  // ==========================================
+  if (props.configured === false) {
+    const iconWrap = document.createElement("div");
+    iconWrap.style.cssText =
+      "width: 60px; height: 60px; border-radius: 50%; background-color: var(--bg-surface0); display: flex; align-items: center; justify-content: center; color: var(--accent-primary); border: 1px solid var(--border-subtle); margin-bottom: 4px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);";
+    iconWrap.innerHTML = `
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+        <path d="M12 8v4"></path>
+        <path d="M12 16h.01"></path>
+      </svg>
+    `;
+
+    const heading = document.createElement("div");
+    heading.className = "stateTitle";
+    heading.style.cssText = "font-size: 16px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.2px;";
+    heading.textContent = "Chưa thiết lập kho mật khẩu";
+
+    const desc = document.createElement("div");
+    desc.className = "stateDesc";
+    desc.style.cssText = "max-width: 270px; line-height: 1.55; font-size: 12.5px; color: var(--text-secondary);";
+    desc.textContent =
+      "Vui lòng hoàn tất tạo Mật khẩu chính trên ứng dụng Secure Vault Manager ở máy tính để bắt đầu sử dụng tiện ích.";
+
+    const actions = document.createElement("div");
+    actions.style.cssText =
+      "display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; max-width: 260px; margin-top: 4px;";
+
+    const refreshBtn = document.createElement("button");
+    refreshBtn.type = "button";
+    refreshBtn.className = "primaryBtn";
+    refreshBtn.style.cssText =
+      "width: 100%; height: 40px; font-size: 13px; font-weight: 700; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;";
+    refreshBtn.innerHTML = `
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M23 4v6h-6"></path>
+        <path d="M1 20v-6h6"></path>
+        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+      </svg>
+      <span>Kiểm tra lại trạng thái</span>
+    `;
+    refreshBtn.addEventListener("click", () => {
+      if (props.onRefresh) {
+        props.onRefresh();
+      }
+    });
+
+    const hint = document.createElement("div");
+    hint.style.cssText = "font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 2px;";
+    hint.textContent = "Tiện ích sẽ tự động cập nhật ngay sau khi bạn tạo kho xong";
 
     actions.appendChild(refreshBtn);
     actions.appendChild(hint);

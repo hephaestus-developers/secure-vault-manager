@@ -38,12 +38,16 @@ pub extern "C" fn svm_core_version() -> *const c_char {
 #[no_mangle]
 pub unsafe extern "C" fn svm_context_new(data_dir: *const c_char) -> *mut SvmContext {
     let dir = c_str_to_string(data_dir);
-    let storage = VaultStorage::new(dir.clone().unwrap_or_default());
+    let effective_dir = dir
+        .clone()
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or_else(svm_storage::resolve_default_data_dir);
+    let storage = VaultStorage::new(effective_dir.clone());
 
     let runtime = CoreRuntime {
         vault_service: VaultService::with_storage(storage),
         ssh_agent: SshAgentServer::new(),
-        bridge: BridgeServer::new(dir.clone().unwrap_or_default()),
+        bridge: BridgeServer::new(effective_dir),
         webauthn: WebAuthnAuthenticator::new(),
         import_previews: Vec::new(),
         pending_prompts: Vec::new(),

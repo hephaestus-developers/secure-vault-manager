@@ -98,9 +98,7 @@ typedef enum {
   SVM_EVENT_SHOW_WINDOW =
       9, /**< Yêu cầu đưa cửa sổ ứng dụng lên trên cùng màn hình. */
   SVM_EVENT_BRIDGE_CLIENTS_CHANGED =
-      10, /**< Danh sách Extension đã ghép nối có sự thay đổi. */
-  SVM_EVENT_BRIDGE_PAIRING_REQUESTED =
-      11 /**< Có yêu cầu ghép nối tiện ích mới từ Extension. */
+      10 /**< Danh sách Extension đã kết nối có sự thay đổi. */
 } SvmEventKind;
 
 /**
@@ -760,16 +758,7 @@ SvmStatus svm_bridge_start(SvmContext *ctx);
 SvmStatus svm_bridge_stop(SvmContext *ctx);
 
 /**
- * @brief Bắt đầu phiên ghép nối với Extension (sinh mã PIN xác nhận 6 số).
- * @param[in] ctx Con trỏ ngữ cảnh ứng dụng.
- * @param[out] out_pairing_json Con trỏ nhận JSON chứa mã 6 số và thời gian hết
- * hạn. Giải phóng bằng @ref svm_free_string.
- * @return Mã trạng thái @ref SvmStatus.
- */
-SvmStatus svm_bridge_pairing_begin(SvmContext *ctx, char **out_pairing_json);
-
-/**
- * @brief Lấy danh sách các Extension và client đã ghép nối thành công.
+ * @brief Lấy danh sách các Extension và client đang kết nối.
  * @param[in] ctx Con trỏ ngữ cảnh ứng dụng.
  * @param[out] out_json Con trỏ nhận JSON danh sách client. Giải phóng bằng @ref
  * svm_free_string.

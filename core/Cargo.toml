@@ -23,3 +23,6 @@ edition = "2021"
 authors = ["Hai Pham Ngoc <ngochai285nd@gmail.com>"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/hephaestus-developers/secure-vault-manager"
+
+[profile.dev.package.svm-crypto]
+opt-level = 3

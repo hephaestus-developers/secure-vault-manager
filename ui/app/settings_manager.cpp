@@ -175,7 +175,7 @@ void SettingsManager::setClearClipboardOnLock(bool enable) {
 }
 
 bool SettingsManager::biometricEnabled() const {
-  return m_settings.value(QStringLiteral("security/biometric_enabled"), true)
+  return m_settings.value(QStringLiteral("security/biometric_enabled"), false)
       .toBool();
 }
 

@@ -7,6 +7,7 @@
 
 #include "vault_manager.h"
 #include "app/dev_logger.h"
+#include "app/settings_manager.h"
 #include "core/core_bridge.h"
 
 #include <QCryptographicHash>
@@ -186,6 +187,7 @@ bool VaultManager::resetAllData() {
   m_biometricEnabled = false;
   m_isConfigured = false;
   m_isLocked = false;
+  SettingsManager::instance().setBiometricEnabled(false);
 
   QSettings settings;
   settings.remove(QStringLiteral("Security"));
@@ -222,7 +224,8 @@ bool VaultManager::setDefaultVault(const QString &vaultId) {
 
 bool VaultManager::setupInitialMasterPassword(const QString &password,
                                               const QString &recoveryKey,
-                                              const QString &initialVaultName) {
+                                              const QString &initialVaultName,
+                                              bool enableBiometric) {
   SVM_ACTION_SCOPE("VaultManager", "setupInitialMasterPassword");
   if (password.trimmed().isEmpty()) {
     return false;
@@ -244,24 +247,30 @@ bool VaultManager::setupInitialMasterPassword(const QString &password,
   defaultVault.name = initialVaultName.trimmed().isEmpty()
                           ? QStringLiteral("Personal Vault")
                           : initialVaultName.trimmed();
-  defaultVault.iconName = QStringLiteral("folder_open");
-  defaultVault.accentColor = QStringLiteral("#64748B");
+  defaultVault.iconName = QStringLiteral("vault_personal");
   defaultVault.description =
       QStringLiteral("Primary personal credentials & logins");
   defaultVault.isDefault = true;
   defaultVault.createdAt = QDateTime::currentDateTime();
   m_vaults.append(defaultVault);
 
+  m_biometricEnabled = false;
   // Khởi tạo kho mã hóa trong Rust Core
   auto &bridge = core::CoreBridge::instance();
   if (bridge.isInitialized()) {
-    bridge.createVault(defaultVault, password, m_recoveryKey, true);
-    bridge.enableBiometric(QStringLiteral("personal"), password);
+    if (!bridge.createVault(defaultVault, password, m_recoveryKey, true)) {
+      return false;
+    }
+    if (enableBiometric && bridge.isBiometricAvailable()) {
+      m_biometricEnabled =
+          bridge.enableBiometric(QStringLiteral("personal"), password);
+    }
     const auto coreVaults = bridge.fetchVaults();
     if (!coreVaults.isEmpty()) {
       m_vaults = coreVaults;
     }
   }
+  SettingsManager::instance().setBiometricEnabled(m_biometricEnabled);
 
   m_isConfigured = true;
   m_isLocked = false;
@@ -308,7 +317,10 @@ bool VaultManager::unlock(const QString &password) {
 
   auto &bridge = core::CoreBridge::instance();
   bool coreUnlocked = false;
+  bool coreConfigured = false;
   if (bridge.isInitialized()) {
+    const auto _coreVaults = bridge.fetchVaults(&coreConfigured);
+    Q_UNUSED(_coreVaults);
     coreUnlocked = bridge.unlockVault(QStringLiteral("personal"), password);
   }
 
@@ -316,21 +328,27 @@ bool VaultManager::unlock(const QString &password) {
       !m_passwordHash.isEmpty() &&
       (hashPassword(password, m_passwordSalt) == m_passwordHash);
 
-  if (coreUnlocked || localMatch) {
-    if (!coreUnlocked && bridge.isInitialized()) {
+  // Nếu Rust Core đã có kho mã hóa thì bắt buộc giải mã Rust Core thành công.
+  const bool canUnlock =
+      coreConfigured ? coreUnlocked : (coreUnlocked || localMatch);
+
+  if (canUnlock) {
+    if (!coreConfigured && !coreUnlocked && bridge.isInitialized()) {
       // Tự động đồng bộ / khởi tạo kho mã hóa Rust Core nếu trước đó chỉ có cấu
       // hình QSettings
       models::UiVault defaultVault;
       defaultVault.id = QStringLiteral("personal");
       defaultVault.name = m_vaults.isEmpty() ? QStringLiteral("Personal Vault")
                                              : m_vaults.first().name;
-      defaultVault.iconName = QStringLiteral("folder_open");
-      defaultVault.accentColor = QStringLiteral("#64748B");
+      defaultVault.iconName = QStringLiteral("vault_personal");
       defaultVault.description =
           QStringLiteral("Primary personal credentials & logins");
       defaultVault.isDefault = true;
-      bridge.createVault(defaultVault, password, m_recoveryKey, true);
-      bridge.enableBiometric(QStringLiteral("personal"), password);
+      if (bridge.createVault(defaultVault, password, m_recoveryKey, true) &&
+          m_biometricEnabled && bridge.isBiometricAvailable()) {
+        m_biometricEnabled =
+            bridge.enableBiometric(QStringLiteral("personal"), password);
+      }
     }
     if (m_passwordHash.isEmpty() || !localMatch) {
       if (m_passwordSalt.isEmpty()) {
@@ -399,16 +417,50 @@ bool VaultManager::unlockWithRecoveryKey(const QString &recoveryKey,
 
 bool VaultManager::unlockWithBiometrics() {
   SVM_ACTION_SCOPE("VaultManager", "unlockWithBiometrics");
-  if (!m_isConfigured) {
+  if (!m_isConfigured || !isBiometricEnabled()) {
     return false;
   }
   auto &bridge = core::CoreBridge::instance();
-  if (bridge.isInitialized()) {
-    bridge.unlockWithBiometrics(QStringLiteral("personal"));
+  if (!bridge.isInitialized()) {
+    return false;
+  }
+  if (!bridge.unlockWithBiometrics(QStringLiteral("personal"))) {
+    return false;
   }
   m_isLocked = false;
   refreshVaultsFromCore();
   emit lockStateChanged(m_isLocked);
+  return true;
+}
+
+bool VaultManager::isBiometricAvailable() const {
+  return core::CoreBridge::instance().isBiometricAvailable();
+}
+
+bool VaultManager::isBiometricEnabled() const {
+  return m_biometricEnabled && isBiometricAvailable();
+}
+
+bool VaultManager::setBiometricEnabled(bool enable) {
+  SVM_ACTION_SCOPE("VaultManager", "setBiometricEnabled");
+  auto &bridge = core::CoreBridge::instance();
+  if (enable) {
+    if (!isBiometricAvailable() || !bridge.isInitialized()) {
+      return false;
+    }
+    if (!bridge.enableBiometric(QStringLiteral("personal"), QString())) {
+      return false;
+    }
+    m_biometricEnabled = true;
+  } else {
+    if (bridge.isInitialized() &&
+        !bridge.disableBiometric(QStringLiteral("personal"))) {
+      return false;
+    }
+    m_biometricEnabled = false;
+  }
+  saveSettings();
+  SettingsManager::instance().setBiometricEnabled(m_biometricEnabled);
   return true;
 }
 
@@ -525,6 +577,9 @@ void VaultManager::loadSettings() {
   m_biometricEnabled =
       settings.value(QStringLiteral("Security/BiometricEnabled"), false)
           .toBool();
+  if (SettingsManager::instance().biometricEnabled() != m_biometricEnabled) {
+    SettingsManager::instance().setBiometricEnabled(m_biometricEnabled);
+  }
 
   auto &bridge = core::CoreBridge::instance();
   if (bridge.isInitialized()) {
@@ -554,9 +609,7 @@ void VaultManager::loadSettings() {
             v.id = obj.value(QStringLiteral("id")).toString();
             v.name = obj.value(QStringLiteral("name")).toString();
             v.iconName = obj.value(QStringLiteral("iconName"))
-                             .toString(QStringLiteral("folder_open"));
-            v.accentColor = obj.value(QStringLiteral("accentColor"))
-                                .toString(QStringLiteral("#64748B"));
+                             .toString(QStringLiteral("vault_personal"));
             v.description = obj.value(QStringLiteral("description")).toString();
             v.itemCount = obj.value(QStringLiteral("itemCount")).toInt(0);
             v.isDefault = obj.value(QStringLiteral("isDefault")).toBool(false);
@@ -576,8 +629,7 @@ void VaultManager::loadSettings() {
     models::UiVault defaultVault;
     defaultVault.id = QStringLiteral("personal");
     defaultVault.name = QStringLiteral("Personal Vault");
-    defaultVault.iconName = QStringLiteral("folder_open");
-    defaultVault.accentColor = QStringLiteral("#64748B");
+    defaultVault.iconName = QStringLiteral("vault_personal");
     defaultVault.isDefault = true;
     m_vaults.append(defaultVault);
     saveSettings();
@@ -603,7 +655,6 @@ void VaultManager::saveSettings() {
     obj.insert(QStringLiteral("id"), v.id);
     obj.insert(QStringLiteral("name"), v.name);
     obj.insert(QStringLiteral("iconName"), v.iconName);
-    obj.insert(QStringLiteral("accentColor"), v.accentColor);
     obj.insert(QStringLiteral("description"), v.description);
     obj.insert(QStringLiteral("itemCount"), v.itemCount);
     obj.insert(QStringLiteral("isDefault"), v.isDefault);

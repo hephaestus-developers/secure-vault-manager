@@ -8,7 +8,7 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Network Widgets)
 
 set(UI_SOURCES
     main.cpp
@@ -21,9 +21,11 @@ set(UI_SOURCES
     app/language_manager.cpp
     app/vault_manager.cpp
     app/settings_manager.cpp
+    app/single_instance_guard.cpp
     components/unified_header_bar.cpp
     components/window_resize_handler.cpp
     components/notification_dialog.cpp
+    components/confirm_delete_dialog.cpp
     views/sidebar/sidebar_item_delegate.cpp
     views/sidebar/sidebar_view.cpp
     views/item_list/item_list_model.cpp
@@ -45,7 +47,6 @@ set(UI_SOURCES
     views/lock/lock_screen_view.cpp
     views/vaults/new_vault_dialog.cpp
     views/settings/setting_row_widget.cpp
-    views/settings/pairing_dialog.cpp
     views/settings/tabs/tab_general.cpp
     views/settings/tabs/tab_security.cpp
     views/settings/tabs/tab_vaults.cpp
@@ -68,9 +69,11 @@ set(UI_HEADERS
     app/language_manager.h
     app/vault_manager.h
     app/settings_manager.h
+    app/single_instance_guard.h
     components/unified_header_bar.h
     components/window_resize_handler.h
     components/notification_dialog.h
+    components/confirm_delete_dialog.h
     components/elided_label.h
     components/combobox_popup_helper.h
     components/in_window_combobox.h
@@ -96,7 +99,6 @@ set(UI_HEADERS
     views/lock/lock_screen_view.h
     views/vaults/new_vault_dialog.h
     views/settings/setting_row_widget.h
-    views/settings/pairing_dialog.h
     views/settings/tabs/tab_general.h
     views/settings/tabs/tab_security.h
     views/settings/tabs/tab_vaults.h
@@ -116,6 +118,7 @@ target_include_directories(svm_ui PRIVATE
 target_link_libraries(svm_ui PRIVATE
     Qt6::Core
     Qt6::Gui
+    Qt6::Network
     Qt6::Widgets
     svm_core
 )

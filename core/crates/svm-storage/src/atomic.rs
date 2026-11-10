@@ -1,6 +1,9 @@
-//! Tiện ích ghi tệp nguyên tử (`.tmp` -> `rename`) và phân giải thư mục dữ liệu hệ điều hành.
+//! Tiện ích ghi tệp nguyên tử (`.tmp` -> `rename`) với phân quyền bảo mật (`0o700`/`0o600`)
+//! và phân giải thư mục dữ liệu hệ điều hành.
 
 use std::fs;
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 
 use svm_domain::DomainError;
@@ -20,13 +23,27 @@ pub fn resolve_default_data_dir() -> String {
     "/tmp/hephaestus-svm-data".to_string()
 }
 
-/// Ghi nguyên tử (Atomic Write) dữ liệu ra tệp thông qua tệp tạm `.tmp` rồi đổi tên.
+/// Đảm bảo thư mục tồn tại với quyền `0o700` trên Unix.
+pub fn ensure_secure_dir(dir: &Path) -> Result<(), DomainError> {
+    fs::create_dir_all(dir).map_err(|e| DomainError::Io(e.to_string()))?;
+    #[cfg(unix)]
+    {
+        let _ = fs::set_permissions(dir, fs::Permissions::from_mode(0o700));
+    }
+    Ok(())
+}
+
+/// Ghi nguyên tử (Atomic Write) dữ liệu ra tệp thông qua tệp tạm `.tmp` với quyền `0o600`.
 pub fn atomic_write_file(path: &Path, bytes: &[u8]) -> Result<(), DomainError> {
     if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|e| DomainError::Io(e.to_string()))?;
+        ensure_secure_dir(parent)?;
     }
     let tmp_path = path.with_extension("tmp");
     fs::write(&tmp_path, bytes).map_err(|e| DomainError::Io(e.to_string()))?;
+    #[cfg(unix)]
+    {
+        let _ = fs::set_permissions(&tmp_path, fs::Permissions::from_mode(0o600));
+    }
     fs::rename(&tmp_path, path).map_err(|e| DomainError::Io(e.to_string()))?;
     Ok(())
 }

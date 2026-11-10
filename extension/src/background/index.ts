@@ -1,15 +1,17 @@
 /**
  * @file extension/src/background/index.ts
- * @brief Điểm nhập Background Service Worker (Manifest V3) điều phối Autofill, TOTP, Pairing và Passkey.
+ * @brief Điểm nhập Background Service Worker (Manifest V3) điều phối Autofill, TOTP và Passkey.
  */
 
-import { BridgeRequest } from "../services/protocol";
-import { PairingManager } from "./pairing";
+import {
+  BridgeRequest,
+  createBridgeRequest,
+  detectCurrentBrowserName,
+} from "../services/protocol";
 import { PasskeyRouter } from "./passkey_router";
 import { BridgeTransport } from "./transport";
 
 const transport = new BridgeTransport();
-const pairingManager = new PairingManager(transport);
 const passkeyRouter = new PasskeyRouter(transport);
 
 const chromeApi = (globalThis as Record<string, any>).chrome;
@@ -28,59 +30,59 @@ if (chromeApi?.runtime?.onMessage) {
       void (async () => {
         if (message.action === "unlock_vault") {
           const password = String(message.payload?.password || "");
-          const result = await pairingManager.unlockVault(password);
+          const req = createBridgeRequest("unlock_vault", {
+            password,
+            browser: detectCurrentBrowserName(),
+            version: "1.0.0",
+          });
+          const resp = await transport.dispatch<any>(req);
+          const unlocked = Boolean(resp.ok && resp.payload?.unlocked);
           sendResponse({
             requestId: message.requestId,
             type: "vault_unlocked",
-            ok: result.ok,
-            payload: { unlocked: result.ok },
-            error: result.error,
+            ok: unlocked,
+            payload: { unlocked },
+            error: unlocked
+              ? undefined
+              : resp.error || {
+                  code: "DESKTOP_NOT_RUNNING",
+                  message: "Ứng dụng Desktop chưa khởi động hoặc mật khẩu không chính xác.",
+                },
           });
           return;
         }
 
         if (message.action === "unlock_vault_biometric") {
-          const result = await pairingManager.unlockBiometric();
+          const req = createBridgeRequest("unlock_vault_biometric", {
+            browser: detectCurrentBrowserName(),
+            version: "1.0.0",
+          });
+          const resp = await transport.dispatch<any>(req);
+          const unlocked = Boolean(resp.ok && resp.payload?.unlocked);
           sendResponse({
             requestId: message.requestId,
             type: "vault_unlocked",
-            ok: result.ok,
-            payload: { unlocked: result.ok },
-            error: result.error,
+            ok: unlocked,
+            payload: { unlocked },
+            error: unlocked
+              ? undefined
+              : resp.error || {
+                  code: "BIOMETRIC_FAILED",
+                  message: "Xác thực sinh trắc học không thành công hoặc Desktop chưa khởi động.",
+                },
           });
           return;
         }
 
         if (message.action === "lock_vault") {
-          const ok = await pairingManager.lockVault();
+          const req = createBridgeRequest("lock_vault");
+          const resp = await transport.dispatch<any>(req);
+          const ok = Boolean(resp.ok);
           sendResponse({
             requestId: message.requestId,
             type: "vault_locked",
             ok,
             payload: { unlocked: !ok },
-          });
-          return;
-        }
-
-        if (message.action === "pairing_begin") {
-          const payload = await pairingManager.beginPairing();
-          sendResponse({
-            requestId: message.requestId,
-            type: "pairing_challenge",
-            ok: true,
-            payload,
-          });
-          return;
-        }
-
-        if (message.action === "pairing_confirm") {
-          const code = String(message.payload?.pairingCode || message.payload?.code || "");
-          const ok = await pairingManager.confirmPairing(code);
-          sendResponse({
-            requestId: message.requestId,
-            type: "pairing_confirmed",
-            ok,
-            payload: pairingManager.getState(),
           });
           return;
         }

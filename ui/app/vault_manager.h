@@ -107,7 +107,8 @@ public:
    */
   bool setupInitialMasterPassword(const QString &password,
                                   const QString &recoveryKey,
-                                  const QString &initialVaultName);
+                                  const QString &initialVaultName,
+                                  bool enableBiometric = false);
 
   /**
    * @brief Đổi Master Password hiện tại sang mật khẩu mới mà không làm mất dữ
@@ -136,6 +137,22 @@ public:
    * @brief Mở khóa bằng sinh trắc học.
    */
   bool unlockWithBiometrics();
+
+  /**
+   * @brief Kiểm tra phần cứng/OS có hỗ trợ sinh trắc học hoặc xác thực OS
+   * không.
+   */
+  [[nodiscard]] bool isBiometricAvailable() const;
+
+  /**
+   * @brief Kiểm tra mở khóa sinh trắc học đang được bật hay chưa.
+   */
+  [[nodiscard]] bool isBiometricEnabled() const;
+
+  /**
+   * @brief Bật/tắt mở khóa sinh trắc học và đồng bộ với Rust Core.
+   */
+  bool setBiometricEnabled(bool enable);
 
   /**
    * @brief Khóa ngay lập tức và giải phóng bộ nhớ.

@@ -18,8 +18,7 @@ namespace svm::models {
 struct UiVault {
   QString id;
   QString name;
-  QString iconName{QStringLiteral("folder_open")};
-  QString accentColor{QStringLiteral("#64748B")};
+  QString iconName{QStringLiteral("vault_personal")};
   QString description;
   int itemCount{0};
   bool isDefault{false};

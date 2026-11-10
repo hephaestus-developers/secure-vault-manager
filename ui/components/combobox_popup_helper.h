@@ -102,8 +102,8 @@ public:
       const int checkY = rect.top() + (rect.height() - checkSize) / 2;
       const QRect checkRect(checkX, checkY, checkSize, checkSize);
       const QIcon checkIcon(
-          isLight ? QStringLiteral(":/icons/menu_check_light.svg")
-                  : QStringLiteral(":/icons/menu_check_dark.svg"));
+          isLight ? QStringLiteral(":/icons/controls/menu_check_light.svg")
+                  : QStringLiteral(":/icons/controls/menu_check_dark.svg"));
       checkIcon.paint(painter, checkRect, Qt::AlignCenter);
       textRight = checkX - 6;
     }

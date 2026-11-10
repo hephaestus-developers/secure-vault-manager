@@ -133,14 +133,6 @@ void TabVaults::refreshVaultList() {
     rowLayout->setContentsMargins(12, 8, 12, 8);
     rowLayout->setSpacing(12);
 
-    // Color dot
-    auto *dot = new QLabel(rowWidget);
-    dot->setFixedSize(12, 12);
-    dot->setStyleSheet(
-        QStringLiteral("background-color: %1; border-radius: 6px;")
-            .arg(v.accentColor));
-    rowLayout->addWidget(dot);
-
     // Icon
     auto *iconLbl = new QLabel(rowWidget);
     iconLbl->setObjectName(QStringLiteral("SettingsVaultRowIcon"));

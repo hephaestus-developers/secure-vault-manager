@@ -91,7 +91,7 @@ QMenu::indicator {
 }
 
 QMenu::indicator:checked {
-    image: url(:/icons/menu_check_light.svg);
+    image: url(:/icons/controls/menu_check_light.svg);
 }
 
 QMenu::indicator:unchecked {
@@ -124,12 +124,12 @@ QMenu::indicator:unchecked {
 
 #WinCloseBtn:hover, #DialogCloseBtn:hover, #AboutCloseIconBtn:hover {
     background-color: #e81123;
-    qproperty-icon: url(:/icons/win_close_white.svg);
+    qproperty-icon: url(:/icons/controls/win_close_white.svg);
 }
 
 #WinCloseBtn:pressed, #DialogCloseBtn:pressed, #AboutCloseIconBtn:pressed {
     background-color: #c40e1d;
-    qproperty-icon: url(:/icons/win_close_white.svg);
+    qproperty-icon: url(:/icons/controls/win_close_white.svg);
 }
 
 /* ==============================================================================
@@ -453,7 +453,7 @@ QStatusBar::item {
 }
 
 #VaultProfileComboBox::down-arrow {
-    image: url(:/icons/chevron_down_light.svg);
+    image: url(:/icons/controls/chevron_down_light.svg);
     width: 12px;
     height: 12px;
 }
@@ -552,7 +552,7 @@ QComboBox::drop-down {
 }
 
 QComboBox::down-arrow {
-    image: url(:/icons/chevron_down_light.svg);
+    image: url(:/icons/controls/chevron_down_light.svg);
     width: 10px;
     height: 10px;
 }
@@ -613,7 +613,7 @@ QCheckBox::indicator:hover {
 QCheckBox::indicator:checked {
     background-color: #1e1e2e;
     border-color: #1e1e2e;
-    image: url(:/icons/checkbox_check_light.svg);
+    image: url(:/icons/controls/checkbox_check_light.svg);
 }
 
 #ItemListNewBtn {
@@ -851,7 +851,7 @@ QCheckBox::indicator:checked {
 }
 
 #DetailCategoryCombo::down-arrow {
-    image: url(:/icons/chevron_down_light.svg);
+    image: url(:/icons/controls/chevron_down_light.svg);
     width: 10px;
     height: 10px;
 }
@@ -1095,7 +1095,7 @@ QCheckBox::indicator:checked {
 #CustomFieldBoolEdit::indicator:checked {
     background-color: #1e1e2e;
     border-color: #1e1e2e;
-    image: url(:/icons/checkbox_check_light.svg);
+    image: url(:/icons/controls/checkbox_check_light.svg);
 }
 
 #CustomFieldDateEdit {
@@ -1119,7 +1119,7 @@ QCheckBox::indicator:checked {
 }
 
 #CustomFieldDateEdit::down-arrow {
-    image: url(:/icons/chevron_down_light.svg);
+    image: url(:/icons/controls/chevron_down_light.svg);
     width: 12px;
     height: 12px;
 }
@@ -1163,7 +1163,7 @@ QCalendarWidget QToolButton:pressed {
 }
 
 QCalendarWidget #qt_calendar_prevmonth {
-    qproperty-icon: url(:/icons/chevron_left_light.svg);
+    qproperty-icon: url(:/icons/controls/chevron_left_light.svg);
     icon-size: 12px 12px;
     min-width: 24px;
     max-width: 24px;
@@ -1172,7 +1172,7 @@ QCalendarWidget #qt_calendar_prevmonth {
 }
 
 QCalendarWidget #qt_calendar_nextmonth {
-    qproperty-icon: url(:/icons/chevron_right_light.svg);
+    qproperty-icon: url(:/icons/controls/chevron_right_light.svg);
     icon-size: 12px 12px;
     min-width: 24px;
     max-width: 24px;
@@ -1806,6 +1806,54 @@ QCalendarWidget QHeaderView::section {
     border-color: #8839ef;
 }
 
+/* Confirm Delete Dialog */
+#ConfirmDeleteTrashBadge {
+    background-color: rgba(254, 100, 11, 0.12);
+    border: 1px solid rgba(254, 100, 11, 0.30);
+    border-radius: 10px;
+}
+
+#ConfirmDeletePermanentBadge {
+    background-color: rgba(210, 15, 57, 0.10);
+    border: 1px solid rgba(210, 15, 57, 0.30);
+    border-radius: 10px;
+}
+
+#ConfirmDeleteHeading {
+    color: #1e1e2e;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+#ConfirmDeleteDesc {
+    color: #5c5f77;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+#ConfirmDeleteItemPreview {
+    background-color: #f4f5f8;
+    border: 1px solid #dce0e8;
+    border-radius: 8px;
+}
+
+#ConfirmDeleteItemIconBox {
+    background-color: #ffffff;
+    border: 1px solid #ccd0da;
+    border-radius: 7px;
+}
+
+#ConfirmDeleteItemTitle {
+    color: #1e1e2e;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+#ConfirmDeleteItemSub {
+    color: #5c5f77;
+    font-size: 11.5px;
+}
+
 #SettingsDialogTitle, #NewVaultTitle, #RecoveryDialogTitle {
     color: #4c4f69;
     font-size: 13px;
@@ -2066,72 +2114,6 @@ QCalendarWidget QHeaderView::section {
     background-color: #ccd0da;
     border-color: #1e1e2e;
     color: #1e1e2e;
-}
-
-/* PairingDialog */
-#PairingDialogCard {
-    background-color: #eff1f5;
-    border: 1px solid #ccd0da;
-    border-radius: 12px;
-}
-
-#PairingDialogTitle {
-    color: #4c4f69;
-    font-size: 16px;
-    font-weight: 700;
-}
-
-#PairingDialogDesc {
-    color: #6c6f85;
-    font-size: 12.5px;
-    line-height: 1.4;
-}
-
-#PairingPinBox {
-    background-color: #ffffff;
-    border: 1px solid #dce0e8;
-    border-radius: 8px;
-}
-
-#PairingPinLabel {
-    color: #1e66f5;
-    font-size: 32px;
-    font-weight: 800;
-    font-family: monospace;
-    letter-spacing: 6px;
-}
-
-#PairingTimerLabel {
-    color: #6c6f85;
-    font-size: 12px;
-}
-
-#PairingCopyBtn {
-    background-color: #1e66f5;
-    color: #ffffff;
-    border: none;
-    border-radius: 6px;
-    font-size: 12px;
-    font-weight: 700;
-    padding: 0 16px;
-}
-
-#PairingCopyBtn:hover {
-    background-color: #04a5e5;
-}
-
-#PairingCloseBtn {
-    background-color: #e6e9ef;
-    color: #4c4f69;
-    border: 1px solid #ccd0da;
-    border-radius: 6px;
-    font-size: 12px;
-    font-weight: 600;
-    padding: 0 16px;
-}
-
-#PairingCloseBtn:hover {
-    background-color: #dce0e8;
 }
 
 /* Browser Empty State */

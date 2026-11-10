@@ -1,8 +1,7 @@
 //! # svm-bridge
 //!
-//! Mô-đun cầu nối trình duyệt: Lắng nghe kết nối IPC từ Extension, xác thực bắt cặp
-//! mã PIN 6 số (Pairing), quản lý danh sách các trình duyệt đã kết nối và cài đặt
-//! tệp cấu hình Native Messaging Host manifest.
+//! Mô-đun cầu nối trình duyệt: Lắng nghe kết nối IPC từ Extension, quản lý danh sách
+//! các trình duyệt đã kết nối và cài đặt tệp cấu hình Native Messaging Host manifest.
 
 pub mod client;
 pub mod server;

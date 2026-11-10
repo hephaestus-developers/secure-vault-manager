@@ -28,7 +28,6 @@ export interface VaultProfile {
   id: string;
   name: string;
   iconName: string;
-  accentColor: string;
   description: string;
   itemCount: number;
   isDefault: boolean;

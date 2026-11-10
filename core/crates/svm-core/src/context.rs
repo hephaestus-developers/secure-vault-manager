@@ -20,7 +20,6 @@ pub(crate) const EVENT_SSH_STATUS: i32 = 8;
 #[allow(dead_code)]
 pub(crate) const EVENT_SHOW_WINDOW: i32 = 9;
 pub(crate) const EVENT_BRIDGE_CLIENTS_CHANGED: i32 = 10;
-pub(crate) const EVENT_BRIDGE_PAIRING_REQUESTED: i32 = 11;
 
 /// Bộ đệm nhị phân đại diện cho tệp đính kèm, icon hoặc khối dữ liệu lớn.
 #[repr(C)]

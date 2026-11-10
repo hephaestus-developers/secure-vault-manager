@@ -215,7 +215,6 @@
   "No results found": "No results found",
   "+ New Vault...": "+ New Vault...",
   "A vault with this name already exists.": "A vault with this name already exists.",
-  "Accent Color": "Accent Color",
   "Complete Setup & Open Vault →": "Complete Setup & Open Vault →",
   "Confirm Master Password": "Confirm Master Password",
   "Confirm New Master Password": "Confirm New Master Password",
@@ -378,7 +377,7 @@
   "Permanently Delete Vault?": "Permanently Delete Vault?",
   "I understand, delete this vault": "I understand, delete this vault",
   "Edit Vault": "Edit Vault",
-  "Update vault name, icon, and appearance color.": "Update vault name, icon, and appearance color.",
+  "Update vault name, icon, and description.": "Update vault name, icon, and description.",
   "Save Changes": "Save Changes",
   "Could not update vault.": "Could not update vault.",
   "Enable Browser Integration": "Enable Browser Integration",
@@ -509,5 +508,14 @@
   "+ New Wi-Fi": "+ New Wi-Fi",
   "No Items in Vault": "No Items in Vault",
   "Create your first credential to start securing your digital life.": "Create your first credential to start securing your digital life.",
-  "+ New Item": "+ New Item"
+  "+ New Item": "+ New Item",
+  "Move to Trash?": "Move to Trash?",
+  "Delete Permanently?": "Delete Permanently?",
+  "Move this item to Trash?": "Move this item to Trash?",
+  "Permanently delete this item?": "Permanently delete this item?",
+  "This item will be moved to Trash and can be restored anytime from the Trash folder.": "This item will be moved to Trash and can be restored anytime from the Trash folder.",
+  "This action cannot be undone. All credentials, notes, and history for this item will be permanently erased.": "This action cannot be undone. All credentials, notes, and history for this item will be permanently erased.",
+  "Biometric unlock is not enabled or OS authentication is unavailable.": "Biometric unlock is not enabled or OS authentication is unavailable.",
+  "Biometric or OS authentication failed or was cancelled.": "Biometric or OS authentication failed or was cancelled.",
+  "Unable to update biometric unlock while the vault is locked or OS authentication is unavailable.": "Unable to update biometric unlock while the vault is locked or OS authentication is unavailable."
 }

@@ -109,8 +109,9 @@ void SidebarView::setupExpandedUI() {
         const auto v = app::VaultManager::instance().vault(vId);
         m_currentVaultName = v.name.isEmpty() ? tr("Personal Vault") : v.name;
         m_collapsedVaultBtn->setToolTip(m_currentVaultName);
-        const QString iconName =
-            v.iconName.isEmpty() ? QStringLiteral("folder_open") : v.iconName;
+        const QString iconName = v.iconName.isEmpty()
+                                     ? QStringLiteral("vault_personal")
+                                     : v.iconName;
         if (m_collapsedVaultBtn) {
           m_collapsedVaultBtn->setIcon(
               app::ThemeManager::instance().icon(iconName));
@@ -182,7 +183,7 @@ void SidebarView::setupExpandedUI() {
   m_lockIconLabel = new QLabel(m_lockBtn);
   m_lockIconLabel->setFixedSize(18, 18);
   m_lockIconLabel->setPixmap(
-      QIcon(QStringLiteral(":/icons/lock.svg")).pixmap(18, 18));
+      QIcon(QStringLiteral(":/icons/security/lock.svg")).pixmap(18, 18));
   lockBtnLayout->addWidget(m_lockIconLabel);
 
   m_lockTextLabel = new QLabel(tr("Lock Vault"), m_lockBtn);
@@ -223,7 +224,7 @@ void SidebarView::setupCollapsedUI() {
   m_collapsedVaultBtn->setObjectName(QStringLiteral("SidebarCompactVaultBtn"));
   const auto activeV = app::VaultManager::instance().activeVault();
   const QString vaultIcon = activeV.iconName.isEmpty()
-                                ? QStringLiteral("folder_open")
+                                ? QStringLiteral("vault_personal")
                                 : activeV.iconName;
   m_collapsedVaultBtn->setIcon(app::ThemeManager::instance().icon(vaultIcon));
   m_collapsedVaultBtn->setIconSize(QSize(18, 18));
@@ -322,23 +323,26 @@ void SidebarView::populateNavItems() {
   };
 
   // 1. Nhóm bộ lọc nhanh
-  m_allItem = addNavItem(QIcon(QStringLiteral(":/icons/category_all.svg")),
-                         tr("All Items"), SidebarFilterType::AllItems);
-  m_compactFilterItems[SidebarFilterType::AllItems] =
-      addCompactItem(QIcon(QStringLiteral(":/icons/category_all.svg")),
-                     tr("All Items (0)"), SidebarFilterType::AllItems);
+  m_allItem =
+      addNavItem(QIcon(QStringLiteral(":/icons/categories/category_all.svg")),
+                 tr("All Items"), SidebarFilterType::AllItems);
+  m_compactFilterItems[SidebarFilterType::AllItems] = addCompactItem(
+      QIcon(QStringLiteral(":/icons/categories/category_all.svg")),
+      tr("All Items (0)"), SidebarFilterType::AllItems);
 
-  m_favItem = addNavItem(QIcon(QStringLiteral(":/icons/star_filled.svg")),
-                         tr("Favorites"), SidebarFilterType::Favorites);
+  m_favItem =
+      addNavItem(QIcon(QStringLiteral(":/icons/actions/star_filled.svg")),
+                 tr("Favorites"), SidebarFilterType::Favorites);
   m_compactFilterItems[SidebarFilterType::Favorites] =
-      addCompactItem(QIcon(QStringLiteral(":/icons/star_filled.svg")),
+      addCompactItem(QIcon(QStringLiteral(":/icons/actions/star_filled.svg")),
                      tr("Favorites (0)"), SidebarFilterType::Favorites);
 
-  m_trashItem = addNavItem(QIcon(QStringLiteral(":/icons/category_trash.svg")),
-                           tr("Trash"), SidebarFilterType::Trash);
-  m_compactFilterItems[SidebarFilterType::Trash] =
-      addCompactItem(QIcon(QStringLiteral(":/icons/category_trash.svg")),
-                     tr("Trash (0)"), SidebarFilterType::Trash);
+  m_trashItem =
+      addNavItem(QIcon(QStringLiteral(":/icons/categories/category_trash.svg")),
+                 tr("Trash"), SidebarFilterType::Trash);
+  m_compactFilterItems[SidebarFilterType::Trash] = addCompactItem(
+      QIcon(QStringLiteral(":/icons/categories/category_trash.svg")),
+      tr("Trash (0)"), SidebarFilterType::Trash);
 
   // 2. Nhóm 9 Danh Mục Nghiệp Vụ
   m_categoriesHeaderItem = addHeader(tr("CATEGORIES"));
@@ -381,7 +385,7 @@ void SidebarView::updateThemeIcons() {
 
   const auto activeV = app::VaultManager::instance().activeVault();
   const QString vaultIcon = activeV.iconName.isEmpty()
-                                ? QStringLiteral("folder_open")
+                                ? QStringLiteral("vault_personal")
                                 : activeV.iconName;
   if (m_collapsedVaultBtn) {
     m_collapsedVaultBtn->setIcon(tm.icon(vaultIcon));
@@ -391,7 +395,7 @@ void SidebarView::updateThemeIcons() {
       const QString vId = m_vaultComboBox->itemData(i).toString();
       const auto v = app::VaultManager::instance().vault(vId);
       const QString iconName =
-          v.iconName.isEmpty() ? QStringLiteral("folder_open") : v.iconName;
+          v.iconName.isEmpty() ? QStringLiteral("vault_personal") : v.iconName;
       m_vaultComboBox->setItemIcon(i, tm.icon(iconName));
     }
   }
@@ -521,7 +525,7 @@ void SidebarView::populateVaultCombo() {
   for (int i = 0; i < vaults.size(); ++i) {
     const auto &v = vaults[i];
     const QString iconName =
-        v.iconName.isEmpty() ? QStringLiteral("folder_open") : v.iconName;
+        v.iconName.isEmpty() ? QStringLiteral("vault_personal") : v.iconName;
     m_vaultComboBox->addItem(app::ThemeManager::instance().icon(iconName),
                              v.name, v.id);
     if (v.id == activeId) {

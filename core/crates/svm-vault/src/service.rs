@@ -1,6 +1,8 @@
 //! Quản lý vòng đời kho dữ liệu (`VaultService`), phiên mở khóa trong RAM, khóa DEK và hồ sơ Vault.
 
-use svm_crypto::{generate_recovery_key, random_bytes, zeroize_slice};
+use svm_crypto::{
+    generate_recovery_key, mem_lock, mem_unlock, random_bytes, zeroize_slice, zeroize_string,
+};
 use svm_domain::{
     DomainError, Folder, ItemRevision, JsonValue, TrashItem, VaultItem, VaultProfile,
 };
@@ -8,6 +10,35 @@ use svm_storage::{VaultHeader, VaultStorage};
 
 use crate::attachment::AttachmentMeta;
 use crate::defaults::{build_default_vaults, current_timestamp_ms};
+
+fn zeroize_vault_item(item: &mut VaultItem) {
+    zeroize_string(&mut item.id);
+    zeroize_string(&mut item.vault_id);
+    zeroize_string(&mut item.title);
+    zeroize_string(&mut item.username);
+    zeroize_string(&mut item.password);
+    zeroize_string(&mut item.website_url);
+    zeroize_string(&mut item.notes);
+    zeroize_string(&mut item.totp_secret);
+    zeroize_string(&mut item.ssh_public_key);
+    zeroize_string(&mut item.ssh_fingerprint);
+    if let Some(ref mut folder_id) = item.folder_id {
+        zeroize_string(folder_id);
+    }
+    zeroize_string(&mut item.card_number);
+    zeroize_string(&mut item.card_expiry);
+    zeroize_string(&mut item.card_cvv);
+    zeroize_string(&mut item.db_host);
+    zeroize_string(&mut item.db_name);
+    zeroize_string(&mut item.wifi_ssid);
+    zeroize_string(&mut item.wifi_security);
+    for cf in &mut item.custom_fields {
+        zeroize_string(&mut cf.id);
+        zeroize_string(&mut cf.label);
+        zeroize_string(&mut cf.value);
+    }
+    item.custom_fields.clear();
+}
 
 /// Dịch vụ quản lý phiên mở khóa và nghiệp vụ kho dữ liệu.
 pub struct VaultService {
@@ -64,10 +95,59 @@ impl VaultService {
         self.storage.vault_exists()
     }
 
-    /// Khóa kho dữ liệu và thu hồi toàn bộ khóa giải mã khỏi bộ nhớ RAM.
+    /// Khóa kho dữ liệu, ghi đè 0x00 và thu hồi toàn bộ bí mật cùng khóa DEK khỏi RAM.
     pub fn lock(&mut self) {
+        for item in &mut self.items {
+            zeroize_vault_item(item);
+        }
+        self.items.clear();
+        self.items.shrink_to_fit();
+
+        for (_, revs) in &mut self.revisions {
+            for rev in revs.iter_mut() {
+                zeroize_vault_item(&mut rev.snapshot);
+            }
+        }
+        self.revisions.clear();
+        self.revisions.shrink_to_fit();
+
+        for t in &mut self.trash {
+            zeroize_string(&mut t.item_id);
+            if let Some(ref mut folder_id) = t.original_folder_id {
+                zeroize_string(folder_id);
+            }
+        }
+        self.trash.clear();
+        self.trash.shrink_to_fit();
+
+        for f in &mut self.folders {
+            zeroize_string(&mut f.id);
+            zeroize_string(&mut f.name);
+        }
+        self.folders.clear();
+        self.folders.shrink_to_fit();
+
+        for v in &mut self.vaults {
+            zeroize_string(&mut v.id);
+            zeroize_string(&mut v.name);
+            zeroize_string(&mut v.description);
+        }
+        self.vaults.clear();
+        self.vaults.shrink_to_fit();
+
+        for a in &mut self.attachments {
+            zeroize_string(&mut a.id);
+            zeroize_string(&mut a.item_id);
+            zeroize_string(&mut a.file_name);
+        }
+        self.attachments.clear();
+        self.attachments.shrink_to_fit();
+
+        zeroize_string(&mut self.recovery_key);
+        self.header = None;
+        mem_unlock(&self.dek);
         zeroize_slice(&mut self.dek);
-        self.recovery_key.clear();
+        self.idle_ms = 0;
         self.unlocked = false;
     }
 
@@ -84,6 +164,7 @@ impl VaultService {
         if self.dek == [0u8; 32] {
             random_bytes(&mut self.dek);
         }
+        mem_lock(&self.dek);
         self.unlocked = true;
     }
 
@@ -222,9 +303,10 @@ impl VaultService {
 
     pub(crate) fn persist(&self) -> Result<(), DomainError> {
         if let Some(ref header) = self.header {
-            let payload = self.serialize_state();
-            self.storage
-                .save_vault_payload(header, &self.dek, &payload)?;
+            let mut payload = self.serialize_state();
+            let res = self.storage.save_vault_payload(header, &self.dek, &payload);
+            zeroize_string(&mut payload);
+            res?;
         }
         Ok(())
     }
@@ -272,6 +354,7 @@ impl VaultService {
                     .unwrap_or_else(generate_recovery_key);
 
                 random_bytes(&mut self.dek);
+                mem_lock(&self.dek);
                 self.recovery_key = rec_key.clone();
                 self.vaults = build_default_vaults(primary_name);
                 self.items.clear();
@@ -279,15 +362,16 @@ impl VaultService {
                 self.header = Some(header);
                 self.unlocked = true;
                 self.persist()?;
-                let _ = self.storage.save_biometric_envelope(&self.dek);
+                if meta.get_bool_or("enableBiometric", false) {
+                    let _ = self.storage.save_biometric_envelope(&self.dek);
+                }
                 return Ok("personal".to_string());
             }
 
             let mut profile = VaultProfile::from_json(&meta).unwrap_or_else(|| VaultProfile {
                 id: format!("vault_{}", current_timestamp_ms()),
                 name: meta.get_str_or("name", "New Vault").to_string(),
-                icon_name: "folder_open".to_string(),
-                accent_color: "#3B82F6".to_string(),
+                icon_name: "vault_personal".to_string(),
                 description: String::new(),
                 item_count: 0,
                 is_default: false,
@@ -309,6 +393,7 @@ impl VaultService {
         // Nếu truyền tên thuần túy
         if !self.storage.vault_exists() && !password.is_empty() {
             random_bytes(&mut self.dek);
+            mem_lock(&self.dek);
             let rec_key = generate_recovery_key();
             self.recovery_key = rec_key.clone();
             self.vaults = build_default_vaults(trimmed);
@@ -317,7 +402,6 @@ impl VaultService {
             self.header = Some(header);
             self.unlocked = true;
             self.persist()?;
-            let _ = self.storage.save_biometric_envelope(&self.dek);
             return Ok("personal".to_string());
         }
 
@@ -325,8 +409,7 @@ impl VaultService {
         self.vaults.push(VaultProfile {
             id: new_id.clone(),
             name: trimmed.to_string(),
-            icon_name: "folder_open".to_string(),
-            accent_color: "#3B82F6".to_string(),
+            icon_name: "vault_personal".to_string(),
             description: String::new(),
             item_count: 0,
             is_default: false,
@@ -343,12 +426,13 @@ impl VaultService {
         password_or_payload: &str,
     ) -> Result<(), DomainError> {
         if !self.storage.vault_exists() {
-            self.unlock();
-            return Ok(());
+            return Err(DomainError::NotFound(
+                "Vault has not been initialized".to_string(),
+            ));
         }
 
         if vault_id_or_mode == "__recovery__" {
-            let (rec_key, new_pw) = if password_or_payload.trim().starts_with('{') {
+            let (mut rec_key, mut new_pw) = if password_or_payload.trim().starts_with('{') {
                 let obj = JsonValue::parse(password_or_payload).map_err(DomainError::Parse)?;
                 (
                     obj.get_string("recoveryKey").unwrap_or_default(),
@@ -358,41 +442,67 @@ impl VaultService {
                 (password_or_payload.to_string(), String::new())
             };
 
-            let (mut header, dek, json_str) = self.storage.unlock_with_recovery(&rec_key)?;
-            self.load_state_from_json(&json_str)?;
+            let res = self.storage.unlock_with_recovery(&rec_key);
+            zeroize_string(&mut rec_key);
+            let (mut header, mut dek, mut json_str) = res?;
+            let load_res = self.load_state_from_json(&json_str);
+            zeroize_string(&mut json_str);
+            load_res?;
             self.dek = dek;
-            if !new_pw.is_empty() {
+            zeroize_slice(&mut dek);
+            mem_lock(&self.dek);
+            let rewrapped = !new_pw.is_empty();
+            if rewrapped {
                 VaultStorage::rewrap_master_password(&mut header, &self.dek, &new_pw);
             }
+            zeroize_string(&mut new_pw);
             self.header = Some(header);
             self.unlocked = true;
-            if !new_pw.is_empty() {
+            if rewrapped {
                 self.persist()?;
             }
             return Ok(());
         }
 
-        let (header, dek, json_str) = self.storage.unlock_with_password(password_or_payload)?;
-        self.load_state_from_json(&json_str)?;
+        let (header, mut dek, mut json_str) =
+            self.storage.unlock_with_password(password_or_payload)?;
+        let load_res = self.load_state_from_json(&json_str);
+        zeroize_string(&mut json_str);
+        load_res?;
         self.header = Some(header);
         self.dek = dek;
+        zeroize_slice(&mut dek);
+        mem_lock(&self.dek);
         self.unlocked = true;
         Ok(())
     }
 
-    /// Mở khóa kho bằng xác thực sinh trắc học.
+    /// Mở khóa kho bằng xác thực sinh trắc học / hệ điều hành thật.
     pub fn unlock_biometric(&mut self) -> Result<(), DomainError> {
         if !self.storage.vault_exists() {
-            self.unlock();
-            return Ok(());
+            return Err(DomainError::NotFound(
+                "Vault has not been initialized".to_string(),
+            ));
         }
-        if let Ok((header, dek, json_str)) = self.storage.unlock_with_biometric() {
-            self.load_state_from_json(&json_str)?;
-            self.header = Some(header);
-            self.dek = dek;
-            self.unlocked = true;
-            return Ok(());
+        if !self.storage.biometric_file_path().exists() {
+            return Err(DomainError::NotFound(
+                "Biometric unlock is not enabled".to_string(),
+            ));
         }
+        if !svm_system::authenticate_os_user("Unlock Secure Vault Manager") {
+            return Err(DomainError::Crypto(
+                "Biometric or OS authentication failed or cancelled".to_string(),
+            ));
+        }
+
+        let (header, mut dek, mut json_str) = self.storage.unlock_with_biometric()?;
+        let load_res = self.load_state_from_json(&json_str);
+        zeroize_string(&mut json_str);
+        load_res?;
+        self.header = Some(header);
+        self.dek = dek;
+        zeroize_slice(&mut dek);
+        mem_lock(&self.dek);
         self.unlocked = true;
         Ok(())
     }
@@ -400,12 +510,18 @@ impl VaultService {
     /// Kích hoạt sinh trắc học cho kho.
     pub fn enable_biometric(&mut self, password: &str) -> Result<(), DomainError> {
         if self.storage.vault_exists() && !password.is_empty() {
-            let (_, dek, _) = self.storage.unlock_with_password(password)?;
-            self.storage.save_biometric_envelope(&dek)?;
-        } else if self.unlocked {
-            self.storage.save_biometric_envelope(&self.dek)?;
+            let (_, mut dek, mut json_str) = self.storage.unlock_with_password(password)?;
+            zeroize_string(&mut json_str);
+            let res = self.storage.save_biometric_envelope(&dek);
+            zeroize_slice(&mut dek);
+            res?;
+            return Ok(());
         }
-        Ok(())
+        if self.unlocked && self.dek != [0u8; 32] {
+            self.storage.save_biometric_envelope(&self.dek)?;
+            return Ok(());
+        }
+        Err(DomainError::Locked)
     }
 
     /// Hủy kích hoạt sinh trắc học.
@@ -429,9 +545,6 @@ impl VaultService {
                 }
                 if let Some(ic) = meta.get_string("iconName") {
                     v.icon_name = ic;
-                }
-                if let Some(ac) = meta.get_string("accentColor") {
-                    v.accent_color = ac;
                 }
                 if let Some(desc) = meta.get_string("description") {
                     v.description = desc;

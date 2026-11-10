@@ -181,6 +181,7 @@ dependencies = [
  "svm-crypto",
  "svm-domain",
  "svm-storage",
+ "svm-system",
 ]
 
 [[package]]

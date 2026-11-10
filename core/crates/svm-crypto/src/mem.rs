@@ -12,15 +12,43 @@ use crate::hash::sha256;
 
 static FALLBACK_COUNTER: AtomicU64 = AtomicU64::new(0x9E37_79B9_7F4A_7C15);
 
-/// Khóa một vùng nhớ đệm vào RAM vật lý để ngăn chặn ghi vào swap/pagefile.
-///
-/// # Arguments
-/// * `_slice` - Lát cắt byte cần khóa trong bộ nhớ vật lý.
-///
-/// # Returns
-/// `true` nếu khóa thành công hoặc nền tảng không bắt buộc, `false` nếu thất bại.
-pub fn mem_lock(_slice: &[u8]) -> bool {
-    true
+#[cfg(all(unix, not(target_arch = "wasm32")))]
+extern "C" {
+    fn mlock(addr: *const u8, len: usize) -> i32;
+    fn munlock(addr: *const u8, len: usize) -> i32;
+}
+
+/// Khóa một vùng nhớ đệm vào RAM vật lý (`mlock`) để ngăn chặn hệ điều hành
+/// ghi xuống swap/pagefile.
+pub fn mem_lock(slice: &[u8]) -> bool {
+    if slice.is_empty() {
+        return true;
+    }
+    #[cfg(all(unix, not(target_arch = "wasm32")))]
+    unsafe {
+        return mlock(slice.as_ptr(), slice.len()) == 0;
+    }
+    #[cfg(not(all(unix, not(target_arch = "wasm32"))))]
+    {
+        let _ = slice;
+        true
+    }
+}
+
+/// Mở khóa vùng nhớ đã được khóa bằng `mem_lock`.
+pub fn mem_unlock(slice: &[u8]) -> bool {
+    if slice.is_empty() {
+        return true;
+    }
+    #[cfg(all(unix, not(target_arch = "wasm32")))]
+    unsafe {
+        return munlock(slice.as_ptr(), slice.len()) == 0;
+    }
+    #[cfg(not(all(unix, not(target_arch = "wasm32"))))]
+    {
+        let _ = slice;
+        true
+    }
 }
 
 /// Ghi đè toàn bộ các byte trong vùng nhớ bằng số 0 (`0x00`) với volatile write
@@ -35,6 +63,17 @@ pub fn zeroize_slice(slice: &mut [u8]) {
         }
     }
     compiler_fence(Ordering::SeqCst);
+}
+
+/// Ghi đè `0x00` lên toàn bộ vùng nhớ đệm (kể cả phần `capacity` đã cấp phát)
+/// của một `String` trước khi làm rỗng.
+pub fn zeroize_string(s: &mut String) {
+    // SAFETY: 0x00 là byte UTF-8 hợp lệ, và chúng ta gọi s.clear() ngay sau đó.
+    unsafe {
+        let vec = s.as_mut_vec();
+        zeroize_slice(vec.as_mut_slice());
+        vec.clear();
+    }
 }
 
 /// Nạp thêm hạt giống ngẫu nhiên (entropy seed) từ môi trường bên ngoài (ví dụ WebCrypto trong WASM).

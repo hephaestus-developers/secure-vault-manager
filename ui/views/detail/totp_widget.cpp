@@ -64,7 +64,7 @@ void TotpWidget::setupUI() {
 
   m_copyBtn = new QPushButton(m_viewContainer);
   m_copyBtn->setObjectName(QStringLiteral("TotpCopyBtn"));
-  m_copyBtn->setIcon(QIcon(QStringLiteral(":/icons/copy.svg")));
+  m_copyBtn->setIcon(QIcon(QStringLiteral(":/icons/actions/copy.svg")));
   m_copyBtn->setIconSize(QSize(16, 16));
   m_copyBtn->setFixedSize(28, 28);
   m_copyBtn->setToolTip(tr("Copy one-time code"));
@@ -113,7 +113,7 @@ void TotpWidget::setupUI() {
 
   m_revealSecretBtn = new QPushButton(m_editContainer);
   m_revealSecretBtn->setObjectName(QStringLiteral("FieldRowActionBtn"));
-  m_revealSecretBtn->setIcon(QIcon(QStringLiteral(":/icons/eye.svg")));
+  m_revealSecretBtn->setIcon(QIcon(QStringLiteral(":/icons/actions/eye.svg")));
   m_revealSecretBtn->setIconSize(QSize(16, 16));
   m_revealSecretBtn->setFixedSize(28, 28);
   m_revealSecretBtn->setCursor(Qt::PointingHandCursor);
@@ -217,7 +217,8 @@ void TotpWidget::setEditMode(bool editable) {
     m_secretInput->setText(m_secret);
     m_isSecretRevealed = false;
     m_secretInput->setEchoMode(QLineEdit::Password);
-    m_revealSecretBtn->setIcon(QIcon(QStringLiteral(":/icons/eye.svg")));
+    m_revealSecretBtn->setIcon(
+        QIcon(QStringLiteral(":/icons/actions/eye.svg")));
   } else {
     m_editContainer->hide();
     m_secret = m_secretInput->text().trimmed();

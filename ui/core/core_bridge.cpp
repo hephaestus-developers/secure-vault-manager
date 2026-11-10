@@ -124,6 +124,7 @@ CoreBridge::CoreBridge() {
 
 CoreBridge::~CoreBridge() {
   if (m_context) {
+    stopBridge();
     svm_context_free(m_context);
     m_context = nullptr;
   }
@@ -154,8 +155,6 @@ void CoreBridge::handleRustEvent(int kind, const QString &payloadJson) {
     emit itemsChangedEvent();
   } else if (kind == SVM_EVENT_BRIDGE_CLIENTS_CHANGED) {
     emit bridgeClientsChangedEvent();
-  } else if (kind == SVM_EVENT_BRIDGE_PAIRING_REQUESTED) {
-    emit bridgePairingRequestedEvent(payloadJson);
   }
 }
 
@@ -195,7 +194,9 @@ bool CoreBridge::initialize(const QString &dataDir) {
 
 bool CoreBridge::resetStorage() {
   SVM_ACTION_SCOPE("CoreBridge", "resetStorage");
+  const bool wasBridgeStarted = m_bridgeStarted;
   if (m_context) {
+    stopBridge();
     svm_vault_lock(m_context);
     svm_context_free(m_context);
     m_context = nullptr;
@@ -218,7 +219,14 @@ bool CoreBridge::resetStorage() {
     }
   }
 
-  return initialize();
+  if (!initialize()) {
+    return false;
+  }
+  if (wasBridgeStarted) {
+    startBridge();
+    installNativeHostManifests();
+  }
+  return true;
 }
 
 bool CoreBridge::isInitialized() const { return m_context != nullptr; }
@@ -283,9 +291,7 @@ QList<models::UiVault> CoreBridge::fetchVaults(bool *outConfigured) {
     v.id = obj.value(QStringLiteral("id")).toString();
     v.name = obj.value(QStringLiteral("name")).toString();
     v.iconName = obj.value(QStringLiteral("iconName"))
-                     .toString(QStringLiteral("folder_open"));
-    v.accentColor = obj.value(QStringLiteral("accentColor"))
-                        .toString(QStringLiteral("#64748B"));
+                     .toString(QStringLiteral("vault_personal"));
     v.description = obj.value(QStringLiteral("description")).toString();
     v.itemCount = obj.value(QStringLiteral("itemCount")).toInt(0);
     v.isDefault = obj.value(QStringLiteral("isDefault")).toBool(false);
@@ -323,7 +329,6 @@ bool CoreBridge::createVault(const models::UiVault &vault,
   }
   meta.insert(QStringLiteral("name"), vault.name);
   meta.insert(QStringLiteral("iconName"), vault.iconName);
-  meta.insert(QStringLiteral("accentColor"), vault.accentColor);
   meta.insert(QStringLiteral("description"), vault.description);
   meta.insert(QStringLiteral("isDefault"), vault.isDefault);
   meta.insert(QStringLiteral("initialSetup"), initialSetup);
@@ -361,7 +366,6 @@ bool CoreBridge::updateVault(const models::UiVault &vault) {
   QJsonObject meta;
   meta.insert(QStringLiteral("name"), vault.name);
   meta.insert(QStringLiteral("iconName"), vault.iconName);
-  meta.insert(QStringLiteral("accentColor"), vault.accentColor);
   meta.insert(QStringLiteral("description"), vault.description);
 
   const QByteArray vidUtf8 = vault.id.toUtf8();
@@ -516,6 +520,10 @@ bool CoreBridge::changeMasterPassword(const QString &oldPassword,
     return false;
   }
   return true;
+}
+
+bool CoreBridge::isBiometricAvailable() const {
+  return svm_biometric_is_available();
 }
 
 bool CoreBridge::enableBiometric(const QString &vaultId,
@@ -1007,27 +1015,19 @@ bool CoreBridge::startBridge() {
   if (!m_context) {
     return false;
   }
-  return svm_bridge_start(m_context) == SVM_OK;
+  const bool ok = svm_bridge_start(m_context) == SVM_OK;
+  if (ok) {
+    m_bridgeStarted = true;
+  }
+  return ok;
 }
 
 bool CoreBridge::stopBridge() {
+  m_bridgeStarted = false;
   if (!m_context) {
     return false;
   }
   return svm_bridge_stop(m_context) == SVM_OK;
-}
-
-QString CoreBridge::beginBridgePairing() {
-  if (!m_context) {
-    return QString();
-  }
-  char *outCode = nullptr;
-  if (svm_bridge_pairing_begin(m_context, &outCode) != SVM_OK || !outCode) {
-    return QString();
-  }
-  QString code = QString::fromUtf8(outCode);
-  svm_free_string(outCode);
-  return code;
 }
 
 QJsonArray CoreBridge::listBridgeClients() {

@@ -37,7 +37,6 @@ protected:
 private:
   void setupUI();
   QWidget *createIconPicker();
-  QWidget *createColorPicker();
   void onCreateClicked();
 
   QWidget *m_cardWidget{nullptr};
@@ -51,11 +50,9 @@ private:
   QLineEdit *m_descEdit{nullptr};
   QLabel *m_errorLabel{nullptr};
 
-  QString m_selectedIcon{QStringLiteral("folder_open")};
-  QString m_selectedColor{QStringLiteral("#64748B")};
+  QString m_selectedIcon{QStringLiteral("vault_personal")};
 
   QList<QPushButton *> m_iconButtons;
-  QList<QPushButton *> m_colorButtons;
 
   QPushButton *m_cancelBtn{nullptr};
   QPushButton *m_createBtn{nullptr};

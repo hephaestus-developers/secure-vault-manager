@@ -91,7 +91,7 @@ void TrayManager::updateTrayTooltipAndIcon() {
     return;
   }
 
-  QIcon icon(QStringLiteral(":/icons/app_logo.svg"));
+  QIcon icon(QStringLiteral(":/icons/brand/app_logo.svg"));
   m_trayIcon->setIcon(icon);
 
   const QString statusText = m_isVaultLocked ? tr("Locked") : tr("Unlocked");

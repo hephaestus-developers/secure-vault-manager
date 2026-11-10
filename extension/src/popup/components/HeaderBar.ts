@@ -4,8 +4,8 @@
  */
 
 export interface HeaderBarProps {
-  paired: boolean;
   unlocked: boolean;
+  configured?: boolean;
   desktopRunning?: boolean;
   onLockVault?: () => void;
 }
@@ -17,37 +17,12 @@ export function createHeaderBar(props: HeaderBarProps): HTMLElement {
   const brand = document.createElement("div");
   brand.className = "brandGroup";
 
-  const shieldSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  shieldSvg.setAttribute("width", "20");
-  shieldSvg.setAttribute("height", "20");
-  shieldSvg.setAttribute("viewBox", "0 0 24 24");
-  shieldSvg.setAttribute("fill", "none");
-
-  const shieldPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  shieldPath.setAttribute(
-    "d",
-    "M12 2L3 6V11.5C3 17 6.8 21.6 12 22.8C17.2 21.6 21 17 21 11.5V6L12 2Z"
-  );
-  shieldPath.setAttribute("fill", "#0F766E");
-  shieldPath.setAttribute("stroke", "#14B8A6");
-  shieldPath.setAttribute("stroke-width", "1.8");
-  shieldPath.setAttribute("stroke-linejoin", "round");
-
-  const keyStem = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  keyStem.setAttribute("d", "M12 8V12");
-  keyStem.setAttribute("stroke", "#F0FDFA");
-  keyStem.setAttribute("stroke-width", "2");
-  keyStem.setAttribute("stroke-linecap", "round");
-
-  const keyDot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-  keyDot.setAttribute("cx", "12");
-  keyDot.setAttribute("cy", "15");
-  keyDot.setAttribute("r", "1.2");
-  keyDot.setAttribute("fill", "#F0FDFA");
-
-  shieldSvg.appendChild(shieldPath);
-  shieldSvg.appendChild(keyStem);
-  shieldSvg.appendChild(keyDot);
+  const logoImg = document.createElement("img");
+  logoImg.src = "./app_logo.svg";
+  logoImg.width = 20;
+  logoImg.height = 20;
+  logoImg.alt = "Secure Vault";
+  logoImg.style.cssText = "display: block; flex-shrink: 0;";
 
   const title = document.createElement("span");
   title.className = "brandTitle";
@@ -61,6 +36,10 @@ export function createHeaderBar(props: HeaderBarProps): HTMLElement {
     dot.style.backgroundColor = "var(--text-muted)";
     statusPill.appendChild(dot);
     statusPill.appendChild(document.createTextNode("Offline"));
+  } else if (props.configured === false) {
+    dot.style.backgroundColor = "var(--status-warning)";
+    statusPill.appendChild(dot);
+    statusPill.appendChild(document.createTextNode("Setup"));
   } else if (props.unlocked) {
     dot.style.backgroundColor = "var(--status-success)";
     statusPill.appendChild(dot);
@@ -71,7 +50,7 @@ export function createHeaderBar(props: HeaderBarProps): HTMLElement {
     statusPill.appendChild(document.createTextNode("Locked"));
   }
 
-  brand.appendChild(shieldSvg);
+  brand.appendChild(logoImg);
   brand.appendChild(title);
   brand.appendChild(statusPill);
 

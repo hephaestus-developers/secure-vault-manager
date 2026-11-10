@@ -15,8 +15,6 @@ pub struct VaultProfile {
     pub name: String,
     /// Tên biểu tượng của Vault.
     pub icon_name: String,
-    /// Mã màu nhấn HEX (ví dụ: "#3B82F6").
-    pub accent_color: String,
     /// Mô tả ngắn về mục đích sử dụng của Vault.
     pub description: String,
     /// Số lượng mục lưu trữ hiện có trong Vault.
@@ -34,7 +32,6 @@ impl VaultProfile {
         obj.insert("id", JsonValue::String(self.id.clone()));
         obj.insert("name", JsonValue::String(self.name.clone()));
         obj.insert("iconName", JsonValue::String(self.icon_name.clone()));
-        obj.insert("accentColor", JsonValue::String(self.accent_color.clone()));
         obj.insert("description", JsonValue::String(self.description.clone()));
         obj.insert("itemCount", JsonValue::Number(self.item_count as f64));
         obj.insert("isDefault", JsonValue::Bool(self.is_default));
@@ -54,11 +51,7 @@ impl VaultProfile {
             icon_name: val
                 .get_string("iconName")
                 .or_else(|| val.get_string("icon_name"))
-                .unwrap_or_else(|| "folder_open".to_string()),
-            accent_color: val
-                .get_string("accentColor")
-                .or_else(|| val.get_string("accent_color"))
-                .unwrap_or_else(|| "#3B82F6".to_string()),
+                .unwrap_or_else(|| "vault_personal".to_string()),
             description: val.get_string("description").unwrap_or_default(),
             item_count: val.get_i64_or("itemCount", val.get_i64_or("item_count", 0)) as i32,
             is_default: val.get_bool_or("isDefault", val.get_bool_or("is_default", false)),

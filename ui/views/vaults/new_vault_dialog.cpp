@@ -27,8 +27,8 @@ NewVaultDialog::NewVaultDialog(QWidget *parent)
   setAttribute(Qt::WA_TranslucentBackground, false);
   setModal(false);
   setWindowModality(Qt::NonModal);
-  setMinimumSize(420, 460);
-  resize(480, 520);
+  setMinimumSize(420, 400);
+  resize(480, 440);
 
   setupUI();
 
@@ -60,7 +60,7 @@ void NewVaultDialog::setupUI() {
   m_headerIcon = new QLabel(m_headerWidget);
   m_headerIcon->setFixedSize(18, 18);
   m_headerIcon->setPixmap(app::ThemeManager::instance()
-                              .icon(QStringLiteral("folder_open"))
+                              .icon(QStringLiteral("vault_personal"))
                               .pixmap(18, 18));
   headerLayout->addWidget(m_headerIcon);
 
@@ -115,12 +115,6 @@ void NewVaultDialog::setupUI() {
   layout->addWidget(iconTitle);
   layout->addWidget(createIconPicker());
 
-  // Accent Color Picker
-  auto *colorTitle = new QLabel(tr("Accent Color"), bodyWidget);
-  colorTitle->setObjectName(QStringLiteral("DialogFieldLabel"));
-  layout->addWidget(colorTitle);
-  layout->addWidget(createColorPicker());
-
   // Description
   auto *descTitle = new QLabel(tr("Description (Optional)"), bodyWidget);
   descTitle->setObjectName(QStringLiteral("DialogFieldLabel"));
@@ -166,26 +160,30 @@ QWidget *NewVaultDialog::createIconPicker() {
   auto *container = new QWidget(m_cardWidget);
   auto *layout = new QHBoxLayout(container);
   layout->setContentsMargins(0, 0, 0, 0);
-  layout->setSpacing(6);
+  layout->setSpacing(8);
 
   const QStringList icons = {
-      QStringLiteral("folder_open"),   QStringLiteral("folder_empty"),
-      QStringLiteral("shield_check"),  QStringLiteral("lock"),
-      QStringLiteral("star"),          QStringLiteral("category_server"),
-      QStringLiteral("category_card"), QStringLiteral("category_database")};
+      QStringLiteral("vault_personal"), QStringLiteral("vault_work"),
+      QStringLiteral("vault_home"),     QStringLiteral("vault_shield"),
+      QStringLiteral("vault_safe"),     QStringLiteral("vault_finance"),
+      QStringLiteral("vault_cloud"),    QStringLiteral("vault_team")};
 
   for (const QString &iconName : icons) {
     auto *btn = new QPushButton(container);
     btn->setObjectName(QStringLiteral("IconPickerBtn"));
-    btn->setFixedSize(32, 32);
+    btn->setFixedSize(36, 36);
     btn->setIcon(app::ThemeManager::instance().icon(iconName));
-    btn->setIconSize(QSize(16, 16));
+    btn->setIconSize(QSize(18, 18));
     btn->setCursor(Qt::PointingHandCursor);
     btn->setProperty("iconName", iconName);
     btn->setProperty("selected", iconName == m_selectedIcon);
 
     connect(btn, &QPushButton::clicked, this, [this, btn, iconName]() {
       m_selectedIcon = iconName;
+      if (m_headerIcon) {
+        m_headerIcon->setPixmap(
+            app::ThemeManager::instance().icon(iconName).pixmap(18, 18));
+      }
       for (auto *b : m_iconButtons) {
         b->setProperty("selected", b == btn);
         b->style()->unpolish(b);
@@ -201,74 +199,31 @@ QWidget *NewVaultDialog::createIconPicker() {
   return container;
 }
 
-QWidget *NewVaultDialog::createColorPicker() {
-  auto *container = new QWidget(m_cardWidget);
-  auto *layout = new QHBoxLayout(container);
-  layout->setContentsMargins(0, 0, 0, 0);
-  layout->setSpacing(8);
-
-  const QStringList colors = {
-      QStringLiteral("#3B82F6"), // Blue
-      QStringLiteral("#8B5CF6"), // Purple
-      QStringLiteral("#10B981"), // Emerald
-      QStringLiteral("#F59E0B"), // Amber
-      QStringLiteral("#F43F5E"), // Rose
-      QStringLiteral("#6366F1"), // Indigo
-      QStringLiteral("#06B6D4"), // Cyan
-      QStringLiteral("#64748B")  // Slate
-  };
-
-  for (const QString &colorHex : colors) {
-    auto *btn = new QPushButton(container);
-    btn->setFixedSize(26, 26);
-    btn->setCursor(Qt::PointingHandCursor);
-    btn->setProperty("colorHex", colorHex);
-
-    if (colorHex == m_selectedColor) {
-      btn->setStyleSheet(QStringLiteral("background-color: %1; border: 2px "
-                                        "solid #ffffff; border-radius: 13px;")
-                             .arg(colorHex));
-    } else {
-      btn->setStyleSheet(QStringLiteral("background-color: %1; border: 1px "
-                                        "solid #313244; border-radius: 13px;")
-                             .arg(colorHex));
-    }
-
-    connect(btn, &QPushButton::clicked, this, [this, btn, colorHex]() {
-      m_selectedColor = colorHex;
-      for (auto *b : m_colorButtons) {
-        const QString bColor = b->property("colorHex").toString();
-        if (b == btn) {
-          b->setStyleSheet(QStringLiteral("background-color: %1; border: 2px "
-                                          "solid #ffffff; border-radius: 13px;")
-                               .arg(bColor));
-        } else {
-          b->setStyleSheet(QStringLiteral("background-color: %1; border: 1px "
-                                          "solid #313244; border-radius: 13px;")
-                               .arg(bColor));
-        }
-      }
-    });
-
-    m_colorButtons.append(btn);
-    layout->addWidget(btn);
-  }
-
-  layout->addStretch(1);
-  return container;
-}
-
 void NewVaultDialog::setEditVault(const models::UiVault &vault) {
   m_isEditMode = true;
   m_createdVault = vault;
   m_selectedIcon = vault.iconName;
-  m_selectedColor = vault.accentColor;
 
+  bool matched = false;
+  for (const auto *b : m_iconButtons) {
+    if (b->property("iconName").toString() == m_selectedIcon) {
+      matched = true;
+      break;
+    }
+  }
+  if (!matched) {
+    m_selectedIcon = QStringLiteral("vault_personal");
+  }
+
+  if (m_headerIcon) {
+    m_headerIcon->setPixmap(
+        app::ThemeManager::instance().icon(m_selectedIcon).pixmap(18, 18));
+  }
   if (m_headerTitle) {
     m_headerTitle->setText(tr("Edit Vault"));
   }
   if (m_descLabel) {
-    m_descLabel->setText(tr("Update vault name, icon, and appearance color."));
+    m_descLabel->setText(tr("Update vault name, icon, and description."));
   }
   if (m_nameEdit) {
     m_nameEdit->setText(vault.name);
@@ -285,18 +240,6 @@ void NewVaultDialog::setEditVault(const models::UiVault &vault) {
     b->style()->unpolish(b);
     b->style()->polish(b);
   }
-  for (auto *b : m_colorButtons) {
-    const QString bColor = b->property("colorHex").toString();
-    if (bColor.compare(m_selectedColor, Qt::CaseInsensitive) == 0) {
-      b->setStyleSheet(QStringLiteral("background-color: %1; border: 2px "
-                                      "solid #ffffff; border-radius: 13px;")
-                           .arg(bColor));
-    } else {
-      b->setStyleSheet(QStringLiteral("background-color: %1; border: 1px "
-                                      "solid #313244; border-radius: 13px;")
-                           .arg(bColor));
-    }
-  }
 }
 
 void NewVaultDialog::onCreateClicked() {
@@ -309,7 +252,6 @@ void NewVaultDialog::onCreateClicked() {
   if (m_isEditMode) {
     m_createdVault.name = name;
     m_createdVault.iconName = m_selectedIcon;
-    m_createdVault.accentColor = m_selectedColor;
     m_createdVault.description = m_descEdit->text().trimmed();
 
     const bool ok = app::VaultManager::instance().updateVault(m_createdVault);
@@ -325,7 +267,6 @@ void NewVaultDialog::onCreateClicked() {
   v.id = QStringLiteral("vault_%1").arg(QDateTime::currentMSecsSinceEpoch());
   v.name = name;
   v.iconName = m_selectedIcon;
-  v.accentColor = m_selectedColor;
   v.description = m_descEdit->text().trimmed();
   v.itemCount = 0;
   v.isDefault = false;
@@ -347,8 +288,10 @@ void NewVaultDialog::retranslateUi() {
                                         : tr("Create New Vault"));
   }
   if (m_descLabel) {
-    m_descLabel->setText(tr("Create an isolated vault to organize passwords, "
-                            "tokens, or shared secrets."));
+    m_descLabel->setText(
+        m_isEditMode ? tr("Update vault name, icon, and description.")
+                     : tr("Create an isolated vault to organize passwords, "
+                          "tokens, or shared secrets."));
   }
   if (m_nameEdit) {
     m_nameEdit->setPlaceholderText(

@@ -23,8 +23,7 @@ pub fn build_default_vaults(primary_name: &str) -> Vec<VaultProfile> {
     vec![VaultProfile {
         id: "personal".to_string(),
         name: name.to_string(),
-        icon_name: "folder_open".to_string(),
-        accent_color: "#64748B".to_string(),
+        icon_name: "vault_personal".to_string(),
         description: "Primary personal credentials & logins".to_string(),
         item_count: 0,
         is_default: true,

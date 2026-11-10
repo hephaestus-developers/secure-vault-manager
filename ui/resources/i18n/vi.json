@@ -215,7 +215,6 @@
   "No results found": "Không tìm thấy kết quả phù hợp",
   "+ New Vault...": "+ Kho mới...",
   "A vault with this name already exists.": "Một kho với tên này đã tồn tại.",
-  "Accent Color": "Màu nhận diện",
   "Complete Setup & Open Vault →": "Hoàn tất thiết lập & Mở kho →",
   "Confirm Master Password": "Xác nhận Mật khẩu chính",
   "Confirm New Master Password": "Xác nhận Mật khẩu chính mới",
@@ -378,7 +377,7 @@
   "Permanently Delete Vault?": "Xóa vĩnh viễn Kho dữ liệu này?",
   "I understand, delete this vault": "Tôi đã hiểu, hãy xóa kho này",
   "Edit Vault": "Chỉnh sửa Kho",
-  "Update vault name, icon, and appearance color.": "Cập nhật tên kho, biểu tượng và màu sắc nhận diện.",
+  "Update vault name, icon, and description.": "Cập nhật tên kho, biểu tượng và mô tả.",
   "Save Changes": "Lưu thay đổi",
   "Could not update vault.": "Không thể cập nhật thông tin kho.",
   "Enable Browser Integration": "Bật Tích hợp Trình duyệt",
@@ -509,5 +508,14 @@
   "+ New Wi-Fi": "+ Thêm Wi-Fi",
   "No Items in Vault": "Kho dữ liệu trống",
   "Create your first credential to start securing your digital life.": "Tạo bản ghi đầu tiên để bắt đầu bảo vệ dữ liệu số của bạn.",
-  "+ New Item": "+ Tạo bản ghi mới"
+  "+ New Item": "+ Tạo bản ghi mới",
+  "Move to Trash?": "Chuyển vào Thùng rác?",
+  "Delete Permanently?": "Xóa vĩnh viễn?",
+  "Move this item to Trash?": "Chuyển bản ghi này vào Thùng rác?",
+  "Permanently delete this item?": "Xóa vĩnh viễn bản ghi này?",
+  "This item will be moved to Trash and can be restored anytime from the Trash folder.": "Bản ghi sẽ được chuyển vào Thùng rác và có thể khôi phục lại bất cứ lúc nào từ mục Thùng rác.",
+  "This action cannot be undone. All credentials, notes, and history for this item will be permanently erased.": "Thao tác này không thể hoàn tác. Mọi mật khẩu, ghi chú và lịch sử của bản ghi này sẽ bị xóa vĩnh viễn.",
+  "Biometric unlock is not enabled or OS authentication is unavailable.": "Mở khóa sinh trắc học chưa được bật hoặc hệ điều hành không hỗ trợ xác thực.",
+  "Biometric or OS authentication failed or was cancelled.": "Xác thực sinh trắc học hoặc hệ điều hành thất bại hoặc đã bị hủy.",
+  "Unable to update biometric unlock while the vault is locked or OS authentication is unavailable.": "Không thể thay đổi mở khóa sinh trắc học khi kho đang bị khóa hoặc hệ điều hành không hỗ trợ."
 }

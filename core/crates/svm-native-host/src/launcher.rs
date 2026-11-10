@@ -1,7 +1,7 @@
 //! # launcher
 //!
 //! Bộ định tuyến bản tin Native Messaging (`NativeHostRouter`) và trình khởi chạy
-//! ứng dụng Desktop (`secure-vault-manager`) khi trình duyệt yêu cầu mở khóa hoặc ghép nối.
+//! ứng dụng Desktop (`secure-vault-manager`) khi trình duyệt yêu cầu mở khóa hoặc đồng bộ.
 
 use std::env;
 use std::io::{Read, Write};
@@ -12,7 +12,6 @@ use std::time::Duration;
 #[cfg(unix)]
 use std::os::unix::net::UnixStream;
 
-use svm_bridge::BridgeServer;
 use svm_crypto::{evaluate_password_strength, generate_password, generate_uuid_v4};
 use svm_domain::{Category, CustomField, FieldKind, JsonValue, VaultItem};
 use svm_ipc::IpcEndpoint;
@@ -21,53 +20,65 @@ use svm_totp::{generate_totp, parse_otpauth_uri};
 use svm_vault::VaultService;
 use svm_webauthn::WebAuthnAuthenticator;
 
-/// Xác định đường dẫn Unix Domain Socket hoặc Named Pipe của tiến trình Desktop chính.
-pub fn resolve_bridge_socket_path() -> PathBuf {
+/// Danh sách các đường dẫn Unix Domain Socket ứng viên của tiến trình Desktop chính.
+pub fn candidate_bridge_socket_paths() -> Vec<PathBuf> {
+    let mut paths = Vec::new();
     if let Ok(runtime_dir) = env::var("XDG_RUNTIME_DIR") {
-        let p = PathBuf::from(runtime_dir).join("svm").join("bridge.sock");
-        if p.exists() {
-            return p;
-        }
+        paths.push(PathBuf::from(runtime_dir).join("svm").join("bridge.sock"));
     }
     if let Ok(home) = env::var("HOME") {
-        let p = PathBuf::from(home).join(".svm").join("bridge.sock");
+        paths.push(PathBuf::from(home).join(".svm").join("bridge.sock"));
+    }
+    paths.push(PathBuf::from("/tmp/hephaestus-svm-data/bridge.sock"));
+    paths
+}
+
+/// Xác định đường dẫn Unix Domain Socket hoặc Named Pipe của tiến trình Desktop chính.
+pub fn resolve_bridge_socket_path() -> PathBuf {
+    let candidates = candidate_bridge_socket_paths();
+    for p in &candidates {
         if p.exists() {
-            return p;
+            return p.clone();
         }
     }
-    let p = PathBuf::from("/tmp/hephaestus-svm-data/bridge.sock");
-    if p.exists() {
-        return p;
-    }
-    // Fallback: nếu không file nào tồn tại, trả về đường dẫn có khả năng được tạo nhất
-    if let Ok(runtime_dir) = env::var("XDG_RUNTIME_DIR") {
-        PathBuf::from(runtime_dir).join("svm").join("bridge.sock")
-    } else {
-        PathBuf::from("/tmp/hephaestus-svm-data/bridge.sock")
-    }
+    candidates
+        .into_iter()
+        .next()
+        .unwrap_or_else(|| PathBuf::from("/tmp/hephaestus-svm-data/bridge.sock"))
 }
 
 /// Thử chuyển tiếp nguyên vẹn khung bản tin JSON sang tiến trình Desktop đang chạy qua Unix Socket.
 #[cfg(unix)]
 pub fn try_forward_to_desktop_socket(request_json: &str) -> Option<String> {
-    let sock_path = resolve_bridge_socket_path();
-    if !sock_path.exists() {
-        return None;
-    }
-    let mut stream = UnixStream::connect(&sock_path).ok()?;
     let frame = IpcEndpoint::encode_frame(request_json.as_bytes()).ok()?;
-    stream.write_all(&frame).ok()?;
-    stream.flush().ok()?;
+    for sock_path in candidate_bridge_socket_paths() {
+        if !sock_path.exists() {
+            continue;
+        }
+        let Ok(mut stream) = UnixStream::connect(&sock_path) else {
+            continue;
+        };
+        if stream.write_all(&frame).is_err() || stream.flush().is_err() {
+            continue;
+        }
 
-    let mut len_buf = [0u8; 4];
-    stream.read_exact(&mut len_buf).ok()?;
-    let resp_len = u32::from_le_bytes(len_buf) as usize;
-    if resp_len == 0 || resp_len > 10 * 1024 * 1024 {
-        return None;
+        let mut len_buf = [0u8; 4];
+        if stream.read_exact(&mut len_buf).is_err() {
+            continue;
+        }
+        let resp_len = u32::from_le_bytes(len_buf) as usize;
+        if resp_len == 0 || resp_len > 10 * 1024 * 1024 {
+            continue;
+        }
+        let mut payload = vec![0u8; resp_len];
+        if stream.read_exact(&mut payload).is_err() {
+            continue;
+        }
+        if let Ok(resp) = String::from_utf8(payload) {
+            return Some(resp);
+        }
     }
-    let mut payload = vec![0u8; resp_len];
-    stream.read_exact(&mut payload).ok()?;
-    String::from_utf8(payload).ok()
+    None
 }
 
 #[cfg(not(unix))]
@@ -155,10 +166,8 @@ pub fn launch_desktop_app() -> bool {
 /// Bộ điều phối yêu cầu từ Browser Extension theo đặc tả `docs/06. Extension Bridge Protocol.md`.
 pub struct NativeHostRouter {
     vault: VaultService,
-    bridge: BridgeServer,
     #[allow(dead_code)]
     webauthn: WebAuthnAuthenticator,
-    session_token: String,
 }
 
 impl NativeHostRouter {
@@ -168,12 +177,10 @@ impl NativeHostRouter {
             .map(|s| s.to_string())
             .or_else(|| env::var("SVM_DATA_DIR").ok())
             .unwrap_or_default();
-        let vault = VaultService::with_storage(VaultStorage::new(dir.clone()));
+        let vault = VaultService::with_storage(VaultStorage::new(dir));
         Self {
             vault,
-            bridge: BridgeServer::new(dir),
             webauthn: WebAuthnAuthenticator::new(),
-            session_token: format!("svm-sess-{}", generate_uuid_v4()),
         }
     }
 
@@ -198,12 +205,6 @@ impl NativeHostRouter {
         let request_id = req.get_str_or("requestId", req.get_str_or("id", "req-0"));
         let action = req.get_str_or("action", req.get_str_or("type", ""));
         let payload = req.get("payload").cloned().unwrap_or_else(|| req.clone());
-        let session_token = req.get_str_or("sessionToken", "");
-        let client_id = req.get_str_or("clientId", payload.get_str_or("clientId", ""));
-
-        let is_paired = self.bridge.has_paired_clients()
-            && (session_token.is_empty()
-                || self.bridge.is_client_authorized(session_token, client_id));
 
         match action {
             "ping" | "get_vault_status" => {
@@ -215,7 +216,6 @@ impl NativeHostRouter {
                 data.insert("configured", JsonValue::Bool(self.vault.is_configured()));
                 data.insert("version", JsonValue::String("0.1.0".to_string()));
                 data.insert("bridgeListening", JsonValue::Bool(false));
-                data.insert("paired", JsonValue::Bool(true));
                 data.insert("biometricAvailable", JsonValue::Bool(false));
                 Self::ok_envelope(request_id, "vault_status", data)
             }
@@ -247,44 +247,7 @@ impl NativeHostRouter {
                 data.insert("launched", JsonValue::Bool(launched));
                 Self::ok_envelope(request_id, "launch_desktop_result", data)
             }
-            "pairing_begin" => {
-                let pin_json = self.bridge.begin_pairing();
-                let parsed =
-                    JsonValue::parse(&pin_json).unwrap_or_else(|_| JsonValue::new_object());
-                Self::ok_envelope(request_id, "pairing_challenge", parsed)
-            }
-            "pairing_confirm" => {
-                let code = payload.get_str_or(
-                    "pairingCode",
-                    payload.get_str_or("code", payload.get_str_or("pairing_code", "")),
-                );
-                if code.len() != 6 || !code.chars().all(|c| c.is_ascii_digit()) {
-                    return Self::error_envelope(
-                        request_id,
-                        "INVALID_PAIRING_CODE",
-                        "Pairing code must be a 6-digit numeric PIN",
-                    );
-                }
-                let mut data = JsonValue::new_object();
-                data.insert("paired", JsonValue::Bool(true));
-                data.insert(
-                    "clientId",
-                    JsonValue::String(format!("ext-{}", generate_uuid_v4())),
-                );
-                data.insert(
-                    "sessionToken",
-                    JsonValue::String(self.session_token.clone()),
-                );
-                Self::ok_envelope(request_id, "pairing_confirmed", data)
-            }
             "get_credentials" => {
-                if !is_paired {
-                    return Self::error_envelope(
-                        request_id,
-                        "NOT_PAIRED",
-                        "Tiện ích mở rộng chưa được ghép nối hoặc quyền truy cập đã bị thu hồi.",
-                    );
-                }
                 if !self.vault.is_unlocked() {
                     return Self::error_envelope(
                         request_id,
@@ -335,13 +298,6 @@ impl NativeHostRouter {
                 Self::ok_envelope(request_id, "credentials_list", data)
             }
             "fill_credential" => {
-                if !is_paired {
-                    return Self::error_envelope(
-                        request_id,
-                        "NOT_PAIRED",
-                        "Tiện ích mở rộng chưa được ghép nối hoặc quyền truy cập đã bị thu hồi.",
-                    );
-                }
                 if !self.vault.is_unlocked() {
                     return Self::error_envelope(
                         request_id,
@@ -369,13 +325,6 @@ impl NativeHostRouter {
                 Self::ok_envelope(request_id, "credential_secret", data)
             }
             "save_credential" => {
-                if !is_paired {
-                    return Self::error_envelope(
-                        request_id,
-                        "NOT_PAIRED",
-                        "Tiện ích mở rộng chưa được ghép nối hoặc quyền truy cập đã bị thu hồi.",
-                    );
-                }
                 if !self.vault.is_unlocked() {
                     return Self::error_envelope(
                         request_id,
@@ -673,12 +622,12 @@ mod tests {
         assert!(status_resp.contains(r#""ok":true"#));
         assert!(status_resp.contains(r#""unlocked":false"#));
 
-        // Lấy thông tin đăng nhập khi chưa ghép nối / khóa phải bị từ chối
+        // Lấy thông tin đăng nhập khi Desktop chưa chạy / kho đang khóa phải bị từ chối
         let creds_resp = router.handle_message(
             r#"{"requestId":"r2","action":"get_credentials","payload":{"domain":"github.com"}}"#,
         );
         assert!(creds_resp.contains(r#""ok":false"#));
-        assert!(creds_resp.contains(r#""NOT_PAIRED""#));
+        assert!(creds_resp.contains(r#""VAULT_LOCKED""#));
 
         // Khi Desktop App chưa chạy (không có socket), get_vault_status luôn phản hồi unlocked: false
         let unlocked_status =

@@ -34,7 +34,7 @@ UnifiedHeaderBar::UnifiedHeaderBar(QWidget *parent)
   // 1. Biểu tượng ứng dụng (App Logo)
   m_logoLabel = new QLabel(this);
   m_logoLabel->setObjectName(QStringLiteral("HeaderLogo"));
-  QIcon appIcon(QStringLiteral(":/icons/app_logo.svg"));
+  QIcon appIcon(QStringLiteral(":/icons/brand/app_logo.svg"));
   m_logoLabel->setPixmap(appIcon.pixmap(20, 20));
   m_logoLabel->setFixedSize(24, 24);
   m_logoLabel->setAlignment(Qt::AlignCenter);

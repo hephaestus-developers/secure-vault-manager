@@ -145,9 +145,9 @@ void ItemCardDelegate::paint(QPainter *painter,
   if (isFav) {
     const QRect starRect(badgeX - 16, rect.top() + (rect.height() - 16) / 2, 16,
                          16);
-    const QIcon starIcon(isLight
-                             ? QStringLiteral(":/icons/star_filled_light.svg")
-                             : QStringLiteral(":/icons/star_filled_dark.svg"));
+    const QIcon starIcon(
+        isLight ? QStringLiteral(":/icons/actions/star_filled_light.svg")
+                : QStringLiteral(":/icons/actions/star_filled_dark.svg"));
     starIcon.paint(painter, starRect);
     badgeX -= 22;
   }

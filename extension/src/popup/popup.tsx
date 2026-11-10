@@ -1,6 +1,6 @@
 /**
  * @file extension/src/popup/popup.tsx
- * @brief Điểm nhập điều khiển giao diện Popup của Browser Extension (Logins, Password Generator, Pairing).
+ * @brief Điểm nhập điều khiển giao diện Popup của Browser Extension (Logins, Password Generator).
  */
 
 import { PasswordGeneratorOptions } from "../services/domain";
@@ -28,8 +28,8 @@ function getSystemTheme(): "dark" | "light" {
 interface PopupState {
   theme: "dark" | "light";
   activeTab: "logins" | "generator";
-  paired: boolean;
   unlocked: boolean;
+  configured: boolean;
   desktopRunning: boolean;
   biometricAvailable: boolean;
   activeOrigin: string;
@@ -43,8 +43,8 @@ interface PopupState {
 const state: PopupState = {
   theme: getSystemTheme(),
   activeTab: "logins",
-  paired: true,
   unlocked: false,
+  configured: false,
   desktopRunning: false,
   biometricAvailable: false,
   activeOrigin: "",
@@ -148,18 +148,18 @@ async function loadInitialData(): Promise<void> {
 
   const statusResp = await sendExtensionBridgeMessage<VaultStatusPayload>("get_vault_status");
   if (statusResp.ok && statusResp.payload) {
-    state.unlocked = Boolean(statusResp.payload.unlocked);
-    state.paired = Boolean(statusResp.payload.paired ?? true);
+    state.configured = Boolean(statusResp.payload.configured);
+    state.unlocked = state.configured && Boolean(statusResp.payload.unlocked);
     state.desktopRunning = Boolean(statusResp.payload.desktopRunning ?? false);
-    state.biometricAvailable = Boolean(statusResp.payload.biometricAvailable);
+    state.biometricAvailable = state.configured && Boolean(statusResp.payload.biometricAvailable);
   } else {
+    state.configured = false;
     state.unlocked = false;
-    state.paired = false;
     state.desktopRunning = false;
     state.biometricAvailable = false;
   }
 
-  if (state.unlocked && state.paired) {
+  if (state.unlocked && state.configured) {
     const credsResp = await sendExtensionBridgeMessage<CredentialsListPayload>("get_credentials", {
       domain: state.activeDomain,
     });
@@ -173,9 +173,6 @@ async function loadInitialData(): Promise<void> {
       state.credentials = items;
     } else {
       state.credentials = [];
-      if (credsResp.error?.code === "NOT_PAIRED") {
-        state.paired = false;
-      }
     }
   } else {
     state.credentials = [];
@@ -280,8 +277,8 @@ export function renderPopup(): void {
 
   shell.appendChild(
     createHeaderBar({
-      paired: state.paired,
       unlocked: state.unlocked,
+      configured: state.configured,
       desktopRunning: state.desktopRunning,
       onLockVault: async () => {
         await sendExtensionBridgeMessage("lock_vault");
@@ -295,11 +292,12 @@ export function renderPopup(): void {
   const content = document.createElement("main");
   content.className = "contentArea";
 
-  // Khi Vault đang BỊ KHÓA hoặc Desktop App chưa chạy: Hiển thị ngay màn hình mở khóa
-  if (!state.unlocked) {
+  // Khi Vault chưa thiết lập, đang bị khóa, hoặc Desktop App chưa chạy: Hiển thị màn trạng thái tương ứng
+  if (!state.configured || !state.unlocked) {
     content.appendChild(
       createLockView({
         desktopRunning: state.desktopRunning,
+        configured: state.configured,
         biometricAvailable: state.biometricAvailable,
         onUnlockPassword: async (password: string) => {
           const resp = await sendExtensionBridgeMessage<any>("unlock_vault", {
@@ -309,7 +307,6 @@ export function renderPopup(): void {
           });
           if (resp.ok && resp.payload?.unlocked) {
             state.unlocked = true;
-            state.paired = true;
             showToast("Đã mở khóa kho mật khẩu");
             await loadInitialData();
             return true;
@@ -323,7 +320,6 @@ export function renderPopup(): void {
           });
           if (resp.ok && resp.payload?.unlocked) {
             state.unlocked = true;
-            state.paired = true;
             showToast("Đã mở khóa bằng sinh trắc học");
             await loadInitialData();
             return true;
@@ -407,10 +403,12 @@ async function syncStatusSilently(): Promise<void> {
 
     const statusResp = await sendExtensionBridgeMessage<VaultStatusPayload>("get_vault_status");
     if (statusResp.ok && statusResp.payload) {
-      const newUnlocked = Boolean(statusResp.payload.unlocked);
+      const newConfigured = Boolean(statusResp.payload.configured);
+      const newUnlocked = newConfigured && Boolean(statusResp.payload.unlocked);
       const newDesktop = Boolean(statusResp.payload.desktopRunning ?? false);
-      const newBio = Boolean(statusResp.payload.biometricAvailable);
+      const newBio = newConfigured && Boolean(statusResp.payload.biometricAvailable);
       if (
+        newConfigured !== state.configured ||
         newUnlocked !== state.unlocked ||
         newDesktop !== state.desktopRunning ||
         newBio !== state.biometricAvailable ||
@@ -418,8 +416,9 @@ async function syncStatusSilently(): Promise<void> {
       ) {
         await loadInitialData();
       }
-    } else if (state.desktopRunning || state.unlocked) {
+    } else if (state.desktopRunning || state.unlocked || state.configured) {
       state.desktopRunning = false;
+      state.configured = false;
       state.unlocked = false;
       renderPopup();
     }

@@ -44,7 +44,7 @@ void LockScreenView::setupUI() {
   // Logo biểu trưng
   m_logoLabel = new QLabel(m_cardWidget);
   m_logoLabel->setPixmap(
-      QIcon(QStringLiteral(":/icons/app_logo.svg")).pixmap(64, 64));
+      QIcon(QStringLiteral(":/icons/brand/app_logo.svg")).pixmap(64, 64));
   m_logoLabel->setAlignment(Qt::AlignCenter);
   cardLayout->addWidget(m_logoLabel);
 
@@ -187,11 +187,22 @@ void LockScreenView::attemptUnlock() {
 }
 
 void LockScreenView::attemptBiometricUnlock() {
+  if (!app::VaultManager::instance().isBiometricEnabled()) {
+    m_errorLabel->setText(tr("Biometric unlock is not enabled or OS "
+                             "authentication is unavailable."));
+    triggerShakeAnimation();
+    return;
+  }
   const bool ok = app::VaultManager::instance().unlockWithBiometrics();
   if (ok) {
     m_passwordEdit->clear();
     m_errorLabel->clear();
     emit unlocked();
+  } else {
+    m_errorLabel->setText(
+        tr("Biometric or OS authentication failed or was cancelled."));
+    triggerShakeAnimation();
+    focusPasswordInput();
   }
 }
 
@@ -233,6 +244,10 @@ void LockScreenView::resetLockScreen() {
   }
   if (m_errorLabel) {
     m_errorLabel->clear();
+  }
+  if (m_biometricBtn) {
+    m_biometricBtn->setVisible(
+        app::VaultManager::instance().isBiometricEnabled());
   }
   focusPasswordInput();
 }

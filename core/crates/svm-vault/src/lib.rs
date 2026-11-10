@@ -26,6 +26,11 @@ mod tests {
         let dir = format!("/tmp/svm_test_vault_svc_{}", generate_uuid_v4());
         let mut svc = VaultService::with_storage(VaultStorage::new(&dir));
 
+        // Kho chưa được khởi tạo thì không được phép mở khóa bằng bất kỳ mật khẩu nào
+        assert!(!svc.is_configured());
+        assert!(svc.unlock_with_credentials("personal", "anything").is_err());
+        assert!(!svc.is_unlocked());
+
         let id = svc
             .create_vault("Personal Vault", "StrongMaster#2026")
             .expect("create vault");

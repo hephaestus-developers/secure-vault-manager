@@ -12,8 +12,8 @@ use svm_transfer::{export_items_to_file, parse_import_file, TransferFormat};
 
 use crate::context::{
     alloc_c_string, c_str_to_string, handle_domain_err, SvmBuffer, SvmContext,
-    EVENT_BRIDGE_CLIENTS_CHANGED, EVENT_BRIDGE_PAIRING_REQUESTED, EVENT_BRIDGE_STATUS,
-    EVENT_ITEMS_CHANGED, EVENT_SSH_STATUS, EVENT_VAULT_LOCKED, EVENT_VAULT_UNLOCKED,
+    EVENT_BRIDGE_CLIENTS_CHANGED, EVENT_BRIDGE_STATUS, EVENT_ITEMS_CHANGED, EVENT_SSH_STATUS,
+    EVENT_VAULT_LOCKED, EVENT_VAULT_UNLOCKED,
 };
 use crate::item_ffi::svm_item_trash;
 
@@ -428,23 +428,8 @@ fn dispatch_bridge_request(ctx_raw: usize, req_json: &str) -> String {
     let request_id = req.get_str_or("requestId", req.get_str_or("id", "req-0"));
     let action = req.get_str_or("action", req.get_str_or("type", ""));
     let payload = req.get("payload").cloned().unwrap_or_else(|| req.clone());
-    let _session_token = req.get_str_or("sessionToken", "");
-    let client_id = req.get_str_or("clientId", payload.get_str_or("clientId", ""));
 
     let is_unlocked = unsafe { (*ctx).unlocked.load(Ordering::SeqCst) };
-
-    let is_paired = if let Ok(rt) = unsafe { (*ctx).runtime.lock() } {
-        if !client_id.is_empty()
-            && !rt.bridge.clients().is_empty()
-            && !rt.bridge.clients().iter().any(|c| c.id == client_id)
-        {
-            false
-        } else {
-            true
-        }
-    } else {
-        true
-    };
 
     let browser_name = payload.get_str_or("browser", req.get_str_or("browser", "Google Chrome"));
     let version_str = payload.get_str_or("version", req.get_str_or("version", "v1.0.0"));
@@ -460,19 +445,21 @@ fn dispatch_bridge_request(ctx_raw: usize, req_json: &str) -> String {
 
     match action {
         "ping" | "get_vault_status" => {
-            let bio_available = svm_system::is_biometric_available()
-                && if let Ok(rt) = unsafe { (*ctx).runtime.lock() } {
-                    rt.vault_service.is_biometric_enabled()
-                } else {
-                    false
-                };
+            let (is_configured, bio_available) = if let Ok(rt) = unsafe { (*ctx).runtime.lock() } {
+                let configured = rt.vault_service.is_configured();
+                let bio = configured
+                    && svm_system::is_biometric_available()
+                    && rt.vault_service.is_biometric_enabled();
+                (configured, bio)
+            } else {
+                (false, false)
+            };
             let mut data = JsonValue::new_object();
-            data.insert("unlocked", JsonValue::Bool(is_unlocked));
+            data.insert("unlocked", JsonValue::Bool(is_unlocked && is_configured));
             data.insert("desktopRunning", JsonValue::Bool(true));
-            data.insert("configured", JsonValue::Bool(true));
+            data.insert("configured", JsonValue::Bool(is_configured));
             data.insert("version", JsonValue::String("0.1.0".to_string()));
             data.insert("bridgeListening", JsonValue::Bool(true));
-            data.insert("paired", JsonValue::Bool(is_paired));
             data.insert("biometricAvailable", JsonValue::Bool(bio_available));
             make_ok_envelope(request_id, "vault_status", data)
         }
@@ -498,14 +485,12 @@ fn dispatch_bridge_request(ctx_raw: usize, req_json: &str) -> String {
                         }
                         let mut data = JsonValue::new_object();
                         data.insert("unlocked", JsonValue::Bool(true));
-                        data.insert("paired", JsonValue::Bool(true));
                         data.insert("clientId", JsonValue::String(client.id));
                         data.insert("sessionToken", JsonValue::String(client.session_token));
                         make_ok_envelope(request_id, "vault_unlocked", data)
                     } else {
                         let mut data = JsonValue::new_object();
                         data.insert("unlocked", JsonValue::Bool(true));
-                        data.insert("paired", JsonValue::Bool(true));
                         make_ok_envelope(request_id, "vault_unlocked", data)
                     }
                 }
@@ -533,14 +518,12 @@ fn dispatch_bridge_request(ctx_raw: usize, req_json: &str) -> String {
                         }
                         let mut data = JsonValue::new_object();
                         data.insert("unlocked", JsonValue::Bool(true));
-                        data.insert("paired", JsonValue::Bool(true));
                         data.insert("clientId", JsonValue::String(client.id));
                         data.insert("sessionToken", JsonValue::String(client.session_token));
                         make_ok_envelope(request_id, "vault_unlocked", data)
                     } else {
                         let mut data = JsonValue::new_object();
                         data.insert("unlocked", JsonValue::Bool(true));
-                        data.insert("paired", JsonValue::Bool(true));
                         make_ok_envelope(request_id, "vault_unlocked", data)
                     }
                 }
@@ -559,53 +542,7 @@ fn dispatch_bridge_request(ctx_raw: usize, req_json: &str) -> String {
             data.insert("unlocked", JsonValue::Bool(false));
             make_ok_envelope(request_id, "vault_locked", data)
         }
-        "pairing_begin" => {
-            let (code_json, event_json) = if let Ok(mut rt) = unsafe { (*ctx).runtime.lock() } {
-                let j = rt.bridge.begin_pairing();
-                (j.clone(), j)
-            } else {
-                ("{}".to_string(), "{}".to_string())
-            };
-            unsafe {
-                (*ctx).emit_event(EVENT_BRIDGE_PAIRING_REQUESTED, &event_json);
-            }
-            let parsed = JsonValue::parse(&code_json).unwrap_or_else(|_| JsonValue::new_object());
-            make_ok_envelope(request_id, "pairing_challenge", parsed)
-        }
-        "pairing_confirm" => {
-            let code = payload.get_str_or(
-                "pairingCode",
-                payload.get_str_or("code", payload.get_str_or("pairing_code", "")),
-            );
-            let browser = payload.get_str_or("browser", "WebExtension");
-            let version = payload.get_str_or("version", "v1.0.0");
-            let result = if let Ok(mut rt) = unsafe { (*ctx).runtime.lock() } {
-                rt.bridge.confirm_pairing(code, browser, version)
-            } else {
-                Err(DomainError::Internal("Runtime lock failed".to_string()))
-            };
-            match result {
-                Ok(client) => {
-                    let mut data = JsonValue::new_object();
-                    data.insert("paired", JsonValue::Bool(true));
-                    data.insert("clientId", JsonValue::String(client.id));
-                    data.insert("sessionToken", JsonValue::String(client.session_token));
-                    unsafe {
-                        (*ctx).emit_event(EVENT_BRIDGE_CLIENTS_CHANGED, "{}");
-                    }
-                    make_ok_envelope(request_id, "pairing_confirmed", data)
-                }
-                Err(err) => make_err_envelope(request_id, "PAIRING_FAILED", err.message()),
-            }
-        }
         "get_credentials" => {
-            if !is_paired {
-                return make_err_envelope(
-                    request_id,
-                    "NOT_PAIRED",
-                    "Tiện ích mở rộng chưa được ghép nối hoặc quyền truy cập đã bị thu hồi.",
-                );
-            }
             if !is_unlocked {
                 return make_err_envelope(
                     request_id,
@@ -657,13 +594,6 @@ fn dispatch_bridge_request(ctx_raw: usize, req_json: &str) -> String {
             make_ok_envelope(request_id, "credentials_list", data)
         }
         "fill_credential" => {
-            if !is_paired {
-                return make_err_envelope(
-                    request_id,
-                    "NOT_PAIRED",
-                    "Tiện ích mở rộng chưa được ghép nối hoặc quyền truy cập đã bị thu hồi.",
-                );
-            }
             if !is_unlocked {
                 return make_err_envelope(
                     request_id,
@@ -693,13 +623,6 @@ fn dispatch_bridge_request(ctx_raw: usize, req_json: &str) -> String {
             make_err_envelope(request_id, "NOT_FOUND", "Không tìm thấy bản ghi đăng nhập")
         }
         "save_credential" => {
-            if !is_paired {
-                return make_err_envelope(
-                    request_id,
-                    "NOT_PAIRED",
-                    "Tiện ích mở rộng chưa được ghép nối hoặc quyền truy cập đã bị thu hồi.",
-                );
-            }
             if !is_unlocked {
                 return make_err_envelope(
                     request_id,
@@ -752,13 +675,6 @@ fn dispatch_bridge_request(ctx_raw: usize, req_json: &str) -> String {
             make_ok_envelope(request_id, "generated_password", data)
         }
         "get_totp" => {
-            if !is_paired {
-                return make_err_envelope(
-                    request_id,
-                    "NOT_PAIRED",
-                    "Tiện ích mở rộng chưa được ghép nối hoặc quyền truy cập đã bị thu hồi.",
-                );
-            }
             if !is_unlocked {
                 return make_err_envelope(
                     request_id,
@@ -795,13 +711,6 @@ fn dispatch_bridge_request(ctx_raw: usize, req_json: &str) -> String {
             make_ok_envelope(request_id, "totp_code", data)
         }
         "passkey_create" => {
-            if !is_paired {
-                return make_err_envelope(
-                    request_id,
-                    "NOT_PAIRED",
-                    "Tiện ích mở rộng chưa được ghép nối hoặc quyền truy cập đã bị thu hồi.",
-                );
-            }
             if !is_unlocked {
                 return make_err_envelope(
                     request_id,
@@ -896,13 +805,6 @@ fn dispatch_bridge_request(ctx_raw: usize, req_json: &str) -> String {
             }
         }
         "passkey_get" => {
-            if !is_paired {
-                return make_err_envelope(
-                    request_id,
-                    "NOT_PAIRED",
-                    "Tiện ích mở rộng chưa được ghép nối hoặc quyền truy cập đã bị thu hồi.",
-                );
-            }
             if !is_unlocked {
                 return make_err_envelope(
                     request_id,
@@ -1072,33 +974,7 @@ pub unsafe extern "C" fn svm_bridge_stop(ctx: *mut SvmContext) -> SvmStatusCode 
     SvmStatusCode::Ok
 }
 
-/// Bắt đầu quá trình ghép nối với Extension (sinh mã xác nhận 6 số).
-///
-/// # Safety
-/// Mọi tham số con trỏ không được là NULL.
-#[no_mangle]
-pub unsafe extern "C" fn svm_bridge_pairing_begin(
-    ctx: *mut SvmContext,
-    out_pairing_json: *mut *mut c_char,
-) -> SvmStatusCode {
-    if ctx.is_null() || out_pairing_json.is_null() {
-        return SvmStatusCode::InvalidArg;
-    }
-    let (json, emit_json) = if let Ok(mut rt) = (*ctx).runtime.lock() {
-        let j = rt.bridge.begin_pairing();
-        (j.clone(), j)
-    } else {
-        (
-            "{\"pairing_code\":\"123456\",\"expires_in_secs\":60}".to_string(),
-            "{}".to_string(),
-        )
-    };
-    (*ctx).emit_event(EVENT_BRIDGE_PAIRING_REQUESTED, &emit_json);
-    *out_pairing_json = alloc_c_string(&json);
-    SvmStatusCode::Ok
-}
-
-/// Lấy danh sách các Extension / Client đã ghép nối thành công dưới dạng JSON.
+/// Lấy danh sách các Extension / Client đang kết nối dưới dạng JSON.
 ///
 /// # Safety
 /// Mọi tham số con trỏ không được là NULL.

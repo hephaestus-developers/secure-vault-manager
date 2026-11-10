@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <!-- Safe body -->
+    <linearGradient id="safeBody" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1E293B"/>
+      <stop offset="100%" stop-color="#0F172A"/>
+    </linearGradient>
+    <!-- Safe door -->
+    <linearGradient id="safeDoor" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#334155"/>
+      <stop offset="100%" stop-color="#1E293B"/>
+    </linearGradient>
+    <!-- Shackle -->
+    <linearGradient id="shackleGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#F1F5F9"/>
+      <stop offset="100%" stop-color="#94A3B8"/>
+    </linearGradient>
+    <!-- Lock body (cool metallic gray matching the safe) -->
+    <linearGradient id="lockBodyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#94A3B8"/>
+      <stop offset="45%" stop-color="#64748B"/>
+      <stop offset="100%" stop-color="#475569"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Left hinges -->
+  <rect x="14" y="128" width="22" height="56" rx="8" fill="#64748B"/>
+  <rect x="14" y="328" width="22" height="56" rx="8" fill="#64748B"/>
+
+  <!-- Outer safe body -->
+  <rect x="28" y="28" width="456" height="456" rx="88" fill="url(#safeBody)" stroke="#475569" stroke-width="5"/>
+
+  <!-- Inner recessed door -->
+  <rect x="62" y="62" width="388" height="388" rx="60" fill="url(#safeDoor)" stroke="#1E293B" stroke-width="4"/>
+
+  <!-- Padlock shackle -->
+  <path fill="url(#shackleGrad)" d="M192 212 L192 172 C192 136 220 112 256 112 C292 112 320 136 320 172 L320 212 L296 212 L296 172 C296 150 278 134 256 134 C234 134 216 150 216 172 L216 212 Z"/>
+
+  <!-- Padlock body -->
+  <rect x="160" y="200" width="192" height="144" rx="26" fill="url(#lockBodyGrad)"/>
+
+  <!-- Keyhole -->
+  <circle cx="256" cy="256" r="16" fill="#F1F5F9"/>
+  <path fill="#F1F5F9" d="M247 264 L265 264 L268 298 C268.5 302 266 306 262 306 L250 306 C246 306 243.5 302 244 298 Z"/>
+</svg>

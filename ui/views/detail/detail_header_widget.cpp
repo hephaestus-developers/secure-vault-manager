@@ -76,23 +76,23 @@ void DetailHeaderWidget::setupUI() {
 
   m_favBtn = new QPushButton(this);
   m_favBtn->setObjectName(QStringLiteral("DetailHeaderFavBtn"));
-  m_favBtn->setIcon(QIcon(QStringLiteral(":/icons/star.svg")));
+  m_favBtn->setIcon(QIcon(QStringLiteral(":/icons/actions/star.svg")));
   m_favBtn->setIconSize(QSize(18, 18));
   m_favBtn->setFixedSize(34, 34);
   m_favBtn->setToolTip(tr("Mark as favorite"));
   m_favBtn->setCursor(Qt::PointingHandCursor);
   connect(m_favBtn, &QPushButton::clicked, this, [this]() {
     m_isFavorite = !m_isFavorite;
-    m_favBtn->setIcon(QIcon(m_isFavorite
-                                ? QStringLiteral(":/icons/star_filled.svg")
-                                : QStringLiteral(":/icons/star.svg")));
+    m_favBtn->setIcon(
+        QIcon(m_isFavorite ? QStringLiteral(":/icons/actions/star_filled.svg")
+                           : QStringLiteral(":/icons/actions/star.svg")));
     emit favoriteToggled(m_isFavorite);
   });
   actionLayout->addWidget(m_favBtn);
 
   m_editBtn = new QPushButton(this);
   m_editBtn->setObjectName(QStringLiteral("DetailHeaderEditBtn"));
-  m_editBtn->setIcon(QIcon(QStringLiteral(":/icons/edit.svg")));
+  m_editBtn->setIcon(QIcon(QStringLiteral(":/icons/actions/edit.svg")));
   m_editBtn->setText(tr("Edit"));
   m_editBtn->setFixedHeight(34);
   m_editBtn->setToolTip(tr("Edit item (Ctrl+E)"));

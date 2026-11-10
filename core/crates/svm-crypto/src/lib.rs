@@ -20,8 +20,8 @@ pub use encoding::{base32_decode, base64_decode, base64_encode, hex_decode, hex_
 pub use hash::{hmac_sha1, hmac_sha256, sha1, sha256};
 pub use kdf::{derive_kek, pbkdf2_hmac_sha256};
 pub use mem::{
-    generate_recovery_key, generate_uuid_v4, mem_lock, normalize_recovery_key, random_bytes,
-    seed_entropy, zeroize_slice,
+    generate_recovery_key, generate_uuid_v4, mem_lock, mem_unlock, normalize_recovery_key,
+    random_bytes, seed_entropy, zeroize_slice, zeroize_string,
 };
 pub use password::{evaluate_password_strength, generate_password, PasswordStrength};
 
@@ -78,5 +78,16 @@ mod tests {
         // "MZXW6YTBOJRGC4RAMZXW6YTBOI======" decodes to b"foobarbar foobar"
         let b32_long = base32_decode("MZXW6YTBOJRGC4RAMZXW6YTBOI======").expect("b32 long");
         assert_eq!(b32_long, b"foobarbar foobar");
+    }
+
+    #[test]
+    fn test_pbkdf2_hmac_sha256_rfc_vector() {
+        // Vector từ RFC 7914 / PBKDF2-HMAC-SHA256: P="password", S="salt", c=4096, dkLen=32
+        let mut out = [0u8; 32];
+        pbkdf2_hmac_sha256(b"password", b"salt", 4096, &mut out);
+        assert_eq!(
+            hex_encode(&out),
+            "c5e478d59288c841aa530db6845c4c8d962893a001ce4e11a4963873aa98134a"
+        );
     }
 }

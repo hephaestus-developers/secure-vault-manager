@@ -5,6 +5,7 @@
  * và tạo bộ biểu tượng PNG chuẩn mà không cần tải phụ thuộc mạng.
  */
 
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import zlib from "node:zlib";
@@ -17,38 +18,51 @@ const EXT_ROOT = path.resolve(__dirname, "..");
 const REPO_ROOT = path.resolve(EXT_ROOT, "..");
 const DIST_CHROME = path.join(EXT_ROOT, "dist", "chrome");
 const PUBLIC_DIR = path.join(EXT_ROOT, "public");
+const BRAND_LOGO_SVG = path.join(REPO_ROOT, "ui", "resources", "icons", "brand", "app_logo.svg");
 
 /**
- * Tạo ảnh PNG RGBA hợp lệ (biểu tượng khiên bảo mật màu Catppuccin Blue #89B4FA trên nền #1E1E2E).
+ * Tạo ảnh PNG RGBA dự phòng (hình két sắt + ổ khóa đồng bộ màu thương hiệu) khi không có rsvg-convert.
  */
-function generateShieldPng(size) {
+function generateSafeLockPng(size) {
   const rawData = Buffer.alloc(size * (size * 4 + 1));
   const cx = (size - 1) / 2;
   const cy = (size - 1) / 2;
   const rOuter = size * 0.44;
+  const rInner = size * 0.36;
 
   for (let y = 0; y < size; y++) {
     const rowStart = y * (size * 4 + 1);
-    rawData[rowStart] = 0; // PNG filter type 0 (None)
+    rawData[rowStart] = 0;
     for (let x = 0; x < size; x++) {
       const px = rowStart + 1 + x * 4;
       const dx = Math.abs(x - cx);
       const dy = y - cy;
-      const inBg = dx <= rOuter && Math.abs(dy) <= rOuter;
-      const inShield =
-        y >= size * 0.2 &&
-        y <= size * 0.82 &&
-        dx <= (size * 0.32) * (1 - Math.max(0, (y - size * 0.5) / (size * 0.45)));
+      const inOuter = dx <= rOuter && Math.abs(dy) <= rOuter;
+      const inInner = dx <= rInner && Math.abs(dy) <= rInner;
+      const inLockBody = dx <= size * 0.19 && y >= size * 0.39 && y <= size * 0.67;
+      const distShackle = Math.hypot(x - cx, y - size * 0.34);
+      const inShackle =
+        distShackle <= size * 0.13 && distShackle >= size * 0.08 && y <= size * 0.42;
 
-      if (inShield) {
-        rawData[px] = 0x89;
-        rawData[px + 1] = 0xb4;
-        rawData[px + 2] = 0xfa;
+      if (inShackle) {
+        rawData[px] = 0xf1;
+        rawData[px + 1] = 0xf5;
+        rawData[px + 2] = 0xf9;
         rawData[px + 3] = 0xff;
-      } else if (inBg) {
-        rawData[px] = 0x1e;
-        rawData[px + 1] = 0x1e;
-        rawData[px + 2] = 0x2e;
+      } else if (inLockBody) {
+        rawData[px] = 0x64;
+        rawData[px + 1] = 0x74;
+        rawData[px + 2] = 0x8b;
+        rawData[px + 3] = 0xff;
+      } else if (inInner) {
+        rawData[px] = 0x33;
+        rawData[px + 1] = 0x41;
+        rawData[px + 2] = 0x55;
+        rawData[px + 3] = 0xff;
+      } else if (inOuter) {
+        rawData[px] = 0x0f;
+        rawData[px + 1] = 0x17;
+        rawData[px + 2] = 0x2a;
         rawData[px + 3] = 0xff;
       } else {
         rawData[px] = 0;
@@ -148,12 +162,37 @@ function bundleEntry(entryRelPath) {
   return `(() => {\n"use strict";\n${orderedModules.join("\n\n")}\n})();\n`;
 }
 
-// 1. Đảm bảo biểu tượng PNG tồn tại trong public/
+// 1. Đồng bộ app_logo.svg từ Desktop App và cập nhật biểu tượng PNG trong public/
 fs.mkdirSync(PUBLIC_DIR, { recursive: true });
+const publicLogoSvg = path.join(PUBLIC_DIR, "app_logo.svg");
+const hasBrandSvg = fs.existsSync(BRAND_LOGO_SVG);
+if (hasBrandSvg) {
+  fs.copyFileSync(BRAND_LOGO_SVG, publicLogoSvg);
+}
+const brandMtime = hasBrandSvg ? fs.statSync(BRAND_LOGO_SVG).mtimeMs : 0;
+
 for (const size of [16, 32, 48, 128]) {
   const iconPath = path.join(PUBLIC_DIR, `icon-${size}.png`);
-  if (!fs.existsSync(iconPath)) {
-    fs.writeFileSync(iconPath, generateShieldPng(size));
+  const needsUpdate =
+    !fs.existsSync(iconPath) ||
+    (hasBrandSvg && fs.statSync(iconPath).mtimeMs < brandMtime);
+  if (needsUpdate) {
+    let rendered = false;
+    if (hasBrandSvg) {
+      try {
+        execFileSync(
+          "rsvg-convert",
+          ["-w", String(size), "-h", String(size), BRAND_LOGO_SVG, "-o", iconPath],
+          { stdio: "ignore" }
+        );
+        rendered = true;
+      } catch {
+        rendered = false;
+      }
+    }
+    if (!rendered && !fs.existsSync(iconPath)) {
+      fs.writeFileSync(iconPath, generateSafeLockPng(size));
+    }
   }
 }
 
@@ -185,6 +224,9 @@ fs.copyFileSync(
   path.join(PUBLIC_DIR, "manifest.json"),
   path.join(DIST_CHROME, "manifest.json")
 );
+if (fs.existsSync(publicLogoSvg)) {
+  fs.copyFileSync(publicLogoSvg, path.join(DIST_CHROME, "app_logo.svg"));
+}
 
 for (const size of [16, 32, 48, 128]) {
   fs.copyFileSync(
