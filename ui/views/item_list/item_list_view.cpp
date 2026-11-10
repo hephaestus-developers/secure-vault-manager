@@ -7,8 +7,10 @@
 
 #include "item_list_view.h"
 #include "app/dev_logger.h"
+#include "app/settings_manager.h"
 #include "app/theme_manager.h"
 #include "app/vault_manager.h"
+#include "core/core_bridge.h"
 
 #include <QAction>
 #include <QEvent>
@@ -83,6 +85,22 @@ void ItemListView::setupUI() {
   m_delegate = new ItemCardDelegate(this);
   m_listView->setItemDelegate(m_delegate);
 
+  connect(&app::SettingsManager::instance(),
+          &app::SettingsManager::listDensityChanged, this, [this]() {
+            if (m_listView) {
+              m_listView->doItemsLayout();
+              if (m_listView->viewport()) {
+                m_listView->viewport()->update();
+              }
+            }
+          });
+  connect(&core::CoreBridge::instance(), &core::CoreBridge::faviconUpdated,
+          this, [this](const QString &) {
+            if (m_listView && m_listView->viewport()) {
+              m_listView->viewport()->update();
+            }
+          });
+
   auto updateNewBtnIcon = [this]() {
     const bool isLight =
         (app::ThemeManager::instance().currentMode() == app::ThemeMode::Light);
@@ -143,14 +161,16 @@ void ItemListView::removeItem(const QString &itemId) {
 }
 
 void ItemListView::setFilter(SidebarFilterType type,
-                             models::ItemCategory category) {
+                             models::ItemCategory category,
+                             const QString &folderId) {
   SVM_ACTION_SCOPE_DETAIL("UI", "ItemListView::setFilter",
-                          QStringLiteral("type=%1, cat=%2")
+                          QStringLiteral("type=%1, cat=%2, folder=%3")
                               .arg(static_cast<int>(type))
-                              .arg(static_cast<int>(category)));
+                              .arg(static_cast<int>(category))
+                              .arg(folderId));
   m_currentFilterType = type;
   m_currentCategory = category;
-  m_proxyModel->setFilterType(type, category);
+  m_proxyModel->setFilterType(type, category, folderId);
   updateEmptyStateVisibility();
 }
 

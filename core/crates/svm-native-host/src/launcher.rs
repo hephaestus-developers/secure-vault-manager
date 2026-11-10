@@ -47,76 +47,121 @@ pub fn resolve_bridge_socket_path() -> PathBuf {
         .unwrap_or_else(|| PathBuf::from("/tmp/hephaestus-svm-data/bridge.sock"))
 }
 
-/// Thử chuyển tiếp nguyên vẹn khung bản tin JSON sang tiến trình Desktop đang chạy qua Unix Socket.
-#[cfg(unix)]
+/// Thử chuyển tiếp nguyên vẹn khung bản tin JSON sang tiến trình Desktop qua Unix Socket hoặc Named Pipe.
 pub fn try_forward_to_desktop_socket(request_json: &str) -> Option<String> {
     let frame = IpcEndpoint::encode_frame(request_json.as_bytes()).ok()?;
-    for sock_path in candidate_bridge_socket_paths() {
-        if !sock_path.exists() {
-            continue;
-        }
-        let Ok(mut stream) = UnixStream::connect(&sock_path) else {
-            continue;
-        };
-        if stream.write_all(&frame).is_err() || stream.flush().is_err() {
-            continue;
-        }
 
-        let mut len_buf = [0u8; 4];
-        if stream.read_exact(&mut len_buf).is_err() {
-            continue;
+    #[cfg(unix)]
+    {
+        for sock_path in candidate_bridge_socket_paths() {
+            if !sock_path.exists() {
+                continue;
+            }
+            let Ok(mut stream) = UnixStream::connect(&sock_path) else {
+                continue;
+            };
+            if let Some(resp) = roundtrip_ipc_frame(&mut stream, &frame) {
+                return Some(resp);
+            }
         }
-        let resp_len = u32::from_le_bytes(len_buf) as usize;
-        if resp_len == 0 || resp_len > 10 * 1024 * 1024 {
-            continue;
-        }
-        let mut payload = vec![0u8; resp_len];
-        if stream.read_exact(&mut payload).is_err() {
-            continue;
-        }
-        if let Ok(resp) = String::from_utf8(payload) {
-            return Some(resp);
-        }
+        None
     }
-    None
+
+    #[cfg(windows)]
+    {
+        let pipe_name = svm_bridge::server::resolve_windows_pipe_name();
+        let mut pipe = std::fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(pipe_name)
+            .ok()?;
+        roundtrip_ipc_frame(&mut pipe, &frame)
+    }
+
+    #[cfg(not(any(unix, windows)))]
+    {
+        let _ = frame;
+        None
+    }
 }
 
-#[cfg(not(unix))]
-pub fn try_forward_to_desktop_socket(_request_json: &str) -> Option<String> {
-    None
+fn roundtrip_ipc_frame<S: Read + Write>(stream: &mut S, frame: &[u8]) -> Option<String> {
+    if stream.write_all(frame).is_err() || stream.flush().is_err() {
+        return None;
+    }
+    let mut len_buf = [0u8; 4];
+    if stream.read_exact(&mut len_buf).is_err() {
+        return None;
+    }
+    let resp_len = u32::from_le_bytes(len_buf) as usize;
+    if resp_len == 0 || resp_len > 10 * 1024 * 1024 {
+        return None;
+    }
+    let mut payload = vec![0u8; resp_len];
+    if stream.read_exact(&mut payload).is_err() {
+        return None;
+    }
+    String::from_utf8(payload).ok()
 }
 
 /// Khởi chạy tiến trình ứng dụng Desktop `secure-vault-manager` / `svm_ui` ở chế độ nền (Detached).
 pub fn launch_desktop_app() -> bool {
-    let mut candidates = vec![
-        env::var("SVM_DESKTOP_BIN").unwrap_or_default(),
-        "/usr/bin/svm_ui".to_string(),
-        "/usr/bin/secure-vault-manager".to_string(),
-        "/usr/local/bin/svm_ui".to_string(),
-        "/usr/local/bin/secure-vault-manager".to_string(),
-    ];
+    let ui_bin = if cfg!(windows) {
+        "svm_ui.exe"
+    } else {
+        "svm_ui"
+    };
+    let app_bin = if cfg!(windows) {
+        "secure-vault-manager.exe"
+    } else {
+        "secure-vault-manager"
+    };
+
+    let mut candidates = vec![env::var("SVM_DESKTOP_BIN").unwrap_or_default()];
+
+    #[cfg(not(windows))]
+    {
+        candidates.push("/usr/bin/svm_ui".to_string());
+        candidates.push("/usr/bin/secure-vault-manager".to_string());
+        candidates.push("/usr/local/bin/svm_ui".to_string());
+        candidates.push("/usr/local/bin/secure-vault-manager".to_string());
+    }
+    #[cfg(target_os = "macos")]
+    {
+        candidates.push("/Applications/Secure Vault Manager.app/Contents/MacOS/svm_ui".to_string());
+        candidates.push(
+            "/Applications/Secure Vault Manager.app/Contents/MacOS/secure-vault-manager"
+                .to_string(),
+        );
+    }
+    #[cfg(windows)]
+    {
+        if let Ok(local_app) = env::var("LOCALAPPDATA") {
+            candidates.push(format!(
+                "{local_app}\\Hephaestus\\SecureVaultManager\\{ui_bin}"
+            ));
+            candidates.push(format!(
+                "{local_app}\\Hephaestus\\SecureVaultManager\\{app_bin}"
+            ));
+        }
+    }
 
     if let Ok(exe) = env::current_exe() {
         if let Some(parent) = exe.parent() {
-            candidates.push(parent.join("svm_ui").to_string_lossy().to_string());
-            candidates.push(
-                parent
-                    .join("secure-vault-manager")
-                    .to_string_lossy()
-                    .to_string(),
-            );
+            candidates.push(parent.join(ui_bin).to_string_lossy().to_string());
+            candidates.push(parent.join(app_bin).to_string_lossy().to_string());
             if let Some(grandparent) = parent.parent() {
                 candidates.push(
                     grandparent
                         .join("ui")
-                        .join("svm_ui")
+                        .join(ui_bin)
                         .to_string_lossy()
                         .to_string(),
                 );
                 candidates.push(
                     grandparent
                         .join("ui")
-                        .join("secure-vault-manager")
+                        .join(app_bin)
                         .to_string_lossy()
                         .to_string(),
                 );
@@ -126,7 +171,7 @@ pub fn launch_desktop_app() -> bool {
                             .join("build")
                             .join("debug")
                             .join("ui")
-                            .join("svm_ui")
+                            .join(ui_bin)
                             .to_string_lossy()
                             .to_string(),
                     );
@@ -134,7 +179,7 @@ pub fn launch_desktop_app() -> bool {
                         great
                             .join("build")
                             .join("ui")
-                            .join("svm_ui")
+                            .join(ui_bin)
                             .to_string_lossy()
                             .to_string(),
                     );
@@ -143,10 +188,17 @@ pub fn launch_desktop_app() -> bool {
         }
     }
 
-    // Dự phòng đường dẫn build cục bộ
-    candidates.push(
-        "/mnt/storage/hephaestus-studio/secure-vault-manager/build/debug/ui/svm_ui".to_string(),
-    );
+    // Dự phòng đường dẫn tương đối theo thư mục làm việc hiện tại (khi dev cục bộ)
+    if let Ok(cwd) = env::current_dir() {
+        candidates.push(
+            cwd.join("build")
+                .join("debug")
+                .join("ui")
+                .join(ui_bin)
+                .to_string_lossy()
+                .to_string(),
+        );
+    }
 
     for bin in candidates.iter().filter(|s| !s.is_empty()) {
         if std::path::Path::new(bin).exists()
@@ -332,6 +384,8 @@ impl NativeHostRouter {
                         "Vault is currently locked",
                     );
                 }
+                let item_id = payload.get_str_or("itemId", payload.get_str_or("id", ""));
+                let is_update = payload.get_bool_or("isUpdate", false);
                 let title =
                     payload.get_str_or("title", payload.get_str_or("domain", "Saved Login"));
                 let username = payload.get_str_or("username", "");
@@ -339,16 +393,49 @@ impl NativeHostRouter {
                 let url = payload.get_str_or("websiteUrl", payload.get_str_or("url", ""));
                 let totp_secret = payload.get_str_or("totpSecret", "");
 
-                let item = VaultItem {
-                    vault_id: "personal".to_string(),
-                    title: title.to_string(),
-                    category: Category::Login,
-                    username: username.to_string(),
-                    password: password.to_string(),
-                    website_url: url.to_string(),
-                    has_totp: !totp_secret.is_empty(),
-                    totp_secret: totp_secret.to_string(),
-                    ..Default::default()
+                let existing = if !item_id.is_empty() {
+                    self.vault
+                        .items()
+                        .iter()
+                        .find(|it| !it.trashed && it.id == item_id)
+                        .cloned()
+                } else if is_update {
+                    let url_low = url.trim().to_ascii_lowercase();
+                    self.vault
+                        .items()
+                        .iter()
+                        .find(|it| {
+                            !it.trashed
+                                && it.category == Category::Login
+                                && it.username.eq_ignore_ascii_case(username)
+                                && (!url_low.is_empty()
+                                    && (it.website_url.to_ascii_lowercase().contains(&url_low)
+                                        || url_low.contains(&it.website_url.to_ascii_lowercase())))
+                        })
+                        .cloned()
+                } else {
+                    None
+                };
+
+                let item = if let Some(mut old) = existing {
+                    old.password = password.to_string();
+                    if !totp_secret.is_empty() {
+                        old.totp_secret = totp_secret.to_string();
+                        old.has_totp = true;
+                    }
+                    old
+                } else {
+                    VaultItem {
+                        vault_id: self.vault.default_vault_id(),
+                        title: title.to_string(),
+                        category: Category::Login,
+                        username: username.to_string(),
+                        password: password.to_string(),
+                        website_url: url.to_string(),
+                        has_totp: !totp_secret.is_empty(),
+                        totp_secret: totp_secret.to_string(),
+                        ..Default::default()
+                    }
                 };
                 match self.vault.upsert_item(item) {
                     Ok(saved_id) => {
@@ -361,6 +448,13 @@ impl NativeHostRouter {
                 }
             }
             "get_totp" => {
+                if !self.vault.is_unlocked() {
+                    return Self::error_envelope(
+                        request_id,
+                        "VAULT_LOCKED",
+                        "Vault is currently locked",
+                    );
+                }
                 let item_id = payload.get_str_or("itemId", "");
                 let secret = if !item_id.is_empty() {
                     self.vault
@@ -425,12 +519,42 @@ impl NativeHostRouter {
                 Self::ok_envelope(request_id, "generated_password", data)
             }
             "passkey_create" => {
-                let rp_id = payload.get_str_or("rpId", "example.com");
+                if !self.vault.is_unlocked() {
+                    return Self::error_envelope(
+                        request_id,
+                        "VAULT_LOCKED",
+                        "Vault is currently locked",
+                    );
+                }
+                let rp_id = payload.get_str_or("rpId", "");
+                if rp_id.trim().is_empty() {
+                    return Self::error_envelope(request_id, "INVALID_ARG", "rpId is required");
+                }
                 let rp_name = payload.get_str_or("rpName", rp_id);
                 let user_name = payload.get_str_or("userName", "User");
                 let challenge = payload.get_str_or("challenge", "");
                 let default_origin = format!("https://{rp_id}");
                 let origin = payload.get_str_or("origin", &default_origin);
+                let exclude_creds = payload
+                    .get("excludeCredentials")
+                    .and_then(|v| v.as_array())
+                    .map(|a| a.to_vec())
+                    .unwrap_or_default();
+                if !exclude_creds.is_empty() {
+                    let exists = self.vault.items().iter().any(|it| {
+                        !it.trashed
+                            && it.category == Category::Passkey
+                            && svm_webauthn::matches_passkey_rp_id(it, rp_id)
+                            && svm_webauthn::passkey_matches_credential_list(it, &exclude_creds)
+                    });
+                    if exists {
+                        return Self::error_envelope(
+                            request_id,
+                            "CREDENTIAL_EXISTS",
+                            "Passkey already registered for this account",
+                        );
+                    }
+                }
 
                 match svm_webauthn::create_passkey_credential(rp_id, challenge, origin) {
                     Ok(reg) => {
@@ -452,7 +576,7 @@ impl NativeHostRouter {
                                 .to_string();
 
                         let item = VaultItem {
-                            vault_id: "personal".to_string(),
+                            vault_id: self.vault.default_vault_id(),
                             title: format!("{rp_name} Passkey"),
                             category: Category::Passkey,
                             username: user_name.to_string(),
@@ -478,10 +602,25 @@ impl NativeHostRouter {
                                     value: "-7".to_string(),
                                     kind: FieldKind::Text,
                                 },
+                                CustomField {
+                                    id: generate_uuid_v4(),
+                                    label: "signCount".to_string(),
+                                    value: "0".to_string(),
+                                    kind: FieldKind::Text,
+                                },
                             ],
                             ..Default::default()
                         };
-                        let saved_id = self.vault.upsert_item(item).unwrap_or_default();
+                        let saved_id = match self.vault.upsert_item(item) {
+                            Ok(id) => id,
+                            Err(e) => {
+                                return Self::error_envelope(
+                                    request_id,
+                                    "PASSKEY_SAVE_FAILED",
+                                    e.message(),
+                                )
+                            }
+                        };
 
                         let mut data = JsonValue::new_object();
                         data.insert("itemId", JsonValue::String(saved_id));
@@ -494,24 +633,37 @@ impl NativeHostRouter {
                 }
             }
             "passkey_get" => {
+                if !self.vault.is_unlocked() {
+                    return Self::error_envelope(
+                        request_id,
+                        "VAULT_LOCKED",
+                        "Vault is currently locked",
+                    );
+                }
                 let rp_id = payload.get_str_or("rpId", "");
                 let challenge = payload.get_str_or("challenge", "");
                 let default_origin = format!("https://{rp_id}");
                 let origin = payload.get_str_or("origin", &default_origin);
+                let allow_creds = payload
+                    .get("allowCredentials")
+                    .and_then(|v| v.as_array())
+                    .map(|a| a.to_vec())
+                    .unwrap_or_default();
 
-                let target_item = self.vault.items().iter().find(|it| {
-                    if it.trashed || it.category != Category::Passkey {
-                        return false;
-                    }
-                    it.website_url.contains(rp_id)
-                        || it.title.to_lowercase().contains(&rp_id.to_lowercase())
-                        || it
-                            .custom_fields
-                            .iter()
-                            .any(|cf| cf.label == "rpId" && cf.value == rp_id)
-                });
+                let target_item = self
+                    .vault
+                    .items()
+                    .iter()
+                    .find(|it| {
+                        !it.trashed
+                            && it.category == Category::Passkey
+                            && svm_webauthn::matches_passkey_rp_id(it, rp_id)
+                            && (allow_creds.is_empty()
+                                || svm_webauthn::passkey_matches_credential_list(it, &allow_creds))
+                    })
+                    .cloned();
 
-                let Some(item) = target_item else {
+                let Some(mut item) = target_item else {
                     return Self::error_envelope(
                         request_id,
                         "NOT_FOUND",
@@ -520,15 +672,11 @@ impl NativeHostRouter {
                 };
 
                 let priv_bytes = svm_crypto::base64_decode(&item.password).unwrap_or_default();
-                let cred_id_str = item
-                    .custom_fields
-                    .iter()
-                    .find(|cf| cf.label == "credentialId")
-                    .map(|cf| cf.value.clone())
-                    .unwrap_or_default();
+                let cred_id_str = svm_webauthn::extract_passkey_credential_id(&item);
                 let cred_id_bytes =
                     svm_crypto::base64_decode(&cred_id_str.replace('-', "+").replace('_', "/"))
                         .unwrap_or_default();
+                let next_sign_count = svm_webauthn::bump_passkey_sign_count(&mut item);
 
                 match svm_webauthn::authenticate_passkey_assertion(
                     rp_id,
@@ -536,10 +684,11 @@ impl NativeHostRouter {
                     origin,
                     &cred_id_bytes,
                     &priv_bytes,
-                    0,
+                    next_sign_count,
                     None,
                 ) {
                     Ok(assertion) => {
+                        let _ = self.vault.upsert_item(item);
                         let cred_id_b64 = if !cred_id_str.is_empty() {
                             cred_id_str
                         } else {
@@ -635,10 +784,11 @@ mod tests {
         assert!(unlocked_status.contains(r#""unlocked":false"#));
         assert!(unlocked_status.contains(r#""desktopRunning":false"#));
 
+        // Yêu cầu tạo passkey khi kho đang khóa phải bị từ chối với VAULT_LOCKED
         let passkey_resp = router.handle_message(
             r#"{"requestId":"r3","action":"passkey_create","payload":{"rpId":"github.com","userName":"octocat","challenge":"abc123"}}"#,
         );
-        assert!(passkey_resp.contains(r#""ok":true"#));
-        assert!(passkey_resp.contains(r#""credentialId""#));
+        assert!(passkey_resp.contains(r#""ok":false"#));
+        assert!(passkey_resp.contains(r#""VAULT_LOCKED""#));
     }
 }

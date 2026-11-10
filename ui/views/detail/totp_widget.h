@@ -44,6 +44,7 @@ protected:
 private slots:
   void onTick();
   void onToggleRevealSecret();
+  void onScanQrImage();
 
 private:
   void setupUI();
@@ -69,6 +70,7 @@ private:
   QWidget *m_editContainer{nullptr};
   QLabel *m_editTitleLabel{nullptr};
   QLineEdit *m_secretInput{nullptr};
+  QPushButton *m_scanQrBtn{nullptr};
   QPushButton *m_revealSecretBtn{nullptr};
   QPushButton *m_removeBtn{nullptr};
 };

@@ -17,6 +17,7 @@
 #include "views/sidebar/sidebar_view.h"
 
 #include <QMainWindow>
+#include <QProcess>
 #include <QShortcut>
 #include <QSplitter>
 #include <QStackedWidget>
@@ -42,7 +43,9 @@ class MainWindow : public QMainWindow {
 
 public:
   explicit MainWindow(QWidget *parent = nullptr);
-  ~MainWindow() override = default;
+  ~MainWindow() override;
+
+  void stopSleepMonitor();
 
   void setTrayManager(app::TrayManager *trayManager);
   [[nodiscard]] views::SidebarView *sidebarView() const {
@@ -100,12 +103,14 @@ private:
   // Settings Dialog
   views::SettingsDialog *m_settingsDialog{nullptr};
   void updateInactivityTimer();
+  void setupSleepMonitor();
 
   // Modal Dialog Guardian
   QDialog *findActiveModalDialog() const;
 
-  // Inactivity Auto-Lock Timer
+  // Inactivity Auto-Lock Timer & Sleep Monitor
   QTimer m_inactivityTimer;
+  QProcess *m_sleepMonitorProcess{nullptr};
 
   // Phím tắt toàn cục
   QShortcut *m_toggleSidebarShortcut{nullptr};

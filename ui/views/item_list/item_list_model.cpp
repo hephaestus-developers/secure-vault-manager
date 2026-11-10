@@ -58,6 +58,8 @@ QVariant ItemListModel::data(const QModelIndex &index, int role) const {
     return QVariant::fromValue(item);
   case VaultIdRole:
     return item.vaultId;
+  case FolderIdRole:
+    return item.folderId;
   default:
     return {};
   }
@@ -78,7 +80,8 @@ QHash<int, QByteArray> ItemListModel::roleNames() const {
           {PasswordScoreRole, "passwordScore"},
           {UpdatedDateRole, "updatedDate"},
           {VaultItemRole, "vaultItem"},
-          {VaultIdRole, "vaultId"}};
+          {VaultIdRole, "vaultId"},
+          {FolderIdRole, "folderId"}};
 }
 
 void ItemListModel::setItems(const QList<models::UiVaultItem> &items) {

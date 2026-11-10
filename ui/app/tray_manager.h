@@ -22,9 +22,10 @@ class TrayManager : public QObject {
 
 public:
   explicit TrayManager(MainWindow *mainWindow, QObject *parent = nullptr);
-  ~TrayManager() override = default;
+  ~TrayManager() override;
 
   bool initialize();
+  void hide();
   bool isSystemTrayAvailable() const;
 
   void showNotification(

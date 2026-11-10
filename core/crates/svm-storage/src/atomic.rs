@@ -15,12 +15,46 @@ pub fn resolve_default_data_dir() -> String {
             return env_dir;
         }
     }
-    if let Ok(home) = std::env::var("HOME") {
-        if !home.trim().is_empty() {
-            return format!("{home}/.local/share/hephaestus/secure-vault-manager");
+    #[cfg(target_os = "windows")]
+    {
+        if let Ok(appdata) = std::env::var("APPDATA") {
+            if !appdata.trim().is_empty() {
+                return format!("{appdata}\\Hephaestus\\SecureVaultManager");
+            }
         }
+        if let Ok(profile) = std::env::var("USERPROFILE") {
+            if !profile.trim().is_empty() {
+                return format!("{profile}\\AppData\\Roaming\\Hephaestus\\SecureVaultManager");
+            }
+        }
+        return std::env::temp_dir()
+            .join("hephaestus-svm-data")
+            .to_string_lossy()
+            .to_string();
     }
-    "/tmp/hephaestus-svm-data".to_string()
+    #[cfg(target_os = "macos")]
+    {
+        if let Ok(home) = std::env::var("HOME") {
+            if !home.trim().is_empty() {
+                return format!("{home}/Library/Application Support/Hephaestus/SecureVaultManager");
+            }
+        }
+        return "/tmp/hephaestus-svm-data".to_string();
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    {
+        if let Ok(xdg) = std::env::var("XDG_DATA_HOME") {
+            if !xdg.trim().is_empty() {
+                return format!("{xdg}/hephaestus/secure-vault-manager");
+            }
+        }
+        if let Ok(home) = std::env::var("HOME") {
+            if !home.trim().is_empty() {
+                return format!("{home}/.local/share/hephaestus/secure-vault-manager");
+            }
+        }
+        "/tmp/hephaestus-svm-data".to_string()
+    }
 }
 
 /// Đảm bảo thư mục tồn tại với quyền `0o700` trên Unix.

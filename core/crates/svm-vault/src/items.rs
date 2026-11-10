@@ -1,6 +1,5 @@
 //! Nghiệp vụ thêm, sửa, xóa mục lưu trữ (`VaultItem`), thư mục (`Folder`), thùng rác, lịch sử sửa đổi và đính kèm.
 
-use std::fs;
 use std::path::Path;
 
 use svm_crypto::{evaluate_password_strength, generate_uuid_v4};
@@ -13,6 +12,9 @@ use crate::service::VaultService;
 impl VaultService {
     /// Lấy danh sách các mục trong kho theo bộ lọc JSON.
     pub fn list_items_json(&self, filter_json: Option<&str>) -> Result<String, DomainError> {
+        if !self.unlocked {
+            return Err(DomainError::Locked);
+        }
         let filter = filter_json
             .filter(|s| !s.trim().is_empty())
             .and_then(|s| JsonValue::parse(s).ok());
@@ -67,7 +69,7 @@ impl VaultService {
                     continue;
                 }
             }
-            arr.push(item.to_json());
+            arr.push(item.to_summary_json());
         }
 
         let mut out = JsonValue::new_object();
@@ -82,17 +84,25 @@ impl VaultService {
 
     /// Lấy thông tin chi tiết của một mục theo `item_id`.
     pub fn get_item_json(&self, item_id: &str) -> Result<String, DomainError> {
+        if !self.unlocked {
+            return Err(DomainError::Locked);
+        }
         if let Some(item) = self.items.iter().find(|it| it.id == item_id) {
             Ok(item.to_json().to_json_string())
         } else {
-            Ok("{}".to_string())
+            Err(DomainError::NotFound(format!("Item {item_id} not found")))
         }
     }
 
     /// Thêm mới hoặc cập nhật một mục từ chuỗi JSON.
     pub fn upsert_item_json(&mut self, item_json: &str) -> Result<String, DomainError> {
+        if !self.unlocked {
+            return Err(DomainError::Locked);
+        }
         if item_json.trim() == "{}" || item_json.trim().is_empty() {
-            return Ok("item-0000-0000".to_string());
+            return Err(DomainError::InvalidArg(
+                "Item JSON cannot be empty".to_string(),
+            ));
         }
         let val = JsonValue::parse(item_json).map_err(DomainError::Parse)?;
         let item = VaultItem::from_json(&val)
@@ -102,9 +112,15 @@ impl VaultService {
 
     /// Thêm mới hoặc cập nhật thực thể `VaultItem` trực tiếp.
     pub fn upsert_item(&mut self, mut item: VaultItem) -> Result<String, DomainError> {
+        if !self.unlocked {
+            return Err(DomainError::Locked);
+        }
         let now = current_timestamp_ms();
         if item.id.trim().is_empty() {
             item.id = generate_uuid_v4();
+        }
+        if item.vault_id.trim().is_empty() {
+            item.vault_id = self.default_vault_id();
         }
         if item.created_at <= 0 {
             item.created_at = now;
@@ -125,7 +141,7 @@ impl VaultService {
             self.items.insert(0, item);
         }
 
-        let _ = self.persist();
+        self.persist()?;
         Ok(out_id)
     }
 
@@ -155,6 +171,9 @@ impl VaultService {
 
     /// Đưa một mục vào Thùng rác (xóa mềm).
     pub fn trash_item(&mut self, item_id: &str) -> Result<(), DomainError> {
+        if !self.unlocked {
+            return Err(DomainError::Locked);
+        }
         if let Some(item) = self.items.iter_mut().find(|it| it.id == item_id) {
             item.trashed = true;
             item.updated_at = current_timestamp_ms();
@@ -166,13 +185,18 @@ impl VaultService {
                     trashed_at: current_timestamp_ms(),
                 });
             }
-            let _ = self.persist();
+            self.persist()?;
+            Ok(())
+        } else {
+            Err(DomainError::NotFound(format!("Item {item_id} not found")))
         }
-        Ok(())
     }
 
     /// Khôi phục một mục từ Thùng rác.
     pub fn restore_item(&mut self, item_id: &str) -> Result<(), DomainError> {
+        if !self.unlocked {
+            return Err(DomainError::Locked);
+        }
         if let Some(item) = self.items.iter_mut().find(|it| it.id == item_id) {
             item.trashed = false;
             item.updated_at = current_timestamp_ms();
@@ -182,30 +206,76 @@ impl VaultService {
                     item.folder_id = t.original_folder_id;
                 }
             }
-            let _ = self.persist();
+            self.persist()?;
+            Ok(())
+        } else {
+            Err(DomainError::NotFound(format!("Item {item_id} not found")))
         }
-        Ok(())
     }
 
     /// Xóa vĩnh viễn một mục (hoặc toàn bộ thùng rác nếu truyền `"__all_trash__"`).
     pub fn purge_item(&mut self, item_id: &str) -> Result<(), DomainError> {
+        if !self.unlocked {
+            return Err(DomainError::Locked);
+        }
         if item_id == "__all_trash__" {
             self.items.retain(|it| !it.trashed);
             self.trash.clear();
-            let _ = self.persist();
+            self.persist()?;
             return Ok(());
         }
+        let prev_len = self.items.len();
         self.items.retain(|it| it.id != item_id);
         self.trash.retain(|t| t.item_id != item_id);
         self.revisions.retain(|(id, _)| id != item_id);
-        let _ = self.persist();
+        if self.items.len() == prev_len {
+            return Err(DomainError::NotFound(format!("Item {item_id} not found")));
+        }
+        self.persist()?;
         Ok(())
+    }
+
+    /// Tự động xóa vĩnh viễn các mục đã nằm trong thùng rác quá `max_age_days` ngày.
+    pub fn purge_expired_trash(&mut self, max_age_days: u32) -> Result<usize, DomainError> {
+        if !self.unlocked {
+            return Err(DomainError::Locked);
+        }
+        if max_age_days == 0 {
+            return Ok(0);
+        }
+        let now = current_timestamp_ms();
+        let cutoff_ms = (max_age_days as i64).saturating_mul(86_400_000);
+        let expired_ids: Vec<String> = self
+            .trash
+            .iter()
+            .filter(|t| t.trashed_at > 0 && now.saturating_sub(t.trashed_at) >= cutoff_ms)
+            .map(|t| t.item_id.clone())
+            .collect();
+
+        if expired_ids.is_empty() {
+            return Ok(0);
+        }
+        let before = self.items.len();
+        self.items
+            .retain(|it| !(it.trashed && expired_ids.iter().any(|id| id == &it.id)));
+        let removed = before.saturating_sub(self.items.len());
+        self.trash
+            .retain(|t| !expired_ids.iter().any(|id| id == &t.item_id));
+        self.revisions
+            .retain(|(id, _)| !expired_ids.iter().any(|eid| eid == id));
+        if removed > 0 {
+            self.persist()?;
+        }
+        Ok(removed)
     }
 
     /// Trích xuất plaintext của một trường nhạy cảm cụ thể.
     pub fn reveal_field(&self, item_id: &str, field_id: &str) -> Result<String, DomainError> {
+        if !self.unlocked {
+            return Err(DomainError::Locked);
+        }
         let Some(item) = self.items.iter().find(|it| it.id == item_id) else {
-            return Ok(String::new());
+            return Err(DomainError::NotFound(format!("Item {item_id} not found")));
         };
         match field_id {
             "password" | "payload.password" => Ok(item.password.clone()),
@@ -219,24 +289,32 @@ impl VaultService {
                         return Ok(cf.value.clone());
                     }
                 }
-                Ok(String::new())
+                Err(DomainError::NotFound(format!("Field {field_id} not found")))
             }
         }
     }
 
     /// Lấy danh sách các thư mục dưới dạng JSON `[]`.
-    pub fn list_folders_json(&self) -> String {
+    pub fn list_folders_json(&self) -> Result<String, DomainError> {
+        if !self.unlocked {
+            return Err(DomainError::Locked);
+        }
         let mut arr = JsonValue::new_array();
         for f in &self.folders {
             arr.push(f.to_json());
         }
-        arr.to_json_string()
+        Ok(arr.to_json_string())
     }
 
     /// Thêm mới hoặc cập nhật một thư mục.
     pub fn upsert_folder_json(&mut self, folder_json: &str) -> Result<String, DomainError> {
+        if !self.unlocked {
+            return Err(DomainError::Locked);
+        }
         if folder_json.trim().is_empty() || folder_json.trim() == "{}" {
-            return Ok("folder-0000".to_string());
+            return Err(DomainError::InvalidArg(
+                "Folder JSON cannot be empty".to_string(),
+            ));
         }
         let val = JsonValue::parse(folder_json).map_err(DomainError::Parse)?;
         let mut folder = Folder::from_json(&val)
@@ -250,35 +328,50 @@ impl VaultService {
         } else {
             self.folders.push(folder);
         }
-        let _ = self.persist();
+        self.persist()?;
         Ok(out_id)
     }
 
     /// Xóa một thư mục và đưa các mục bên trong về thư mục gốc.
     pub fn delete_folder(&mut self, folder_id: &str) -> Result<(), DomainError> {
+        if !self.unlocked {
+            return Err(DomainError::Locked);
+        }
+        let prev_len = self.folders.len();
         self.folders.retain(|f| f.id != folder_id);
+        if self.folders.len() == prev_len {
+            return Err(DomainError::NotFound(format!(
+                "Folder {folder_id} not found"
+            )));
+        }
         for item in &mut self.items {
             if item.folder_id.as_deref() == Some(folder_id) {
                 item.folder_id = None;
             }
         }
-        let _ = self.persist();
+        self.persist()?;
         Ok(())
     }
 
     /// Lấy lịch sử các bản sửa đổi của một mục.
-    pub fn list_history_json(&self, item_id: &str) -> String {
+    pub fn list_history_json(&self, item_id: &str) -> Result<String, DomainError> {
+        if !self.unlocked {
+            return Err(DomainError::Locked);
+        }
         let mut arr = JsonValue::new_array();
         if let Some((_, list)) = self.revisions.iter().find(|(id, _)| id == item_id) {
             for r in list {
                 arr.push(r.to_json());
             }
         }
-        arr.to_json_string()
+        Ok(arr.to_json_string())
     }
 
     /// Khôi phục một mục về bản sửa đổi lịch sử chỉ định.
     pub fn restore_history(&mut self, item_id: &str, revision: u32) -> Result<(), DomainError> {
+        if !self.unlocked {
+            return Err(DomainError::Locked);
+        }
         let snapshot = self
             .revisions
             .iter()
@@ -288,20 +381,41 @@ impl VaultService {
 
         if let Some(snap) = snapshot {
             self.upsert_item(snap)?;
+            Ok(())
+        } else {
+            Err(DomainError::NotFound(format!(
+                "Revision {revision} for item {item_id} not found"
+            )))
         }
-        Ok(())
     }
 
-    /// Đính kèm và mã hóa một tệp vào mục chỉ định.
+    /// Lấy danh sách tệp đính kèm của một mục dưới dạng JSON `[]`.
+    pub fn list_attachments_json(&self, item_id: &str) -> Result<String, DomainError> {
+        if !self.unlocked {
+            return Err(DomainError::Locked);
+        }
+        let mut arr = JsonValue::new_array();
+        for att in &self.attachments {
+            if att.item_id == item_id {
+                arr.push(att.to_json());
+            }
+        }
+        Ok(arr.to_json_string())
+    }
+
+    /// Đính kèm và mã hóa streaming (chunk 64KB) một tệp vào mục chỉ định.
     pub fn add_attachment(&mut self, item_id: &str, src_path: &str) -> Result<String, DomainError> {
+        if !self.unlocked {
+            return Err(DomainError::Locked);
+        }
         let p = Path::new(src_path);
         if !p.exists() {
-            return Ok("{}".to_string());
+            return Err(DomainError::NotFound(format!(
+                "Source file not found: {src_path}"
+            )));
         }
-        let raw_bytes = fs::read(p).map_err(|e| DomainError::Io(e.to_string()))?;
         let att_id = format!("att-{}", generate_uuid_v4());
-        self.storage
-            .store_attachment(&self.dek, &att_id, &raw_bytes)?;
+        let size_bytes = self.storage.store_attachment_file(&self.dek, &att_id, p)?;
 
         let file_name = p
             .file_name()
@@ -312,40 +426,50 @@ impl VaultService {
             id: att_id,
             item_id: item_id.to_string(),
             file_name,
-            size_bytes: raw_bytes.len() as u64,
+            size_bytes,
             created_at: current_timestamp_ms(),
         };
         let json = meta.to_json().to_json_string();
         self.attachments.push(meta);
-        let _ = self.persist();
+        self.persist()?;
         Ok(json)
     }
 
-    /// Giải mã và xuất tệp đính kèm ra đường dẫn đích.
+    /// Giải mã streaming và xuất tệp đính kèm ra đường dẫn đích.
     pub fn export_attachment(
         &self,
         attachment_id: &str,
         dst_path: &str,
     ) -> Result<(), DomainError> {
-        if let Ok(bytes) = self.storage.load_attachment(&self.dek, attachment_id) {
-            fs::write(dst_path, bytes).map_err(|e| DomainError::Io(e.to_string()))?;
+        if !self.unlocked {
+            return Err(DomainError::Locked);
         }
-        Ok(())
+        self.storage
+            .export_attachment_file(&self.dek, attachment_id, Path::new(dst_path))
     }
 
     /// Đọc nội dung tệp đính kèm vào bộ nhớ.
     pub fn read_attachment(&self, attachment_id: &str) -> Result<Vec<u8>, DomainError> {
-        Ok(self
-            .storage
-            .load_attachment(&self.dek, attachment_id)
-            .unwrap_or_default())
+        if !self.unlocked {
+            return Err(DomainError::Locked);
+        }
+        self.storage.load_attachment(&self.dek, attachment_id)
     }
 
     /// Xóa một tệp đính kèm.
     pub fn delete_attachment(&mut self, attachment_id: &str) -> Result<(), DomainError> {
+        if !self.unlocked {
+            return Err(DomainError::Locked);
+        }
+        let prev_len = self.attachments.len();
         self.attachments.retain(|a| a.id != attachment_id);
-        let _ = self.storage.delete_attachment_file(attachment_id);
-        let _ = self.persist();
+        self.storage.delete_attachment_file(attachment_id)?;
+        if self.attachments.len() == prev_len {
+            return Err(DomainError::NotFound(format!(
+                "Attachment {attachment_id} not found"
+            )));
+        }
+        self.persist()?;
         Ok(())
     }
 }

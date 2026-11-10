@@ -59,6 +59,7 @@ export function attachFormSubmitCapture(): void {
 
               // Người dùng đã đổi mật khẩu mới cho tài khoản cũ -> Hỏi "Update Password"
               showSaveCredentialPrompt({
+                itemId: match.id,
                 title: window.location.hostname || "Website Login",
                 username,
                 password,

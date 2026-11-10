@@ -6,8 +6,8 @@ use std::sync::atomic::Ordering;
 use svm_domain::status::SvmStatusCode;
 
 use crate::context::{
-    alloc_c_string, c_str_to_string, handle_domain_err, SvmContext, EVENT_VAULT_LOCKED,
-    EVENT_VAULT_UNLOCKED,
+    alloc_c_string, c_str_to_string, ffi_guard, handle_domain_err, sync_ssh_agent, SvmContext,
+    EVENT_VAULT_LOCKED, EVENT_VAULT_UNLOCKED,
 };
 
 /// Lấy danh sách các hồ sơ Vault đã tạo / đã biết.
@@ -71,14 +71,15 @@ pub unsafe extern "C" fn svm_vault_create(
     let name_str = c_str_to_string(name).unwrap_or_default();
     let pw_str = c_str_to_string(password).unwrap_or_default();
 
-    let Ok(mut rt) = (*ctx).runtime.lock() else {
+    let res = if let Ok(mut rt) = (*ctx).runtime.lock() {
+        rt.vault_service.create_vault(&name_str, &pw_str)
+    } else {
         return SvmStatusCode::Panic;
     };
-    match rt.vault_service.create_vault(&name_str, &pw_str) {
+    match res {
         Ok(id) => {
-            if rt.vault_service.is_unlocked() {
-                (*ctx).unlocked.store(true, Ordering::SeqCst);
-            }
+            (*ctx).unlocked.store(true, Ordering::SeqCst);
+            sync_ssh_agent(ctx);
             *out_vault_id = alloc_c_string(&id);
             SvmStatusCode::Ok
         }
@@ -111,6 +112,7 @@ pub unsafe extern "C" fn svm_vault_unlock(
     match res {
         Ok(()) => {
             (*ctx).unlocked.store(true, Ordering::SeqCst);
+            sync_ssh_agent(ctx);
             (*ctx).emit_event(EVENT_VAULT_UNLOCKED, "{\"unlocked\":true}");
             SvmStatusCode::Ok
         }
@@ -188,6 +190,7 @@ pub unsafe extern "C" fn svm_vault_unlock_biometric(
     match res {
         Ok(()) => {
             (*ctx).unlocked.store(true, Ordering::SeqCst);
+            sync_ssh_agent(ctx);
             (*ctx).emit_event(EVENT_VAULT_UNLOCKED, "{\"unlocked\":true}");
             SvmStatusCode::Ok
         }
@@ -208,6 +211,7 @@ pub unsafe extern "C" fn svm_vault_lock(ctx: *mut SvmContext) -> SvmStatusCode {
         rt.vault_service.lock();
     }
     (*ctx).unlocked.store(false, Ordering::SeqCst);
+    sync_ssh_agent(ctx);
     (*ctx).emit_event(EVENT_VAULT_LOCKED, "{\"unlocked\":false}");
     SvmStatusCode::Ok
 }
@@ -234,15 +238,20 @@ pub unsafe extern "C" fn svm_vault_rename(
     vault_id: *const c_char,
     name: *const c_char,
 ) -> SvmStatusCode {
-    if ctx.is_null() || vault_id.is_null() || name.is_null() {
-        return SvmStatusCode::InvalidArg;
-    }
-    let vid = c_str_to_string(vault_id).unwrap_or_default();
-    let n = c_str_to_string(name).unwrap_or_default();
-    if let Ok(mut rt) = (*ctx).runtime.lock() {
-        let _ = rt.vault_service.rename_vault(&vid, &n);
-    }
-    SvmStatusCode::Ok
+    ffi_guard(|| {
+        if ctx.is_null() || vault_id.is_null() || name.is_null() {
+            return SvmStatusCode::InvalidArg;
+        }
+        let vid = c_str_to_string(vault_id).unwrap_or_default();
+        let n = c_str_to_string(name).unwrap_or_default();
+        let Ok(mut rt) = (*ctx).runtime.lock() else {
+            return SvmStatusCode::Panic;
+        };
+        match rt.vault_service.rename_vault(&vid, &n) {
+            Ok(()) => SvmStatusCode::Ok,
+            Err(e) => handle_domain_err(e),
+        }
+    })
 }
 
 /// Xóa một Vault (yêu cầu cung cấp mật khẩu để xác nhận).
@@ -255,17 +264,20 @@ pub unsafe extern "C" fn svm_vault_delete(
     vault_id: *const c_char,
     password: *const c_char,
 ) -> SvmStatusCode {
-    if ctx.is_null() || vault_id.is_null() || password.is_null() {
-        return SvmStatusCode::InvalidArg;
-    }
-    let vid = c_str_to_string(vault_id).unwrap_or_default();
-    let pw = c_str_to_string(password).unwrap_or_default();
-    if let Ok(mut rt) = (*ctx).runtime.lock() {
-        if let Err(e) = rt.vault_service.delete_vault(&vid, &pw) {
-            return handle_domain_err(e);
+    ffi_guard(|| {
+        if ctx.is_null() || vault_id.is_null() || password.is_null() {
+            return SvmStatusCode::InvalidArg;
         }
-    }
-    SvmStatusCode::Ok
+        let vid = c_str_to_string(vault_id).unwrap_or_default();
+        let pw = c_str_to_string(password).unwrap_or_default();
+        let Ok(mut rt) = (*ctx).runtime.lock() else {
+            return SvmStatusCode::Panic;
+        };
+        match rt.vault_service.delete_vault(&vid, &pw) {
+            Ok(()) => SvmStatusCode::Ok,
+            Err(e) => handle_domain_err(e),
+        }
+    })
 }
 
 /// Đặt một Vault làm kho mặc định khi khởi động ứng dụng.
@@ -277,14 +289,19 @@ pub unsafe extern "C" fn svm_vault_set_default(
     ctx: *mut SvmContext,
     vault_id: *const c_char,
 ) -> SvmStatusCode {
-    if ctx.is_null() || vault_id.is_null() {
-        return SvmStatusCode::InvalidArg;
-    }
-    let vid = c_str_to_string(vault_id).unwrap_or_default();
-    if let Ok(mut rt) = (*ctx).runtime.lock() {
-        let _ = rt.vault_service.set_default_vault(&vid);
-    }
-    SvmStatusCode::Ok
+    ffi_guard(|| {
+        if ctx.is_null() || vault_id.is_null() {
+            return SvmStatusCode::InvalidArg;
+        }
+        let vid = c_str_to_string(vault_id).unwrap_or_default();
+        let Ok(mut rt) = (*ctx).runtime.lock() else {
+            return SvmStatusCode::Panic;
+        };
+        match rt.vault_service.set_default_vault(&vid) {
+            Ok(()) => SvmStatusCode::Ok,
+            Err(e) => handle_domain_err(e),
+        }
+    })
 }
 
 /// Đổi Master Password của Vault (tái mã hóa DEK bằng KEK mới).
@@ -347,7 +364,17 @@ pub unsafe extern "C" fn svm_vault_report_idle(ctx: *mut SvmContext, idle_ms: u6
     if ctx.is_null() {
         return;
     }
-    if let Ok(mut rt) = (*ctx).runtime.lock() {
-        rt.vault_service.report_idle(idle_ms);
+    let locked_now = if let Ok(mut rt) = (*ctx).runtime.lock() {
+        rt.vault_service.report_idle(idle_ms)
+    } else {
+        false
+    };
+    if locked_now {
+        (*ctx).unlocked.store(false, Ordering::SeqCst);
+        sync_ssh_agent(ctx);
+        (*ctx).emit_event(
+            EVENT_VAULT_LOCKED,
+            "{\"unlocked\":false,\"reason\":\"idle\"}",
+        );
     }
 }

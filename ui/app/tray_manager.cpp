@@ -8,6 +8,7 @@
 #include "tray_manager.h"
 #include "app/language_manager.h"
 #include "app/theme_manager.h"
+#include "app/vault_manager.h"
 #include "main_window.h"
 
 #include <QApplication>
@@ -19,12 +20,27 @@ namespace svm::app {
 TrayManager::TrayManager(MainWindow *mainWindow, QObject *parent)
     : QObject(parent), m_mainWindow(mainWindow) {}
 
+TrayManager::~TrayManager() {
+  hide();
+  delete m_trayMenu;
+  m_trayMenu = nullptr;
+}
+
+void TrayManager::hide() {
+  if (m_trayIcon) {
+    m_trayIcon->hide();
+  }
+}
+
 bool TrayManager::initialize() {
   // Kết nối sự kiện thay đổi theme và language
   connect(&ThemeManager::instance(), &ThemeManager::themeChanged, this,
           &TrayManager::onThemeChanged);
   connect(&LanguageManager::instance(), &LanguageManager::languageChanged, this,
           &TrayManager::retranslateUi);
+  connect(&VaultManager::instance(), &VaultManager::lockStateChanged, this,
+          &TrayManager::setVaultLocked);
+  m_isVaultLocked = VaultManager::instance().isLocked();
 
   if (!QSystemTrayIcon::isSystemTrayAvailable()) {
     return false;
@@ -81,7 +97,10 @@ void TrayManager::setupContextMenu() {
 
   m_quitAction = m_trayMenu->addAction(
       ThemeManager::instance().icon(QStringLiteral("win_close")),
-      tr("Quit Application"), qApp, &QApplication::quit);
+      tr("Quit Application"), this, [this]() {
+        hide();
+        QApplication::quit();
+      });
 
   m_trayIcon->setContextMenu(m_trayMenu);
 }
@@ -148,11 +167,16 @@ void TrayManager::toggleMainWindow() {
 }
 
 void TrayManager::toggleVaultLock() {
-  setVaultLocked(!m_isVaultLocked);
-  showNotification(tr("Secure Vault Manager"),
-                   m_isVaultLocked
-                       ? tr("Vault has been locked and memory zeroized.")
-                       : tr("Vault unlocked successfully."));
+  if (!VaultManager::instance().isLocked()) {
+    VaultManager::instance().lock();
+    setVaultLocked(true);
+    showNotification(tr("Secure Vault Manager"),
+                     tr("Vault has been locked and memory zeroized."));
+  } else if (m_mainWindow) {
+    m_mainWindow->showNormal();
+    m_mainWindow->raise();
+    m_mainWindow->activateWindow();
+  }
 }
 
 void TrayManager::setVaultLocked(bool locked) {

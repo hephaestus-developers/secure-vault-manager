@@ -33,7 +33,7 @@ if (chromeApi?.runtime?.onMessage) {
           const req = createBridgeRequest("unlock_vault", {
             password,
             browser: detectCurrentBrowserName(),
-            version: "1.0.0",
+            version: "0.1.0",
           });
           const resp = await transport.dispatch<any>(req);
           const unlocked = Boolean(resp.ok && resp.payload?.unlocked);
@@ -55,7 +55,7 @@ if (chromeApi?.runtime?.onMessage) {
         if (message.action === "unlock_vault_biometric") {
           const req = createBridgeRequest("unlock_vault_biometric", {
             browser: detectCurrentBrowserName(),
-            version: "1.0.0",
+            version: "0.1.0",
           });
           const resp = await transport.dispatch<any>(req);
           const unlocked = Boolean(resp.ok && resp.payload?.unlocked);

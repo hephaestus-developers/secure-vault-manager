@@ -15,6 +15,7 @@
 #include "models/vault_item.h"
 #include "totp_widget.h"
 
+#include <QComboBox>
 #include <QFrame>
 #include <QScrollArea>
 #include <QStackedWidget>
@@ -45,6 +46,7 @@ signals:
   void itemTrashRequested(const QString &itemId);
   void itemRestoreRequested(const QString &itemId);
   void itemPurgeRequested(const QString &itemId);
+  void historyRestored(const QString &itemId);
   void cancelRequested();
 
 protected:
@@ -53,9 +55,13 @@ protected:
 private slots:
   void onSaveRequested();
   void onCancelRequested();
+  void onHistoryRequested();
+  void onAddAttachmentClicked();
 
 private:
   void setupUI();
+  void refreshFolderOptions();
+  void refreshAttachments();
   void updateVisibilityForCategory(models::ItemCategory category);
   void refreshPrimaryCard(const QList<QWidget *> &visibleWidgets,
                           const QString &headerTitle);
@@ -73,6 +79,7 @@ private:
   QVBoxLayout *m_primaryLayout{nullptr};
   QLabel *m_primaryHeader{nullptr};
   QPushButton *m_addTotpBtn{nullptr};
+  QPushButton *m_genSshKeyBtn{nullptr};
   QList<FieldRowWidget *> m_allPrimaryFields;
   QList<QWidget *> m_allPrimaryWidgets;
   QList<QFrame *> m_primaryDividers;
@@ -85,6 +92,18 @@ private:
   QLabel *m_notesHeader{nullptr};
   FieldRowWidget *m_notesField{nullptr};
 
+  // 4. Tầng Folder & Attachments
+  QWidget *m_metaCard{nullptr};
+  QLabel *m_folderHeader{nullptr};
+  QLabel *m_folderValueLabel{nullptr};
+  QComboBox *m_folderCombo{nullptr};
+
+  QWidget *m_attachmentsCard{nullptr};
+  QLabel *m_attachmentsHeader{nullptr};
+  QVBoxLayout *m_attachmentsListLayout{nullptr};
+  QLabel *m_noAttachmentsLabel{nullptr};
+  QPushButton *m_addAttachmentBtn{nullptr};
+
   // Các trường nghiệp vụ
   FieldRowWidget *m_usernameField{nullptr};
   FieldRowWidget *m_passwordField{nullptr};
@@ -93,7 +112,9 @@ private:
   FieldRowWidget *m_cardExpiryField{nullptr};
   FieldRowWidget *m_cardCvvField{nullptr};
   FieldRowWidget *m_wifiSsidField{nullptr};
+  FieldRowWidget *m_wifiSecurityField{nullptr};
   FieldRowWidget *m_dbHostField{nullptr};
+  FieldRowWidget *m_dbPortField{nullptr};
   FieldRowWidget *m_dbNameField{nullptr};
   FieldRowWidget *m_sshFingerprintField{nullptr};
   FieldRowWidget *m_sshKeyField{nullptr};

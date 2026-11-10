@@ -7,9 +7,11 @@
 
 #pragma once
 
+#include <QDate>
 #include <QDateTime>
 #include <QMap>
 #include <QObject>
+#include <QRegularExpression>
 #include <QString>
 #include <QStringList>
 
@@ -121,6 +123,7 @@ struct UiCustomField {
 struct UiVaultItem {
   QString id;
   QString vaultId{QStringLiteral("personal")};
+  QString folderId;
   QString title;
   ItemCategory category{ItemCategory::Login};
   QString username;        // Hoặc account/fingerprint/cardholder
@@ -159,5 +162,90 @@ struct UiVaultItem {
   QDateTime updatedAt;
   int passwordStrengthScore{85}; // 0 - 100%
 };
+
+/**
+ * @brief Thực thể thư mục tổ chức bản ghi.
+ */
+struct UiFolder {
+  QString id;
+  QString name;
+  QString parentId;
+};
+
+/**
+ * @brief Bản ghi lịch sử sửa đổi của một mục dữ liệu.
+ */
+struct UiItemRevision {
+  int revision{1};
+  qint64 timestamp{0};
+  UiVaultItem snapshot;
+};
+
+/**
+ * @brief Siêu dữ liệu tệp đính kèm được mã hóa.
+ */
+struct UiAttachmentMeta {
+  QString id;
+  QString itemId;
+  QString fileName;
+  quint64 sizeBytes{0};
+  qint64 createdAt{0};
+};
+
+/**
+ * @brief Kiểm tra một mục có đang có mật khẩu yếu (< 60%) phục vụ Watchtower.
+ */
+inline bool isWeakPasswordItem(const UiVaultItem &item) {
+  if (item.isDeleted || item.isArchived) {
+    return false;
+  }
+  const bool hasPasswordCategory = (item.category == ItemCategory::Login ||
+                                    item.category == ItemCategory::Database ||
+                                    item.category == ItemCategory::Server ||
+                                    item.category == ItemCategory::Wifi);
+  return hasPasswordCategory && item.passwordStrengthScore < 60;
+}
+
+/**
+ * @brief Kiểm tra thẻ tín dụng / trường ngày hết hạn đã hoặc sắp hết hạn trong
+ * 60 ngày.
+ */
+inline bool isExpiringItem(const UiVaultItem &item) {
+  if (item.isDeleted || item.isArchived) {
+    return false;
+  }
+  const QDate today = QDate::currentDate();
+  const QDate cutoff = today.addDays(60);
+
+  if (!item.cardExpiry.trimmed().isEmpty()) {
+    static const QRegularExpression reCard(
+        QStringLiteral("^\\s*(\\d{1,2})\\s*/\\s*(\\d{2,4})\\s*$"));
+    const QRegularExpressionMatch m = reCard.match(item.cardExpiry);
+    if (m.hasMatch()) {
+      const int month = m.captured(1).toInt();
+      int year = m.captured(2).toInt();
+      if (m.captured(2).length() == 2) {
+        year += 2000;
+      }
+      if (month >= 1 && month <= 12) {
+        const QDate expDate(year, month, QDate(year, month, 1).daysInMonth());
+        if (expDate.isValid() && expDate <= cutoff) {
+          return true;
+        }
+      }
+    }
+  }
+
+  for (const auto &cf : item.customFields) {
+    if (cf.kind == CustomFieldKind::Date ||
+        cf.label.contains(QStringLiteral("expir"), Qt::CaseInsensitive)) {
+      const QDate d = QDate::fromString(cf.value.trimmed(), Qt::ISODate);
+      if (d.isValid() && d <= cutoff) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
 
 } // namespace svm::models

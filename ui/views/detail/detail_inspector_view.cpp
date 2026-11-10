@@ -10,9 +10,18 @@
 #include "app/dev_logger.h"
 #include "app/theme_manager.h"
 #include "app/vault_manager.h"
+#include "components/in_window_combobox.h"
+#include "components/notification_dialog.h"
+#include "core/core_bridge.h"
 
+#include <QDateTime>
+#include <QDialog>
+#include <QFileDialog>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QListWidget>
+#include <QPushButton>
+#include <QStandardPaths>
 #include <QUuid>
 #include <QVBoxLayout>
 
@@ -93,6 +102,8 @@ void DetailInspectorView::setupUI() {
               emit itemRestoreRequested(m_currentItem.id);
             }
           });
+  connect(m_headerWidget, &DetailHeaderWidget::historyRequested, this,
+          &DetailInspectorView::onHistoryRequested);
   connect(m_headerWidget, &DetailHeaderWidget::favoriteToggled, this,
           [this](bool isFav) {
             m_currentItem.isFavorite = isFav;
@@ -136,9 +147,12 @@ void DetailInspectorView::setupUI() {
   m_wifiSsidField =
       new FieldRowWidget(tr("Network Name (SSID)"),
                          FieldRowWidget::FieldType::Text, m_primaryCard);
-  m_dbHostField =
-      new FieldRowWidget(tr("Database Host / Port"),
-                         FieldRowWidget::FieldType::Text, m_primaryCard);
+  m_wifiSecurityField = new FieldRowWidget(
+      tr("Security Type"), FieldRowWidget::FieldType::Text, m_primaryCard);
+  m_dbHostField = new FieldRowWidget(
+      tr("Database Host"), FieldRowWidget::FieldType::Text, m_primaryCard);
+  m_dbPortField = new FieldRowWidget(
+      tr("Database Port"), FieldRowWidget::FieldType::Text, m_primaryCard);
   m_dbNameField = new FieldRowWidget(
       tr("Database Name"), FieldRowWidget::FieldType::Text, m_primaryCard);
   m_sshFingerprintField =
@@ -150,16 +164,17 @@ void DetailInspectorView::setupUI() {
   m_totpWidget = new TotpWidget(m_primaryCard);
 
   m_allPrimaryFields = {
-      m_usernameField,       m_passwordField,   m_websiteField,
-      m_cardNumberField,     m_cardExpiryField, m_cardCvvField,
-      m_wifiSsidField,       m_dbHostField,     m_dbNameField,
-      m_sshFingerprintField, m_sshKeyField};
+      m_usernameField,   m_passwordField,     m_websiteField,
+      m_cardNumberField, m_cardExpiryField,   m_cardCvvField,
+      m_wifiSsidField,   m_wifiSecurityField, m_dbHostField,
+      m_dbPortField,     m_dbNameField,       m_sshFingerprintField,
+      m_sshKeyField};
 
   m_allPrimaryWidgets = {
-      m_usernameField, m_passwordField,       m_totpWidget,
-      m_websiteField,  m_cardNumberField,     m_cardExpiryField,
-      m_cardCvvField,  m_wifiSsidField,       m_dbHostField,
-      m_dbNameField,   m_sshFingerprintField, m_sshKeyField};
+      m_usernameField,       m_passwordField,   m_totpWidget,   m_websiteField,
+      m_cardNumberField,     m_cardExpiryField, m_cardCvvField, m_wifiSsidField,
+      m_wifiSecurityField,   m_dbHostField,     m_dbPortField,  m_dbNameField,
+      m_sshFingerprintField, m_sshKeyField};
 
   for (auto *w : m_allPrimaryWidgets) {
     m_primaryLayout->addWidget(w);
@@ -203,6 +218,50 @@ void DetailInspectorView::setupUI() {
     updateVisibilityForCategory(m_currentItem.category);
   });
 
+  m_genSshKeyBtn = new QPushButton(m_primaryCard);
+  m_genSshKeyBtn->setObjectName(QStringLiteral("AddTotpBtn"));
+  m_genSshKeyBtn->setIcon(
+      app::ThemeManager::instance().icon(QStringLiteral("plus")));
+  m_genSshKeyBtn->setIconSize(QSize(14, 14));
+  m_genSshKeyBtn->setText(tr("Generate Ed25519 SSH Keypair"));
+  m_genSshKeyBtn->setFixedHeight(32);
+  m_genSshKeyBtn->setCursor(Qt::PointingHandCursor);
+  m_genSshKeyBtn->hide();
+  connect(m_genSshKeyBtn, &QPushButton::clicked, this, [this]() {
+    auto &bridge = core::CoreBridge::instance();
+    if (!bridge.isInitialized() || !bridge.isVaultUnlocked()) {
+      return;
+    }
+    const QString title = m_headerWidget->title().trimmed().isEmpty()
+                              ? QStringLiteral("Generated SSH Key (Ed25519)")
+                              : m_headerWidget->title().trimmed();
+    const QString comment = m_usernameField->value().trimmed().isEmpty()
+                                ? QStringLiteral("user@secure-vault")
+                                : m_usernameField->value().trimmed();
+    const QJsonObject res =
+        bridge.generateSshKey(title, comment, m_currentItem.vaultId);
+    const QString genId = res.value(QStringLiteral("id")).toString();
+    if (genId.isEmpty()) {
+      return;
+    }
+    if (const auto generated = bridge.getItem(genId)) {
+      m_sshFingerprintField->setValue(generated->sshFingerprint);
+      m_sshKeyField->setValue(generated->sshPublicKey);
+      m_notesField->setValue(generated->notes);
+      m_currentItem.sshFingerprint = generated->sshFingerprint;
+      m_currentItem.sshPublicKey = generated->sshPublicKey;
+      m_currentItem.notes = generated->notes;
+      m_currentItem.isSshLoaded = true;
+      if (m_isNewItem) {
+        m_currentItem.id = genId;
+        m_isNewItem = false;
+      } else if (genId != m_currentItem.id) {
+        bridge.purgeItem(genId);
+      }
+    }
+  });
+  m_primaryLayout->addWidget(m_genSshKeyBtn);
+
   contentLayout->addWidget(m_primaryCard);
 
   // Tầng 3: Custom Fields Card
@@ -227,6 +286,68 @@ void DetailInspectorView::setupUI() {
   notesLayout->addWidget(m_notesField);
 
   contentLayout->addWidget(m_notesCard);
+
+  // Tầng 6: Folder Assignment Card
+  m_metaCard = new QWidget(m_contentContainer);
+  m_metaCard->setObjectName(QStringLiteral("DetailSectionCard"));
+  m_metaCard->setAttribute(Qt::WA_StyledBackground, true);
+  auto *metaLayout = new QHBoxLayout(m_metaCard);
+  metaLayout->setContentsMargins(14, 10, 14, 10);
+  metaLayout->setSpacing(10);
+
+  m_folderHeader = new QLabel(tr("FOLDER"), m_metaCard);
+  m_folderHeader->setObjectName(QStringLiteral("DetailSectionHeader"));
+  metaLayout->addWidget(m_folderHeader);
+
+  m_folderValueLabel = new QLabel(tr("No Folder"), m_metaCard);
+  m_folderValueLabel->setObjectName(QStringLiteral("DetailUpdatedLabel"));
+  metaLayout->addWidget(m_folderValueLabel, 1);
+
+  auto *folderCombo = new svm::ui::InWindowComboBox(m_metaCard);
+  folderCombo->setFixedHeight(28);
+  folderCombo->setPopupMinWidth(180);
+  m_folderCombo = folderCombo;
+  m_folderCombo->hide();
+  metaLayout->addWidget(m_folderCombo, 1);
+  contentLayout->addWidget(m_metaCard);
+
+  // Tầng 7: Encrypted Attachments Card
+  m_attachmentsCard = new QWidget(m_contentContainer);
+  m_attachmentsCard->setObjectName(QStringLiteral("DetailSectionCard"));
+  m_attachmentsCard->setAttribute(Qt::WA_StyledBackground, true);
+  auto *attOuter = new QVBoxLayout(m_attachmentsCard);
+  attOuter->setContentsMargins(14, 12, 14, 12);
+  attOuter->setSpacing(8);
+
+  auto *attHeaderRow = new QHBoxLayout();
+  m_attachmentsHeader = new QLabel(tr("ATTACHMENTS"), m_attachmentsCard);
+  m_attachmentsHeader->setObjectName(QStringLiteral("DetailSectionHeader"));
+  attHeaderRow->addWidget(m_attachmentsHeader);
+  attHeaderRow->addStretch(1);
+
+  m_addAttachmentBtn = new QPushButton(tr("Attach File..."), m_attachmentsCard);
+  m_addAttachmentBtn->setObjectName(QStringLiteral("AddTotpBtn"));
+  m_addAttachmentBtn->setIcon(
+      app::ThemeManager::instance().icon(QStringLiteral("plus")));
+  m_addAttachmentBtn->setIconSize(QSize(14, 14));
+  m_addAttachmentBtn->setFixedHeight(28);
+  m_addAttachmentBtn->setCursor(Qt::PointingHandCursor);
+  connect(m_addAttachmentBtn, &QPushButton::clicked, this,
+          &DetailInspectorView::onAddAttachmentClicked);
+  attHeaderRow->addWidget(m_addAttachmentBtn);
+  attOuter->addLayout(attHeaderRow);
+
+  m_attachmentsListLayout = new QVBoxLayout();
+  m_attachmentsListLayout->setContentsMargins(0, 0, 0, 0);
+  m_attachmentsListLayout->setSpacing(6);
+  attOuter->addLayout(m_attachmentsListLayout);
+
+  m_noAttachmentsLabel =
+      new QLabel(tr("No encrypted attachments"), m_attachmentsCard);
+  m_noAttachmentsLabel->setObjectName(QStringLiteral("DetailUpdatedLabel"));
+  attOuter->addWidget(m_noAttachmentsLabel);
+
+  contentLayout->addWidget(m_attachmentsCard);
 
   contentLayout->addStretch(1);
 
@@ -284,10 +405,8 @@ void DetailInspectorView::setItem(const models::UiVaultItem &item) {
   m_headerWidget->setItem(item);
 
   // TOTP
-  if (m_isTotpActive) {
-    m_totpWidget->setTotpSecret(item.totpSecret.isEmpty()
-                                    ? QStringLiteral("JBSWY3DPEHPK3PXP")
-                                    : item.totpSecret);
+  if (!item.totpSecret.trimmed().isEmpty()) {
+    m_totpWidget->setTotpSecret(item.totpSecret);
   } else {
     m_totpWidget->clearTotp();
   }
@@ -305,11 +424,19 @@ void DetailInspectorView::setItem(const models::UiVaultItem &item) {
   m_cardExpiryField->setValue(item.cardExpiry);
   m_cardCvvField->setValue(item.cardCvv);
   m_dbHostField->setValue(item.dbHost);
+  m_dbPortField->setValue(item.dbPort > 0 ? QString::number(item.dbPort)
+                                          : QStringLiteral("5432"));
   m_dbNameField->setValue(item.dbName);
   m_wifiSsidField->setValue(item.wifiSsid);
+  m_wifiSecurityField->setValue(item.wifiSecurity.isEmpty()
+                                    ? QStringLiteral("WPA2/WPA3")
+                                    : item.wifiSecurity);
 
   // Custom Fields
   m_customFieldsWidget->setCustomFields(item.customFields);
+
+  refreshFolderOptions();
+  refreshAttachments();
 
   updateVisibilityForCategory(item.category);
   setEditMode(false);
@@ -329,6 +456,9 @@ void DetailInspectorView::createNewItem(models::ItemCategory category) {
   m_currentItem.category = category;
   QString activeVId = app::VaultManager::instance().activeVaultId();
   if (activeVId.isEmpty() || activeVId == QStringLiteral("all")) {
+    activeVId = app::VaultManager::instance().defaultVault().id;
+  }
+  if (activeVId.isEmpty()) {
     activeVId = QStringLiteral("personal");
   }
   m_currentItem.vaultId = activeVId;
@@ -367,6 +497,13 @@ void DetailInspectorView::setEditMode(bool editable) {
   m_totpWidget->setEditMode(editable);
   m_notesField->setEditMode(editable);
   m_customFieldsWidget->setEditMode(editable);
+  if (m_folderCombo && m_folderValueLabel) {
+    if (editable) {
+      refreshFolderOptions();
+    }
+    m_folderCombo->setVisible(editable);
+    m_folderValueLabel->setVisible(!editable);
+  }
 
   updateVisibilityForCategory(m_currentItem.category);
 }
@@ -408,12 +545,21 @@ void DetailInspectorView::onSaveRequested() {
   m_currentItem.cardExpiry = m_cardExpiryField->value();
   m_currentItem.cardCvv = m_cardCvvField->value();
   m_currentItem.dbHost = m_dbHostField->value();
+  bool portOk = false;
+  const int parsedPort = m_dbPortField->value().trimmed().toInt(&portOk);
+  m_currentItem.dbPort =
+      (portOk && parsedPort > 0 && parsedPort <= 65535) ? parsedPort : 5432;
   m_currentItem.dbName = m_dbNameField->value();
-  m_wifiSsidField->setValue(m_wifiSsidField->value());
   m_currentItem.wifiSsid = m_wifiSsidField->value();
+  m_currentItem.wifiSecurity = m_wifiSecurityField->value().trimmed().isEmpty()
+                                   ? QStringLiteral("WPA2/WPA3")
+                                   : m_wifiSecurityField->value().trimmed();
 
-  // Thu thập custom fields
+  // Thu thập custom fields & folder
   m_currentItem.customFields = m_customFieldsWidget->customFields();
+  if (m_folderCombo && m_folderCombo->currentIndex() >= 0) {
+    m_currentItem.folderId = m_folderCombo->currentData().toString();
+  }
 
   if (!m_currentItem.createdAt.isValid()) {
     m_currentItem.createdAt = QDateTime::currentDateTime();
@@ -485,16 +631,20 @@ void DetailInspectorView::updateVisibilityForCategory(
   case models::ItemCategory::Wifi:
     m_wifiSsidField->setLabel(tr("Network Name (SSID)"));
     m_wifiSsidField->setPlaceholderText(tr("MyHome_5GHz"));
+    m_wifiSecurityField->setLabel(tr("Security Type"));
+    m_wifiSecurityField->setPlaceholderText(tr("WPA2/WPA3"));
     m_passwordField->setLabel(tr("Wi-Fi Password / Key"));
     m_passwordField->setPlaceholderText(tr("WPA2/WPA3 network password"));
-    refreshPrimaryCard({m_wifiSsidField, m_passwordField},
+    refreshPrimaryCard({m_wifiSsidField, m_wifiSecurityField, m_passwordField},
                        tr("Wi-Fi Network Credentials"));
     m_notesHeader->setText(tr("NOTES"));
     break;
 
   case models::ItemCategory::Database: {
-    m_dbHostField->setLabel(tr("Database Host & Port"));
-    m_dbHostField->setPlaceholderText(tr("db.internal.net:5432"));
+    m_dbHostField->setLabel(tr("Database Host"));
+    m_dbHostField->setPlaceholderText(tr("db.internal.net"));
+    m_dbPortField->setLabel(tr("Database Port"));
+    m_dbPortField->setPlaceholderText(tr("5432"));
     m_dbNameField->setLabel(tr("Database Name"));
     m_dbNameField->setPlaceholderText(tr("production_db"));
     m_usernameField->setLabel(tr("Database User"));
@@ -502,8 +652,8 @@ void DetailInspectorView::updateVisibilityForCategory(
     m_passwordField->setLabel(tr("Database Password"));
     m_passwordField->setPlaceholderText(tr("db_password"));
 
-    QList<QWidget *> fields = {m_dbHostField, m_dbNameField, m_usernameField,
-                               m_passwordField};
+    QList<QWidget *> fields = {m_dbHostField, m_dbPortField, m_dbNameField,
+                               m_usernameField, m_passwordField};
     if (m_isTotpActive) {
       fields.append(m_totpWidget);
     }
@@ -570,6 +720,10 @@ void DetailInspectorView::updateVisibilityForCategory(
                              category == models::ItemCategory::Server);
   const bool showAddTotp = m_isEditMode && supportsTotp && !m_isTotpActive;
   m_addTotpBtn->setVisible(showAddTotp);
+  if (m_genSshKeyBtn) {
+    m_genSshKeyBtn->setVisible(m_isEditMode &&
+                               category == models::ItemCategory::SshKey);
+  }
 }
 
 void DetailInspectorView::retranslateUi() {
@@ -593,12 +747,211 @@ void DetailInspectorView::retranslateUi() {
   if (m_addTotpBtn) {
     m_addTotpBtn->setText(tr("Set Up 2FA (One-Time Code)"));
   }
+  if (m_genSshKeyBtn) {
+    m_genSshKeyBtn->setText(tr("Generate Ed25519 SSH Keypair"));
+  }
+  if (m_folderHeader) {
+    m_folderHeader->setText(tr("FOLDER"));
+  }
+  if (m_attachmentsHeader) {
+    m_attachmentsHeader->setText(tr("ATTACHMENTS"));
+  }
+  if (m_addAttachmentBtn) {
+    m_addAttachmentBtn->setText(tr("Attach File..."));
+  }
+  if (m_noAttachmentsLabel) {
+    m_noAttachmentsLabel->setText(tr("No encrypted attachments"));
+  }
   for (auto *f : m_allPrimaryFields) {
     if (f) {
       f->retranslateUi();
     }
   }
   updateVisibilityForCategory(m_currentItem.category);
+}
+
+void DetailInspectorView::refreshFolderOptions() {
+  if (!m_folderCombo || !m_folderValueLabel) {
+    return;
+  }
+  m_folderCombo->blockSignals(true);
+  m_folderCombo->clear();
+  m_folderCombo->addItem(tr("No Folder"), QString());
+
+  QString resolvedName = tr("No Folder");
+  int selectedIdx = 0;
+
+  auto &bridge = core::CoreBridge::instance();
+  if (bridge.isInitialized() && bridge.isVaultUnlocked()) {
+    const auto folders = bridge.listFolders();
+    for (int i = 0; i < folders.size(); ++i) {
+      m_folderCombo->addItem(folders[i].name, folders[i].id);
+      if (folders[i].id == m_currentItem.folderId) {
+        selectedIdx = i + 1;
+        resolvedName = folders[i].name;
+      }
+    }
+  }
+  m_folderCombo->setCurrentIndex(selectedIdx);
+  m_folderValueLabel->setText(resolvedName);
+  m_folderCombo->blockSignals(false);
+}
+
+void DetailInspectorView::refreshAttachments() {
+  if (!m_attachmentsListLayout || !m_noAttachmentsLabel || !m_attachmentsCard) {
+    return;
+  }
+  QLayoutItem *child = nullptr;
+  while ((child = m_attachmentsListLayout->takeAt(0)) != nullptr) {
+    if (child->widget()) {
+      child->widget()->deleteLater();
+    }
+    delete child;
+  }
+
+  auto &bridge = core::CoreBridge::instance();
+  QList<models::UiAttachmentMeta> atts;
+  if (!m_isNewItem && !m_currentItem.id.isEmpty() && bridge.isInitialized() &&
+      bridge.isVaultUnlocked()) {
+    atts = bridge.listAttachments(m_currentItem.id);
+  }
+  m_noAttachmentsLabel->setVisible(atts.isEmpty());
+  if (m_addAttachmentBtn) {
+    m_addAttachmentBtn->setEnabled(!m_isNewItem && !m_currentItem.id.isEmpty());
+  }
+
+  for (const auto &att : atts) {
+    auto *row = new QWidget(m_attachmentsCard);
+    auto *rl = new QHBoxLayout(row);
+    rl->setContentsMargins(0, 2, 0, 2);
+    rl->setSpacing(8);
+
+    const double kb = static_cast<double>(att.sizeBytes) / 1024.0;
+    const QString sizeStr =
+        kb >= 1024.0 ? QStringLiteral("%1 MB").arg(kb / 1024.0, 0, 'f', 1)
+                     : QStringLiteral("%1 KB").arg(qMax(0.1, kb), 0, 'f', 1);
+    auto *lbl =
+        new QLabel(QStringLiteral("%1 (%2)").arg(att.fileName, sizeStr), row);
+    lbl->setObjectName(QStringLiteral("DetailUpdatedLabel"));
+    rl->addWidget(lbl, 1);
+
+    auto *exportBtn = new QPushButton(tr("Save As..."), row);
+    exportBtn->setFixedHeight(26);
+    exportBtn->setCursor(Qt::PointingHandCursor);
+    const QString attId = att.id;
+    const QString defName = att.fileName;
+    connect(exportBtn, &QPushButton::clicked, this, [this, attId, defName]() {
+      const QString dst = QFileDialog::getSaveFileName(
+          this, tr("Export Attachment"),
+          QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation) +
+              QLatin1Char('/') + defName);
+      if (dst.isEmpty()) {
+        return;
+      }
+      if (core::CoreBridge::instance().exportAttachment(attId, dst)) {
+        components::NotificationDialog::success(
+            this, tr("Attachment Exported"),
+            tr("Decrypted file saved to %1").arg(dst));
+      } else {
+        components::NotificationDialog::warning(
+            this, tr("Export Failed"),
+            core::CoreBridge::instance().lastError());
+      }
+    });
+    rl->addWidget(exportBtn);
+
+    auto *delBtn = new QPushButton(tr("Delete"), row);
+    delBtn->setFixedHeight(26);
+    delBtn->setCursor(Qt::PointingHandCursor);
+    connect(delBtn, &QPushButton::clicked, this, [this, attId]() {
+      if (core::CoreBridge::instance().deleteAttachment(attId)) {
+        refreshAttachments();
+      }
+    });
+    rl->addWidget(delBtn);
+
+    m_attachmentsListLayout->addWidget(row);
+  }
+}
+
+void DetailInspectorView::onAddAttachmentClicked() {
+  if (m_currentItem.id.isEmpty()) {
+    return;
+  }
+  const QString srcPath = QFileDialog::getOpenFileName(
+      this, tr("Attach Encrypted File"),
+      QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation));
+  if (srcPath.isEmpty()) {
+    return;
+  }
+  if (core::CoreBridge::instance().addAttachment(m_currentItem.id, srcPath)) {
+    refreshAttachments();
+  } else {
+    components::NotificationDialog::warning(
+        this, tr("Attach Failed"), core::CoreBridge::instance().lastError());
+  }
+}
+
+void DetailInspectorView::onHistoryRequested() {
+  if (m_currentItem.id.isEmpty()) {
+    return;
+  }
+  auto &bridge = core::CoreBridge::instance();
+  const auto revisions = bridge.listHistory(m_currentItem.id);
+  QDialog dlg(this);
+  dlg.setWindowTitle(tr("Revision History"));
+  dlg.resize(460, 340);
+  auto *vl = new QVBoxLayout(&dlg);
+  vl->setContentsMargins(16, 16, 16, 16);
+  vl->setSpacing(10);
+
+  auto *info =
+      new QLabel(revisions.isEmpty()
+                     ? tr("No revision snapshots recorded for this item yet.")
+                     : tr("Select a previous revision snapshot to restore:"),
+                 &dlg);
+  vl->addWidget(info);
+
+  auto *list = new QListWidget(&dlg);
+  for (int i = revisions.size() - 1; i >= 0; --i) {
+    const auto &rev = revisions[i];
+    const QDateTime dt = QDateTime::fromMSecsSinceEpoch(rev.timestamp);
+    const QString label =
+        tr("Revision #%1 — %2 (%3)")
+            .arg(rev.revision)
+            .arg(dt.toString(QStringLiteral("yyyy-MM-dd HH:mm:ss")),
+                 rev.snapshot.title);
+    auto *li = new QListWidgetItem(label, list);
+    li->setData(Qt::UserRole, rev.revision);
+  }
+  vl->addWidget(list, 1);
+
+  auto *btnRow = new QHBoxLayout();
+  btnRow->addStretch(1);
+  auto *closeBtn = new QPushButton(tr("Close"), &dlg);
+  connect(closeBtn, &QPushButton::clicked, &dlg, &QDialog::reject);
+  btnRow->addWidget(closeBtn);
+
+  auto *restoreBtn = new QPushButton(tr("Restore Selected"), &dlg);
+  restoreBtn->setEnabled(!revisions.isEmpty());
+  connect(restoreBtn, &QPushButton::clicked, &dlg, [this, &dlg, list]() {
+    auto *cur = list->currentItem();
+    if (!cur) {
+      return;
+    }
+    const int revNum = cur->data(Qt::UserRole).toInt();
+    if (core::CoreBridge::instance().restoreHistory(m_currentItem.id, revNum)) {
+      if (const auto updated =
+              core::CoreBridge::instance().getItem(m_currentItem.id)) {
+        setItem(*updated);
+      }
+      emit historyRestored(m_currentItem.id);
+      dlg.accept();
+    }
+  });
+  btnRow->addWidget(restoreBtn);
+  vl->addLayout(btnRow);
+  dlg.exec();
 }
 
 void DetailInspectorView::changeEvent(QEvent *event) {

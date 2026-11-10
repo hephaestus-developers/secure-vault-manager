@@ -3,6 +3,16 @@
 use ring::rand::{SecureRandom, SystemRandom};
 use ring::signature::{EcdsaKeyPair, KeyPair, ECDSA_P256_SHA256_ASN1_SIGNING};
 use svm_crypto::sha256;
+use svm_domain::JsonValue;
+
+fn build_client_data_json(kind: &str, challenge: &str, origin: &str) -> String {
+    let mut obj = JsonValue::new_object();
+    obj.insert("type", JsonValue::String(kind.to_string()));
+    obj.insert("challenge", JsonValue::String(challenge.to_string()));
+    obj.insert("origin", JsonValue::String(origin.to_string()));
+    obj.insert("crossOrigin", JsonValue::Bool(false));
+    obj.to_json_string()
+}
 
 use crate::cbor::{encode_attestation_object_none, encode_cose_key_p256};
 
@@ -86,10 +96,8 @@ pub fn create_passkey_credential(
     // 5. Đóng gói Attestation Object (fmt: "none")
     let attestation_object = encode_attestation_object_none(&auth_data);
 
-    // 6. Xây dựng Client Data JSON
-    let client_data_json = format!(
-        r#"{{"type":"webauthn.create","challenge":"{challenge}","origin":"{origin}","crossOrigin":false}}"#
-    );
+    // 6. Xây dựng Client Data JSON (escape JSON an toàn)
+    let client_data_json = build_client_data_json("webauthn.create", challenge, origin);
 
     Ok(PasskeyRegistration {
         credential_id,
@@ -127,10 +135,8 @@ pub fn authenticate_passkey_assertion(
     auth_data.push(0x05); // Flags: UP=1, UV=1
     auth_data.extend_from_slice(&sign_count.to_be_bytes());
 
-    // 2. Client Data JSON
-    let client_data_json = format!(
-        r#"{{"type":"webauthn.get","challenge":"{challenge}","origin":"{origin}","crossOrigin":false}}"#
-    );
+    // 2. Client Data JSON (escape JSON an toàn)
+    let client_data_json = build_client_data_json("webauthn.get", challenge, origin);
     let client_data_hash = sha256(client_data_json.as_bytes());
 
     // 3. Ký số trên (auth_data || client_data_hash)

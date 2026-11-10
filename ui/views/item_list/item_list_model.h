@@ -33,7 +33,8 @@ public:
     PasswordScoreRole,
     UpdatedDateRole,
     VaultItemRole,
-    VaultIdRole
+    VaultIdRole,
+    FolderIdRole
   };
 
   explicit ItemListModel(QObject *parent = nullptr);

@@ -10,12 +10,16 @@
 #include "models/vault_item.h"
 #include "models/vault_types.h"
 
+#include <QHash>
+#include <QImage>
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QList>
 #include <QObject>
 #include <QPair>
+#include <QSet>
 #include <QString>
+#include <atomic>
 #include <memory>
 #include <optional>
 #include <vector>
@@ -45,6 +49,12 @@ public:
    * @brief Khởi tạo Context và tiến trình bảo mật.
    */
   bool initialize(const QString &dataDir = QString());
+
+  /**
+   * @brief Dừng các dịch vụ nền, luồng Qt và giải phóng Rust Core trước khi
+   * thoát.
+   */
+  void shutdown();
 
   /**
    * @brief Đặt lại toàn bộ dữ liệu lưu trữ vật lý của kho và khởi tạo lại ngữ
@@ -226,6 +236,25 @@ public:
                                     const QString &fieldId);
 
   /* ======================================================================= */
+  /* Thư mục, Lịch sử Sửa đổi & Tệp Đính kèm                                  */
+  /* ======================================================================= */
+
+  [[nodiscard]] QList<models::UiFolder> listFolders();
+  QString upsertFolder(const models::UiFolder &folder);
+  bool deleteFolder(const QString &folderId);
+
+  [[nodiscard]] QList<models::UiItemRevision>
+  listHistory(const QString &itemId);
+  bool restoreHistory(const QString &itemId, int revision);
+
+  [[nodiscard]] QList<models::UiAttachmentMeta>
+  listAttachments(const QString &itemId);
+  std::optional<models::UiAttachmentMeta> addAttachment(const QString &itemId,
+                                                        const QString &srcPath);
+  bool exportAttachment(const QString &attachmentId, const QString &dstPath);
+  bool deleteAttachment(const QString &attachmentId);
+
+  /* ======================================================================= */
   /* Tiện ích Mật mã & TOTP (RFC 6238)                                        */
   /* ======================================================================= */
 
@@ -240,6 +269,32 @@ public:
    * @brief Phân tích chuỗi URI otpauth://totp/...
    */
   [[nodiscard]] QJsonObject parseOtpAuth(const QString &uri);
+
+  /**
+   * @brief Giải mã mã QR từ QImage (chuyển đổi sang RGBA8888 và gọi Rust rqrr).
+   */
+  [[nodiscard]] QString decodeQrImage(const QImage &image);
+
+  /**
+   * @brief Tải biểu tượng website (Favicon) có kiểm soát opt-in qua Rust Core.
+   */
+  [[nodiscard]] QImage fetchFavicon(const QString &domain);
+
+  /**
+   * @brief Chuẩn hóa URL/domain thành khóa cache favicon (ví dụ "gitlab.com").
+   */
+  [[nodiscard]] static QString normalizeFaviconKey(const QString &urlOrDomain);
+
+  /**
+   * @brief Trả về favicon đã cache trong RAM (hoặc null QImage nếu chưa tải).
+   */
+  [[nodiscard]] QImage cachedFavicon(const QString &urlOrDomain) const;
+
+  /**
+   * @brief Yêu cầu tải bất đồng bộ favicon cho domain nếu bật opt-in và chưa có
+   * trong cache.
+   */
+  void requestFaviconAsync(const QString &urlOrDomain);
 
   /**
    * @brief Sinh mật khẩu ngẫu nhiên an toàn mật mã từ CSPRNG của Rust Core.
@@ -290,6 +345,10 @@ public:
   [[nodiscard]] QJsonObject getCoreSettings();
   bool saveCoreSettings(const QJsonObject &settings);
 
+  [[nodiscard]] QJsonArray listPasskeys(const QString &rpId = QString());
+  bool deletePasskey(const QString &itemId);
+  bool respondPrompt(const QString &requestId, bool approved);
+
   /**
    * @brief Chuyển đổi qua lại giữa UiVaultItem và QJsonObject đồng bộ với
    * svm-domain.
@@ -305,6 +364,8 @@ signals:
   void vaultUnlockedEvent();
   void itemsChangedEvent();
   void bridgeClientsChangedEvent();
+  void promptRequestedEvent(const QJsonObject &prompt);
+  void faviconUpdated(const QString &domainKey);
 
 private:
   CoreBridge();
@@ -316,6 +377,10 @@ private:
   SvmContext *m_context{nullptr};
   bool m_hardened{false};
   bool m_bridgeStarted{false};
+  std::atomic<bool> m_shuttingDown{false};
+  QHash<QString, QImage> m_faviconCache;
+  QSet<QString> m_faviconInFlight;
+  QSet<QString> m_faviconFailed;
 };
 
 } // namespace svm::core

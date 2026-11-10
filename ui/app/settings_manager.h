@@ -48,6 +48,10 @@ public:
   [[nodiscard]] bool startMinimized() const;
   void setStartMinimized(bool enable);
 
+  [[nodiscard]] bool faviconFetchEnabled() const;
+  [[nodiscard]] bool hasFaviconFetchSetting() const;
+  void setFaviconFetchEnabled(bool enable);
+
   // 2. Security Settings
   [[nodiscard]] int autoLockMinutes() const; // 0 = Never, 1, 5, 15, 30, 60
   void setAutoLockMinutes(int minutes);

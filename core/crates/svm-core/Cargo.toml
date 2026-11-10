@@ -21,3 +21,5 @@ svm-ipc = { path = "../svm-ipc" }
 svm-bridge = { path = "../svm-bridge" }
 svm-system = { path = "../svm-system" }
 svm-transfer = { path = "../svm-transfer" }
+rqrr = { version = "0.8", default-features = false }
+ureq = { version = "2.12", default-features = false, features = ["tls", "gzip"] }

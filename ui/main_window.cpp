@@ -15,6 +15,7 @@
 #include "app/vault_manager.h"
 #include "components/confirm_delete_dialog.h"
 #include "components/dialog_drag_helper.h"
+#include "components/notification_dialog.h"
 #include "components/unified_header_bar.h"
 #include "components/window_resize_handler.h"
 #include "core/core_bridge.h"
@@ -30,6 +31,7 @@
 #include <QLayout>
 #include <QMouseEvent>
 #include <QPropertyAnimation>
+#include <QStandardPaths>
 #include <QVBoxLayout>
 #include <QWindow>
 
@@ -125,6 +127,26 @@ void MainWindow::setupUI() {
               app::VaultManager::instance().refreshVaultsFromCore();
             }
           });
+  connect(
+      &core::CoreBridge::instance(), &core::CoreBridge::promptRequestedEvent,
+      this, [this](const QJsonObject &prompt) {
+        const QString reqId =
+            prompt.value(QStringLiteral("request_id")).toString();
+        if (reqId.isEmpty()) {
+          return;
+        }
+        const QString keyName = prompt.value(QStringLiteral("key")).toString();
+        const QString fp =
+            prompt.value(QStringLiteral("fingerprint")).toString();
+        const bool approved = components::NotificationDialog::question(
+            this, tr("SSH Signing Request"),
+            tr("An SSH client is requesting a cryptographic signature using "
+               "your vault key:\n\nKey: %1\nFingerprint: %2\n\nAllow this "
+               "request?")
+                .arg(keyName, fp),
+            tr("Approve"), tr("Deny"), false);
+        core::CoreBridge::instance().respondPrompt(reqId, approved);
+      });
 
   // 3. Kết nối tín hiệu Header Bar
   connect(m_headerBar, &components::UnifiedHeaderBar::minimizeRequested, this,
@@ -160,6 +182,11 @@ void MainWindow::setupUI() {
           });
   connect(m_sidebarView, &views::SidebarView::filterSelected, m_itemListView,
           &views::ItemListView::setFilter);
+  connect(m_sidebarView, &views::SidebarView::foldersChanged, this, [this]() {
+    if (app::VaultManager::instance().isUnlocked()) {
+      loadItemsFromCore();
+    }
+  });
   connect(m_sidebarView, &views::SidebarView::lockVaultRequested, this,
           [this]() {
             app::VaultManager::instance().lock();
@@ -183,6 +210,11 @@ void MainWindow::setupUI() {
           &MainWindow::onItemRestoreRequested);
   connect(m_detailView, &views::DetailInspectorView::itemPurgeRequested, this,
           &MainWindow::onItemPurgeRequested);
+  connect(m_detailView, &views::DetailInspectorView::historyRestored, this,
+          [this](const QString &itemId) {
+            Q_UNUSED(itemId);
+            loadItemsFromCore();
+          });
   connect(m_detailView, &views::DetailInspectorView::cancelRequested, this,
           &MainWindow::onDetailCancelRequested);
 
@@ -215,9 +247,12 @@ void MainWindow::setupUI() {
   connect(m_sidebarView, &views::SidebarView::settingsRequested, this,
           &MainWindow::openSettingsDialog);
 
-  // 7. Thiết lập Inactivity Timer tự động khóa Vault
+  // 7. Thiết lập Inactivity Timer tự động khóa Vault & giám sát Sleep
   connect(&m_inactivityTimer, &QTimer::timeout, this, [this]() {
     if (app::VaultManager::instance().isUnlocked()) {
+      const quint64 mins = static_cast<quint64>(
+          qMax(1, app::SettingsManager::instance().autoLockMinutes()));
+      core::CoreBridge::instance().reportIdle(mins * 60000ULL);
       app::VaultManager::instance().lock();
       if (m_trayManager) {
         m_trayManager->setVaultLocked(true);
@@ -228,15 +263,28 @@ void MainWindow::setupUI() {
           &app::SettingsManager::autoLockTimeoutChanged, this,
           &MainWindow::updateInactivityTimer);
   updateInactivityTimer();
+  setupSleepMonitor();
 
   // 8. Đồng bộ trạng thái điều hướng khởi đầu
   updateNavigationState();
 
-  // 9. Khởi động Cầu nối Trình duyệt Web nếu được kích hoạt
+  // 9. Khởi động Cầu nối Trình duyệt Web và SSH Agent nếu được kích hoạt
   if (app::SettingsManager::instance().browserBridgeEnabled()) {
     core::CoreBridge::instance().startBridge();
     core::CoreBridge::instance().installNativeHostManifests();
   }
+  if (app::SettingsManager::instance().sshAgentEnabled()) {
+    core::CoreBridge::instance().startSshAgent();
+  }
+  if (!app::SettingsManager::instance().hasFaviconFetchSetting() &&
+      core::CoreBridge::instance().isInitialized()) {
+    const QJsonObject coreSettings =
+        core::CoreBridge::instance().getCoreSettings();
+    if (coreSettings.value(QStringLiteral("favicon_fetch_enabled")).toBool()) {
+      app::SettingsManager::instance().setFaviconFetchEnabled(true);
+    }
+  }
+  emit app::SettingsManager::instance().settingsChanged();
 }
 
 void MainWindow::setupShortcuts() {
@@ -327,10 +375,17 @@ void MainWindow::onItemSelected(const QString &itemId) {
     m_detailView->clearItem();
     return;
   }
-  const auto opt = m_itemListView->sourceModel()->findItemById(itemId);
-  if (opt.has_value()) {
+  auto &bridge = core::CoreBridge::instance();
+  std::optional<models::UiVaultItem> resolved;
+  if (bridge.isInitialized() && bridge.isVaultUnlocked()) {
+    resolved = bridge.getItem(itemId);
+  }
+  if (!resolved.has_value()) {
+    resolved = m_itemListView->sourceModel()->findItemById(itemId);
+  }
+  if (resolved.has_value()) {
     m_previousSelectedItemId = itemId;
-    m_detailView->setItem(opt.value());
+    m_detailView->setItem(resolved.value());
   } else {
     m_previousSelectedItemId.clear();
     m_detailView->clearItem();
@@ -345,11 +400,18 @@ void MainWindow::onAddNewItemRequested(models::ItemCategory category) {
 
 void MainWindow::onDetailCancelRequested() {
   if (!m_previousSelectedItemId.isEmpty()) {
-    const auto opt =
-        m_itemListView->sourceModel()->findItemById(m_previousSelectedItemId);
-    if (opt.has_value()) {
+    auto &bridge = core::CoreBridge::instance();
+    std::optional<models::UiVaultItem> resolved;
+    if (bridge.isInitialized() && bridge.isVaultUnlocked()) {
+      resolved = bridge.getItem(m_previousSelectedItemId);
+    }
+    if (!resolved.has_value()) {
+      resolved =
+          m_itemListView->sourceModel()->findItemById(m_previousSelectedItemId);
+    }
+    if (resolved.has_value()) {
       m_itemListView->selectItem(m_previousSelectedItemId);
-      m_detailView->setItem(opt.value());
+      m_detailView->setItem(resolved.value());
       return;
     }
   }
@@ -407,7 +469,10 @@ void MainWindow::onItemRestoreRequested(const QString &itemId) {
   }
   const auto opt = m_itemListView->sourceModel()->findItemById(itemId);
   if (opt.has_value()) {
-    models::UiVaultItem updated = opt.value();
+    models::UiVaultItem updated =
+        (bridge.isInitialized() && bridge.isVaultUnlocked())
+            ? bridge.getItem(itemId).value_or(opt.value())
+            : opt.value();
     updated.isDeleted = false;
     updated.updatedAt = QDateTime::currentDateTime();
     m_itemListView->upsertItem(updated);
@@ -454,7 +519,7 @@ void MainWindow::onQuickCopyRequested(const QString &itemId,
       }
     }
     app::ClipboardManager::instance().copySensitive(
-        secret, tr("Password for %1").arg(item.title), 30);
+        secret, tr("Password for %1").arg(item.title));
   } else if (fieldName == QStringLiteral("username")) {
     app::ClipboardManager::instance().copyPlainText(item.username);
   }
@@ -470,13 +535,15 @@ void MainWindow::loadItemsFromCore() {
   if (!coreItems.isEmpty()) {
     const QString prevId = m_itemListView->selectedItemId();
     m_itemListView->setItems(coreItems);
+    m_sidebarView->refreshFolders();
     updateSidebarCounts();
 
     if (!prevId.isEmpty()) {
       const auto opt = m_itemListView->sourceModel()->findItemById(prevId);
       if (opt.has_value()) {
         m_itemListView->selectItem(prevId);
-        m_detailView->setItem(opt.value());
+        const auto fullOpt = bridge.getItem(prevId);
+        m_detailView->setItem(fullOpt.value_or(opt.value()));
       } else {
         m_itemListView->clearSelection();
         m_detailView->clearItem();
@@ -488,6 +555,7 @@ void MainWindow::loadItemsFromCore() {
   } else {
     m_itemListView->setItems({});
     m_detailView->clearItem();
+    m_sidebarView->refreshFolders();
     updateSidebarCounts();
   }
 }
@@ -498,6 +566,7 @@ void MainWindow::updateSidebarCounts() {
 
   QMap<views::SidebarFilterType, int> filterCounts;
   QMap<models::ItemCategory, int> categoryCounts;
+  QMap<QString, int> folderCounts;
 
   const std::array<models::ItemCategory, 9> allCategories = {
       models::ItemCategory::Login,      models::ItemCategory::Passkey,
@@ -512,6 +581,8 @@ void MainWindow::updateSidebarCounts() {
   int allCount = 0;
   int favCount = 0;
   int trashCount = 0;
+  int weakCount = 0;
+  int expiringCount = 0;
 
   for (const auto &item : items) {
     if (!activeVId.isEmpty() && activeVId != QStringLiteral("all")) {
@@ -521,7 +592,7 @@ void MainWindow::updateSidebarCounts() {
     }
     if (item.isDeleted) {
       ++trashCount;
-    } else {
+    } else if (!item.isArchived) {
       ++allCount;
       categoryCounts[item.category] =
           categoryCounts.value(item.category, 0) + 1;
@@ -529,14 +600,25 @@ void MainWindow::updateSidebarCounts() {
       if (item.isFavorite) {
         ++favCount;
       }
+      if (!item.folderId.isEmpty()) {
+        folderCounts[item.folderId] = folderCounts.value(item.folderId, 0) + 1;
+      }
+      if (models::isWeakPasswordItem(item)) {
+        ++weakCount;
+      }
+      if (models::isExpiringItem(item)) {
+        ++expiringCount;
+      }
     }
   }
 
   filterCounts[views::SidebarFilterType::AllItems] = allCount;
   filterCounts[views::SidebarFilterType::Favorites] = favCount;
   filterCounts[views::SidebarFilterType::Trash] = trashCount;
+  filterCounts[views::SidebarFilterType::WatchtowerWeak] = weakCount;
+  filterCounts[views::SidebarFilterType::WatchtowerExpiring] = expiringCount;
 
-  m_sidebarView->updateCounts(filterCounts, categoryCounts);
+  m_sidebarView->updateCounts(filterCounts, categoryCounts, folderCounts);
 }
 
 void MainWindow::updateNavigationState() {
@@ -766,12 +848,61 @@ void MainWindow::retranslateUi() {
   }
 }
 
+void MainWindow::setupSleepMonitor() {
+#if defined(Q_OS_LINUX)
+  const QString gdbus = QStandardPaths::findExecutable(QStringLiteral("gdbus"));
+  if (gdbus.isEmpty()) {
+    return;
+  }
+  m_sleepMonitorProcess = new QProcess(this);
+  connect(m_sleepMonitorProcess, &QProcess::readyReadStandardOutput, this,
+          [this]() {
+            if (!app::SettingsManager::instance().lockOnSleep() ||
+                !app::VaultManager::instance().isUnlocked()) {
+              return;
+            }
+            const QByteArray data =
+                m_sleepMonitorProcess->readAllStandardOutput();
+            if (data.contains("PrepareForSleep (true") ||
+                data.contains(".Lock ()")) {
+              app::VaultManager::instance().lock();
+              if (m_trayManager) {
+                m_trayManager->setVaultLocked(true);
+              }
+            }
+          });
+  m_sleepMonitorProcess->start(
+      gdbus,
+      {QStringLiteral("monitor"), QStringLiteral("--system"),
+       QStringLiteral("--dest"), QStringLiteral("org.freedesktop.login1")});
+#endif
+}
+
+MainWindow::~MainWindow() { stopSleepMonitor(); }
+
+void MainWindow::stopSleepMonitor() {
+  if (!m_sleepMonitorProcess) {
+    return;
+  }
+  m_sleepMonitorProcess->disconnect(this);
+  if (m_sleepMonitorProcess->state() != QProcess::NotRunning) {
+    m_sleepMonitorProcess->terminate();
+    if (!m_sleepMonitorProcess->waitForFinished(300)) {
+      m_sleepMonitorProcess->kill();
+      m_sleepMonitorProcess->waitForFinished(300);
+    }
+  }
+}
+
 void MainWindow::closeEvent(QCloseEvent *event) {
-  if (m_trayManager && m_trayManager->isSystemTrayAvailable()) {
+  if (app::SettingsManager::instance().closeToTray() && m_trayManager &&
+      m_trayManager->isSystemTrayAvailable()) {
     hide();
     event->ignore();
   } else {
+    stopSleepMonitor();
     event->accept();
+    QApplication::quit();
   }
 }
 

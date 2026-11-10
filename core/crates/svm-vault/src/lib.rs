@@ -46,6 +46,13 @@ mod tests {
         };
         let item_id = svc.upsert_item(new_item).expect("upsert item");
 
+        let summary_list = svc.list_items_json(None).expect("list items");
+        assert!(summary_list.contains("GitLab Enterprise"));
+        assert!(!summary_list.contains("GitLab#SuperSecret!99"));
+
+        let detail_json = svc.get_item_json(&item_id).expect("get item detail");
+        assert!(detail_json.contains("GitLab#SuperSecret!99"));
+
         let revealed = svc
             .reveal_field(&item_id, "password")
             .expect("reveal password");
@@ -54,9 +61,30 @@ mod tests {
         // Lock and re-unlock
         svc.lock();
         assert!(!svc.is_unlocked());
+        assert!(svc.list_items_json(None).is_err());
+        assert!(svc.upsert_item(VaultItem::default()).is_err());
+        assert!(svc.list_folders_json().is_err());
+        assert!(svc.delete_vault("personal", "StrongMaster#2026").is_err());
+
         svc.unlock_with_credentials("personal", "StrongMaster#2026")
             .expect("unlock");
         assert!(svc.is_unlocked());
+        assert!(svc.list_vaults_json().contains("\"configured\":true"));
+
+        // Tạo thêm vault phụ để kiểm tra xóa vault cần đúng mật khẩu
+        let work_id = svc
+            .create_vault("Work Vault", "StrongMaster#2026")
+            .expect("create work vault");
+        assert!(svc.delete_vault(&work_id, "WrongPassword").is_err());
+        svc.delete_vault(&work_id, "StrongMaster#2026")
+            .expect("delete vault with right password");
+
+        // Kiểm tra auto-lock khi vượt quá idle threshold
+        svc.apply_settings_json(r#"{"auto_lock_minutes":1,"auto_empty_trash":false}"#);
+        assert!(!svc.report_idle(30_000));
+        assert!(svc.is_unlocked());
+        assert!(svc.report_idle(60_000));
+        assert!(!svc.is_unlocked());
 
         let _ = fs::remove_dir_all(&dir);
     }

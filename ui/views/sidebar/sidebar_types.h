@@ -16,6 +16,7 @@ enum class SidebarFilterType {
   Favorites,
   Trash,
   Category,
+  Folder,
   WatchtowerWeak,
   WatchtowerExpiring
 };

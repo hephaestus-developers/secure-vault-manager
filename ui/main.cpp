@@ -94,6 +94,12 @@ int main(int argc, char *argv[]) {
   trayManager.initialize();
   mainWindow.setTrayManager(&trayManager);
 
+  QObject::connect(&app, &QApplication::aboutToQuit, &app, [&]() {
+    mainWindow.stopSleepMonitor();
+    trayManager.hide();
+    bridge.shutdown();
+  });
+
   QObject::connect(&singleInstance,
                    &svm::app::SingleInstanceGuard::activateRequested,
                    &mainWindow, [&mainWindow](const QString &command) {
@@ -113,7 +119,8 @@ int main(int argc, char *argv[]) {
                      }
                    });
 
-  bool startMinimized = false;
+  bool startMinimized =
+      !isPreviewMode && svm::app::SettingsManager::instance().startMinimized();
 
   for (int i = 1; i < argc; ++i) {
     const QString arg = QString::fromLatin1(argv[i]);

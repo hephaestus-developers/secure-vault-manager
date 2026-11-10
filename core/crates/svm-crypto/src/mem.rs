@@ -1,9 +1,5 @@
-//! Quản lý vùng nhớ mật mã, xóa bộ nhớ an toàn (`zeroize`), khóa RAM (`mlock`) và bộ tạo số ngẫu nhiên CSPRNG.
+//! Quản lý vùng nhớ mật mã, xóa bộ nhớ an toàn (`zeroize`), khóa RAM (`mlock`/`VirtualLock`) và bộ tạo số ngẫu nhiên CSPRNG.
 
-#[cfg(not(target_arch = "wasm32"))]
-use std::fs::File;
-#[cfg(not(target_arch = "wasm32"))]
-use std::io::Read;
 use std::sync::atomic::{compiler_fence, AtomicU64, Ordering};
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -18,7 +14,7 @@ extern "C" {
     fn munlock(addr: *const u8, len: usize) -> i32;
 }
 
-/// Khóa một vùng nhớ đệm vào RAM vật lý (`mlock`) để ngăn chặn hệ điều hành
+/// Khóa một vùng nhớ đệm vào RAM vật lý (`mlock` / `VirtualLock`) để ngăn chặn hệ điều hành
 /// ghi xuống swap/pagefile.
 pub fn mem_lock(slice: &[u8]) -> bool {
     if slice.is_empty() {
@@ -28,7 +24,14 @@ pub fn mem_lock(slice: &[u8]) -> bool {
     unsafe {
         return mlock(slice.as_ptr(), slice.len()) == 0;
     }
-    #[cfg(not(all(unix, not(target_arch = "wasm32"))))]
+    #[cfg(target_os = "windows")]
+    unsafe {
+        return windows_sys::Win32::System::Memory::VirtualLock(
+            slice.as_ptr() as *const core::ffi::c_void,
+            slice.len(),
+        ) != 0;
+    }
+    #[cfg(not(any(all(unix, not(target_arch = "wasm32")), target_os = "windows")))]
     {
         let _ = slice;
         true
@@ -44,7 +47,14 @@ pub fn mem_unlock(slice: &[u8]) -> bool {
     unsafe {
         return munlock(slice.as_ptr(), slice.len()) == 0;
     }
-    #[cfg(not(all(unix, not(target_arch = "wasm32"))))]
+    #[cfg(target_os = "windows")]
+    unsafe {
+        return windows_sys::Win32::System::Memory::VirtualUnlock(
+            slice.as_ptr() as *const core::ffi::c_void,
+            slice.len(),
+        ) != 0;
+    }
+    #[cfg(not(any(all(unix, not(target_arch = "wasm32")), target_os = "windows")))]
     {
         let _ = slice;
         true
@@ -99,18 +109,20 @@ fn current_time_nanos() -> u64 {
     0x1234_5678_9ABC_DEF0
 }
 
-/// Điền các byte ngẫu nhiên an toàn mật mã từ nguồn phần cứng hệ điều hành (`/dev/urandom`).
+/// Điền các byte ngẫu nhiên an toàn mật mã từ CSPRNG của hệ điều hành (`ring::rand::SystemRandom`).
 pub fn random_bytes(out: &mut [u8]) {
     if out.is_empty() {
         return;
     }
     #[cfg(not(target_arch = "wasm32"))]
-    if let Ok(mut f) = File::open("/dev/urandom") {
-        if f.read_exact(out).is_ok() {
+    {
+        use ring::rand::{SecureRandom, SystemRandom};
+        let rng = SystemRandom::new();
+        if rng.fill(out).is_ok() {
             return;
         }
     }
-    // Dự phòng PRNG trộn thời gian hệ thống + bộ đếm qua SHA-256 nếu môi trường cô lập / WASM
+    // Dự phòng PRNG trộn thời gian hệ thống + bộ đếm qua SHA-256 chỉ dùng cho môi trường WASM / không có CSPRNG
     let ts = current_time_nanos();
     let mut offset = 0;
     while offset < out.len() {

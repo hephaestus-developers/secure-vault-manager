@@ -143,8 +143,8 @@ export function createBridgeRequest<TPayload = Record<string, unknown>>(
   const currentBrowser = detectCurrentBrowserName();
   const basePayload =
     typeof payload === "object" && payload !== null
-      ? { browser: currentBrowser, version: "1.0.0", ...payload }
-      : ({ browser: currentBrowser, version: "1.0.0" } as unknown as TPayload);
+      ? { browser: currentBrowser, version: "0.1.0", ...payload }
+      : ({ browser: currentBrowser, version: "0.1.0" } as unknown as TPayload);
 
   return {
     requestId: `req-${Date.now()}-${requestSequence}`,

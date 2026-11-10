@@ -152,6 +152,28 @@ void TabGeneral::setupUI() {
       m_minimizedCheck, m_systemCard);
   m_systemCard->addRow(m_minimizedRow);
 
+  m_faviconCheck = new QCheckBox(m_systemCard);
+  m_faviconCheck->setChecked(settings.faviconFetchEnabled());
+  connect(m_faviconCheck, &QCheckBox::toggled, this, [](bool checked) {
+    app::SettingsManager::instance().setFaviconFetchEnabled(checked);
+  });
+  connect(&settings, &app::SettingsManager::settingsChanged, this, [this]() {
+    if (m_faviconCheck) {
+      const bool enabled =
+          app::SettingsManager::instance().faviconFetchEnabled();
+      if (m_faviconCheck->isChecked() != enabled) {
+        const QSignalBlocker blocker(m_faviconCheck);
+        m_faviconCheck->setChecked(enabled);
+      }
+    }
+  });
+  m_faviconRow = new SettingRowWidget(
+      tr("Fetch Website Favicons"),
+      tr("Opt-in to download website icons directly from saved domains (off "
+         "by default for privacy)."),
+      m_faviconCheck, m_systemCard);
+  m_systemCard->addRow(m_faviconRow);
+
   layout->addWidget(m_systemCard);
   layout->addStretch(1);
 }
@@ -219,6 +241,12 @@ void TabGeneral::retranslateUi() {
     m_minimizedRow->updateText(
         tr("Start Minimized"),
         tr("Start the application quietly in the background on startup."));
+  }
+  if (m_faviconRow) {
+    m_faviconRow->updateText(
+        tr("Fetch Website Favicons"),
+        tr("Opt-in to download website icons directly from saved domains (off "
+           "by default for privacy)."));
   }
 }
 

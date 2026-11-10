@@ -461,11 +461,22 @@ export function promptPasskeyConsent(params: PasskeyModalParams): Promise<boolea
       }
 
       // Khi kho đã mở: Hiển thị xác nhận Passkey Tạo / Đăng nhập
+      const escapeHtml = (raw: string): string =>
+        raw
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+
       const isCreate = params.action === "passkey_create";
       const title = isCreate ? "Lưu Passkey mới" : "Đăng nhập bằng Passkey";
+      const safeRpName = escapeHtml(params.rpName || params.rpId || "");
+      const safeRpId = escapeHtml(params.rpId || "");
+      const safeUser = escapeHtml(params.userName || "");
       const subtitle = isCreate
-        ? `Lưu Passkey an toàn vào kho cho ${params.rpName || params.rpId}`
-        : `Xác thực với ${params.rpId}`;
+        ? `Lưu Passkey an toàn vào kho cho ${safeRpName}`
+        : `Xác thực với ${safeRpId}`;
 
       body.innerHTML = `
         <div class="svm-title-row">
@@ -485,13 +496,13 @@ export function promptPasskeyConsent(params: PasskeyModalParams): Promise<boolea
         <div class="svm-info-box">
           <div class="svm-info-row">
             <span class="svm-info-label">Trang web:</span>
-            <span class="svm-info-val" title="${params.rpId}">${params.rpId}</span>
+            <span class="svm-info-val" title="${safeRpId}">${safeRpId}</span>
           </div>
           ${
-            params.userName
+            safeUser
               ? `<div class="svm-info-row">
                   <span class="svm-info-label">Tài khoản:</span>
-                  <span class="svm-info-val" title="${params.userName}">${params.userName}</span>
+                  <span class="svm-info-val" title="${safeUser}">${safeUser}</span>
                 </div>`
               : ""
           }

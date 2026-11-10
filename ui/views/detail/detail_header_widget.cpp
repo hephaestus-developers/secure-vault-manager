@@ -6,14 +6,18 @@
  */
 
 #include "detail_header_widget.h"
+#include "app/settings_manager.h"
 #include "app/theme_manager.h"
 #include "app/vault_manager.h"
 #include "components/combobox_popup_helper.h"
 #include "components/in_window_combobox.h"
+#include "core/core_bridge.h"
 
 #include <QHBoxLayout>
 #include <QIcon>
+#include <QImage>
 #include <QListView>
+#include <QPixmap>
 #include <QVBoxLayout>
 
 namespace svm::views {
@@ -89,6 +93,18 @@ void DetailHeaderWidget::setupUI() {
     emit favoriteToggled(m_isFavorite);
   });
   actionLayout->addWidget(m_favBtn);
+
+  m_historyBtn = new QPushButton(this);
+  m_historyBtn->setObjectName(QStringLiteral("DetailHeaderHistoryBtn"));
+  m_historyBtn->setIcon(
+      app::ThemeManager::instance().icon(QStringLiteral("sort_time")));
+  m_historyBtn->setIconSize(QSize(16, 16));
+  m_historyBtn->setFixedSize(34, 34);
+  m_historyBtn->setToolTip(tr("Revision History"));
+  m_historyBtn->setCursor(Qt::PointingHandCursor);
+  connect(m_historyBtn, &QPushButton::clicked, this,
+          &DetailHeaderWidget::historyRequested);
+  actionLayout->addWidget(m_historyBtn);
 
   m_editBtn = new QPushButton(this);
   m_editBtn->setObjectName(QStringLiteral("DetailHeaderEditBtn"));
@@ -194,25 +210,53 @@ void DetailHeaderWidget::setupUI() {
 
   connect(&app::ThemeManager::instance(), &app::ThemeManager::themeChanged,
           this, [this]() { updateThemeIcons(); });
+  connect(&core::CoreBridge::instance(), &core::CoreBridge::faviconUpdated,
+          this, [this](const QString &domainKey) {
+            if (domainKey.isEmpty() || core::CoreBridge::normalizeFaviconKey(
+                                           m_currentWebsiteUrl) == domainKey) {
+              updateHeaderIcon();
+            }
+          });
 
   updateThemeIcons();
 }
 
-void DetailHeaderWidget::updateThemeIcons() {
+void DetailHeaderWidget::updateHeaderIcon() {
+  if (!m_iconLabel) {
+    return;
+  }
+  auto &bridge = core::CoreBridge::instance();
+  if (!m_currentWebsiteUrl.isEmpty() &&
+      app::SettingsManager::instance().faviconFetchEnabled() &&
+      bridge.isInitialized()) {
+    const QImage fav = bridge.cachedFavicon(m_currentWebsiteUrl);
+    if (!fav.isNull()) {
+      const QImage scaled =
+          fav.scaled(32, 32, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+      m_iconLabel->setPixmap(QPixmap::fromImage(scaled));
+      return;
+    }
+    bridge.requestFaviconAsync(m_currentWebsiteUrl);
+  }
   const bool isLight =
       (app::ThemeManager::instance().currentMode() == app::ThemeMode::Light);
+  m_iconLabel->setPixmap(
+      QIcon(models::categoryIconPath(m_category, isLight)).pixmap(32, 32));
+}
+
+void DetailHeaderWidget::updateThemeIcons() {
   auto &tm = app::ThemeManager::instance();
 
-  if (m_iconLabel) {
-    m_iconLabel->setPixmap(
-        tm.icon(models::categoryIconName(m_category)).pixmap(32, 32));
-  }
+  updateHeaderIcon();
   if (m_favBtn) {
     m_favBtn->setIcon(tm.icon(m_isFavorite ? QStringLiteral("star_filled")
                                            : QStringLiteral("star")));
   }
   if (m_editBtn) {
     m_editBtn->setIcon(tm.icon(QStringLiteral("edit")));
+  }
+  if (m_historyBtn) {
+    m_historyBtn->setIcon(tm.icon(QStringLiteral("sort_time")));
   }
   if (m_deleteBtn) {
     m_deleteBtn->setIcon(tm.icon(QStringLiteral("trash")));
@@ -229,6 +273,7 @@ void DetailHeaderWidget::updateThemeIcons() {
 void DetailHeaderWidget::setItem(const models::UiVaultItem &item) {
   m_isFavorite = item.isFavorite;
   m_isDeleted = item.isDeleted;
+  m_currentWebsiteUrl = item.websiteUrl.trimmed();
 
   setCategory(item.category);
   setVaultId(item.vaultId);
@@ -244,19 +289,15 @@ void DetailHeaderWidget::setItem(const models::UiVaultItem &item) {
     m_updatedLabel->setText(tr("New record"));
   }
 
-  const bool isLight =
-      (app::ThemeManager::instance().currentMode() == app::ThemeMode::Light);
   m_favBtn->setIcon(app::ThemeManager::instance().icon(
       m_isFavorite ? QStringLiteral("star_filled") : QStringLiteral("star")));
   setEditMode(false);
+  updateHeaderIcon();
 }
 
 void DetailHeaderWidget::setCategory(models::ItemCategory cat) {
   m_category = cat;
-  const bool isLight =
-      (app::ThemeManager::instance().currentMode() == app::ThemeMode::Light);
-  m_iconLabel->setPixmap(
-      QIcon(models::categoryIconPath(m_category, isLight)).pixmap(32, 32));
+  updateHeaderIcon();
   m_categoryBadge->setText(models::categoryDisplayName(m_category));
 
   for (int i = 0; i < m_categoryCombo->count(); ++i) {
@@ -298,7 +339,7 @@ void DetailHeaderWidget::focusTitleInput() {
 }
 
 void DetailHeaderWidget::setVaultId(const QString &vaultId) {
-  m_vaultId = vaultId.isEmpty() ? QStringLiteral("personal") : vaultId;
+  m_vaultId = vaultId;
 }
 
 QString DetailHeaderWidget::vaultId() const { return m_vaultId; }
@@ -317,6 +358,9 @@ void DetailHeaderWidget::setEditMode(bool edit) {
     m_updatedLabel->hide();
 
     m_favBtn->hide();
+    if (m_historyBtn) {
+      m_historyBtn->hide();
+    }
     m_editBtn->hide();
     if (m_restoreBtn) {
       m_restoreBtn->hide();
@@ -341,6 +385,9 @@ void DetailHeaderWidget::setEditMode(bool edit) {
     m_saveBtn->hide();
     if (m_isDeleted) {
       m_favBtn->hide();
+      if (m_historyBtn) {
+        m_historyBtn->hide();
+      }
       m_editBtn->hide();
       if (m_restoreBtn) {
         m_restoreBtn->show();
@@ -352,6 +399,9 @@ void DetailHeaderWidget::setEditMode(bool edit) {
       }
     } else {
       m_editBtn->show();
+      if (m_historyBtn) {
+        m_historyBtn->show();
+      }
       m_favBtn->show();
       if (m_restoreBtn) {
         m_restoreBtn->hide();
@@ -372,6 +422,9 @@ void DetailHeaderWidget::retranslateUi() {
   if (m_favBtn) {
     m_favBtn->setToolTip(m_isFavorite ? tr("Remove from favorites")
                                       : tr("Mark as favorite"));
+  }
+  if (m_historyBtn) {
+    m_historyBtn->setToolTip(tr("Revision History"));
   }
   if (m_editBtn) {
     m_editBtn->setText(tr("Edit"));

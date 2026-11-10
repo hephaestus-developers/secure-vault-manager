@@ -33,7 +33,8 @@ public:
   void setItems(const QList<models::UiVaultItem> &items);
   void upsertItem(const models::UiVaultItem &item);
   void removeItem(const QString &itemId);
-  void setFilter(SidebarFilterType type, models::ItemCategory category);
+  void setFilter(SidebarFilterType type, models::ItemCategory category,
+                 const QString &folderId = QString());
   void selectItem(const QString &itemId);
   void clearSelection();
   [[nodiscard]] QString selectedItemId() const;

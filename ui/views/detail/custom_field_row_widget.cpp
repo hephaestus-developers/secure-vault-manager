@@ -390,7 +390,7 @@ void CustomFieldRowWidget::onCopyClicked() {
   }
   if (m_field.kind == models::CustomFieldKind::Concealed) {
     app::ClipboardManager::instance().copySensitive(m_field.value,
-                                                    m_field.label, 30);
+                                                    m_field.label);
   } else {
     app::ClipboardManager::instance().copyPlainText(m_field.value);
   }

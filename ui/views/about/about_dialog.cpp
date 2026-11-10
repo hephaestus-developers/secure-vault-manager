@@ -9,7 +9,9 @@
 #include "app/theme_manager.h"
 #include "components/dialog_drag_helper.h"
 #include "components/window_resize_handler.h"
+#include "core/core_bridge.h"
 
+#include <QCoreApplication>
 #include <QEvent>
 #include <QGridLayout>
 #include <QHBoxLayout>
@@ -151,8 +153,15 @@ QWidget *AboutDialog::createInfoTab() {
   m_appNameLabel->setFont(nameFont);
   titleCol->addWidget(m_appNameLabel);
 
+  const QString appVer = QCoreApplication::applicationVersion().isEmpty()
+                             ? QStringLiteral("0.1.0")
+                             : QCoreApplication::applicationVersion();
+  const QString coreVer = core::CoreBridge::instance().coreVersion().isEmpty()
+                              ? appVer
+                              : core::CoreBridge::instance().coreVersion();
   m_versionLabel =
-      new QLabel(tr("Version 0.1.0 • Rust Core Engine v0.1.0"), brandWidget);
+      new QLabel(tr("Version %1 • Rust Core Engine v%2").arg(appVer, coreVer),
+                 brandWidget);
   m_versionLabel->setObjectName(QStringLiteral("AboutMetaLabelVal"));
   titleCol->addWidget(m_versionLabel);
 
@@ -296,7 +305,14 @@ void AboutDialog::retranslateUi() {
     m_tabWidget->setTabText(1, tr("License"));
   }
   if (m_versionLabel) {
-    m_versionLabel->setText(tr("Version 0.1.0 • Rust Core Engine v0.1.0"));
+    const QString appVer = QCoreApplication::applicationVersion().isEmpty()
+                               ? QStringLiteral("0.1.0")
+                               : QCoreApplication::applicationVersion();
+    const QString coreVer = core::CoreBridge::instance().coreVersion().isEmpty()
+                                ? appVer
+                                : core::CoreBridge::instance().coreVersion();
+    m_versionLabel->setText(
+        tr("Version %1 • Rust Core Engine v%2").arg(appVer, coreVer));
   }
   if (m_taglineLabel) {
     m_taglineLabel->setText(tr("Private, Fast & Secure Password Manager"));

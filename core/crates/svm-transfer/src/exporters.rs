@@ -43,12 +43,12 @@ pub fn export_items_to_bytes(
             let mut nonce = [0u8; 12];
             random_bytes(&mut salt);
             random_bytes(&mut nonce);
-            let pw = if password.is_empty() {
-                "svm-default-backup-key"
-            } else {
-                password
-            };
-            let kek = derive_kek(pw, &salt);
+            if password.is_empty() {
+                return Err(DomainError::InvalidArg(
+                    "Password is required for encrypted backup export".to_string(),
+                ));
+            }
+            let kek = derive_kek(password, &salt);
             let ct = chacha20_poly1305_encrypt(&kek, &nonce, AAD_BACKUP, &json_bytes);
 
             let mut out = Vec::with_capacity(4 + 16 + 12 + ct.len());

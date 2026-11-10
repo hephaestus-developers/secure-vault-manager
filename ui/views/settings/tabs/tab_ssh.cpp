@@ -14,6 +14,7 @@
 #include <QDir>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QTimer>
 #include <QVBoxLayout>
 
 namespace svm::views {
@@ -66,6 +67,11 @@ void TabSsh::setupUI() {
   connect(m_copySocketBtn, &QPushButton::clicked, this, [this, sockPath]() {
     app::ClipboardManager::instance().copyPlainText(sockPath);
     m_copySocketBtn->setText(tr("Copied!"));
+    QTimer::singleShot(2500, this, [this]() {
+      if (m_copySocketBtn) {
+        m_copySocketBtn->setText(tr("Copy Path"));
+      }
+    });
   });
   m_socketRow = new SettingRowWidget(tr("SSH Auth Socket"), sockPath,
                                      m_copySocketBtn, m_agentCard);
@@ -84,8 +90,7 @@ void TabSsh::setupUI() {
   snipLayout->addWidget(snipHint);
 
   auto *snipCode = new QLabel(
-      QStringLiteral("export SSH_AUTH_SOCK=\"$HOME/.svm/ssh-agent.sock\""),
-      snipBox);
+      QStringLiteral("export SSH_AUTH_SOCK=\"%1\"").arg(sockPath), snipBox);
   snipCode->setTextInteractionFlags(Qt::TextSelectableByMouse);
   snipCode->setObjectName(QStringLiteral("SshSnippetCode"));
   snipLayout->addWidget(snipCode);

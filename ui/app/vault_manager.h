@@ -206,11 +206,12 @@ private:
 
   void loadSettings();
   void saveSettings();
+  QString primaryVaultId() const;
   QString hashPassword(const QString &password, const QString &salt) const;
 
   bool m_isConfigured{false};
   bool m_isLocked{true};
-  QString m_activeVaultId{QStringLiteral("personal")};
+  QString m_activeVaultId;
   QString m_passwordHash;
   QString m_passwordSalt;
   QString m_recoveryKey;

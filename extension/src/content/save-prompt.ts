@@ -6,6 +6,7 @@
 import { sendExtensionBridgeMessage } from "../services/protocol";
 
 export function showSaveCredentialPrompt(data: {
+  itemId?: string;
   title: string;
   username: string;
   password: string;

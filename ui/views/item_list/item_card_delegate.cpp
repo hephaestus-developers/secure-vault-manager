@@ -6,10 +6,13 @@
  */
 
 #include "item_card_delegate.h"
+#include "app/settings_manager.h"
 #include "app/theme_manager.h"
+#include "core/core_bridge.h"
 #include "item_list_model.h"
 
 #include <QIcon>
+#include <QImage>
 #include <QPainter>
 #include <QPainterPath>
 
@@ -22,7 +25,9 @@ QSize ItemCardDelegate::sizeHint(const QStyleOptionViewItem &option,
                                  const QModelIndex &index) const {
   Q_UNUSED(option);
   Q_UNUSED(index);
-  return {0, 68};
+  const bool compact = (app::SettingsManager::instance().listDensity() ==
+                        app::ListDensity::Compact);
+  return {0, compact ? 52 : 68};
 }
 
 void ItemCardDelegate::paint(QPainter *painter,
@@ -37,7 +42,10 @@ void ItemCardDelegate::paint(QPainter *painter,
 
   const bool isLight =
       (app::ThemeManager::instance().currentMode() == app::ThemeMode::Light);
-  const QRect rect = option.rect.adjusted(6, 3, -6, -3);
+  const bool compact = (app::SettingsManager::instance().listDensity() ==
+                        app::ListDensity::Compact);
+  const QRect rect =
+      option.rect.adjusted(6, compact ? 2 : 3, -6, compact ? -2 : -3);
   const bool isSelected = (option.state & QStyle::State_Selected);
   const bool isHovered = (option.state & QStyle::State_MouseOver);
 
@@ -68,9 +76,10 @@ void ItemCardDelegate::paint(QPainter *painter,
     painter->drawPath(cardPath);
   }
 
-  // 2. Icon danh mục bên trái (36x36 container)
+  // 2. Icon danh mục / Favicon bên trái (36x36 container)
   const int catInt = index.data(ItemListModel::CategoryRole).toInt();
   const auto cat = static_cast<models::ItemCategory>(catInt);
+  const QString websiteUrl = index.data(ItemListModel::WebsiteRole).toString();
   const QRect iconRect(rect.left() + 12, rect.top() + (rect.height() - 36) / 2,
                        36, 36);
 
@@ -79,9 +88,39 @@ void ItemCardDelegate::paint(QPainter *painter,
   painter->fillPath(iconBgPath, isLight ? QColor(0xEA, 0xED, 0xF3)
                                         : QColor(0x18, 0x18, 0x25));
 
-  const QIcon itemIcon =
-      app::ThemeManager::instance().icon(models::categoryIconName(cat));
-  itemIcon.paint(painter, iconRect.adjusted(7, 7, -7, -7), Qt::AlignCenter);
+  bool paintedFavicon = false;
+  if (!websiteUrl.trimmed().isEmpty() &&
+      app::SettingsManager::instance().faviconFetchEnabled()) {
+    auto &bridge = core::CoreBridge::instance();
+    if (bridge.isInitialized()) {
+      const QImage fav = bridge.cachedFavicon(websiteUrl);
+      if (!fav.isNull()) {
+        const QRect bounds = iconRect.adjusted(6, 6, -6, -6);
+        const QSize fitted =
+            fav.size().scaled(bounds.size(), Qt::KeepAspectRatio);
+        const QRect drawRect(
+            bounds.left() + (bounds.width() - fitted.width()) / 2,
+            bounds.top() + (bounds.height() - fitted.height()) / 2,
+            fitted.width(), fitted.height());
+        painter->save();
+        painter->setRenderHint(QPainter::SmoothPixmapTransform, true);
+        QPainterPath clipPath;
+        clipPath.addRoundedRect(drawRect, 4, 4);
+        painter->setClipPath(clipPath);
+        painter->drawImage(drawRect, fav);
+        painter->restore();
+        paintedFavicon = true;
+      } else {
+        bridge.requestFaviconAsync(websiteUrl);
+      }
+    }
+  }
+
+  if (!paintedFavicon) {
+    const QIcon itemIcon =
+        app::ThemeManager::instance().icon(models::categoryIconName(cat));
+    itemIcon.paint(painter, iconRect.adjusted(7, 7, -7, -7), Qt::AlignCenter);
+  }
 
   // 3. Tính toán không gian Badge chính xác tránh chồng lấn (Overlapping)
   const bool isFav = index.data(ItemListModel::IsFavoriteRole).toBool();
@@ -122,8 +161,9 @@ void ItemCardDelegate::paint(QPainter *painter,
   const QFontMetrics fmTitle(titleFont);
   const QString elidedTitle =
       fmTitle.elidedText(title, Qt::ElideRight, textWidth);
-  painter->drawText(QRect(textLeft, rect.top() + 13, textWidth, 20),
-                    Qt::AlignLeft | Qt::AlignVCenter, elidedTitle);
+  painter->drawText(
+      QRect(textLeft, rect.top() + (compact ? 6 : 13), textWidth, 20),
+      Qt::AlignLeft | Qt::AlignVCenter, elidedTitle);
 
   // Dòng 2: Subtitle
   painter->setPen(isLight ? QColor(0x6C, 0x6F, 0x85)
@@ -136,8 +176,9 @@ void ItemCardDelegate::paint(QPainter *painter,
   const QFontMetrics fmSub(subFont);
   const QString elidedSub =
       fmSub.elidedText(subtitle, Qt::ElideRight, textWidth);
-  painter->drawText(QRect(textLeft, rect.top() + 35, textWidth, 18),
-                    Qt::AlignLeft | Qt::AlignVCenter, elidedSub);
+  painter->drawText(
+      QRect(textLeft, rect.top() + (compact ? 25 : 35), textWidth, 18),
+      Qt::AlignLeft | Qt::AlignVCenter, elidedSub);
 
   // 5. Badges & Icons bên phải (Favorite star, 2FA)
   int badgeX = rect.right() - 10;

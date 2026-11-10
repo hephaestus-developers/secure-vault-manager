@@ -40,7 +40,7 @@ void TabBrowser::setupUI() {
   auto &settings = app::SettingsManager::instance();
 
   // 1. Thẻ Tích hợp Trình duyệt Web (Master Switch)
-  m_bridgeCard = new SettingSectionCard(tr("Tích hợp Trình duyệt Web"), this);
+  m_bridgeCard = new SettingSectionCard(tr("Web Browser Integration"), this);
 
   m_enableCheck = new QCheckBox(m_bridgeCard);
   m_enableCheck->setChecked(settings.browserBridgeEnabled());
@@ -61,9 +61,9 @@ void TabBrowser::setupUI() {
   });
 
   m_enableRow = new SettingRowWidget(
-      tr("Bật tích hợp với trình duyệt"),
-      tr("Tự động kết nối, đồng bộ trạng thái khóa/mở khóa hai chiều và hỗ trợ "
-         "tự động điền (autofill) mật khẩu trên các trình duyệt web."),
+      tr("Enable Browser Integration"),
+      tr("Automatically connect, sync two-way lock/unlock state, and enable "
+         "autofill in supported web browsers."),
       m_enableCheck, m_bridgeCard);
   m_bridgeCard->addRow(m_enableRow);
 
@@ -81,9 +81,10 @@ void TabBrowser::setupUI() {
   hintLayout->addWidget(hintIcon);
 
   m_hintLabel = new QLabel(
-      tr("Ứng dụng tự động đăng ký cấu hình bảo mật với các trình duyệt trên "
-         "thiết bị. Tiện ích mở rộng sẽ tự động kết nối an toàn với ứng dụng "
-         "máy tính qua kênh mã hóa nội bộ."),
+      tr("The application automatically registers security manifests for "
+         "browsers "
+         "installed on this device. Extensions communicate over an encrypted "
+         "local channel."),
       m_hintBox);
   m_hintLabel->setObjectName(QStringLiteral("BrowserHintText"));
   m_hintLabel->setWordWrap(true);
@@ -93,8 +94,7 @@ void TabBrowser::setupUI() {
   layout->addWidget(m_bridgeCard);
 
   // 2. Thẻ Danh sách Trình duyệt Đã cài đặt trên Hệ thống
-  m_detectedCard =
-      new SettingSectionCard(tr("Trình duyệt Đã cài đặt trên Hệ thống"), this);
+  m_detectedCard = new SettingSectionCard(tr("Detected System Browsers"), this);
 
   m_browsersLayout = new QVBoxLayout();
   m_browsersLayout->setContentsMargins(0, 4, 0, 0);
@@ -162,7 +162,7 @@ void TabBrowser::populateBrowsers() {
   const QList<DetectedBrowserInfo> catalog = {
       {QStringLiteral("chrome"),
        QStringLiteral("Google Chrome"),
-       tr("Trình duyệt Chromium phổ biến • Hỗ trợ mở khóa 2 chiều & Autofill"),
+       tr("Popular Chromium browser • Two-way unlock & Autofill supported"),
        QStringLiteral(":/icons/browsers/browser_chrome.svg"),
        {QStringLiteral("google-chrome-stable"),
         QStringLiteral("google-chrome")},
@@ -174,7 +174,7 @@ void TabBrowser::populateBrowsers() {
        false},
       {QStringLiteral("firefox"),
        QStringLiteral("Mozilla Firefox"),
-       tr("Bảo mật mã nguồn mở • Tự động điền & Mở khóa đồng thời"),
+       tr("Open-source privacy browser • Autofill & synchronized unlock"),
        QStringLiteral(":/icons/browsers/browser_firefox.svg"),
        {QStringLiteral("firefox"), QStringLiteral("firefox-esr")},
        {QStringLiteral("firefox.desktop"),
@@ -186,7 +186,7 @@ void TabBrowser::populateBrowsers() {
        false},
       {QStringLiteral("brave"),
        QStringLiteral("Brave Browser"),
-       tr("Trình duyệt bảo mật riêng tư • Tương thích hoàn toàn Chromium"),
+       tr("Privacy-focused browser • Full Chromium compatibility"),
        QStringLiteral(":/icons/browsers/browser_brave.svg"),
        {QStringLiteral("brave-browser"), QStringLiteral("brave")},
        {QStringLiteral("brave-browser.desktop"),
@@ -197,7 +197,7 @@ void TabBrowser::populateBrowsers() {
        false},
       {QStringLiteral("edge"),
        QStringLiteral("Microsoft Edge"),
-       tr("Trình duyệt hiện đại đa nền tảng • Tích hợp hệ thống sâu"),
+       tr("Modern cross-platform browser • Deep system integration"),
        QStringLiteral(":/icons/browsers/browser_edge.svg"),
        {QStringLiteral("microsoft-edge"),
         QStringLiteral("microsoft-edge-stable")},
@@ -209,7 +209,7 @@ void TabBrowser::populateBrowsers() {
        false},
       {QStringLiteral("chromium"),
        QStringLiteral("Chromium"),
-       tr("Nền tảng trình duyệt mã nguồn mở tiêu chuẩn"),
+       tr("Standard open-source browser platform"),
        QStringLiteral(":/icons/browsers/browser_chromium.svg"),
        {QStringLiteral("chromium"), QStringLiteral("chromium-browser")},
        {QStringLiteral("chromium.desktop"),
@@ -221,7 +221,7 @@ void TabBrowser::populateBrowsers() {
        false},
       {QStringLiteral("opera"),
        QStringLiteral("Opera"),
-       tr("Trình duyệt web đa tính năng tích hợp AI"),
+       tr("Feature-rich browser with integrated tools"),
        QStringLiteral(":/icons/categories/category_all.svg"),
        {QStringLiteral("opera"), QStringLiteral("opera-stable")},
        {QStringLiteral("opera.desktop"),
@@ -232,7 +232,7 @@ void TabBrowser::populateBrowsers() {
        false},
       {QStringLiteral("vivaldi"),
        QStringLiteral("Vivaldi"),
-       tr("Trình duyệt tùy biến cao cấp cho người dùng chuyên sâu"),
+       tr("Highly customizable browser for power users"),
        QStringLiteral(":/icons/categories/category_all.svg"),
        {QStringLiteral("vivaldi"), QStringLiteral("vivaldi-stable")},
        {QStringLiteral("vivaldi-stable.desktop"),
@@ -243,7 +243,7 @@ void TabBrowser::populateBrowsers() {
        false},
       {QStringLiteral("epiphany"),
        QStringLiteral("GNOME Web (Epiphany)"),
-       tr("Trình duyệt mặc định của môi trường desktop GNOME"),
+       tr("Default browser of the GNOME desktop environment"),
        QStringLiteral(":/icons/categories/category_all.svg"),
        {QStringLiteral("epiphany"), QStringLiteral("epiphany-browser")},
        {QStringLiteral("org.gnome.Epiphany.desktop")},
@@ -253,7 +253,7 @@ void TabBrowser::populateBrowsers() {
        false},
       {QStringLiteral("falkon"),
        QStringLiteral("Falkon"),
-       tr("Trình duyệt web nhẹ nền tảng QtWebEngine"),
+       tr("Lightweight QtWebEngine-based web browser"),
        QStringLiteral(":/icons/categories/category_all.svg"),
        {QStringLiteral("falkon")},
        {QStringLiteral("org.kde.falkon.desktop")},
@@ -263,7 +263,7 @@ void TabBrowser::populateBrowsers() {
        false},
       {QStringLiteral("tor"),
        QStringLiteral("Tor Browser"),
-       tr("Trình duyệt ẩn danh chống theo dõi hành vi"),
+       tr("Privacy browser built to resist tracking"),
        QStringLiteral(":/icons/categories/category_all.svg"),
        {QStringLiteral("tor-browser"), QStringLiteral("torbrowser-launcher")},
        {QStringLiteral("torbrowser.desktop")},
@@ -313,15 +313,15 @@ void TabBrowser::populateBrowsers() {
     emptyLayout->setSpacing(8);
 
     auto *titleLbl =
-        new QLabel(tr("Chưa phát hiện trình duyệt nào trên máy"), emptyCard);
+        new QLabel(tr("No web browsers detected on this machine"), emptyCard);
     titleLbl->setObjectName(QStringLiteral("BrowserEmptyTitle"));
     titleLbl->setAlignment(Qt::AlignCenter);
     emptyLayout->addWidget(titleLbl);
 
-    auto *descLbl = new QLabel(
-        tr("Hãy cài đặt các trình duyệt được hỗ trợ như Google Chrome hoặc "
-           "Mozilla Firefox để kích hoạt tính năng tích hợp tiện ích."),
-        emptyCard);
+    auto *descLbl = new QLabel(tr("Install a supported browser such as Google "
+                                  "Chrome or Mozilla Firefox "
+                                  "to enable browser extension integration."),
+                               emptyCard);
     descLbl->setObjectName(QStringLiteral("BrowserEmptyDesc"));
     descLbl->setAlignment(Qt::AlignCenter);
     descLbl->setWordWrap(true);
@@ -360,9 +360,9 @@ void TabBrowser::populateBrowsers() {
     descLbl->setObjectName(QStringLiteral("BrowserItemDesc"));
     if (!item.isSupported) {
       descLbl->setText(
-          tr("Phần mềm hiện tại chưa hỗ trợ tích hợp với trình duyệt này"));
+          tr("Browser integration is not yet supported for this browser"));
     } else if (item.isConnected && isBridgeActive) {
-      descLbl->setText(tr("Tiện ích đang hoạt động và đồng bộ thời gian thực"));
+      descLbl->setText(tr("Extension active and syncing in real time"));
     } else {
       descLbl->setText(item.description);
     }
@@ -372,17 +372,17 @@ void TabBrowser::populateBrowsers() {
 
     // 3. Trạng thái hỗ trợ & Trạng thái kết nối
     if (!item.isSupported) {
-      auto *unsupportedBadge = new QLabel(tr("Chưa hỗ trợ tích hợp"), row);
+      auto *unsupportedBadge = new QLabel(tr("Unsupported"), row);
       unsupportedBadge->setObjectName(
           QStringLiteral("BrowserUnsupportedBadge"));
       rowLayout->addWidget(unsupportedBadge);
     } else if (!isBridgeActive) {
-      auto *inactiveBadge = new QLabel(tr("Tích hợp đang tắt"), row);
+      auto *inactiveBadge = new QLabel(tr("Integration Off"), row);
       inactiveBadge->setObjectName(QStringLiteral("BrowserInactiveBadge"));
       rowLayout->addWidget(inactiveBadge);
 
       if (!item.storeUrl.isEmpty()) {
-        auto *installBtn = new QPushButton(tr("Cài đặt tiện ích"), row);
+        auto *installBtn = new QPushButton(tr("Install Extension"), row);
         installBtn->setObjectName(QStringLiteral("BrowserInstallBtn"));
         installBtn->setFixedHeight(30);
         installBtn->setCursor(Qt::PointingHandCursor);
@@ -392,22 +392,22 @@ void TabBrowser::populateBrowsers() {
         rowLayout->addWidget(installBtn);
       }
     } else if (item.isConnected) {
-      auto *connectedBadge = new QLabel(tr("Đang hoạt động"), row);
+      auto *connectedBadge = new QLabel(tr("Active"), row);
       connectedBadge->setObjectName(QStringLiteral("BrowserConnectedBadge"));
       rowLayout->addWidget(connectedBadge);
 
-      auto *connectedBtn = new QPushButton(tr("Đã kết nối ✓"), row);
+      auto *connectedBtn = new QPushButton(tr("Connected ✓"), row);
       connectedBtn->setObjectName(QStringLiteral("BrowserConnectedBtn"));
       connectedBtn->setFixedHeight(30);
       connectedBtn->setEnabled(false);
       rowLayout->addWidget(connectedBtn);
     } else {
-      auto *pendingBadge = new QLabel(tr("Chưa kết nối tiện ích"), row);
+      auto *pendingBadge = new QLabel(tr("Not Connected"), row);
       pendingBadge->setObjectName(QStringLiteral("BrowserPendingBadge"));
       rowLayout->addWidget(pendingBadge);
 
       if (!item.storeUrl.isEmpty()) {
-        auto *installBtn = new QPushButton(tr("Cài đặt tiện ích"), row);
+        auto *installBtn = new QPushButton(tr("Install Extension"), row);
         installBtn->setObjectName(QStringLiteral("BrowserInstallBtn"));
         installBtn->setFixedHeight(30);
         installBtn->setCursor(Qt::PointingHandCursor);
@@ -431,22 +431,22 @@ void TabBrowser::refreshSupportedBrowsers() { populateBrowsers(); }
 
 void TabBrowser::retranslateUi() {
   if (m_bridgeCard) {
-    m_bridgeCard->setTitle(tr("Tích hợp Trình duyệt Web"));
+    m_bridgeCard->setTitle(tr("Web Browser Integration"));
   }
   if (m_enableRow) {
     m_enableRow->updateText(
-        tr("Bật tích hợp với trình duyệt"),
-        tr("Tự động kết nối, đồng bộ trạng thái khóa/mở khóa hai chiều và hỗ "
-           "trợ tự động điền (autofill) mật khẩu trên các trình duyệt web."));
+        tr("Enable Browser Integration"),
+        tr("Automatically connect, sync two-way lock/unlock state, and enable "
+           "autofill in supported web browsers."));
   }
   if (m_hintLabel) {
     m_hintLabel->setText(
-        tr("Ứng dụng tự động đăng ký cấu hình bảo mật với các trình duyệt trên "
-           "thiết bị. Tiện ích mở rộng sẽ tự động kết nối an toàn với ứng dụng "
-           "máy tính qua kênh mã hóa nội bộ."));
+        tr("The application automatically registers security manifests for "
+           "browsers installed on this device. Extensions communicate over an "
+           "encrypted local channel."));
   }
   if (m_detectedCard) {
-    m_detectedCard->setTitle(tr("Trình duyệt Đã cài đặt trên Hệ thống"));
+    m_detectedCard->setTitle(tr("Detected System Browsers"));
   }
   refreshSupportedBrowsers();
 }

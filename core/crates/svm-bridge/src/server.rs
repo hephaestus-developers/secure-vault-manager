@@ -9,7 +9,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 #[cfg(unix)]
-use std::os::unix::net::{UnixListener, UnixStream};
+use std::os::unix::net::UnixListener;
 
 use svm_crypto::generate_uuid_v4;
 use svm_domain::{DomainError, JsonValue};
@@ -17,47 +17,73 @@ use svm_ipc::IpcEndpoint;
 
 use crate::client::PairedClient;
 
-/// Xác định đường dẫn Unix Domain Socket của Bridge Server.
+/// Tên Named Pipe IPC trên Windows (cô lập theo tên người dùng hiện tại).
+pub fn resolve_windows_pipe_name() -> String {
+    let user = std::env::var("USERNAME")
+        .or_else(|_| std::env::var("USER"))
+        .unwrap_or_else(|_| "default".to_string());
+    let sanitized: String = user
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
+        .collect();
+    format!(r"\\.\pipe\hephaestus-svm-bridge-{sanitized}")
+}
+
+/// Xác định đường dẫn Unix Domain Socket hoặc Named Pipe của Bridge Server.
 pub fn resolve_socket_path() -> PathBuf {
-    if let Ok(runtime_dir) = std::env::var("XDG_RUNTIME_DIR") {
-        let dir = PathBuf::from(runtime_dir).join("svm");
-        if fs::create_dir_all(&dir).is_ok() {
-            return dir.join("bridge.sock");
-        }
+    #[cfg(windows)]
+    {
+        return PathBuf::from(resolve_windows_pipe_name());
     }
-    if let Ok(home) = std::env::var("HOME") {
-        let dir = PathBuf::from(home).join(".svm");
-        if fs::create_dir_all(&dir).is_ok() {
-            return dir.join("bridge.sock");
+    #[cfg(not(windows))]
+    {
+        if let Ok(runtime_dir) = std::env::var("XDG_RUNTIME_DIR") {
+            let dir = PathBuf::from(runtime_dir).join("svm");
+            if fs::create_dir_all(&dir).is_ok() {
+                return dir.join("bridge.sock");
+            }
         }
+        if let Ok(home) = std::env::var("HOME") {
+            let dir = PathBuf::from(home).join(".svm");
+            if fs::create_dir_all(&dir).is_ok() {
+                return dir.join("bridge.sock");
+            }
+        }
+        let dir = PathBuf::from("/tmp/hephaestus-svm-data");
+        let _ = fs::create_dir_all(&dir);
+        dir.join("bridge.sock")
     }
-    let dir = PathBuf::from("/tmp/hephaestus-svm-data");
-    let _ = fs::create_dir_all(&dir);
-    dir.join("bridge.sock")
 }
 
 /// Dò tìm đường dẫn binary thực thi của `svm-native-host`.
 pub fn detect_native_host_binary() -> PathBuf {
+    let bin_name = if cfg!(windows) {
+        "svm-native-host.exe"
+    } else {
+        "svm-native-host"
+    };
+
     // 1. Kiểm tra cùng thư mục với tiến trình hiện hành
     if let Ok(exe) = std::env::current_exe() {
         if let Some(parent) = exe.parent() {
-            let candidate = parent.join("svm-native-host");
+            let candidate = parent.join(bin_name);
             if candidate.exists() {
                 return candidate;
             }
-            let candidate_core = parent.join("core").join("svm-native-host");
+            let candidate_core = parent.join("core").join(bin_name);
             if candidate_core.exists() {
                 return candidate_core;
             }
         }
     }
     // 2. Kiểm tra thư mục build / target
-    for rel_path in &[
-        "core/target/debug/svm-native-host",
-        "core/target/release/svm-native-host",
-        "build/debug/core/svm-native-host",
+    for rel_dir in &[
+        "core/target/debug",
+        "core/target/release",
+        "build/debug/core",
+        "build/release/core",
     ] {
-        let p = PathBuf::from(rel_path);
+        let p = PathBuf::from(rel_dir).join(bin_name);
         if p.exists() {
             if let Ok(abs) = fs::canonicalize(&p) {
                 return abs;
@@ -65,19 +91,44 @@ pub fn detect_native_host_binary() -> PathBuf {
             return p;
         }
     }
-    // 3. ~/.local/bin
-    if let Ok(home) = std::env::var("HOME") {
-        let p = PathBuf::from(home).join(".local/bin/svm-native-host");
-        if p.exists() {
-            return p;
+    #[cfg(windows)]
+    {
+        if let Ok(local_app) = std::env::var("LOCALAPPDATA") {
+            let p = PathBuf::from(local_app)
+                .join("Hephaestus")
+                .join("SecureVaultManager")
+                .join(bin_name);
+            if p.exists() {
+                return p;
+            }
         }
+        return PathBuf::from(bin_name);
     }
-    // 4. /usr/local/bin hoặc /usr/bin
-    let p_usr_local = PathBuf::from("/usr/local/bin/svm-native-host");
-    if p_usr_local.exists() {
-        return p_usr_local;
+    #[cfg(not(windows))]
+    {
+        // 3. ~/.local/bin
+        if let Ok(home) = std::env::var("HOME") {
+            let p = PathBuf::from(home).join(".local/bin").join(bin_name);
+            if p.exists() {
+                return p;
+            }
+        }
+        // 4. macOS app bundle hoặc /usr/local/bin / /usr/bin
+        #[cfg(target_os = "macos")]
+        {
+            let p_app = PathBuf::from(
+                "/Applications/Secure Vault Manager.app/Contents/MacOS/svm-native-host",
+            );
+            if p_app.exists() {
+                return p_app;
+            }
+        }
+        let p_usr_local = PathBuf::from("/usr/local/bin").join(bin_name);
+        if p_usr_local.exists() {
+            return p_usr_local;
+        }
+        PathBuf::from("/usr/bin").join(bin_name)
     }
-    PathBuf::from("/usr/bin/svm-native-host")
 }
 
 /// Máy chủ cầu nối tiếp nhận và điều phối các yêu cầu từ Browser Extension.
@@ -85,6 +136,7 @@ pub struct BridgeServer {
     listening: bool,
     data_dir: String,
     clients: Vec<PairedClient>,
+    revoked_browsers: Vec<String>,
     bound_socket_path: Option<PathBuf>,
     shutdown_signal: Arc<AtomicBool>,
     listener_thread: Option<std::thread::JoinHandle<()>>,
@@ -98,6 +150,7 @@ impl BridgeServer {
             listening: false,
             data_dir: dir,
             clients: Vec::new(),
+            revoked_browsers: Vec::new(),
             bound_socket_path: None,
             shutdown_signal: Arc::new(AtomicBool::new(false)),
             listener_thread: None,
@@ -194,6 +247,60 @@ impl BridgeServer {
                 self.listening = false;
             }
         }
+
+        #[cfg(windows)]
+        {
+            use std::os::windows::io::FromRawHandle;
+            use windows_sys::Win32::Foundation::{
+                CloseHandle, GetLastError, ERROR_PIPE_CONNECTED, INVALID_HANDLE_VALUE,
+            };
+            use windows_sys::Win32::Storage::FileSystem::PIPE_ACCESS_DUPLEX;
+            use windows_sys::Win32::System::Pipes::{
+                ConnectNamedPipe, CreateNamedPipeW, PIPE_TYPE_BYTE, PIPE_WAIT,
+            };
+
+            let pipe_name = resolve_windows_pipe_name();
+            self.bound_socket_path = Some(PathBuf::from(&pipe_name));
+            let wide_name: Vec<u16> = pipe_name.encode_utf16().chain(std::iter::once(0)).collect();
+
+            let handle = std::thread::spawn(move || {
+                while !shutdown.load(Ordering::SeqCst) {
+                    let h_pipe = unsafe {
+                        CreateNamedPipeW(
+                            wide_name.as_ptr(),
+                            PIPE_ACCESS_DUPLEX,
+                            PIPE_TYPE_BYTE | PIPE_WAIT,
+                            64,
+                            65536,
+                            65536,
+                            0,
+                            core::ptr::null(),
+                        )
+                    };
+                    if h_pipe == INVALID_HANDLE_VALUE {
+                        std::thread::sleep(Duration::from_millis(50));
+                        continue;
+                    }
+                    let ok = unsafe { ConnectNamedPipe(h_pipe, core::ptr::null_mut()) };
+                    let connected = ok != 0 || unsafe { GetLastError() } == ERROR_PIPE_CONNECTED;
+                    if shutdown.load(Ordering::SeqCst) || !connected {
+                        unsafe {
+                            CloseHandle(h_pipe);
+                        }
+                        if shutdown.load(Ordering::SeqCst) {
+                            break;
+                        }
+                        continue;
+                    }
+                    let mut file = unsafe { fs::File::from_raw_handle(h_pipe as _) };
+                    let h_cb = Arc::clone(&handler);
+                    std::thread::spawn(move || {
+                        handle_client_stream(&mut file, &h_cb);
+                    });
+                }
+            });
+            self.listener_thread = Some(handle);
+        }
     }
 
     /// Dừng lắng nghe socket và đóng các kết nối.
@@ -203,6 +310,16 @@ impl BridgeServer {
         }
         self.listening = false;
         self.shutdown_signal.store(true, Ordering::SeqCst);
+        #[cfg(windows)]
+        {
+            if let Some(ref pipe_path) = self.bound_socket_path {
+                // Đánh thức ConnectNamedPipe đang chờ bằng một kết nối rỗng
+                let _ = fs::OpenOptions::new()
+                    .read(true)
+                    .write(true)
+                    .open(pipe_path);
+            }
+        }
         if let Some(handle) = self.listener_thread.take() {
             let _ = handle.join();
         }
@@ -213,6 +330,10 @@ impl BridgeServer {
                     let _ = fs::remove_file(&socket_path);
                 }
             }
+        }
+        #[cfg(windows)]
+        {
+            self.bound_socket_path = None;
         }
     }
 
@@ -306,8 +427,25 @@ impl BridgeServer {
 
     /// Thu hồi quyền kết nối của một client theo `client_id`.
     pub fn revoke_client(&mut self, client_id: &str) {
+        for c in &self.clients {
+            if c.id == client_id && !self.revoked_browsers.contains(&c.browser) {
+                self.revoked_browsers.push(c.browser.clone());
+            }
+        }
         self.clients.retain(|c| c.id != client_id);
         self.save_clients();
+    }
+
+    /// Kiểm tra trình duyệt đã bị người dùng thu hồi quyền trong phiên hiện tại hay chưa.
+    pub fn is_browser_revoked(&self, browser: &str) -> bool {
+        let b = browser.trim();
+        !b.is_empty() && self.revoked_browsers.iter().any(|r| r == b)
+    }
+
+    /// Cho phép trình duyệt kết nối lại sau khi mở khóa chủ động.
+    pub fn clear_browser_revocation(&mut self, browser: &str) {
+        let b = browser.trim();
+        self.revoked_browsers.retain(|r| r != b);
     }
 
     /// Trả về tham chiếu danh sách các trình duyệt đã kết nối.
@@ -380,22 +518,23 @@ impl BridgeServer {
         let host_bin_str = host_bin.to_string_lossy().to_string();
 
         let mut installed_paths = Vec::new();
-        let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
+        let home = std::env::var("HOME")
+            .or_else(|_| std::env::var("USERPROFILE"))
+            .unwrap_or_else(|_| "/tmp".to_string());
 
         let candidate_dirs = [
-            // Google Chrome
+            // Linux Chromium-family
             format!("{home}/.config/google-chrome/NativeMessagingHosts"),
-            // Chromium
             format!("{home}/.config/chromium/NativeMessagingHosts"),
-            // Brave Browser
             format!("{home}/.config/BraveSoftware/Brave-Browser/NativeMessagingHosts"),
-            // Mozilla Firefox
-            format!("{home}/.mozilla/native-messaging-hosts"),
-            // Microsoft Edge
             format!("{home}/.config/microsoft-edge/NativeMessagingHosts"),
-            // macOS Chrome
+            // Linux Firefox
+            format!("{home}/.mozilla/native-messaging-hosts"),
+            // macOS Chromium-family & Firefox
             format!("{home}/Library/Application Support/Google/Chrome/NativeMessagingHosts"),
-            // macOS Firefox
+            format!("{home}/Library/Application Support/Chromium/NativeMessagingHosts"),
+            format!("{home}/Library/Application Support/BraveSoftware/Brave-Browser/NativeMessagingHosts"),
+            format!("{home}/Library/Application Support/Microsoft Edge/NativeMessagingHosts"),
             format!("{home}/Library/Application Support/Mozilla/NativeMessagingHosts"),
         ];
 
@@ -449,7 +588,8 @@ impl BridgeServer {
                 if parent.exists() {
                     if fs::create_dir_all(p).is_ok() {
                         let manifest_file = p.join(manifest_name);
-                        let content = if dir_str.contains("mozilla") {
+                        let content = if dir_str.contains("Mozilla") || dir_str.contains("mozilla")
+                        {
                             &firefox_json
                         } else {
                             &chrome_json
@@ -464,15 +604,30 @@ impl BridgeServer {
 
         // Luôn ghi thêm vào thư mục dữ liệu cục bộ làm dự phòng
         let fallback_base = if data_dir.trim().is_empty() {
-            "/tmp/hephaestus-svm-data"
+            if self.data_dir.trim().is_empty() {
+                svm_storage::resolve_default_data_dir()
+            } else {
+                self.data_dir.clone()
+            }
         } else {
-            data_dir
+            data_dir.to_string()
         };
-        let fallback_dir = Path::new(fallback_base).join("native-messaging-hosts");
+        let fallback_dir = Path::new(&fallback_base).join("native-messaging-hosts");
         let _ = fs::create_dir_all(&fallback_dir);
         let fallback_file = fallback_dir.join(manifest_name);
         let _ = fs::write(&fallback_file, chrome_json.as_bytes());
         installed_paths.push(fallback_file.to_string_lossy().to_string());
+
+        #[cfg(windows)]
+        {
+            let firefox_file = fallback_dir.join("io.hephaestus.secure_vault_manager.firefox.json");
+            let _ = fs::write(&firefox_file, firefox_json.as_bytes());
+            register_windows_native_host(
+                &fallback_file.to_string_lossy(),
+                &firefox_file.to_string_lossy(),
+            );
+            installed_paths.push(firefox_file.to_string_lossy().to_string());
+        }
 
         Ok(installed_paths)
     }
@@ -490,9 +645,73 @@ impl Drop for BridgeServer {
     }
 }
 
-#[cfg(unix)]
-fn handle_client_stream(
-    stream: &mut UnixStream,
+#[cfg(windows)]
+fn register_windows_native_host(chrome_manifest_path: &str, firefox_manifest_path: &str) {
+    use windows_sys::Win32::Foundation::ERROR_SUCCESS;
+    use windows_sys::Win32::System::Registry::{
+        RegCloseKey, RegCreateKeyExW, RegSetValueExW, HKEY_CURRENT_USER, KEY_WRITE, REG_SZ,
+    };
+
+    let entries = [
+        (
+            r"Software\Google\Chrome\NativeMessagingHosts\io.hephaestus.secure_vault_manager",
+            chrome_manifest_path,
+        ),
+        (
+            r"Software\Chromium\NativeMessagingHosts\io.hephaestus.secure_vault_manager",
+            chrome_manifest_path,
+        ),
+        (
+            r"Software\BraveSoftware\Brave-Browser\NativeMessagingHosts\io.hephaestus.secure_vault_manager",
+            chrome_manifest_path,
+        ),
+        (
+            r"Software\Microsoft\Edge\NativeMessagingHosts\io.hephaestus.secure_vault_manager",
+            chrome_manifest_path,
+        ),
+        (
+            r"Software\Mozilla\NativeMessagingHosts\io.hephaestus.secure_vault_manager",
+            firefox_manifest_path,
+        ),
+    ];
+
+    for (subkey, path_str) in entries {
+        let subkey_w: Vec<u16> = subkey.encode_utf16().chain(std::iter::once(0)).collect();
+        let val_w: Vec<u16> = path_str.encode_utf16().chain(std::iter::once(0)).collect();
+        let mut hkey = 0 as _;
+        let rc = unsafe {
+            RegCreateKeyExW(
+                HKEY_CURRENT_USER,
+                subkey_w.as_ptr(),
+                0,
+                core::ptr::null(),
+                0,
+                KEY_WRITE,
+                core::ptr::null(),
+                &mut hkey,
+                core::ptr::null_mut(),
+            )
+        };
+        if rc == ERROR_SUCCESS && !hkey.is_null() {
+            let byte_len = (val_w.len() * 2) as u32;
+            unsafe {
+                RegSetValueExW(
+                    hkey,
+                    core::ptr::null(),
+                    0,
+                    REG_SZ,
+                    val_w.as_ptr() as *const u8,
+                    byte_len,
+                );
+                RegCloseKey(hkey);
+            }
+        }
+    }
+}
+
+#[cfg(any(unix, windows))]
+fn handle_client_stream<S: Read + Write>(
+    stream: &mut S,
     handler: &Arc<dyn Fn(&str) -> String + Send + Sync>,
 ) {
     loop {

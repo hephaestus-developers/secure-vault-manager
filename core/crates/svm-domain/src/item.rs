@@ -248,6 +248,63 @@ impl VaultItem {
         obj
     }
 
+    /// Chuyển đổi `VaultItem` sang JSON tóm tắt dùng cho danh sách (`svm_items_list`),
+    /// ẩn toàn bộ trường nhạy cảm (`password`, `totpSecret`, `cardNumber`, `cardCvv`, `notes`, `customFields`).
+    pub fn to_summary_json(&self) -> JsonValue {
+        let mut obj = JsonValue::new_object();
+        obj.insert("id", JsonValue::String(self.id.clone()));
+        obj.insert("vaultId", JsonValue::String(self.vault_id.clone()));
+        obj.insert("title", JsonValue::String(self.title.clone()));
+        obj.insert(
+            "category",
+            JsonValue::String(self.category.as_str().to_string()),
+        );
+        obj.insert(
+            "categoryIndex",
+            JsonValue::Number(self.category.to_index() as f64),
+        );
+        if let Some(ref fid) = self.folder_id {
+            obj.insert("folderId", JsonValue::String(fid.clone()));
+        } else {
+            obj.insert("folderId", JsonValue::Null);
+        }
+        obj.insert("username", JsonValue::String(self.username.clone()));
+        obj.insert("websiteUrl", JsonValue::String(self.website_url.clone()));
+        obj.insert("isFavorite", JsonValue::Bool(self.favorite));
+        obj.insert("isArchived", JsonValue::Bool(self.archived));
+        obj.insert("isDeleted", JsonValue::Bool(self.trashed));
+        obj.insert(
+            "hasTotp",
+            JsonValue::Bool(self.has_totp || !self.totp_secret.is_empty()),
+        );
+        obj.insert("hasPasskey", JsonValue::Bool(self.has_passkey));
+        obj.insert("isSshLoaded", JsonValue::Bool(self.is_ssh_loaded));
+        obj.insert(
+            "sshPublicKey",
+            JsonValue::String(self.ssh_public_key.clone()),
+        );
+        obj.insert(
+            "sshFingerprint",
+            JsonValue::String(self.ssh_fingerprint.clone()),
+        );
+        obj.insert("cardExpiry", JsonValue::String(self.card_expiry.clone()));
+        obj.insert("dbHost", JsonValue::String(self.db_host.clone()));
+        obj.insert("dbPort", JsonValue::Number(self.db_port as f64));
+        obj.insert("dbName", JsonValue::String(self.db_name.clone()));
+        obj.insert("wifiSsid", JsonValue::String(self.wifi_ssid.clone()));
+        obj.insert(
+            "wifiSecurity",
+            JsonValue::String(self.wifi_security.clone()),
+        );
+        obj.insert("createdAt", JsonValue::Number(self.created_at as f64));
+        obj.insert("updatedAt", JsonValue::Number(self.updated_at as f64));
+        obj.insert(
+            "passwordStrengthScore",
+            JsonValue::Number(self.password_strength_score as f64),
+        );
+        obj
+    }
+
     /// Khôi phục `VaultItem` từ đối tượng `JsonValue`.
     pub fn from_json(val: &JsonValue) -> Option<Self> {
         let id = val.get_string("id").unwrap_or_default();

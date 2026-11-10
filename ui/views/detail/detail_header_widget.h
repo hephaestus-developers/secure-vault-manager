@@ -45,6 +45,7 @@ signals:
   void cancelRequested();
   void deleteRequested();
   void restoreRequested();
+  void historyRequested();
   void categoryChanged(models::ItemCategory category);
 
 protected:
@@ -56,11 +57,13 @@ private slots:
 private:
   void setupUI();
   void updateThemeIcons();
+  void updateHeaderIcon();
 
   bool m_isEditMode{false};
   bool m_isFavorite{false};
   bool m_isDeleted{false};
   models::ItemCategory m_category{models::ItemCategory::Login};
+  QString m_currentWebsiteUrl;
 
   QLabel *m_iconLabel{nullptr};
   components::ElidedLabel *m_titleLabel{nullptr};
@@ -70,6 +73,7 @@ private:
   QLabel *m_updatedLabel{nullptr};
   QString m_vaultId{QStringLiteral("personal")};
   QPushButton *m_favBtn{nullptr};
+  QPushButton *m_historyBtn{nullptr};
   QPushButton *m_editBtn{nullptr};
   QPushButton *m_restoreBtn{nullptr};
   QPushButton *m_deleteBtn{nullptr};

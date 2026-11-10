@@ -13,6 +13,7 @@
 #include <QDesktopServices>
 #include <QHBoxLayout>
 #include <QIcon>
+#include <QRandomGenerator>
 #include <QUrl>
 #include <QVBoxLayout>
 
@@ -92,7 +93,13 @@ void FieldRowWidget::setupUI() {
       QString generated = core::CoreBridge::instance().generatePassword(
           20, true, true, true, true);
       if (generated.isEmpty()) {
-        generated = QStringLiteral("Svm#9xK2!mP7$vL4@qR8");
+        static const char kCharset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLM"
+                                       "NOPQRSTUVWXYZ0123456789!@#$%^&*()-_=+";
+        const int charsetLen = static_cast<int>(sizeof(kCharset) - 1);
+        for (int i = 0; i < 20; ++i) {
+          generated.append(QLatin1Char(
+              kCharset[QRandomGenerator::system()->bounded(charsetLen)]));
+        }
       }
       m_value = generated;
       if (m_lineEdit) {
@@ -272,7 +279,7 @@ void FieldRowWidget::onCopyClicked() {
   }
 
   if (m_type == FieldType::Concealed) {
-    app::ClipboardManager::instance().copySensitive(m_value, m_label, 30);
+    app::ClipboardManager::instance().copySensitive(m_value, m_label);
   } else {
     app::ClipboardManager::instance().copyPlainText(m_value);
   }

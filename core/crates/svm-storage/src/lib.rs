@@ -14,6 +14,7 @@ pub use vault_file::VaultStorage;
 #[cfg(test)]
 mod tests {
     use std::fs;
+    use std::path::PathBuf;
     use svm_crypto::random_bytes;
 
     use super::*;
@@ -68,6 +69,29 @@ mod tests {
             .unlock_with_recovery("SECURE-VAULT-RECOVERY-KEY-1")
             .is_err());
         assert!(storage.unlock_with_recovery(new_rec_key).is_ok());
+
+        // Streaming 64KB chunked attachment roundtrip (~150KB > 2 chunks)
+        let src_att = PathBuf::from(&dir).join("big_secret.bin");
+        let dst_att = PathBuf::from(&dir).join("big_secret_restored.bin");
+        let original_data: Vec<u8> = (0..150_000).map(|i| (i % 251) as u8).collect();
+        fs::write(&src_att, &original_data).expect("write src");
+
+        let written = storage
+            .store_attachment_file(&dek, "att-chunked-1", &src_att)
+            .expect("store chunked");
+        assert_eq!(written, original_data.len() as u64);
+
+        storage
+            .export_attachment_file(&dek, "att-chunked-1", &dst_att)
+            .expect("export chunked");
+        assert_eq!(fs::read(&dst_att).expect("read restored"), original_data);
+
+        // Truncated attachment must fail AEAD/stream verification
+        let bin_path = PathBuf::from(&dir).join("attachments/att-chunked-1.bin");
+        let mut enc_bytes = fs::read(&bin_path).expect("read enc");
+        enc_bytes.truncate(enc_bytes.len() - 4);
+        fs::write(&bin_path, &enc_bytes).expect("truncate");
+        assert!(storage.load_attachment(&dek, "att-chunked-1").is_err());
 
         let _ = fs::remove_dir_all(&dir);
     }

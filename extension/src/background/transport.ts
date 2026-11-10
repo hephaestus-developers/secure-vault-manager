@@ -1,6 +1,6 @@
 /**
  * @file extension/src/background/transport.ts
- * @brief Bộ điều phối giao vận hợp nhất: ưu tiên Native Messaging, chuyển dự phòng sang HTTP Loopback và bộ đệm ngoại tuyến.
+ * @brief Bộ điều phối giao vận hợp nhất qua Native Messaging và bộ đệm trạng thái ngoại tuyến.
  */
 
 import {
@@ -9,12 +9,10 @@ import {
   CredentialSummary,
 } from "../services/protocol";
 import { generatePasswordLocal } from "../services/crypto-local";
-import { HttpLoopbackClient } from "./http_client";
 import { NativeMessagingClient } from "./native_client";
 
 export class BridgeTransport {
   private nativeClient = new NativeMessagingClient();
-  private httpClient = new HttpLoopbackClient();
   private cachedItems: CredentialSummary[] = [];
   private unlocked = false;
 
@@ -27,14 +25,6 @@ export class BridgeTransport {
         this.unlocked = Boolean((nativeResp.payload as any).unlocked);
       }
       return nativeResp;
-    }
-
-    const httpResp = await this.httpClient.send<TPayload>(request);
-    if (httpResp) {
-      if (request.action === "get_vault_status" && httpResp.ok && httpResp.payload) {
-        this.unlocked = Boolean((httpResp.payload as any).unlocked);
-      }
-      return httpResp;
     }
 
     return this.handleOfflineFallback(request) as Promise<BridgeResponse<TPayload>>;

@@ -54,6 +54,10 @@ pub struct VaultService {
     pub(crate) attachments: Vec<AttachmentMeta>,
     pub(crate) recovery_key: String,
     pub(crate) idle_ms: u64,
+    pub(crate) auto_lock_minutes: u32,
+    pub(crate) auto_empty_trash: bool,
+    pub(crate) ssh_prompt_approval: bool,
+    pub(crate) favicon_fetch_enabled: bool,
 }
 
 impl VaultService {
@@ -64,7 +68,8 @@ impl VaultService {
 
     /// Khởi tạo dịch vụ `VaultService` gắn với `VaultStorage` chỉ định.
     pub fn with_storage(storage: VaultStorage) -> Self {
-        Self {
+        let initial_settings = storage.load_settings();
+        let mut svc = Self {
             storage,
             unlocked: false,
             dek: [0u8; 32],
@@ -77,7 +82,13 @@ impl VaultService {
             attachments: Vec::new(),
             recovery_key: String::new(),
             idle_ms: 0,
-        }
+            auto_lock_minutes: 15,
+            auto_empty_trash: false,
+            ssh_prompt_approval: true,
+            favicon_fetch_enabled: false,
+        };
+        svc.apply_settings_json(&initial_settings);
+        svc
     }
 
     /// Tham chiếu tới đối tượng `VaultStorage`.
@@ -159,18 +170,61 @@ impl VaultService {
         &self.recovery_key
     }
 
-    /// Đánh dấu mở khóa kho dữ liệu (dùng cho kiểm thử nhanh hoặc bộ nhớ tạm).
-    pub fn unlock(&mut self) {
-        if self.dek == [0u8; 32] {
-            random_bytes(&mut self.dek);
-        }
-        mem_lock(&self.dek);
-        self.unlocked = true;
+    /// Trả về danh sách hồ sơ Vault đang quản lý.
+    pub fn vaults(&self) -> &[VaultProfile] {
+        &self.vaults
     }
 
-    /// Ghi nhận thời gian nhàn rỗi của người dùng.
-    pub fn report_idle(&mut self, idle_ms: u64) {
+    /// Lấy định danh của Vault mặc định (hoặc Vault đầu tiên nếu chưa đánh dấu).
+    pub fn default_vault_id(&self) -> String {
+        self.vaults
+            .iter()
+            .find(|v| v.is_default)
+            .or_else(|| self.vaults.first())
+            .map(|v| v.id.clone())
+            .unwrap_or_else(|| "personal".to_string())
+    }
+
+    /// Cập nhật các ngưỡng cấu hình bảo mật từ chuỗi JSON AppSettings.
+    pub fn apply_settings_json(&mut self, json_str: &str) {
+        if let Ok(obj) = JsonValue::parse(json_str) {
+            if let Some(mins) = obj.get("auto_lock_minutes").and_then(|v| v.as_i64()) {
+                self.auto_lock_minutes = mins.max(0) as u32;
+            }
+            if obj.get("auto_empty_trash").is_some() {
+                self.auto_empty_trash = obj.get_bool_or("auto_empty_trash", false);
+            }
+            if obj.get("ssh_prompt_approval").is_some() {
+                self.ssh_prompt_approval = obj.get_bool_or("ssh_prompt_approval", true);
+            }
+            if obj.get("favicon_fetch_enabled").is_some() {
+                self.favicon_fetch_enabled = obj.get_bool_or("favicon_fetch_enabled", false);
+            }
+        }
+    }
+
+    /// Trạng thái chính sách yêu cầu xác nhận trước khi ký yêu cầu SSH.
+    pub fn ssh_prompt_approval(&self) -> bool {
+        self.ssh_prompt_approval
+    }
+
+    /// Trạng thái cho phép tải Favicon website từ xa (opt-in, mặc định tắt để bảo vệ quyền riêng tư).
+    pub fn favicon_fetch_enabled(&self) -> bool {
+        self.favicon_fetch_enabled
+    }
+
+    /// Ghi nhận thời gian nhàn rỗi của người dùng; tự động khóa nếu vượt ngưỡng cấu hình.
+    /// Trả về `true` nếu vừa kích hoạt khóa kho do nhàn rỗi.
+    pub fn report_idle(&mut self, idle_ms: u64) -> bool {
         self.idle_ms = idle_ms;
+        if self.unlocked && self.auto_lock_minutes > 0 {
+            let threshold_ms = (self.auto_lock_minutes as u64).saturating_mul(60_000);
+            if idle_ms >= threshold_ms {
+                self.lock();
+                return true;
+            }
+        }
+        false
     }
 
     pub(crate) fn serialize_state(&self) -> String {
@@ -324,6 +378,7 @@ impl VaultService {
             arr.push(v_copy.to_json());
         }
         let mut obj = JsonValue::new_object();
+        obj.insert("configured", JsonValue::Bool(self.storage.vault_exists()));
         obj.insert("vaults", arr);
         obj.to_json_string()
     }
@@ -386,7 +441,7 @@ impl VaultService {
             } else {
                 self.vaults.push(profile);
             }
-            let _ = self.persist();
+            self.persist()?;
             return Ok(out_id);
         }
 
@@ -415,7 +470,7 @@ impl VaultService {
             is_default: false,
             created_at: current_timestamp_ms(),
         });
-        let _ = self.persist();
+        self.persist()?;
         Ok(new_id)
     }
 
@@ -474,6 +529,9 @@ impl VaultService {
         zeroize_slice(&mut dek);
         mem_lock(&self.dek);
         self.unlocked = true;
+        if self.auto_empty_trash {
+            let _ = self.purge_expired_trash(30);
+        }
         Ok(())
     }
 
@@ -504,6 +562,9 @@ impl VaultService {
         zeroize_slice(&mut dek);
         mem_lock(&self.dek);
         self.unlocked = true;
+        if self.auto_empty_trash {
+            let _ = self.purge_expired_trash(30);
+        }
         Ok(())
     }
 
@@ -536,6 +597,9 @@ impl VaultService {
 
     /// Đổi tên hoặc cập nhật thông tin một Vault.
     pub fn rename_vault(&mut self, vault_id: &str, name_or_json: &str) -> Result<(), DomainError> {
+        if !self.unlocked {
+            return Err(DomainError::Locked);
+        }
         let trimmed = name_or_json.trim();
         if trimmed.starts_with('{') {
             let meta = JsonValue::parse(trimmed).map_err(DomainError::Parse)?;
@@ -549,7 +613,7 @@ impl VaultService {
                 if let Some(desc) = meta.get_string("description") {
                     v.description = desc;
                 }
-                let _ = self.persist();
+                self.persist()?;
                 return Ok(());
             }
             return Err(DomainError::NotFound(format!("Vault {vault_id} not found")));
@@ -557,7 +621,7 @@ impl VaultService {
 
         if let Some(v) = self.vaults.iter_mut().find(|v| v.id == vault_id) {
             v.name = trimmed.to_string();
-            let _ = self.persist();
+            self.persist()?;
             Ok(())
         } else {
             Err(DomainError::NotFound(format!("Vault {vault_id} not found")))
@@ -565,7 +629,15 @@ impl VaultService {
     }
 
     /// Xóa một Vault (không cho xóa Vault mặc định).
-    pub fn delete_vault(&mut self, vault_id: &str, _password: &str) -> Result<(), DomainError> {
+    pub fn delete_vault(&mut self, vault_id: &str, password: &str) -> Result<(), DomainError> {
+        if !password.is_empty() && self.storage.vault_exists() {
+            let (_, mut dek, mut json_str) = self.storage.unlock_with_password(password)?;
+            zeroize_string(&mut json_str);
+            zeroize_slice(&mut dek);
+        } else if !self.unlocked {
+            return Err(DomainError::Locked);
+        }
+
         if let Some(pos) = self.vaults.iter().position(|v| v.id == vault_id) {
             if self.vaults[pos].is_default {
                 return Err(DomainError::Conflict(
@@ -574,23 +646,26 @@ impl VaultService {
             }
             self.vaults.remove(pos);
             self.items.retain(|it| it.vault_id != vault_id);
-            let _ = self.persist();
+            self.persist()?;
             Ok(())
         } else {
-            Ok(())
+            Err(DomainError::NotFound(format!("Vault {vault_id} not found")))
         }
     }
 
     /// Đặt một Vault làm kho mặc định.
     pub fn set_default_vault(&mut self, vault_id: &str) -> Result<(), DomainError> {
+        if !self.unlocked {
+            return Err(DomainError::Locked);
+        }
         let exists = self.vaults.iter().any(|v| v.id == vault_id);
         if !exists {
-            return Ok(());
+            return Err(DomainError::NotFound(format!("Vault {vault_id} not found")));
         }
         for v in &mut self.vaults {
             v.is_default = v.id == vault_id;
         }
-        let _ = self.persist();
+        self.persist()?;
         Ok(())
     }
 
@@ -601,33 +676,45 @@ impl VaultService {
                 "New password cannot be empty".to_string(),
             ));
         }
-        if self.storage.vault_exists() {
-            let (mut header, dek, json_str) = self.storage.unlock_with_password(old_pw)?;
-            self.load_state_from_json(&json_str)?;
-            self.dek = dek;
-            VaultStorage::rewrap_master_password(&mut header, &self.dek, new_pw);
-            self.header = Some(header);
-            self.unlocked = true;
-            self.persist()?;
+        if !self.storage.vault_exists() {
+            return Err(DomainError::NotFound(
+                "Vault has not been initialized".to_string(),
+            ));
         }
+        let (mut header, mut dek, mut json_str) = self.storage.unlock_with_password(old_pw)?;
+        let load_res = self.load_state_from_json(&json_str);
+        zeroize_string(&mut json_str);
+        load_res?;
+        self.dek = dek;
+        zeroize_slice(&mut dek);
+        VaultStorage::rewrap_master_password(&mut header, &self.dek, new_pw);
+        self.header = Some(header);
+        mem_lock(&self.dek);
+        self.unlocked = true;
+        self.persist()?;
         Ok(())
     }
 
     /// Tạo lại và xoay Recovery Key mới (tái mã hóa DEK với KEK của recovery key mới).
     pub fn rotate_recovery_key(&mut self, master_pw: &str) -> Result<String, DomainError> {
-        let new_key = generate_recovery_key();
-        if self.storage.vault_exists() {
-            let (mut header, dek, json_str) = self.storage.unlock_with_password(master_pw)?;
-            self.load_state_from_json(&json_str)?;
-            self.dek = dek;
-            VaultStorage::rewrap_recovery_key(&mut header, &self.dek, &new_key);
-            self.header = Some(header);
-            self.recovery_key = new_key.clone();
-            self.unlocked = true;
-            self.persist()?;
-        } else {
-            self.recovery_key = new_key.clone();
+        if !self.storage.vault_exists() {
+            return Err(DomainError::NotFound(
+                "Vault has not been initialized".to_string(),
+            ));
         }
+        let new_key = generate_recovery_key();
+        let (mut header, mut dek, mut json_str) = self.storage.unlock_with_password(master_pw)?;
+        let load_res = self.load_state_from_json(&json_str);
+        zeroize_string(&mut json_str);
+        load_res?;
+        self.dek = dek;
+        zeroize_slice(&mut dek);
+        VaultStorage::rewrap_recovery_key(&mut header, &self.dek, &new_key);
+        self.header = Some(header);
+        self.recovery_key = new_key.clone();
+        mem_lock(&self.dek);
+        self.unlocked = true;
+        self.persist()?;
         Ok(new_key)
     }
 }

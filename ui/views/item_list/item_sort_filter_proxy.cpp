@@ -17,9 +17,11 @@ ItemSortFilterProxy::ItemSortFilterProxy(QObject *parent)
 }
 
 void ItemSortFilterProxy::setFilterType(SidebarFilterType type,
-                                        models::ItemCategory category) {
+                                        models::ItemCategory category,
+                                        const QString &folderId) {
   m_filterType = type;
   m_targetCategory = category;
+  m_targetFolderId = folderId;
   invalidateFilter();
 }
 
@@ -88,16 +90,29 @@ bool ItemSortFilterProxy::filterAcceptsRow(
       return false;
     }
     break;
-  case SidebarFilterType::WatchtowerWeak: {
-    const int score = idx.data(ItemListModel::PasswordScoreRole).toInt();
-    if (score >= 60 || isArchived) {
+  case SidebarFilterType::Folder: {
+    const QString fid = idx.data(ItemListModel::FolderIdRole).toString();
+    if (isArchived || m_targetFolderId.isEmpty() || fid != m_targetFolderId) {
       return false;
     }
     break;
   }
-  case SidebarFilterType::WatchtowerExpiring:
-    // Tạm thời lọc các token có hạn dùng
+  case SidebarFilterType::WatchtowerWeak: {
+    const auto item =
+        idx.data(ItemListModel::VaultItemRole).value<models::UiVaultItem>();
+    if (!models::isWeakPasswordItem(item)) {
+      return false;
+    }
     break;
+  }
+  case SidebarFilterType::WatchtowerExpiring: {
+    const auto item =
+        idx.data(ItemListModel::VaultItemRole).value<models::UiVaultItem>();
+    if (!models::isExpiringItem(item)) {
+      return false;
+    }
+    break;
+  }
   case SidebarFilterType::Trash:
     break;
   }

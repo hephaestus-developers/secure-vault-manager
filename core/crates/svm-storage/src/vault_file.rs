@@ -1,13 +1,25 @@
 //! Bộ quản lý đọc/ghi tệp mã hóa `vault.svm`, `biometric.env`, `settings.json` và tệp đính kèm.
 
-use std::fs;
+use std::fs::{self, File};
+use std::io::{BufReader, BufWriter, Cursor, Read, Write};
 use std::path::{Path, PathBuf};
 
+const ATTACHMENT_STREAM_MAGIC: &[u8; 4] = b"SVMA";
+const ATTACHMENT_CHUNK_SIZE: usize = 65_536;
+
+fn build_chunk_aad(chunk_idx: u64) -> Vec<u8> {
+    let mut aad = Vec::with_capacity(AAD_ATTACHMENT.len() + 8);
+    aad.extend_from_slice(AAD_ATTACHMENT);
+    aad.extend_from_slice(&chunk_idx.to_le_bytes());
+    aad
+}
+
 use svm_crypto::{
-    chacha20_poly1305_decrypt, chacha20_poly1305_encrypt, derive_kek, normalize_recovery_key,
-    random_bytes, sha256, zeroize_slice,
+    chacha20_poly1305_decrypt, chacha20_poly1305_encrypt, derive_kek, hex_decode, hex_encode,
+    normalize_recovery_key, random_bytes, sha256, zeroize_slice, zeroize_string,
 };
 use svm_domain::{DomainError, JsonValue};
+use svm_system::{keystore_delete_secret, keystore_get_secret, keystore_set_secret};
 
 use crate::atomic::{atomic_write_file, ensure_secure_dir, resolve_default_data_dir};
 use crate::header::{
@@ -51,16 +63,9 @@ impl VaultStorage {
         Ok(())
     }
 
-    fn derive_biometric_wrapping_key(&self) -> [u8; 32] {
-        let machine_id = fs::read_to_string("/etc/machine-id")
-            .unwrap_or_default()
-            .trim()
-            .to_string();
-        let user = std::env::var("USER")
-            .or_else(|_| std::env::var("USERNAME"))
-            .unwrap_or_default();
-        let material = format!("svm-bio-v2::{}::{}::{}", machine_id, user, self.base_path);
-        sha256(material.as_bytes())
+    fn biometric_keystore_account(&self) -> String {
+        let digest = hex_encode(&sha256(self.base_path.as_bytes()));
+        format!("biometric-wrapping-key::{}", &digest[..16])
     }
 
     /// Đường dẫn tới tệp nhị phân kho mã hóa `vault.svm`.
@@ -259,10 +264,19 @@ impl VaultStorage {
         Ok((header, dek, json_str))
     }
 
-    /// Lưu khóa bọc sinh trắc học vào `biometric.env`.
+    /// Lưu khóa bọc sinh trắc học vào `biometric.env` kết hợp khóa ngẫu nhiên lưu trong OS Keystore.
     pub fn save_biometric_envelope(&self, dek: &[u8; 32]) -> Result<(), DomainError> {
         self.ensure_dirs()?;
-        let mut bio_key = self.derive_biometric_wrapping_key();
+        let mut bio_key = [0u8; 32];
+        random_bytes(&mut bio_key);
+        let mut bio_key_hex = hex_encode(&bio_key);
+        let ks_res = keystore_set_secret(&self.biometric_keystore_account(), &bio_key_hex);
+        zeroize_string(&mut bio_key_hex);
+        if let Err(e) = ks_res {
+            zeroize_slice(&mut bio_key);
+            return Err(e);
+        }
+
         let mut nonce = [0u8; 12];
         random_bytes(&mut nonce);
         let wrapped = chacha20_poly1305_encrypt(&bio_key, &nonce, AAD_BIOMETRIC, dek);
@@ -274,16 +288,17 @@ impl VaultStorage {
         Self::atomic_write(&self.biometric_file_path(), &out)
     }
 
-    /// Xóa tệp khóa bọc sinh trắc học `biometric.env`.
+    /// Xóa tệp khóa bọc sinh trắc học `biometric.env` và bí mật trong OS Keystore.
     pub fn remove_biometric_envelope(&self) -> Result<(), DomainError> {
         let p = self.biometric_file_path();
         if p.exists() {
             fs::remove_file(p).map_err(|e| DomainError::Io(e.to_string()))?;
         }
+        let _ = keystore_delete_secret(&self.biometric_keystore_account());
         Ok(())
     }
 
-    /// Mở khóa bằng tệp khóa bọc sinh trắc học `biometric.env`.
+    /// Mở khóa bằng tệp khóa bọc sinh trắc học `biometric.env` và khóa bọc từ OS Keystore.
     pub fn unlock_with_biometric(&self) -> Result<(VaultHeader, [u8; 32], String), DomainError> {
         let bio_path = self.biometric_file_path();
         let bio_bytes = fs::read(&bio_path)
@@ -295,7 +310,21 @@ impl VaultStorage {
         }
         let mut nonce = [0u8; 12];
         nonce.copy_from_slice(&bio_bytes[4..16]);
-        let mut bio_key = self.derive_biometric_wrapping_key();
+
+        let mut bio_key_hex = keystore_get_secret(&self.biometric_keystore_account())?;
+        let mut key_bytes = hex_decode(&bio_key_hex)
+            .map_err(|_| DomainError::Crypto("Invalid biometric key in OS Keystore".to_string()))?;
+        zeroize_string(&mut bio_key_hex);
+        if key_bytes.len() != 32 {
+            zeroize_slice(&mut key_bytes);
+            return Err(DomainError::Crypto(
+                "Invalid biometric key length in OS Keystore".to_string(),
+            ));
+        }
+        let mut bio_key = [0u8; 32];
+        bio_key.copy_from_slice(&key_bytes);
+        zeroize_slice(&mut key_bytes);
+
         let dek_res = chacha20_poly1305_decrypt(&bio_key, &nonce, AAD_BIOMETRIC, &bio_bytes[16..]);
         zeroize_slice(&mut bio_key);
         let mut dek_vec = dek_res?;
@@ -312,35 +341,191 @@ impl VaultStorage {
         Ok((header, dek, json_str))
     }
 
-    /// Mã hóa và lưu tệp đính kèm.
+    /// Mã hóa streaming theo từng chunk 64KB từ luồng đọc nguồn xuống tệp đính kèm.
+    pub fn store_attachment_stream<R: Read>(
+        &self,
+        dek: &[u8; 32],
+        attachment_id: &str,
+        mut reader: R,
+    ) -> Result<u64, DomainError> {
+        self.ensure_dirs()?;
+        let final_path = Path::new(&self.base_path)
+            .join("attachments")
+            .join(format!("{attachment_id}.bin"));
+        let tmp_path = Path::new(&self.base_path)
+            .join("attachments")
+            .join(format!("{attachment_id}.bin.tmp"));
+
+        let out_file = File::create(&tmp_path).map_err(|e| DomainError::Io(e.to_string()))?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let _ = fs::set_permissions(&tmp_path, fs::Permissions::from_mode(0o600));
+        }
+
+        let write_res: Result<u64, DomainError> = (|| {
+            let mut writer = BufWriter::new(out_file);
+            writer
+                .write_all(ATTACHMENT_STREAM_MAGIC)
+                .map_err(|e| DomainError::Io(e.to_string()))?;
+            writer
+                .write_all(&(ATTACHMENT_CHUNK_SIZE as u32).to_le_bytes())
+                .map_err(|e| DomainError::Io(e.to_string()))?;
+
+            let mut buf = vec![0u8; ATTACHMENT_CHUNK_SIZE];
+            let mut total_bytes: u64 = 0;
+            let mut chunk_idx: u64 = 0;
+
+            loop {
+                let mut filled = 0usize;
+                while filled < ATTACHMENT_CHUNK_SIZE {
+                    let n = reader
+                        .read(&mut buf[filled..])
+                        .map_err(|e| DomainError::Io(e.to_string()))?;
+                    if n == 0 {
+                        break;
+                    }
+                    filled += n;
+                }
+                if filled == 0 {
+                    break;
+                }
+
+                total_bytes += filled as u64;
+                let mut nonce = [0u8; 12];
+                random_bytes(&mut nonce);
+                let aad = build_chunk_aad(chunk_idx);
+                let ct = chacha20_poly1305_encrypt(dek, &nonce, &aad, &buf[..filled]);
+                zeroize_slice(&mut buf[..filled]);
+
+                writer
+                    .write_all(&(ct.len() as u32).to_le_bytes())
+                    .map_err(|e| DomainError::Io(e.to_string()))?;
+                writer
+                    .write_all(&nonce)
+                    .map_err(|e| DomainError::Io(e.to_string()))?;
+                writer
+                    .write_all(&ct)
+                    .map_err(|e| DomainError::Io(e.to_string()))?;
+                chunk_idx += 1;
+            }
+            zeroize_slice(&mut buf);
+
+            // Sentinel 0u32 đánh dấu kết thúc luồng chunk toàn vẹn
+            writer
+                .write_all(&0u32.to_le_bytes())
+                .map_err(|e| DomainError::Io(e.to_string()))?;
+            writer.flush().map_err(|e| DomainError::Io(e.to_string()))?;
+            Ok(total_bytes)
+        })();
+
+        match write_res {
+            Ok(total) => {
+                fs::rename(&tmp_path, &final_path).map_err(|e| DomainError::Io(e.to_string()))?;
+                Ok(total)
+            }
+            Err(e) => {
+                let _ = fs::remove_file(&tmp_path);
+                Err(e)
+            }
+        }
+    }
+
+    /// Mã hóa streaming trực tiếp một tệp trên đĩa thành tệp đính kèm.
+    pub fn store_attachment_file(
+        &self,
+        dek: &[u8; 32],
+        attachment_id: &str,
+        src_path: &Path,
+    ) -> Result<u64, DomainError> {
+        let file = File::open(src_path).map_err(|_| {
+            DomainError::NotFound(format!("Source file not found: {}", src_path.display()))
+        })?;
+        self.store_attachment_stream(dek, attachment_id, BufReader::new(file))
+    }
+
+    /// Mã hóa và lưu tệp đính kèm từ buffer bytes.
     pub fn store_attachment(
         &self,
         dek: &[u8; 32],
         attachment_id: &str,
         raw_bytes: &[u8],
     ) -> Result<(), DomainError> {
-        self.ensure_dirs()?;
-        let mut nonce = [0u8; 12];
-        random_bytes(&mut nonce);
-        let ct = chacha20_poly1305_encrypt(dek, &nonce, AAD_ATTACHMENT, raw_bytes);
-        let mut data = Vec::with_capacity(12 + ct.len());
-        data.extend_from_slice(&nonce);
-        data.extend_from_slice(&ct);
-        let path = Path::new(&self.base_path)
-            .join("attachments")
-            .join(format!("{attachment_id}.bin"));
-        Self::atomic_write(&path, &data)
+        self.store_attachment_stream(dek, attachment_id, Cursor::new(raw_bytes))?;
+        Ok(())
     }
 
-    /// Đọc và giải mã tệp đính kèm.
-    pub fn load_attachment(
+    /// Giải mã streaming tệp đính kèm ra đối tượng `Write` (hỗ trợ cả chunk 64KB lẫn định dạng cũ).
+    pub fn load_attachment_to_writer<W: Write>(
         &self,
         dek: &[u8; 32],
         attachment_id: &str,
-    ) -> Result<Vec<u8>, DomainError> {
+        mut writer: W,
+    ) -> Result<(), DomainError> {
         let path = Path::new(&self.base_path)
             .join("attachments")
             .join(format!("{attachment_id}.bin"));
+        let mut file = File::open(&path)
+            .map_err(|_| DomainError::NotFound(format!("Attachment {attachment_id} not found")))?;
+
+        let mut magic = [0u8; 4];
+        if file
+            .read_exact(&mut magic)
+            .map_err(|_| DomainError::Crypto("Corrupted attachment file".to_string()))
+            .is_ok()
+            && &magic == ATTACHMENT_STREAM_MAGIC
+        {
+            let mut reader = BufReader::new(file);
+            let mut chunk_sz_bytes = [0u8; 4];
+            reader
+                .read_exact(&mut chunk_sz_bytes)
+                .map_err(|_| DomainError::Crypto("Corrupted attachment header".to_string()))?;
+            let max_chunk_sz = u32::from_le_bytes(chunk_sz_bytes) as usize;
+            if max_chunk_sz == 0 || max_chunk_sz > 16 * 1024 * 1024 {
+                return Err(DomainError::Crypto(
+                    "Invalid attachment chunk size".to_string(),
+                ));
+            }
+
+            let mut chunk_idx: u64 = 0;
+            loop {
+                let mut len_buf = [0u8; 4];
+                reader
+                    .read_exact(&mut len_buf)
+                    .map_err(|_| DomainError::Crypto("Truncated attachment stream".to_string()))?;
+                let ct_len = u32::from_le_bytes(len_buf) as usize;
+                if ct_len == 0 {
+                    break;
+                }
+                if ct_len < 16 || ct_len > max_chunk_sz + 16 {
+                    return Err(DomainError::Crypto(
+                        "Corrupted attachment chunk length".to_string(),
+                    ));
+                }
+
+                let mut nonce = [0u8; 12];
+                reader
+                    .read_exact(&mut nonce)
+                    .map_err(|_| DomainError::Crypto("Truncated attachment nonce".to_string()))?;
+                let mut ct = vec![0u8; ct_len];
+                reader
+                    .read_exact(&mut ct)
+                    .map_err(|_| DomainError::Crypto("Truncated attachment chunk".to_string()))?;
+
+                let aad = build_chunk_aad(chunk_idx);
+                let mut plain = chacha20_poly1305_decrypt(dek, &nonce, &aad, &ct)?;
+                writer
+                    .write_all(&plain)
+                    .map_err(|e| DomainError::Io(e.to_string()))?;
+                zeroize_slice(&mut plain);
+                chunk_idx += 1;
+            }
+            writer.flush().map_err(|e| DomainError::Io(e.to_string()))?;
+            return Ok(());
+        }
+
+        // Tương thích ngược định dạng single-blob cũ
+        drop(file);
         let data = fs::read(&path)
             .map_err(|_| DomainError::NotFound(format!("Attachment {attachment_id} not found")))?;
         if data.len() < 12 + 16 {
@@ -348,7 +533,34 @@ impl VaultStorage {
         }
         let mut nonce = [0u8; 12];
         nonce.copy_from_slice(&data[0..12]);
-        chacha20_poly1305_decrypt(dek, &nonce, AAD_ATTACHMENT, &data[12..])
+        let mut plain = chacha20_poly1305_decrypt(dek, &nonce, AAD_ATTACHMENT, &data[12..])?;
+        writer
+            .write_all(&plain)
+            .map_err(|e| DomainError::Io(e.to_string()))?;
+        zeroize_slice(&mut plain);
+        writer.flush().map_err(|e| DomainError::Io(e.to_string()))
+    }
+
+    /// Giải mã streaming tệp đính kèm trực tiếp ra tệp đích trên đĩa.
+    pub fn export_attachment_file(
+        &self,
+        dek: &[u8; 32],
+        attachment_id: &str,
+        dst_path: &Path,
+    ) -> Result<(), DomainError> {
+        let out_file = File::create(dst_path).map_err(|e| DomainError::Io(e.to_string()))?;
+        self.load_attachment_to_writer(dek, attachment_id, BufWriter::new(out_file))
+    }
+
+    /// Đọc và giải mã tệp đính kèm vào RAM (cho tệp nhỏ).
+    pub fn load_attachment(
+        &self,
+        dek: &[u8; 32],
+        attachment_id: &str,
+    ) -> Result<Vec<u8>, DomainError> {
+        let mut out = Vec::new();
+        self.load_attachment_to_writer(dek, attachment_id, &mut out)?;
+        Ok(out)
     }
 
     /// Xóa tệp đính kèm trên đĩa.

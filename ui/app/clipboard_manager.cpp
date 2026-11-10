@@ -6,6 +6,7 @@
  */
 
 #include "clipboard_manager.h"
+#include "app/settings_manager.h"
 
 #include <QApplication>
 #include <QClipboard>
@@ -50,7 +51,20 @@ void ClipboardManager::copySensitive(const QString &text, const QString &label,
       QCryptographicHash::hash(text.toUtf8(), QCryptographicHash::Sha256)
           .toHex());
   m_activeLabel = label;
-  m_totalSeconds = timeoutSeconds > 0 ? timeoutSeconds : 30;
+
+  const int resolvedTimeout =
+      (timeoutSeconds < 0) ? SettingsManager::instance().clipboardClearSeconds()
+                           : timeoutSeconds;
+
+  if (resolvedTimeout <= 0) {
+    m_timer.stop();
+    m_totalSeconds = 0;
+    m_remainingSeconds = 0;
+    emit sensitiveCopied(label, 0);
+    return;
+  }
+
+  m_totalSeconds = resolvedTimeout;
   m_remainingSeconds = m_totalSeconds;
 
   m_timer.start();

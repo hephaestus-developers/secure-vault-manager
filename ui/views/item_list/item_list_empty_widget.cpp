@@ -142,6 +142,10 @@ void ItemListEmptyWidget::updateDisplay() {
     title = tr("No Expiring Items");
     desc = tr("None of your credit cards or credentials have upcoming "
               "expiration dates.");
+  } else if (m_filterType == SidebarFilterType::Folder) {
+    iconName = QStringLiteral("folder_empty");
+    title = tr("Folder is Empty");
+    desc = tr("Items assigned to this folder will appear here.");
   } else if (m_filterType == SidebarFilterType::Category) {
     switch (m_category) {
     case models::ItemCategory::Login:

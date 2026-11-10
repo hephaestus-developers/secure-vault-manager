@@ -303,7 +303,7 @@ export function renderPopup(): void {
           const resp = await sendExtensionBridgeMessage<any>("unlock_vault", {
             password,
             browser: detectCurrentBrowserName(),
-            version: "1.0.0",
+            version: "0.1.0",
           });
           if (resp.ok && resp.payload?.unlocked) {
             state.unlocked = true;
@@ -316,7 +316,7 @@ export function renderPopup(): void {
         onUnlockBiometric: async () => {
           const resp = await sendExtensionBridgeMessage<any>("unlock_vault_biometric", {
             browser: detectCurrentBrowserName(),
-            version: "1.0.0",
+            version: "0.1.0",
           });
           if (resp.ok && resp.payload?.unlocked) {
             state.unlocked = true;

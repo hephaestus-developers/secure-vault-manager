@@ -12,12 +12,18 @@
 #include "recovery_dialog.h"
 
 #include <QApplication>
+#include <QDir>
 #include <QEvent>
+#include <QFile>
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QKeyEvent>
 #include <QShowEvent>
+#include <QTimer>
 #include <QVBoxLayout>
+#ifdef Q_OS_WIN
+#include <windows.h>
+#endif
 
 namespace svm::views {
 
@@ -249,6 +255,7 @@ void LockScreenView::resetLockScreen() {
     m_biometricBtn->setVisible(
         app::VaultManager::instance().isBiometricEnabled());
   }
+  checkCapsLockState();
   focusPasswordInput();
 }
 
@@ -259,16 +266,29 @@ void LockScreenView::focusPasswordInput() {
 }
 
 void LockScreenView::checkCapsLockState() {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
-  const bool caps =
-      QGuiApplication::queryKeyboardModifiers().testFlag(Qt::KeypadModifier);
+  bool caps = false;
+#if defined(Q_OS_WIN)
+  caps = (GetKeyState(VK_CAPITAL) & 0x0001) != 0;
+#elif defined(Q_OS_LINUX)
+  QDir ledsDir(QStringLiteral("/sys/class/leds"));
+  const QStringList entries =
+      ledsDir.entryList({QStringLiteral("*capslock")}, QDir::Dirs);
+  for (const QString &entry : entries) {
+    QFile f(ledsDir.filePath(entry + QStringLiteral("/brightness")));
+    if (f.open(QIODevice::ReadOnly)) {
+      if (f.readAll().trimmed() == "1") {
+        caps = true;
+        break;
+      }
+    }
+  }
+#endif
   if (m_capsLockLabel) {
     m_capsLockLabel->setVisible(caps);
     if (caps) {
       m_capsLockLabel->setText(tr("Caps Lock is ON"));
     }
   }
-#endif
 }
 
 void LockScreenView::showEvent(QShowEvent *event) {
@@ -277,7 +297,11 @@ void LockScreenView::showEvent(QShowEvent *event) {
 }
 
 void LockScreenView::keyPressEvent(QKeyEvent *event) {
-  checkCapsLockState();
+  if (event && event->key() == Qt::Key_CapsLock) {
+    QTimer::singleShot(25, this, &LockScreenView::checkCapsLockState);
+  } else {
+    checkCapsLockState();
+  }
   QWidget::keyPressEvent(event);
 }
 

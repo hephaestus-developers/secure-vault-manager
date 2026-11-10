@@ -68,7 +68,11 @@ pub fn execute_cli(args: &[String]) -> Result<String, String> {
         "init" => {
             let password = find_flag_value(args, "--password")
                 .or_else(|| env::var("SVM_MASTER_PASSWORD").ok())
-                .unwrap_or_else(|| "MasterPassword!2026".to_string());
+                .filter(|p| !p.trim().is_empty())
+                .ok_or_else(|| {
+                    "Missing master password. Pass --password <PASS> or set SVM_MASTER_PASSWORD."
+                        .to_string()
+                })?;
             let vault_name =
                 find_flag_value(args, "--name").unwrap_or_else(|| "Personal Vault".to_string());
             let data_dir = find_flag_value(args, "--data-dir")
@@ -172,7 +176,7 @@ pub fn execute_cli(args: &[String]) -> Result<String, String> {
                         find_flag_value(args, "--category").unwrap_or_else(|| "login".to_string());
 
                     let item = VaultItem {
-                        vault_id: "personal".to_string(),
+                        vault_id: svc.default_vault_id(),
                         title,
                         category: Category::parse_str(&cat_str),
                         username,
@@ -300,7 +304,7 @@ pub fn execute_cli(args: &[String]) -> Result<String, String> {
                 parse_import_file(fmt, &input_path, &key).map_err(|e| e.message().to_string())?;
             let count = items.len();
             for item in items {
-                let _ = svc.upsert_item(item);
+                svc.upsert_item(item).map_err(|e| e.message().to_string())?;
             }
             let mut out = JsonValue::new_object();
             out.insert("imported", JsonValue::Bool(true));

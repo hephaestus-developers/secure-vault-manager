@@ -8,6 +8,7 @@
 #include "core_bridge.h"
 
 #include "app/dev_logger.h"
+#include "app/settings_manager.h"
 
 #include <QDateTime>
 #include <QDebug>
@@ -16,6 +17,9 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QMetaObject>
+#include <QPointer>
+#include <QThreadPool>
+#include <QUrl>
 
 namespace svm::core {
 
@@ -122,9 +126,29 @@ CoreBridge::CoreBridge() {
   }
 }
 
-CoreBridge::~CoreBridge() {
+void CoreBridge::shutdown() {
+  if (m_shuttingDown.exchange(true)) {
+    return;
+  }
+  if (m_context) {
+    svm_set_event_callback(m_context, nullptr, nullptr);
+  }
+  QThreadPool::globalInstance()->clear();
+  QThreadPool::globalInstance()->waitForDone(5500);
   if (m_context) {
     stopBridge();
+    stopSshAgent();
+    svm_context_free(m_context);
+    m_context = nullptr;
+  }
+}
+
+CoreBridge::~CoreBridge() {
+  m_shuttingDown.store(true);
+  if (m_context) {
+    svm_set_event_callback(m_context, nullptr, nullptr);
+    stopBridge();
+    stopSshAgent();
     svm_context_free(m_context);
     m_context = nullptr;
   }
@@ -133,7 +157,7 @@ CoreBridge::~CoreBridge() {
 void CoreBridge::onRustEventCallback(int32_t kind, const char *payloadJson,
                                      void *userData) {
   auto *self = static_cast<CoreBridge *>(userData);
-  if (!self) {
+  if (!self || self->m_shuttingDown.load()) {
     return;
   }
   const QString payload =
@@ -153,6 +177,10 @@ void CoreBridge::handleRustEvent(int kind, const QString &payloadJson) {
     emit vaultUnlockedEvent();
   } else if (kind == SVM_EVENT_ITEMS_CHANGED) {
     emit itemsChangedEvent();
+  } else if (kind == SVM_EVENT_PROMPT) {
+    const QJsonObject promptObj =
+        QJsonDocument::fromJson(payloadJson.toUtf8()).object();
+    emit promptRequestedEvent(promptObj);
   } else if (kind == SVM_EVENT_BRIDGE_CLIENTS_CHANGED) {
     emit bridgeClientsChangedEvent();
   }
@@ -558,8 +586,8 @@ void CoreBridge::reportIdle(quint64 idleMs) {
 models::UiVaultItem CoreBridge::itemFromJson(const QJsonObject &obj) {
   models::UiVaultItem item;
   item.id = obj.value(QStringLiteral("id")).toString();
-  item.vaultId =
-      obj.value(QStringLiteral("vaultId")).toString(QStringLiteral("personal"));
+  item.vaultId = obj.value(QStringLiteral("vaultId")).toString();
+  item.folderId = obj.value(QStringLiteral("folderId")).toString();
   item.title = obj.value(QStringLiteral("title")).toString();
   item.category =
       categoryFromCode(obj.value(QStringLiteral("category")).toString());
@@ -628,9 +656,12 @@ models::UiVaultItem CoreBridge::itemFromJson(const QJsonObject &obj) {
 QJsonObject CoreBridge::itemToJson(const models::UiVaultItem &item) {
   QJsonObject obj;
   obj.insert(QStringLiteral("id"), item.id);
-  obj.insert(QStringLiteral("vaultId"), item.vaultId.isEmpty()
-                                            ? QStringLiteral("personal")
-                                            : item.vaultId);
+  obj.insert(QStringLiteral("vaultId"), item.vaultId);
+  if (!item.folderId.isEmpty()) {
+    obj.insert(QStringLiteral("folderId"), item.folderId);
+  } else {
+    obj.insert(QStringLiteral("folderId"), QJsonValue::Null);
+  }
   obj.insert(QStringLiteral("title"), item.title);
   obj.insert(QStringLiteral("category"), categoryToCode(item.category));
   obj.insert(QStringLiteral("username"), item.username);
@@ -822,6 +853,207 @@ QString CoreBridge::revealField(const QString &itemId, const QString &fieldId) {
   return val;
 }
 
+QList<models::UiFolder> CoreBridge::listFolders() {
+  QList<models::UiFolder> list;
+  if (!m_context) {
+    return list;
+  }
+  char *outJson = nullptr;
+  if (svm_folders_list(m_context, &outJson) != SVM_OK || !outJson) {
+    return list;
+  }
+  const QByteArray raw(outJson);
+  svm_free_string(outJson);
+  const QJsonDocument doc = QJsonDocument::fromJson(raw);
+  const QJsonArray arr =
+      doc.isArray() ? doc.array()
+                    : doc.object().value(QStringLiteral("folders")).toArray();
+  for (const auto &v : arr) {
+    if (!v.isObject()) {
+      continue;
+    }
+    const QJsonObject obj = v.toObject();
+    models::UiFolder f;
+    f.id = obj.value(QStringLiteral("id")).toString();
+    f.name = obj.value(QStringLiteral("name")).toString();
+    f.parentId = obj.value(QStringLiteral("parentId")).toString();
+    if (!f.id.isEmpty()) {
+      list.append(f);
+    }
+  }
+  return list;
+}
+
+QString CoreBridge::upsertFolder(const models::UiFolder &folder) {
+  if (!m_context || folder.name.trimmed().isEmpty()) {
+    return QString();
+  }
+  QJsonObject obj;
+  if (!folder.id.isEmpty()) {
+    obj.insert(QStringLiteral("id"), folder.id);
+  }
+  obj.insert(QStringLiteral("name"), folder.name.trimmed());
+  if (!folder.parentId.isEmpty()) {
+    obj.insert(QStringLiteral("parentId"), folder.parentId);
+  }
+  const QByteArray payload = QJsonDocument(obj).toJson(QJsonDocument::Compact);
+  char *outId = nullptr;
+  if (svm_folder_upsert(m_context, payload.constData(), &outId) != SVM_OK ||
+      !outId) {
+    emit errorOccurred(lastError());
+    return QString();
+  }
+  QString id = QString::fromUtf8(outId);
+  svm_free_string(outId);
+  return id;
+}
+
+bool CoreBridge::deleteFolder(const QString &folderId) {
+  if (!m_context || folderId.isEmpty()) {
+    return false;
+  }
+  const QByteArray fid = folderId.toUtf8();
+  if (svm_folder_delete(m_context, fid.constData()) != SVM_OK) {
+    emit errorOccurred(lastError());
+    return false;
+  }
+  return true;
+}
+
+QList<models::UiItemRevision> CoreBridge::listHistory(const QString &itemId) {
+  QList<models::UiItemRevision> list;
+  if (!m_context || itemId.isEmpty()) {
+    return list;
+  }
+  const QByteArray iid = itemId.toUtf8();
+  char *outJson = nullptr;
+  if (svm_history_list(m_context, iid.constData(), &outJson) != SVM_OK ||
+      !outJson) {
+    return list;
+  }
+  const QByteArray raw(outJson);
+  svm_free_string(outJson);
+  const QJsonDocument doc = QJsonDocument::fromJson(raw);
+  const QJsonArray arr = doc.array();
+  for (const auto &v : arr) {
+    if (!v.isObject()) {
+      continue;
+    }
+    const QJsonObject obj = v.toObject();
+    models::UiItemRevision rev;
+    rev.revision = obj.value(QStringLiteral("revision")).toInt(1);
+    rev.timestamp =
+        static_cast<qint64>(obj.value(QStringLiteral("timestamp")).toDouble(0));
+    rev.snapshot =
+        itemFromJson(obj.value(QStringLiteral("snapshot")).toObject());
+    list.append(rev);
+  }
+  return list;
+}
+
+bool CoreBridge::restoreHistory(const QString &itemId, int revision) {
+  if (!m_context || itemId.isEmpty() || revision <= 0) {
+    return false;
+  }
+  const QByteArray iid = itemId.toUtf8();
+  if (svm_history_restore(m_context, iid.constData(),
+                          static_cast<uint32_t>(revision)) != SVM_OK) {
+    emit errorOccurred(lastError());
+    return false;
+  }
+  return true;
+}
+
+QList<models::UiAttachmentMeta>
+CoreBridge::listAttachments(const QString &itemId) {
+  QList<models::UiAttachmentMeta> list;
+  if (!m_context || itemId.isEmpty()) {
+    return list;
+  }
+  const QByteArray iid = itemId.toUtf8();
+  char *outJson = nullptr;
+  if (svm_attachments_list(m_context, iid.constData(), &outJson) != SVM_OK ||
+      !outJson) {
+    return list;
+  }
+  const QByteArray raw(outJson);
+  svm_free_string(outJson);
+  const QJsonDocument doc = QJsonDocument::fromJson(raw);
+  for (const auto &v : doc.array()) {
+    if (!v.isObject()) {
+      continue;
+    }
+    const QJsonObject obj = v.toObject();
+    models::UiAttachmentMeta meta;
+    meta.id = obj.value(QStringLiteral("id")).toString();
+    meta.itemId = obj.value(QStringLiteral("itemId")).toString();
+    meta.fileName = obj.value(QStringLiteral("fileName")).toString();
+    meta.sizeBytes = static_cast<quint64>(
+        obj.value(QStringLiteral("sizeBytes")).toDouble(0));
+    meta.createdAt =
+        static_cast<qint64>(obj.value(QStringLiteral("createdAt")).toDouble(0));
+    if (!meta.id.isEmpty()) {
+      list.append(meta);
+    }
+  }
+  return list;
+}
+
+std::optional<models::UiAttachmentMeta>
+CoreBridge::addAttachment(const QString &itemId, const QString &srcPath) {
+  if (!m_context || itemId.isEmpty() || srcPath.isEmpty()) {
+    return std::nullopt;
+  }
+  const QByteArray iid = itemId.toUtf8();
+  const QByteArray path = srcPath.toUtf8();
+  char *outJson = nullptr;
+  if (svm_attachment_add(m_context, iid.constData(), path.constData(),
+                         &outJson) != SVM_OK ||
+      !outJson) {
+    emit errorOccurred(lastError());
+    return std::nullopt;
+  }
+  const QByteArray raw(outJson);
+  svm_free_string(outJson);
+  const QJsonObject obj = QJsonDocument::fromJson(raw).object();
+  models::UiAttachmentMeta meta;
+  meta.id = obj.value(QStringLiteral("id")).toString();
+  meta.itemId = obj.value(QStringLiteral("itemId")).toString();
+  meta.fileName = obj.value(QStringLiteral("fileName")).toString();
+  meta.sizeBytes =
+      static_cast<quint64>(obj.value(QStringLiteral("sizeBytes")).toDouble(0));
+  meta.createdAt =
+      static_cast<qint64>(obj.value(QStringLiteral("createdAt")).toDouble(0));
+  return meta;
+}
+
+bool CoreBridge::exportAttachment(const QString &attachmentId,
+                                  const QString &dstPath) {
+  if (!m_context || attachmentId.isEmpty() || dstPath.isEmpty()) {
+    return false;
+  }
+  const QByteArray aid = attachmentId.toUtf8();
+  const QByteArray dst = dstPath.toUtf8();
+  if (svm_attachment_export(m_context, aid.constData(), dst.constData()) !=
+      SVM_OK) {
+    emit errorOccurred(lastError());
+    return false;
+  }
+  return true;
+}
+
+bool CoreBridge::deleteAttachment(const QString &attachmentId) {
+  if (!m_context || attachmentId.isEmpty()) {
+    return false;
+  }
+  const QByteArray aid = attachmentId.toUtf8();
+  if (svm_attachment_delete(m_context, aid.constData()) != SVM_OK) {
+    emit errorOccurred(lastError());
+    return false;
+  }
+  return true;
+}
+
 /* ========================================================================= */
 /* Tiện ích Mật mã & TOTP (RFC 6238)                                          */
 /* ========================================================================= */
@@ -918,10 +1150,20 @@ int CoreBridge::importItems(int format, const QString &filePath,
   const QByteArray rawPreview(previewJson);
   svm_free_string(previewJson);
 
+  const QJsonObject previewObj = QJsonDocument::fromJson(rawPreview).object();
+  const QByteArray previewIdUtf8 =
+      previewObj.value(QStringLiteral("preview_id")).toString().toUtf8();
+  if (previewIdUtf8.isEmpty()) {
+    emit errorOccurred(tr("Invalid import preview identifier"));
+    return -1;
+  }
+
   char *summaryJson = nullptr;
-  st =
-      svm_import_execute(m_context, rawPreview.constData(), "{}", &summaryJson);
+  st = svm_import_execute(m_context, previewIdUtf8.constData(), "{}",
+                          &summaryJson);
+  QByteArray rawSummary;
   if (summaryJson) {
+    rawSummary = QByteArray(summaryJson);
     svm_free_string(summaryJson);
   }
   if (st != SVM_OK) {
@@ -929,8 +1171,8 @@ int CoreBridge::importItems(int format, const QString &filePath,
     return -1;
   }
 
-  const QJsonObject previewObj = QJsonDocument::fromJson(rawPreview).object();
-  return previewObj.value(QStringLiteral("valid_count")).toInt(0);
+  const QJsonObject summaryObj = QJsonDocument::fromJson(rawSummary).object();
+  return summaryObj.value(QStringLiteral("imported")).toInt(0);
 }
 
 bool CoreBridge::exportItems(int format, const QString &filePath,
@@ -1083,7 +1325,153 @@ bool CoreBridge::saveCoreSettings(const QJsonObject &settings) {
   }
   const QByteArray jsonUtf8 =
       QJsonDocument(settings).toJson(QJsonDocument::Compact);
-  return svm_settings_save(m_context, jsonUtf8.constData()) == SVM_OK;
+  const bool ok = svm_settings_save(m_context, jsonUtf8.constData()) == SVM_OK;
+  if (ok && settings.contains(QStringLiteral("favicon_fetch_enabled"))) {
+    m_faviconFailed.clear();
+    emit faviconUpdated(QString());
+  }
+  return ok;
+}
+
+QJsonArray CoreBridge::listPasskeys(const QString &rpId) {
+  if (!m_context) {
+    return {};
+  }
+  const QByteArray rpUtf8 = rpId.toUtf8();
+  const char *cRp = rpId.isEmpty() ? nullptr : rpUtf8.constData();
+  char *outJson = nullptr;
+  if (svm_passkey_list(m_context, cRp, &outJson) != SVM_OK || !outJson) {
+    return {};
+  }
+  const QByteArray raw(outJson);
+  svm_free_string(outJson);
+  return QJsonDocument::fromJson(raw).array();
+}
+
+bool CoreBridge::deletePasskey(const QString &itemId) {
+  if (!m_context || itemId.isEmpty()) {
+    return false;
+  }
+  const QByteArray iid = itemId.toUtf8();
+  return svm_passkey_delete(m_context, iid.constData()) == SVM_OK;
+}
+
+bool CoreBridge::respondPrompt(const QString &requestId, bool approved) {
+  if (!m_context || requestId.isEmpty()) {
+    return false;
+  }
+  QJsonObject obj;
+  obj.insert(QStringLiteral("approved"), approved);
+  const QByteArray rid = requestId.toUtf8();
+  const QByteArray dec = QJsonDocument(obj).toJson(QJsonDocument::Compact);
+  return svm_prompt_respond(m_context, rid.constData(), dec.constData()) ==
+         SVM_OK;
+}
+
+QString CoreBridge::decodeQrImage(const QImage &image) {
+  if (image.isNull()) {
+    return {};
+  }
+  const QImage rgba = image.convertToFormat(QImage::Format_RGBA8888);
+  if (rgba.isNull() || rgba.width() <= 0 || rgba.height() <= 0) {
+    return {};
+  }
+  char *outText = nullptr;
+  const int rc =
+      svm_qr_decode_rgba(rgba.constBits(), static_cast<uint32_t>(rgba.width()),
+                         static_cast<uint32_t>(rgba.height()), &outText);
+  if (rc != SVM_OK || !outText) {
+    if (outText) {
+      svm_free_string(outText);
+    }
+    return {};
+  }
+  const QString result = QString::fromUtf8(outText);
+  svm_free_string(outText);
+  return result;
+}
+
+QImage CoreBridge::fetchFavicon(const QString &domain) {
+  if (!m_context || domain.trimmed().isEmpty()) {
+    return {};
+  }
+  const QByteArray domUtf8 = domain.trimmed().toUtf8();
+  SvmBuffer buf{nullptr, 0};
+  const int rc = svm_favicon_fetch(m_context, domUtf8.constData(), &buf);
+  if (rc != SVM_OK || !buf.ptr || buf.len == 0) {
+    svm_free_buffer(buf);
+    return {};
+  }
+  const QByteArray bytes(reinterpret_cast<const char *>(buf.ptr),
+                         static_cast<qsizetype>(buf.len));
+  svm_free_buffer(buf);
+  return QImage::fromData(bytes);
+}
+
+QString CoreBridge::normalizeFaviconKey(const QString &urlOrDomain) {
+  QString raw = urlOrDomain.trimmed().toLower();
+  if (raw.isEmpty()) {
+    return {};
+  }
+  if (!raw.contains(QStringLiteral("://"))) {
+    raw.prepend(QStringLiteral("https://"));
+  }
+  const QUrl url(raw);
+  QString host = url.host().trimmed().toLower();
+  while (host.endsWith(QLatin1Char('.'))) {
+    host.chop(1);
+  }
+  if (host.isEmpty() || !host.contains(QLatin1Char('.'))) {
+    return {};
+  }
+  return host;
+}
+
+QImage CoreBridge::cachedFavicon(const QString &urlOrDomain) const {
+  const QString key = normalizeFaviconKey(urlOrDomain);
+  if (key.isEmpty()) {
+    return {};
+  }
+  return m_faviconCache.value(key);
+}
+
+void CoreBridge::requestFaviconAsync(const QString &urlOrDomain) {
+  if (m_shuttingDown.load() || !m_context ||
+      !app::SettingsManager::instance().faviconFetchEnabled()) {
+    return;
+  }
+  const QString key = normalizeFaviconKey(urlOrDomain);
+  if (key.isEmpty() || m_faviconCache.contains(key) ||
+      m_faviconInFlight.contains(key) || m_faviconFailed.contains(key)) {
+    return;
+  }
+
+  m_faviconInFlight.insert(key);
+  QPointer<CoreBridge> self(this);
+  QThreadPool::globalInstance()->start([self, key]() {
+    if (!self || self->m_shuttingDown.load()) {
+      return;
+    }
+    const QImage img = self->fetchFavicon(key);
+    if (!self || self->m_shuttingDown.load()) {
+      return;
+    }
+    QMetaObject::invokeMethod(
+        self,
+        [self, key, img]() {
+          if (!self || self->m_shuttingDown.load()) {
+            return;
+          }
+          self->m_faviconInFlight.remove(key);
+          if (!img.isNull()) {
+            self->m_faviconCache.insert(key, img);
+            emit self->faviconUpdated(key);
+          } else if (app::SettingsManager::instance().faviconFetchEnabled()) {
+            self->m_faviconFailed.insert(key);
+          }
+        },
+        Qt::QueuedConnection);
+  });
 }
 
 } // namespace svm::core

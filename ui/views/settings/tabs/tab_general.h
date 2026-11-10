@@ -44,6 +44,8 @@ private:
   QCheckBox *m_trayCheck{nullptr};
   SettingRowWidget *m_minimizedRow{nullptr};
   QCheckBox *m_minimizedCheck{nullptr};
+  SettingRowWidget *m_faviconRow{nullptr};
+  QCheckBox *m_faviconCheck{nullptr};
 };
 
 } // namespace svm::views

@@ -9,7 +9,12 @@
 #include "settings_manager.h"
 #include "core/core_bridge.h"
 
+#include <QCoreApplication>
+#include <QDir>
+#include <QFile>
 #include <QJsonObject>
+#include <QStandardPaths>
+#include <QTextStream>
 
 namespace svm::app {
 
@@ -23,6 +28,7 @@ SettingsManager::SettingsManager(QObject *parent)
                                   QStringLiteral("Hephaestus"),
                                   QStringLiteral("SecureVaultManager")) {
   connect(this, &SettingsManager::settingsChanged, this, [this]() {
+    m_settings.sync();
     auto &bridge = core::CoreBridge::instance();
     if (!bridge.isInitialized()) {
       return;
@@ -39,6 +45,7 @@ SettingsManager::SettingsManager(QObject *parent)
     obj.insert(QStringLiteral("ssh_agent_enabled"), sshAgentEnabled());
     obj.insert(QStringLiteral("ssh_prompt_approval"), sshPromptApproval());
     obj.insert(QStringLiteral("auto_empty_trash"), autoEmptyTrashDaysEnabled());
+    obj.insert(QStringLiteral("favicon_fetch_enabled"), faviconFetchEnabled());
     obj.insert(QStringLiteral("theme"), themeMode() == ThemeMode::Light
                                             ? QStringLiteral("light")
                                             : QStringLiteral("dark"));
@@ -101,6 +108,66 @@ bool SettingsManager::launchOnStartup() const {
 
 void SettingsManager::setLaunchOnStartup(bool enable) {
   m_settings.setValue(QStringLiteral("general/launch_on_startup"), enable);
+
+  const QString appPath = QCoreApplication::applicationFilePath();
+#if defined(Q_OS_LINUX)
+  const QString autoStartDir =
+      QStandardPaths::writableLocation(QStandardPaths::ConfigLocation) +
+      QStringLiteral("/autostart");
+  const QString desktopPath =
+      autoStartDir + QStringLiteral("/secure-vault-manager.desktop");
+  if (enable) {
+    QDir().mkpath(autoStartDir);
+    QFile f(desktopPath);
+    if (f.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
+      QTextStream out(&f);
+      out << "[Desktop Entry]\n"
+          << "Type=Application\n"
+          << "Name=Secure Vault Manager\n"
+          << "Comment=Zero-Knowledge Password & Secret Manager\n"
+          << "Exec=\"" << appPath << "\" --minimized\n"
+          << "Terminal=false\n"
+          << "X-GNOME-Autostart-enabled=true\n";
+    }
+  } else {
+    QFile::remove(desktopPath);
+  }
+#elif defined(Q_OS_WIN)
+  QSettings runReg(
+      QStringLiteral("HKEY_CURRENT_"
+                     "USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run"),
+      QSettings::NativeFormat);
+  if (enable) {
+    runReg.setValue(QStringLiteral("SecureVaultManager"),
+                    QStringLiteral("\"%1\" --minimized").arg(appPath));
+  } else {
+    runReg.remove(QStringLiteral("SecureVaultManager"));
+  }
+#elif defined(Q_OS_MAC)
+  const QString agentsDir =
+      QDir::homePath() + QStringLiteral("/Library/LaunchAgents");
+  const QString plistPath =
+      agentsDir + QStringLiteral("/io.hephaestus.secure-vault-manager.plist");
+  if (enable) {
+    QDir().mkpath(agentsDir);
+    QFile f(plistPath);
+    if (f.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
+      QTextStream out(&f);
+      out << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+          << "<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" "
+             "\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n"
+          << "<plist version=\"1.0\"><dict>\n"
+          << "<key>Label</key><string>io.hephaestus.secure-vault-manager</"
+             "string>\n"
+          << "<key>ProgramArguments</key><array><string>" << appPath
+          << "</string><string>--minimized</string></array>\n"
+          << "<key>RunAtLoad</key><true/>\n"
+          << "</dict></plist>\n";
+    }
+  } else {
+    QFile::remove(plistPath);
+  }
+#endif
   emit settingsChanged();
 }
 
@@ -121,6 +188,25 @@ bool SettingsManager::startMinimized() const {
 
 void SettingsManager::setStartMinimized(bool enable) {
   m_settings.setValue(QStringLiteral("general/start_minimized"), enable);
+  emit settingsChanged();
+}
+
+bool SettingsManager::faviconFetchEnabled() const {
+  return m_settings
+      .value(QStringLiteral("general/favicon_fetch_enabled"), false)
+      .toBool();
+}
+
+bool SettingsManager::hasFaviconFetchSetting() const {
+  return m_settings.contains(QStringLiteral("general/favicon_fetch_enabled"));
+}
+
+void SettingsManager::setFaviconFetchEnabled(bool enable) {
+  m_settings.setValue(QStringLiteral("general/favicon_fetch_enabled"), enable);
+  m_settings.sync();
+  qInfo() << "[SettingsManager] favicon_fetch_enabled =" << enable
+          << "file:" << m_settings.fileName()
+          << "status:" << m_settings.status();
   emit settingsChanged();
 }
 

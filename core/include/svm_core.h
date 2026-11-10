@@ -568,6 +568,12 @@ SvmStatus svm_attachment_read(SvmContext *ctx, const char *attachment_id,
  */
 SvmStatus svm_attachment_delete(SvmContext *ctx, const char *attachment_id);
 
+/**
+ * @brief Lấy danh sách metadata tệp đính kèm của một mục dưới dạng JSON.
+ */
+SvmStatus svm_attachments_list(SvmContext *ctx, const char *item_id,
+                               char **out_json);
+
 /* ========================================================================= */
 /* 3.6. Tiện Ích Mật Mã & TOTP                                               */
 /* ========================================================================= */

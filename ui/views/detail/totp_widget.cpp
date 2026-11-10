@@ -8,12 +8,17 @@
 #include "totp_widget.h"
 #include "app/clipboard_manager.h"
 #include "app/theme_manager.h"
+#include "components/notification_dialog.h"
 #include "core/core_bridge.h"
 
+#include <QClipboard>
 #include <QDateTime>
 #include <QEvent>
+#include <QFileDialog>
+#include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QIcon>
+#include <QImage>
 #include <QVBoxLayout>
 
 namespace svm::views {
@@ -73,7 +78,7 @@ void TotpWidget::setupUI() {
     const QString cleanCode = m_currentCode.trimmed().remove(QLatin1Char(' '));
     if (!cleanCode.isEmpty()) {
       app::ClipboardManager::instance().copySensitive(
-          cleanCode, tr("One-Time Code (2FA)"), 30);
+          cleanCode, tr("One-Time Code (2FA)"));
     }
   });
   codeLayout->addWidget(m_copyBtn);
@@ -110,6 +115,15 @@ void TotpWidget::setupUI() {
   m_secretInput->setPlaceholderText(
       tr("Paste Base32 secret (e.g. JBSWY3DPEHPK3PXP)"));
   inputRow->addWidget(m_secretInput, 1);
+
+  m_scanQrBtn = new QPushButton(m_editContainer);
+  m_scanQrBtn->setObjectName(QStringLiteral("FieldRowActionBtn"));
+  m_scanQrBtn->setText(tr("QR"));
+  m_scanQrBtn->setFixedSize(36, 28);
+  m_scanQrBtn->setCursor(Qt::PointingHandCursor);
+  m_scanQrBtn->setToolTip(tr("Scan QR Code from Image File or Clipboard"));
+  connect(m_scanQrBtn, &QPushButton::clicked, this, &TotpWidget::onScanQrImage);
+  inputRow->addWidget(m_scanQrBtn);
 
   m_revealSecretBtn = new QPushButton(m_editContainer);
   m_revealSecretBtn->setObjectName(QStringLiteral("FieldRowActionBtn"));
@@ -246,6 +260,57 @@ void TotpWidget::onToggleRevealSecret() {
   }
 }
 
+void TotpWidget::onScanQrImage() {
+  auto &bridge = core::CoreBridge::instance();
+  if (!bridge.isInitialized()) {
+    return;
+  }
+
+  QString decoded;
+  if (const QClipboard *cb = QGuiApplication::clipboard()) {
+    const QImage clipImg = cb->image();
+    if (!clipImg.isNull()) {
+      decoded = bridge.decodeQrImage(clipImg);
+    }
+  }
+
+  if (decoded.isEmpty()) {
+    const QString filePath = QFileDialog::getOpenFileName(
+        this, tr("Select 2FA QR Code Image"), QString(),
+        tr("Image Files (*.png *.jpg *.jpeg *.bmp *.webp *.gif)"));
+    if (filePath.isEmpty()) {
+      return;
+    }
+    const QImage img(filePath);
+    if (img.isNull()) {
+      components::NotificationDialog::warning(
+          this, tr("Invalid Image"),
+          tr("Could not load the selected image file."));
+      return;
+    }
+    decoded = bridge.decodeQrImage(img);
+  }
+
+  if (decoded.isEmpty()) {
+    components::NotificationDialog::warning(
+        this, tr("QR Code Not Found"),
+        tr("No valid QR code could be detected in the image."));
+    return;
+  }
+
+  QString secret = decoded.trimmed();
+  if (secret.startsWith(QStringLiteral("otpauth://"), Qt::CaseInsensitive)) {
+    const QJsonObject parsed = bridge.parseOtpAuth(secret);
+    const QString extracted = parsed.value(QStringLiteral("secret")).toString();
+    if (!extracted.isEmpty()) {
+      secret = extracted;
+    }
+  }
+  if (m_secretInput) {
+    m_secretInput->setText(secret);
+  }
+}
+
 void TotpWidget::onTick() { updateCodeAndTimer(); }
 
 void TotpWidget::updateCodeAndTimer() {
@@ -266,14 +331,8 @@ void TotpWidget::updateCodeAndTimer() {
       m_currentCode = code;
       m_codeLabel->setText(code);
     } else {
-      const quint64 timeStep = static_cast<quint64>(currentSec / 30);
-      const quint64 pseudoCode = (qHash(m_secret) ^ timeStep) % 1000000;
-      const QString formatted =
-          QStringLiteral("%1 %2")
-              .arg(pseudoCode / 1000, 3, 10, QLatin1Char('0'))
-              .arg(pseudoCode % 1000, 3, 10, QLatin1Char('0'));
-      m_currentCode = formatted;
-      m_codeLabel->setText(formatted);
+      m_currentCode.clear();
+      m_codeLabel->setText(QStringLiteral("--- ---"));
     }
   }
 
@@ -294,6 +353,10 @@ void TotpWidget::retranslateUi() {
   if (m_secretInput) {
     m_secretInput->setPlaceholderText(
         tr("Paste Base32 secret (e.g. JBSWY3DPEHPK3PXP)"));
+  }
+  if (m_scanQrBtn) {
+    m_scanQrBtn->setText(tr("QR"));
+    m_scanQrBtn->setToolTip(tr("Scan QR Code from Image File or Clipboard"));
   }
   if (m_revealSecretBtn) {
     m_revealSecretBtn->setToolTip(tr("Show / Hide Secret Key"));

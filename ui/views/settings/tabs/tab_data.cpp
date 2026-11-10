@@ -17,6 +17,7 @@
 
 #include <QFileDialog>
 #include <QHBoxLayout>
+#include <QInputDialog>
 #include <QLabel>
 #include <QLineEdit>
 #include <QStandardPaths>
@@ -120,10 +121,17 @@ void TabData::setupUI() {
   m_emptyTrashNowBtn->setFixedHeight(30);
   m_emptyTrashNowBtn->setCursor(Qt::PointingHandCursor);
   connect(m_emptyTrashNowBtn, &QPushButton::clicked, this, [this]() {
-    core::CoreBridge::instance().emptyTrash();
-    components::NotificationDialog::information(
-        this, tr("Trash Purged"),
-        tr("All deleted items in trash have been purged."));
+    if (core::CoreBridge::instance().emptyTrash()) {
+      components::NotificationDialog::information(
+          this, tr("Trash Purged"),
+          tr("All deleted items in trash have been purged."));
+    } else {
+      components::NotificationDialog::warning(
+          this, tr("Trash Clean Failed"),
+          core::CoreBridge::instance().lastError().isEmpty()
+              ? tr("Unable to empty trash while vault is locked.")
+              : core::CoreBridge::instance().lastError());
+    }
   });
   m_emptyTrashNowRow = new SettingRowWidget(
       tr("Manual Trash Clean"),
@@ -175,8 +183,20 @@ void TabData::onImportClicked() {
       fmt = SVM_FORMAT_CSV;
     }
 
+    QString password;
+    if (filePath.endsWith(QStringLiteral(".svm"), Qt::CaseInsensitive)) {
+      bool ok = false;
+      password = QInputDialog::getText(
+          this, tr("Encrypted Backup Password"),
+          tr("Enter password to decrypt this .svm backup:"),
+          QLineEdit::Password, QString(), &ok);
+      if (!ok || password.isEmpty()) {
+        return;
+      }
+    }
+
     const int importedCount =
-        core::CoreBridge::instance().importItems(fmt, filePath);
+        core::CoreBridge::instance().importItems(fmt, filePath, password);
     if (importedCount >= 0) {
       components::NotificationDialog::success(
           this, tr("Import Complete"),
@@ -201,7 +221,26 @@ void TabData::onExportEncryptedClicked() {
           QStringLiteral("/svm_backup.svm"),
       tr("Secure Vault Backup (*.svm);;All Files (*)"));
   if (!filePath.isEmpty()) {
-    if (core::CoreBridge::instance().exportItems(SVM_FORMAT_SVM, filePath)) {
+    bool ok = false;
+    const QString password = QInputDialog::getText(
+        this, tr("Backup Encryption Password"),
+        tr("Enter a password to encrypt this .svm backup:"),
+        QLineEdit::Password, QString(), &ok);
+    if (!ok || password.isEmpty()) {
+      return;
+    }
+    const QString confirmPw =
+        QInputDialog::getText(this, tr("Confirm Backup Password"),
+                              tr("Re-enter the backup password to confirm:"),
+                              QLineEdit::Password, QString(), &ok);
+    if (!ok || confirmPw != password) {
+      components::NotificationDialog::warning(
+          this, tr("Export Failed"), tr("Backup passwords do not match."));
+      return;
+    }
+
+    if (core::CoreBridge::instance().exportItems(SVM_FORMAT_SVM, filePath,
+                                                 password)) {
       components::NotificationDialog::success(
           this, tr("Export Complete"),
           tr("Vault backup successfully encrypted and saved."));

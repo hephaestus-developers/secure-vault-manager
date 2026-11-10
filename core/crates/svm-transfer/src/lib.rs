@@ -58,4 +58,71 @@ mod tests {
         assert_eq!(restored.len(), 1);
         assert_eq!(restored[0].title, "Production DB");
     }
+
+    #[test]
+    fn test_onepux_zip_and_bitwarden_and_keepass_importers() {
+        use std::io::{Cursor, Write};
+        use zip::write::SimpleFileOptions;
+        use zip::ZipWriter;
+
+        // 1. Real .1pux ZIP archive
+        let export_data = r#"{
+            "accounts": [{
+                "vaults": [{
+                    "items": [{
+                        "categoryUuid": "001",
+                        "overview": { "title": "1P Corp Login", "url": "https://corp.local" },
+                        "details": {
+                            "loginFields": [
+                                { "designation": "username", "value": "alice@corp" },
+                                { "designation": "password", "value": "CorrectHorse!99" }
+                            ],
+                            "notesPlain": "Corporate account",
+                            "sections": [{ "fields": [{ "title": "OTP", "value": { "totp": "JBSWY3DPEHPK3PXP" } }] }]
+                        }
+                    }]
+                }]
+            }]
+        }"#;
+        let mut buf = Cursor::new(Vec::new());
+        {
+            let mut zip_w = ZipWriter::new(&mut buf);
+            zip_w
+                .start_file("export.data", SimpleFileOptions::default())
+                .expect("start_file");
+            zip_w.write_all(export_data.as_bytes()).expect("write");
+            zip_w.finish().expect("finish");
+        }
+        let zip_bytes = buf.into_inner();
+        let parsed_1p =
+            parse_import_bytes(TransferFormat::OnePux, &zip_bytes, "").expect("parse 1pux");
+        assert_eq!(parsed_1p.len(), 1);
+        assert_eq!(parsed_1p[0].title, "1P Corp Login");
+        assert_eq!(parsed_1p[0].username, "alice@corp");
+        assert_eq!(parsed_1p[0].totp_secret, "JBSWY3DPEHPK3PXP");
+
+        // 2. Bitwarden encrypted rejection & card parsing
+        assert!(
+            parse_import_bytes(TransferFormat::BitwardenJson, br#"{"encrypted":true}"#, "")
+                .is_err()
+        );
+        let bw_card = br#"{"items":[{"type":3,"name":"Corp Visa","card":{"cardholderName":"Alice","number":"4111222233334444","expMonth":"09","expYear":"2029","code":"999"}}]}"#;
+        let parsed_bw =
+            parse_import_bytes(TransferFormat::BitwardenJson, bw_card, "").expect("parse bw");
+        assert_eq!(parsed_bw[0].category, Category::Card);
+        assert_eq!(parsed_bw[0].card_expiry, "09/29");
+
+        // 3. KeePass XML skips <History> entries and computes real strength score
+        let kp_xml = br#"<KeePassFile><Root><Group><Entry>
+            <String><Key>Title</Key><Value>Active Entry</Value></String>
+            <String><Key>UserName</Key><Value>bob</Value></String>
+            <String><Key>Password</Key><Value>123</Value></String>
+            <History><Entry><String><Key>Title</Key><Value>Old Revision</Value></String></Entry></History>
+        </Entry></Group></Root></KeePassFile>"#;
+        let parsed_kp =
+            parse_import_bytes(TransferFormat::KeePassXml, kp_xml, "").expect("parse kp");
+        assert_eq!(parsed_kp.len(), 1);
+        assert_eq!(parsed_kp[0].title, "Active Entry");
+        assert!(parsed_kp[0].password_strength_score < 60);
+    }
 }

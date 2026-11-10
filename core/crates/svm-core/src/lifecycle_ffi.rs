@@ -149,7 +149,7 @@ pub unsafe extern "C" fn svm_free_buffer(buf: SvmBuffer) {
 pub unsafe extern "C" fn svm_prompt_respond(
     ctx: *mut SvmContext,
     request_id: *const c_char,
-    _decision_json: *const c_char,
+    decision_json: *const c_char,
 ) -> SvmStatusCode {
     if ctx.is_null() || request_id.is_null() {
         return SvmStatusCode::InvalidArg;
@@ -157,8 +157,27 @@ pub unsafe extern "C" fn svm_prompt_respond(
     let Some(req_id) = c_str_to_string(request_id) else {
         return SvmStatusCode::InvalidArg;
     };
-    if let Ok(mut rt) = (*ctx).runtime.lock() {
-        rt.pending_prompts.retain(|(id, _)| id != &req_id);
+    let decision_str = c_str_to_string(decision_json).unwrap_or_else(|| "{}".to_string());
+    let approved = JsonValue::parse(&decision_str)
+        .map(|v| v.get_bool_or("approved", false))
+        .unwrap_or(false);
+
+    let removed_waiter = if let Ok(mut rt) = (*ctx).runtime.lock() {
+        if let Some(pos) = rt.pending_prompts.iter().position(|(id, _)| id == &req_id) {
+            let (_, entry) = rt.pending_prompts.remove(pos);
+            Some(entry.waiter)
+        } else {
+            None
+        }
+    } else {
+        return SvmStatusCode::Panic;
+    };
+
+    if let Some(waiter) = removed_waiter {
+        let (lock, cvar) = &*waiter;
+        let mut guard = lock.lock().unwrap_or_else(|e| e.into_inner());
+        *guard = Some(approved);
+        cvar.notify_all();
     }
     SvmStatusCode::Ok
 }
@@ -177,8 +196,8 @@ pub unsafe extern "C" fn svm_prompt_list_pending(
     }
     let mut arr = JsonValue::new_array();
     if let Ok(rt) = (*ctx).runtime.lock() {
-        for (_, val) in &rt.pending_prompts {
-            arr.push(val.clone());
+        for (_, entry) in &rt.pending_prompts {
+            arr.push(entry.info.clone());
         }
     }
     *out_json = alloc_c_string(&arr.to_json_string());

@@ -10,6 +10,29 @@ import { base64UrlToBytes, bytesToBase64Url } from "../services/webauthn";
     return;
   }
 
+  if (typeof PublicKeyCredential !== "undefined") {
+    (PublicKeyCredential as any).isUserVerifyingPlatformAuthenticatorAvailable = async () => true;
+    (PublicKeyCredential as any).isConditionalMediationAvailable = async () => false;
+  }
+
+  function encodeCredentialDescriptors(list?: PublicKeyCredentialDescriptor[]): string[] {
+    if (!Array.isArray(list)) {
+      return [];
+    }
+    return list
+      .map((desc) => {
+        const id = desc?.id;
+        if (id instanceof ArrayBuffer) {
+          return bytesToBase64Url(new Uint8Array(id));
+        }
+        if (ArrayBuffer.isView(id)) {
+          return bytesToBase64Url(new Uint8Array(id.buffer, id.byteOffset, id.byteLength));
+        }
+        return "";
+      })
+      .filter(Boolean);
+  }
+
   const nativeCreate = navigator.credentials.create.bind(navigator.credentials);
   const nativeGet = navigator.credentials.get.bind(navigator.credentials);
 
@@ -112,6 +135,7 @@ import { base64UrlToBytes, bytesToBase64Url } from "../services/webauthn";
           userHandle,
           challenge: bytesToBase64Url(challengeBytes),
           origin: window.location.origin,
+          excludeCredentials: encodeCredentialDescriptors(pk.excludeCredentials),
         },
         options?.signal
       );
@@ -127,6 +151,10 @@ import { base64UrlToBytes, bytesToBase64Url } from "../services/webauthn";
           response: {
             clientDataJSON: base64UrlToBytes(bridgeResp.payload.clientDataJSON || "").buffer as ArrayBuffer,
             attestationObject: base64UrlToBytes(bridgeResp.payload.attestationObject || "").buffer as ArrayBuffer,
+            getTransports: () => ["internal"],
+            getAuthenticatorData: () => new ArrayBuffer(0),
+            getPublicKey: () => null,
+            getPublicKeyAlgorithm: () => -7,
           },
         } as unknown as Credential;
       }
@@ -156,6 +184,7 @@ import { base64UrlToBytes, bytesToBase64Url } from "../services/webauthn";
           rpId,
           challenge: bytesToBase64Url(challengeBytes),
           origin: window.location.origin,
+          allowCredentials: encodeCredentialDescriptors(pk.allowCredentials),
         },
         options?.signal
       );
