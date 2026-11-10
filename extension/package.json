@@ -8,8 +8,6 @@
     "build": "node scripts/build.mjs && node scripts/post-build.js",
     "typecheck": "tsc --noEmit"
   },
-  "dependencies": {
-    "@svm/wasm": "file:../core/crates/svm-wasm"
-  },
+  "dependencies": {},
   "license": "Proprietary"
 }

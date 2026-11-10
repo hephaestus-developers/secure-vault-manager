@@ -21,6 +21,23 @@ mod tests {
         assert_eq!(code1, code2);
         assert_eq!(rem1, 10);
         assert_eq!(rem2, 5);
+
+        // RFC 6238 official test vector:
+        // Secret "12345678901234567890" in Base32 = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ" (32 chars)
+        let (rfc_code_59, _) = generate_totp("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ", 59);
+        assert_eq!(rfc_code_59, "287082");
+
+        let (rfc_code_1111111109, _) =
+            generate_totp("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ", 1_111_111_109);
+        assert_eq!(rfc_code_1111111109, "081804");
+
+        let (rfc_code_1234567890, _) =
+            generate_totp("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ", 1_234_567_890);
+        assert_eq!(rfc_code_1234567890, "005924");
+
+        let (rfc_code_2000000000, _) =
+            generate_totp("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ", 2_000_000_000);
+        assert_eq!(rfc_code_2000000000, "279037");
     }
 
     #[test]

@@ -8,6 +8,7 @@ import {
   CredentialSecretPayload,
   CredentialSummary,
   CredentialsListPayload,
+  detectCurrentBrowserName,
   GeneratedPasswordPayload,
   sendExtensionBridgeMessage,
   VaultStatusPayload,
@@ -17,6 +18,13 @@ import { createGeneratorTab } from "./components/GeneratorTab";
 import { createHeaderBar } from "./components/HeaderBar";
 import { createLockView } from "./components/LockView";
 
+function getSystemTheme(): "dark" | "light" {
+  if (typeof window !== "undefined" && window.matchMedia) {
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  }
+  return "dark";
+}
+
 interface PopupState {
   theme: "dark" | "light";
   activeTab: "logins" | "generator";
@@ -25,7 +33,7 @@ interface PopupState {
   desktopRunning: boolean;
   biometricAvailable: boolean;
   activeOrigin: string;
-  searchQuery: string;
+  activeDomain: string;
   credentials: CredentialSummary[];
   generatedPassword: string;
   generatorOptions: PasswordGeneratorOptions;
@@ -33,14 +41,14 @@ interface PopupState {
 }
 
 const state: PopupState = {
-  theme: "dark",
+  theme: getSystemTheme(),
   activeTab: "logins",
   paired: true,
   unlocked: false,
   desktopRunning: false,
   biometricAvailable: false,
   activeOrigin: "",
-  searchQuery: "",
+  activeDomain: "",
   credentials: [],
   generatedPassword: "",
   generatorOptions: {
@@ -68,22 +76,75 @@ async function copyText(text: string, label: string): Promise<void> {
   if (!text) return;
   try {
     await navigator.clipboard.writeText(text);
-    showToast(`${label} copied`);
+    showToast(`Đã sao chép ${label.toLowerCase()}`);
   } catch {
-    showToast(`Failed to copy ${label.toLowerCase()}`);
+    showToast(`Không thể sao chép ${label.toLowerCase()}`);
   }
 }
 
-async function loadInitialData(): Promise<void> {
+async function getActiveTabInfo(): Promise<{ origin: string; domain: string }> {
   const chromeApi = (globalThis as Record<string, any>).chrome;
   if (chromeApi?.tabs?.query) {
-    chromeApi.tabs.query({ active: true, currentWindow: true }, (tabs: Array<{ url?: string }>) => {
-      if (tabs?.[0]?.url) {
-        state.activeOrigin = tabs[0].url;
-        renderPopup();
+    try {
+      const tabs = await new Promise<Array<{ url?: string }>>((resolve) => {
+        chromeApi.tabs.query({ active: true, currentWindow: true }, (res: Array<{ url?: string }>) => {
+          resolve(res || []);
+        });
+      });
+      const url = tabs?.[0]?.url || "";
+      let domain = "";
+      if (url) {
+        try {
+          const parsed = new URL(url);
+          if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+            domain = parsed.hostname.replace(/^www\./, "").toLowerCase();
+          }
+        } catch {
+          domain = "";
+        }
       }
-    });
+      return { origin: url, domain };
+    } catch {
+      return { origin: "", domain: "" };
+    }
   }
+  return { origin: "", domain: "" };
+}
+
+function matchesDomain(item: CredentialSummary, domain: string): boolean {
+  if (!domain) return false;
+  const rawUrl = (item.websiteUrl || (item as any).url || "").trim().toLowerCase();
+  if (rawUrl) {
+    try {
+      const parsed = new URL(rawUrl.includes("://") ? rawUrl : `https://${rawUrl}`);
+      const itemHost = parsed.hostname.replace(/^www\./, "").toLowerCase();
+      if (
+        itemHost === domain ||
+        domain.endsWith(`.${itemHost}`) ||
+        itemHost.endsWith(`.${domain}`)
+      ) {
+        return true;
+      }
+    } catch {
+      if (rawUrl.includes(domain) || domain.includes(rawUrl)) {
+        return true;
+      }
+    }
+  }
+
+  const titleLow = item.title.trim().toLowerCase();
+  const domainParts = domain.split(".");
+  const domainBase = domainParts[0];
+  if (domainBase && domainBase.length >= 3 && titleLow.includes(domainBase)) {
+    return true;
+  }
+  return false;
+}
+
+async function loadInitialData(): Promise<void> {
+  const { origin, domain } = await getActiveTabInfo();
+  state.activeOrigin = origin;
+  state.activeDomain = domain;
 
   const statusResp = await sendExtensionBridgeMessage<VaultStatusPayload>("get_vault_status");
   if (statusResp.ok && statusResp.payload) {
@@ -100,10 +161,16 @@ async function loadInitialData(): Promise<void> {
 
   if (state.unlocked && state.paired) {
     const credsResp = await sendExtensionBridgeMessage<CredentialsListPayload>("get_credentials", {
-      domain: "",
+      domain: state.activeDomain,
     });
     if (credsResp.ok && credsResp.payload?.credentials) {
-      state.credentials = credsResp.payload.credentials;
+      let items = credsResp.payload.credentials;
+      if (state.activeDomain) {
+        items = items.filter((item) => matchesDomain(item, state.activeDomain));
+      } else {
+        items = [];
+      }
+      state.credentials = items;
     } else {
       state.credentials = [];
       if (credsResp.error?.code === "NOT_PAIRED") {
@@ -154,34 +221,33 @@ async function handleFillCredential(item: CredentialSummary): Promise<void> {
       }
     });
   }
-  showToast(`Filled ${item.title}`);
+  showToast(`Đã điền ${item.title}`);
 }
 
-function buildFilteredCredentialList(): HTMLElement {
-  const q = state.searchQuery.trim().toLowerCase();
-  const filtered = state.credentials.filter(
-    (c) =>
-      !q ||
-      c.title.toLowerCase().includes(q) ||
-      c.username.toLowerCase().includes(q) ||
-      (c.url || c.websiteUrl || "").toLowerCase().includes(q)
-  );
+function renderCredentialList(): HTMLElement {
   return createCredentialList({
-    items: filtered,
+    items: state.credentials,
     activeOrigin: state.activeOrigin,
+    activeDomain: state.activeDomain,
     onFill: (item) => void handleFillCredential(item),
-    onCopyUsername: (item) => void copyText(item.username, "Username"),
+    onCopyUsername: (item) => void copyText(item.username, "Tên đăng nhập"),
     onCopyPassword: (item) =>
       void (async () => {
         const secretResp = await sendExtensionBridgeMessage<CredentialSecretPayload>(
           "fill_credential",
           { itemId: item.id }
         );
-        await copyText(secretResp.payload?.password || "", "Password");
+        await copyText(secretResp.payload?.password || "", "Mật khẩu");
       })(),
     onCopyTotp: (item) => {
       void (async () => {
-        const code = item.totpCode || "";
+        // Luôn yêu cầu mã TOTP thời gian thực mới nhất từ Desktop backend
+        const secretResp = await sendExtensionBridgeMessage<CredentialSecretPayload>(
+          "fill_credential",
+          { itemId: item.id }
+        );
+        const code = secretResp.payload?.totpCode || item.totpCode || "";
+        item.totpCode = code;
         await copyText(code, "Mã xác thực 2FA");
         const chromeApi = (globalThis as Record<string, any>).chrome;
         if (chromeApi?.tabs?.query && chromeApi?.tabs?.sendMessage && code) {
@@ -205,6 +271,7 @@ export function renderPopup(): void {
   const root = document.getElementById("svm-popup-root");
   if (!root) return;
 
+  state.theme = getSystemTheme();
   document.documentElement.setAttribute("data-theme", state.theme);
   root.replaceChildren();
 
@@ -213,14 +280,9 @@ export function renderPopup(): void {
 
   shell.appendChild(
     createHeaderBar({
-      theme: state.theme,
       paired: state.paired,
       unlocked: state.unlocked,
       desktopRunning: state.desktopRunning,
-      onToggleTheme: () => {
-        state.theme = state.theme === "dark" ? "light" : "dark";
-        renderPopup();
-      },
       onLockVault: async () => {
         await sendExtensionBridgeMessage("lock_vault");
         state.unlocked = false;
@@ -242,7 +304,7 @@ export function renderPopup(): void {
         onUnlockPassword: async (password: string) => {
           const resp = await sendExtensionBridgeMessage<any>("unlock_vault", {
             password,
-            browser: "WebExtension",
+            browser: detectCurrentBrowserName(),
             version: "1.0.0",
           });
           if (resp.ok && resp.payload?.unlocked) {
@@ -256,7 +318,7 @@ export function renderPopup(): void {
         },
         onUnlockBiometric: async () => {
           const resp = await sendExtensionBridgeMessage<any>("unlock_vault_biometric", {
-            browser: "WebExtension",
+            browser: detectCurrentBrowserName(),
             version: "1.0.0",
           });
           if (resp.ok && resp.payload?.unlocked) {
@@ -286,32 +348,15 @@ export function renderPopup(): void {
     return;
   }
 
-  // Khi Vault ĐÃ MỞ KHÓA: Hiển thị Search bar và Tabs
-  const listHost = document.createElement("div");
-
-  if (state.activeTab === "logins") {
-    const searchWrap = document.createElement("div");
-    searchWrap.className = "searchBarWrap";
-    const searchInput = document.createElement("input");
-    searchInput.type = "search";
-    searchInput.className = "searchInput";
-    searchInput.placeholder = "Search logins by name, username, or website...";
-    searchInput.value = state.searchQuery;
-    searchInput.addEventListener("input", () => {
-      state.searchQuery = searchInput.value;
-      listHost.replaceChildren(buildFilteredCredentialList());
-    });
-    searchWrap.appendChild(searchInput);
-    shell.appendChild(searchWrap);
-  }
-
+  // Khi Vault ĐÃ MỞ KHÓA: Hiển thị Tabs (Logins theo domain, Password Generator)
   const tabs = document.createElement("nav");
   tabs.className = "navTabs";
 
   const loginsTabBtn = document.createElement("button");
   loginsTabBtn.type = "button";
   loginsTabBtn.className = `navTabBtn ${state.activeTab === "logins" ? "navTabBtnActive" : ""}`;
-  loginsTabBtn.textContent = "Logins";
+  loginsTabBtn.textContent =
+    state.credentials.length > 0 ? `Logins (${state.credentials.length})` : "Logins";
   loginsTabBtn.addEventListener("click", () => {
     state.activeTab = "logins";
     renderPopup();
@@ -331,15 +376,14 @@ export function renderPopup(): void {
   shell.appendChild(tabs);
 
   if (state.activeTab === "logins") {
-    listHost.appendChild(buildFilteredCredentialList());
-    content.appendChild(listHost);
+    content.appendChild(renderCredentialList());
   } else {
     content.appendChild(
       createGeneratorTab({
         password: state.generatedPassword,
         options: state.generatorOptions,
         onRegenerate: (opts) => void refreshGeneratedPassword(opts),
-        onCopy: (pw) => void copyText(pw, "Password"),
+        onCopy: (pw) => void copyText(pw, "Mật khẩu"),
       })
     );
   }
@@ -358,6 +402,9 @@ export function renderPopup(): void {
 
 async function syncStatusSilently(): Promise<void> {
   try {
+    const { origin, domain } = await getActiveTabInfo();
+    const tabChanged = origin !== state.activeOrigin || domain !== state.activeDomain;
+
     const statusResp = await sendExtensionBridgeMessage<VaultStatusPayload>("get_vault_status");
     if (statusResp.ok && statusResp.payload) {
       const newUnlocked = Boolean(statusResp.payload.unlocked);
@@ -366,7 +413,8 @@ async function syncStatusSilently(): Promise<void> {
       if (
         newUnlocked !== state.unlocked ||
         newDesktop !== state.desktopRunning ||
-        newBio !== state.biometricAvailable
+        newBio !== state.biometricAvailable ||
+        tabChanged
       ) {
         await loadInitialData();
       }
@@ -382,6 +430,17 @@ async function syncStatusSilently(): Promise<void> {
 
 if (typeof document !== "undefined") {
   document.addEventListener("DOMContentLoaded", () => {
+    state.theme = getSystemTheme();
+    document.documentElement.setAttribute("data-theme", state.theme);
+
+    if (window.matchMedia) {
+      window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (e) => {
+        state.theme = e.matches ? "dark" : "light";
+        document.documentElement.setAttribute("data-theme", state.theme);
+        renderPopup();
+      });
+    }
+
     void loadInitialData();
     setInterval(() => {
       void syncStatusSilently();

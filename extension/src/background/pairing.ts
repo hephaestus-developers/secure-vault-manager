@@ -5,6 +5,7 @@
 
 import {
   createBridgeRequest,
+  detectCurrentBrowserName,
   PairingChallengePayload,
   PairingConfirmedPayload,
 } from "../services/protocol";
@@ -73,7 +74,7 @@ export class PairingManager {
   public async unlockVault(password: string): Promise<boolean> {
     const req = createBridgeRequest("unlock_vault", {
       password,
-      browser: "WebExtension",
+      browser: detectCurrentBrowserName(),
       version: "1.0.0",
     });
     const resp = await this.transport.dispatch<any>(req);
@@ -88,7 +89,7 @@ export class PairingManager {
 
   public async unlockBiometric(): Promise<boolean> {
     const req = createBridgeRequest("unlock_vault_biometric", {
-      browser: "WebExtension",
+      browser: detectCurrentBrowserName(),
       version: "1.0.0",
     });
     const resp = await this.transport.dispatch<any>(req);

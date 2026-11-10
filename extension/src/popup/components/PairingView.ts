@@ -29,11 +29,20 @@ export function createPairingView(props: PairingViewProps): HTMLElement {
   const input = document.createElement("input");
   input.type = "text";
   input.maxLength = 6;
-  input.className = "searchInput";
+  input.className = "inputField";
   input.placeholder = "000000";
   input.value = props.suggestedPin;
   input.style.cssText =
-    "text-align: center; font-size: 20px; letter-spacing: 6px; font-weight: 700; font-family: monospace; max-width: 200px; height: 42px; border-radius: 8px;";
+    "text-align: center; font-size: 20px; letter-spacing: 6px; font-weight: 700; font-family: monospace; max-width: 200px; height: 42px; border-radius: 8px; background-color: var(--bg-mantle); color: var(--text-primary); border: 1px solid var(--border-subtle); outline: none;";
+
+  input.addEventListener("focus", () => {
+    input.style.borderColor = "var(--accent-primary)";
+    input.style.boxShadow = "0 0 0 2px rgba(137, 180, 250, 0.25)";
+  });
+  input.addEventListener("blur", () => {
+    input.style.borderColor = "var(--border-subtle)";
+    input.style.boxShadow = "none";
+  });
 
   const actions = document.createElement("div");
   actions.style.cssText = "display: flex; gap: 10px; justify-content: center; width: 100%; margin-top: 6px;";

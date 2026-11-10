@@ -121,6 +121,32 @@ export interface GeneratedPasswordPayload {
 let requestSequence = 0;
 
 /**
+ * Tự động phát hiện tên trình duyệt đang chạy WebExtension từ navigator.
+ */
+export function detectCurrentBrowserName(): string {
+  if (typeof navigator === "undefined" || !navigator.userAgent) {
+    return "Google Chrome";
+  }
+  const ua = navigator.userAgent;
+  if (ua.includes("Firefox/") || ua.includes("FxiOS/")) {
+    return "Mozilla Firefox";
+  }
+  if (ua.includes("Edg/")) {
+    return "Microsoft Edge";
+  }
+  if (ua.includes("Brave") || (navigator as any).brave) {
+    return "Brave Browser";
+  }
+  if (ua.includes("OPR/") || ua.includes("Opera/")) {
+    return "Opera";
+  }
+  if (ua.includes("Chrome/")) {
+    return "Google Chrome";
+  }
+  return "Google Chrome";
+}
+
+/**
  * Tạo một phong bì yêu cầu Bridge chuẩn kèm định danh `requestId` duy nhất.
  */
 export function createBridgeRequest<TPayload = Record<string, unknown>>(
@@ -129,11 +155,17 @@ export function createBridgeRequest<TPayload = Record<string, unknown>>(
   sessionToken?: string
 ): BridgeRequest<TPayload> {
   requestSequence = (requestSequence + 1) % 1_000_000;
+  const currentBrowser = detectCurrentBrowserName();
+  const basePayload =
+    typeof payload === "object" && payload !== null
+      ? { browser: currentBrowser, version: "1.0.0", ...payload }
+      : ({ browser: currentBrowser, version: "1.0.0" } as unknown as TPayload);
+
   return {
     requestId: `req-${Date.now()}-${requestSequence}`,
     action,
     sessionToken,
-    payload,
+    payload: basePayload,
   };
 }
 

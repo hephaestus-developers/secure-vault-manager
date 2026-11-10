@@ -43,6 +43,13 @@
   "content_scripts": [
     {
       "matches": ["http://*/*", "https://*/*"],
+      "js": ["passkey_injected.js"],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "all_frames": true
+    },
+    {
+      "matches": ["http://*/*", "https://*/*"],
       "js": ["content.js"],
       "run_at": "document_idle",
       "all_frames": true
@@ -50,7 +57,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["passkey_injected.js", "svm_wasm.wasm"],
+      "resources": ["passkey_injected.js"],
       "matches": ["<all_urls>"]
     }
   ],

@@ -160,6 +160,13 @@
         <file>icons/sort_alpha_desc_dark.svg</file>
         <file>icons/sort_alpha_desc_light.svg</file>
 
+        <!-- Browser Icons -->
+        <file>icons/browser_chrome.svg</file>
+        <file>icons/browser_firefox.svg</file>
+        <file>icons/browser_brave.svg</file>
+        <file>icons/browser_edge.svg</file>
+        <file>icons/browser_chromium.svg</file>
+
         <!-- Stylesheets -->
         <file>styles/dark.qss</file>
         <file>styles/light.qss</file>

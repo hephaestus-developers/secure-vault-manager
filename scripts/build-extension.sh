@@ -20,11 +20,6 @@ if [[ ! -d "${EXT_DIR}" ]]; then
     exit 0
 fi
 
-# Đảm bảo gói WebAssembly đã được biên dịch trước khi đóng gói Extension
-if [[ ! -f "${ROOT_DIR}/core/crates/svm-wasm/pkg/svm_wasm.wasm" ]]; then
-    "${SCRIPT_DIR}/build-wasm.sh"
-fi
-
 cd "${EXT_DIR}"
 
 if command -v node >/dev/null 2>&1; then

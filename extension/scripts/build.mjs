@@ -193,9 +193,4 @@ for (const size of [16, 32, 48, 128]) {
   );
 }
 
-const wasmPkgFile = path.join(REPO_ROOT, "core", "crates", "svm-wasm", "pkg", "svm_wasm.wasm");
-if (fs.existsSync(wasmPkgFile)) {
-  fs.copyFileSync(wasmPkgFile, path.join(DIST_CHROME, "svm_wasm.wasm"));
-}
-
 console.log(`==> [Extension Build] Đã đóng gói bản dựng Chromium MV3 tại: ${DIST_CHROME}`);

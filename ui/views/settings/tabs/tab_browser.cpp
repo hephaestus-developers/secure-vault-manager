@@ -1,20 +1,25 @@
 /**
  * @file ui/views/settings/tabs/tab_browser.cpp
- * @brief Hiện thực giao diện Tích hợp Trình duyệt Web & Cầu nối Extension.
+ * @brief Hiện thực giao diện Tích hợp Trình duyệt Web & Trình duyệt phát hiện
+ * trên hệ thống.
  * @author Hai Pham Ngoc <ngochai285nd@gmail.com>
  * @copyright (c) 2026 Hephaestus Developers. All rights reserved.
  */
 
 #include "tab_browser.h"
 #include "app/settings_manager.h"
-#include "components/notification_dialog.h"
 #include "core/core_bridge.h"
 
+#include <QDesktopServices>
+#include <QDir>
+#include <QFile>
 #include <QHBoxLayout>
 #include <QJsonArray>
-#include <QJsonDocument>
 #include <QJsonObject>
 #include <QLabel>
+#include <QPushButton>
+#include <QStandardPaths>
+#include <QUrl>
 
 namespace svm::views {
 
@@ -24,7 +29,7 @@ TabBrowser::TabBrowser(QWidget *parent) : QWidget(parent) {
 
   connect(&core::CoreBridge::instance(),
           &core::CoreBridge::bridgeClientsChangedEvent, this,
-          &TabBrowser::refreshClientsList);
+          &TabBrowser::refreshSupportedBrowsers);
 }
 
 void TabBrowser::setupUI() {
@@ -34,83 +39,271 @@ void TabBrowser::setupUI() {
 
   auto &settings = app::SettingsManager::instance();
 
-  // 1. Cầu nối Trình duyệt Web (Bridge Server Card)
-  m_bridgeCard = new SettingSectionCard(tr("Cầu nối Trình duyệt Web"), this);
+  // 1. Thẻ Tích hợp Trình duyệt Web (Master Switch)
+  m_bridgeCard = new SettingSectionCard(tr("Tích hợp Trình duyệt Web"), this);
 
   m_enableCheck = new QCheckBox(m_bridgeCard);
   m_enableCheck->setChecked(settings.browserBridgeEnabled());
   if (settings.browserBridgeEnabled()) {
     core::CoreBridge::instance().startBridge();
+    core::CoreBridge::instance().installNativeHostManifests();
   }
-  connect(m_enableCheck, &QCheckBox::toggled, this, [](bool checked) {
+
+  connect(m_enableCheck, &QCheckBox::toggled, this, [this](bool checked) {
     app::SettingsManager::instance().setBrowserBridgeEnabled(checked);
     if (checked) {
       core::CoreBridge::instance().startBridge();
+      core::CoreBridge::instance().installNativeHostManifests();
     } else {
       core::CoreBridge::instance().stopBridge();
     }
+    refreshSupportedBrowsers();
   });
+
   m_enableRow = new SettingRowWidget(
-      tr("Bật Tích hợp Trình duyệt"),
-      tr("Cho phép tiện ích trình duyệt Secure Vault Manager tự động phản "
-         "chiếu trạng thái và điền mật khẩu qua Native Messaging."),
+      tr("Bật tích hợp với trình duyệt"),
+      tr("Tự động kết nối, đồng bộ trạng thái khóa/mở khóa hai chiều và hỗ trợ "
+         "tự động điền (autofill) mật khẩu trên các trình duyệt web."),
       m_enableCheck, m_bridgeCard);
   m_bridgeCard->addRow(m_enableRow);
 
-  // Nút Cài đặt Manifests
-  m_manifestBtn = new QPushButton(tr("Cài đặt Manifests..."), m_bridgeCard);
-  m_manifestBtn->setFixedHeight(32);
-  m_manifestBtn->setCursor(Qt::PointingHandCursor);
-  connect(m_manifestBtn, &QPushButton::clicked, this,
-          &TabBrowser::onInstallManifestsClicked);
-  m_manifestRow =
-      new SettingRowWidget(tr("Cài đặt Cấu hình Native Host"),
-                           tr("Đăng ký tệp cấu hình Native Host vào các trình "
-                              "duyệt trên hệ điều hành "
-                              "(Chrome, Firefox, Brave, Edge, Chromium)."),
-                           m_manifestBtn, m_bridgeCard);
-  m_bridgeCard->addRow(m_manifestRow);
+  // Hint Callout Box
+  m_hintBox = new QWidget(m_bridgeCard);
+  m_hintBox->setObjectName(QStringLiteral("BrowserHintBox"));
+  m_hintBox->setAttribute(Qt::WA_StyledBackground, true);
+  auto *hintLayout = new QHBoxLayout(m_hintBox);
+  hintLayout->setContentsMargins(12, 10, 12, 10);
+  hintLayout->setSpacing(10);
 
+  auto *hintIcon = new QLabel(m_hintBox);
+  hintIcon->setPixmap(QIcon(QStringLiteral(":/icons/info.svg")).pixmap(18, 18));
+  hintLayout->addWidget(hintIcon);
+
+  m_hintLabel = new QLabel(
+      tr("Ứng dụng tự động đăng ký cấu hình bảo mật với các trình duyệt trên "
+         "thiết bị. Tiện ích mở rộng sẽ tự động kết nối an toàn với ứng dụng "
+         "máy tính qua kênh mã hóa nội bộ."),
+      m_hintBox);
+  m_hintLabel->setObjectName(QStringLiteral("BrowserHintText"));
+  m_hintLabel->setWordWrap(true);
+  hintLayout->addWidget(m_hintLabel, 1);
+
+  m_bridgeCard->addWidget(m_hintBox);
   layout->addWidget(m_bridgeCard);
 
-  // 2. Phiên Trình duyệt Đang hoạt động (Active Sessions Card)
-  m_pairedCard =
-      new SettingSectionCard(tr("Các Phiên Trình duyệt Đang hoạt động"), this);
+  // 2. Thẻ Danh sách Trình duyệt Đã cài đặt trên Hệ thống
+  m_detectedCard =
+      new SettingSectionCard(tr("Trình duyệt Đã cài đặt trên Hệ thống"), this);
 
-  m_pairedListLayout = new QVBoxLayout();
-  m_pairedListLayout->setContentsMargins(0, 4, 0, 0);
-  m_pairedListLayout->setSpacing(8);
+  m_browsersLayout = new QVBoxLayout();
+  m_browsersLayout->setContentsMargins(0, 4, 0, 0);
+  m_browsersLayout->setSpacing(8);
 
-  auto *listContainer = new QWidget(m_pairedCard);
-  listContainer->setLayout(m_pairedListLayout);
-  m_pairedCard->addWidget(listContainer);
+  auto *listContainer = new QWidget(m_detectedCard);
+  listContainer->setLayout(m_browsersLayout);
+  m_detectedCard->addWidget(listContainer);
 
-  layout->addWidget(m_pairedCard);
+  layout->addWidget(m_detectedCard);
   layout->addStretch(1);
 
-  refreshClientsList();
+  refreshSupportedBrowsers();
 }
 
-void TabBrowser::refreshClientsList() {
-  if (!m_pairedListLayout) {
+bool TabBrowser::isBrowserInstalled(const DetectedBrowserInfo &info) const {
+  // 1. Kiểm tra trực tiếp file thực thi trong PATH
+  for (const auto &bin : info.binaryCandidates) {
+    if (!QStandardPaths::findExecutable(bin).isEmpty()) {
+      return true;
+    }
+  }
+
+  // 2. Kiểm tra file cấu hình Desktop Entry của hệ thống
+  const QStringList desktopDirs = {
+      QStringLiteral("/usr/share/applications/"),
+      QStringLiteral("/usr/local/share/applications/"),
+      QDir::homePath() + QStringLiteral("/.local/share/applications/"),
+      QStringLiteral("/var/lib/flatpak/exports/share/applications/"),
+      QDir::homePath() +
+          QStringLiteral("/.local/share/flatpak/exports/share/applications/"),
+      QStringLiteral("/var/lib/snapd/desktop/applications/")};
+
+  for (const auto &desk : info.desktopCandidates) {
+    for (const auto &dir : desktopDirs) {
+      if (QFile::exists(dir + desk)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+void TabBrowser::populateBrowsers() {
+  if (!m_browsersLayout) {
     return;
   }
 
-  // Xóa sạch widget hiện tại trong list
+  // Dọn dẹp widget cũ
   QLayoutItem *child = nullptr;
-  while ((child = m_pairedListLayout->takeAt(0)) != nullptr) {
+  while ((child = m_browsersLayout->takeAt(0)) != nullptr) {
     if (child->widget()) {
       child->widget()->deleteLater();
     }
     delete child;
   }
 
+  const bool isBridgeActive =
+      app::SettingsManager::instance().browserBridgeEnabled();
   const QJsonArray coreClients =
       core::CoreBridge::instance().listBridgeClients();
 
-  if (coreClients.isEmpty()) {
-    // Hiển thị Empty State
-    auto *emptyCard = new QWidget(m_pairedCard);
+  // Danh mục nhận diện toàn diện các trình duyệt trên hệ điều hành
+  const QList<DetectedBrowserInfo> catalog = {
+      {QStringLiteral("chrome"),
+       QStringLiteral("Google Chrome"),
+       tr("Trình duyệt Chromium phổ biến • Hỗ trợ mở khóa 2 chiều & Autofill"),
+       QStringLiteral(":/icons/browser_chrome.svg"),
+       {QStringLiteral("google-chrome-stable"),
+        QStringLiteral("google-chrome")},
+       {QStringLiteral("google-chrome.desktop"),
+        QStringLiteral("com.google.Chrome.desktop")},
+       QStringLiteral("https://chromewebstore.google.com/"),
+       true,
+       false,
+       false},
+      {QStringLiteral("firefox"),
+       QStringLiteral("Mozilla Firefox"),
+       tr("Bảo mật mã nguồn mở • Tự động điền & Mở khóa đồng thời"),
+       QStringLiteral(":/icons/browser_firefox.svg"),
+       {QStringLiteral("firefox"), QStringLiteral("firefox-esr")},
+       {QStringLiteral("firefox.desktop"),
+        QStringLiteral("firefox-esr.desktop"),
+        QStringLiteral("org.mozilla.firefox.desktop")},
+       QStringLiteral("https://addons.mozilla.org/"),
+       true,
+       false,
+       false},
+      {QStringLiteral("brave"),
+       QStringLiteral("Brave Browser"),
+       tr("Trình duyệt bảo mật riêng tư • Tương thích hoàn toàn Chromium"),
+       QStringLiteral(":/icons/browser_brave.svg"),
+       {QStringLiteral("brave-browser"), QStringLiteral("brave")},
+       {QStringLiteral("brave-browser.desktop"),
+        QStringLiteral("com.brave.Browser.desktop")},
+       QStringLiteral("https://chromewebstore.google.com/"),
+       true,
+       false,
+       false},
+      {QStringLiteral("edge"),
+       QStringLiteral("Microsoft Edge"),
+       tr("Trình duyệt hiện đại đa nền tảng • Tích hợp hệ thống sâu"),
+       QStringLiteral(":/icons/browser_edge.svg"),
+       {QStringLiteral("microsoft-edge"),
+        QStringLiteral("microsoft-edge-stable")},
+       {QStringLiteral("microsoft-edge.desktop"),
+        QStringLiteral("com.microsoft.Edge.desktop")},
+       QStringLiteral("https://microsoftedge.microsoft.com/addons/"),
+       true,
+       false,
+       false},
+      {QStringLiteral("chromium"),
+       QStringLiteral("Chromium"),
+       tr("Nền tảng trình duyệt mã nguồn mở tiêu chuẩn"),
+       QStringLiteral(":/icons/browser_chromium.svg"),
+       {QStringLiteral("chromium"), QStringLiteral("chromium-browser")},
+       {QStringLiteral("chromium.desktop"),
+        QStringLiteral("chromium-browser.desktop"),
+        QStringLiteral("org.chromium.Chromium.desktop")},
+       QStringLiteral("https://chromewebstore.google.com/"),
+       true,
+       false,
+       false},
+      {QStringLiteral("opera"),
+       QStringLiteral("Opera"),
+       tr("Trình duyệt web đa tính năng tích hợp AI"),
+       QStringLiteral(":/icons/category_all.svg"),
+       {QStringLiteral("opera"), QStringLiteral("opera-stable")},
+       {QStringLiteral("opera.desktop"),
+        QStringLiteral("com.opera.Opera.desktop")},
+       QStringLiteral("https://addons.opera.com/"),
+       true,
+       false,
+       false},
+      {QStringLiteral("vivaldi"),
+       QStringLiteral("Vivaldi"),
+       tr("Trình duyệt tùy biến cao cấp cho người dùng chuyên sâu"),
+       QStringLiteral(":/icons/category_all.svg"),
+       {QStringLiteral("vivaldi"), QStringLiteral("vivaldi-stable")},
+       {QStringLiteral("vivaldi-stable.desktop"),
+        QStringLiteral("com.vivaldi.Vivaldi.desktop")},
+       QStringLiteral("https://chromewebstore.google.com/"),
+       true,
+       false,
+       false},
+      {QStringLiteral("epiphany"),
+       QStringLiteral("GNOME Web (Epiphany)"),
+       tr("Trình duyệt mặc định của môi trường desktop GNOME"),
+       QStringLiteral(":/icons/category_all.svg"),
+       {QStringLiteral("epiphany"), QStringLiteral("epiphany-browser")},
+       {QStringLiteral("org.gnome.Epiphany.desktop")},
+       QString(),
+       false,
+       false,
+       false},
+      {QStringLiteral("falkon"),
+       QStringLiteral("Falkon"),
+       tr("Trình duyệt web nhẹ nền tảng QtWebEngine"),
+       QStringLiteral(":/icons/category_all.svg"),
+       {QStringLiteral("falkon")},
+       {QStringLiteral("org.kde.falkon.desktop")},
+       QString(),
+       false,
+       false,
+       false},
+      {QStringLiteral("tor"),
+       QStringLiteral("Tor Browser"),
+       tr("Trình duyệt ẩn danh chống theo dõi hành vi"),
+       QStringLiteral(":/icons/category_all.svg"),
+       {QStringLiteral("tor-browser"), QStringLiteral("torbrowser-launcher")},
+       {QStringLiteral("torbrowser.desktop")},
+       QString(),
+       false,
+       false,
+       false}};
+
+  QList<DetectedBrowserInfo> installedBrowsers;
+
+  for (auto item : catalog) {
+    if (isBrowserInstalled(item)) {
+      item.isInstalled = true;
+
+      // Kiểm tra xem trình duyệt này đã có phiên tiện ích kết nối hay chưa
+      for (const auto &clientVal : coreClients) {
+        if (!clientVal.isObject()) {
+          continue;
+        }
+        const QString clientBrowser = clientVal.toObject()
+                                          .value(QStringLiteral("browser"))
+                                          .toString()
+                                          .toLower();
+        if (clientBrowser.contains(item.id) ||
+            (item.id == QStringLiteral("chrome") &&
+             (clientBrowser.contains(QStringLiteral("chrome")) ||
+              clientBrowser.contains(QStringLiteral("chromium")))) ||
+            (item.id == QStringLiteral("firefox") &&
+             clientBrowser.contains(QStringLiteral("firefox")))) {
+          item.isConnected = true;
+          break;
+        }
+      }
+
+      installedBrowsers.append(item);
+    }
+  }
+
+  // Trường hợp không phát hiện bất kỳ trình duyệt nào trên hệ thống
+  if (installedBrowsers.isEmpty()) {
+    auto *emptyCard = new QWidget(m_detectedCard);
     emptyCard->setObjectName(QStringLiteral("BrowserEmptyCard"));
     emptyCard->setAttribute(Qt::WA_StyledBackground, true);
 
@@ -118,113 +311,143 @@ void TabBrowser::refreshClientsList() {
     emptyLayout->setContentsMargins(24, 20, 24, 20);
     emptyLayout->setSpacing(8);
 
-    auto *titleLbl = new QLabel(tr("Chưa có phiên trình duyệt nào"), emptyCard);
+    auto *titleLbl =
+        new QLabel(tr("Chưa phát hiện trình duyệt nào trên máy"), emptyCard);
     titleLbl->setObjectName(QStringLiteral("BrowserEmptyTitle"));
     titleLbl->setAlignment(Qt::AlignCenter);
     emptyLayout->addWidget(titleLbl);
 
     auto *descLbl = new QLabel(
-        tr("Cài đặt tiện ích mở rộng Secure Vault Manager trên trình duyệt của "
-           "bạn. Tiện ích sẽ tự động kết nối và đồng bộ trạng thái khi sử "
-           "dụng."),
+        tr("Hãy cài đặt các trình duyệt được hỗ trợ như Google Chrome hoặc "
+           "Mozilla Firefox để kích hoạt tính năng tích hợp tiện ích."),
         emptyCard);
     descLbl->setObjectName(QStringLiteral("BrowserEmptyDesc"));
     descLbl->setAlignment(Qt::AlignCenter);
     descLbl->setWordWrap(true);
-    descLbl->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     emptyLayout->addWidget(descLbl);
 
-    m_pairedListLayout->addWidget(emptyCard);
+    m_browsersLayout->addWidget(emptyCard);
     return;
   }
 
-  // Hiển thị danh sách tiện ích thực tế
-  for (const auto &val : coreClients) {
-    if (!val.isObject()) {
-      continue;
-    }
-    const QJsonObject obj = val.toObject();
-    const QString id = obj.value(QStringLiteral("id")).toString();
-    const QString browser = obj.value(QStringLiteral("browser")).toString();
-    const QString version = obj.value(QStringLiteral("version")).toString();
-    const QString lastUsed = obj.value(QStringLiteral("lastUsed")).toString();
-
-    auto *row = new QWidget(m_pairedCard);
-    row->setObjectName(QStringLiteral("SettingsListItemCard"));
+  // Hiển thị danh sách các trình duyệt thực tế đang có trên hệ thống
+  for (const auto &item : installedBrowsers) {
+    auto *row = new QWidget(m_detectedCard);
+    row->setObjectName(QStringLiteral("BrowserItemCard"));
     row->setAttribute(Qt::WA_StyledBackground, true);
-    auto *rowLayout = new QHBoxLayout(row);
-    rowLayout->setContentsMargins(12, 8, 12, 8);
-    rowLayout->setSpacing(12);
 
+    auto *rowLayout = new QHBoxLayout(row);
+    rowLayout->setContentsMargins(14, 10, 14, 10);
+    rowLayout->setSpacing(14);
+
+    // 1. Browser Logo Icon
+    auto *iconLbl = new QLabel(row);
+    iconLbl->setFixedSize(28, 28);
+    iconLbl->setScaledContents(true);
+    iconLbl->setPixmap(QIcon(item.iconPath).pixmap(28, 28));
+    rowLayout->addWidget(iconLbl);
+
+    // 2. Browser Information
     auto *infoLayout = new QVBoxLayout();
     infoLayout->setSpacing(2);
 
-    auto *nameLbl = new QLabel(browser + QStringLiteral(" ") + version, row);
-    nameLbl->setObjectName(QStringLiteral("SettingsListItemTitle"));
+    auto *nameLbl = new QLabel(item.name, row);
+    nameLbl->setObjectName(QStringLiteral("BrowserItemTitle"));
     infoLayout->addWidget(nameLbl);
 
-    auto *descLbl = new QLabel(
-        lastUsed + QStringLiteral(" • ") + tr("Tiện ích đã xác thực"), row);
-    descLbl->setObjectName(QStringLiteral("SettingsListItemDesc"));
+    auto *descLbl = new QLabel(row);
+    descLbl->setObjectName(QStringLiteral("BrowserItemDesc"));
+    if (!item.isSupported) {
+      descLbl->setText(
+          tr("Phần mềm hiện tại chưa hỗ trợ tích hợp với trình duyệt này"));
+    } else if (item.isConnected && isBridgeActive) {
+      descLbl->setText(tr("Tiện ích đang hoạt động và đồng bộ thời gian thực"));
+    } else {
+      descLbl->setText(item.description);
+    }
     infoLayout->addWidget(descLbl);
 
     rowLayout->addLayout(infoLayout, 1);
 
-    auto *revokeBtn = new QPushButton(tr("Thu hồi"), row);
-    revokeBtn->setObjectName(QStringLiteral("DangerButton"));
-    revokeBtn->setFixedHeight(28);
-    revokeBtn->setCursor(Qt::PointingHandCursor);
-    connect(revokeBtn, &QPushButton::clicked, this, [this, id]() {
-      core::CoreBridge::instance().revokeBridgeClient(id);
-      components::NotificationDialog::information(
-          this, tr("Thu hồi Tiện ích"),
-          tr("Đã thu hồi quyền kết nối của tiện ích trình duyệt thành công."));
-      refreshClientsList();
-    });
-    rowLayout->addWidget(revokeBtn);
+    // 3. Trạng thái hỗ trợ & Trạng thái kết nối
+    if (!item.isSupported) {
+      auto *unsupportedBadge = new QLabel(tr("Chưa hỗ trợ tích hợp"), row);
+      unsupportedBadge->setObjectName(
+          QStringLiteral("BrowserUnsupportedBadge"));
+      rowLayout->addWidget(unsupportedBadge);
+    } else if (!isBridgeActive) {
+      auto *inactiveBadge = new QLabel(tr("Tích hợp đang tắt"), row);
+      inactiveBadge->setObjectName(QStringLiteral("BrowserInactiveBadge"));
+      rowLayout->addWidget(inactiveBadge);
 
-    m_pairedListLayout->addWidget(row);
+      if (!item.storeUrl.isEmpty()) {
+        auto *installBtn = new QPushButton(tr("Cài đặt tiện ích"), row);
+        installBtn->setObjectName(QStringLiteral("BrowserInstallBtn"));
+        installBtn->setFixedHeight(30);
+        installBtn->setCursor(Qt::PointingHandCursor);
+        const QString storeUrl = item.storeUrl;
+        connect(installBtn, &QPushButton::clicked, this,
+                [storeUrl]() { QDesktopServices::openUrl(QUrl(storeUrl)); });
+        rowLayout->addWidget(installBtn);
+      }
+    } else if (item.isConnected) {
+      auto *connectedBadge = new QLabel(tr("Đang hoạt động"), row);
+      connectedBadge->setObjectName(QStringLiteral("BrowserConnectedBadge"));
+      rowLayout->addWidget(connectedBadge);
+
+      auto *connectedBtn = new QPushButton(tr("Đã kết nối ✓"), row);
+      connectedBtn->setObjectName(QStringLiteral("BrowserConnectedBtn"));
+      connectedBtn->setFixedHeight(30);
+      connectedBtn->setEnabled(false);
+      rowLayout->addWidget(connectedBtn);
+    } else {
+      auto *pendingBadge = new QLabel(tr("Chưa kết nối tiện ích"), row);
+      pendingBadge->setObjectName(QStringLiteral("BrowserPendingBadge"));
+      rowLayout->addWidget(pendingBadge);
+
+      if (!item.storeUrl.isEmpty()) {
+        auto *installBtn = new QPushButton(tr("Cài đặt tiện ích"), row);
+        installBtn->setObjectName(QStringLiteral("BrowserInstallBtn"));
+        installBtn->setFixedHeight(30);
+        installBtn->setCursor(Qt::PointingHandCursor);
+        const QString storeUrl = item.storeUrl;
+        connect(installBtn, &QPushButton::clicked, this,
+                [storeUrl]() { QDesktopServices::openUrl(QUrl(storeUrl)); });
+        rowLayout->addWidget(installBtn);
+      }
+    }
+
+    m_browsersLayout->addWidget(row);
   }
 }
 
-void TabBrowser::onInstallManifestsClicked() {
-  const bool ok = core::CoreBridge::instance().installNativeHostManifests();
-  if (ok) {
-    components::NotificationDialog::information(
-        this, tr("Cài đặt Manifests Thành công"),
-        tr("Đã đăng ký tệp cấu hình Native Messaging Host cho Google Chrome, "
-           "Mozilla Firefox, Brave, Microsoft Edge và Chromium vào hệ điều "
-           "hành."));
-  } else {
-    components::NotificationDialog::warning(
-        this, tr("Lỗi Cài đặt"),
-        tr("Không thể đăng ký tệp cấu hình Native Messaging Host."));
-  }
+void TabBrowser::showEvent(QShowEvent *event) {
+  QWidget::showEvent(event);
+  refreshSupportedBrowsers();
 }
+
+void TabBrowser::refreshSupportedBrowsers() { populateBrowsers(); }
 
 void TabBrowser::retranslateUi() {
   if (m_bridgeCard) {
-    m_bridgeCard->setTitle(tr("Cầu nối Trình duyệt Web"));
+    m_bridgeCard->setTitle(tr("Tích hợp Trình duyệt Web"));
   }
   if (m_enableRow) {
     m_enableRow->updateText(
-        tr("Bật Tích hợp Trình duyệt"),
-        tr("Cho phép tiện ích trình duyệt Secure Vault Manager tự động phản "
-           "chiếu trạng thái và điền mật khẩu qua Native Messaging."));
+        tr("Bật tích hợp với trình duyệt"),
+        tr("Tự động kết nối, đồng bộ trạng thái khóa/mở khóa hai chiều và hỗ "
+           "trợ tự động điền (autofill) mật khẩu trên các trình duyệt web."));
   }
-  if (m_manifestBtn) {
-    m_manifestBtn->setText(tr("Cài đặt Manifests..."));
+  if (m_hintLabel) {
+    m_hintLabel->setText(
+        tr("Ứng dụng tự động đăng ký cấu hình bảo mật với các trình duyệt trên "
+           "thiết bị. Tiện ích mở rộng sẽ tự động kết nối an toàn với ứng dụng "
+           "máy tính qua kênh mã hóa nội bộ."));
   }
-  if (m_manifestRow) {
-    m_manifestRow->updateText(tr("Cài đặt Cấu hình Native Host"),
-                              tr("Đăng ký tệp cấu hình Native Host vào các "
-                                 "trình duyệt trên hệ điều hành "
-                                 "(Chrome, Firefox, Brave, Edge, Chromium)."));
+  if (m_detectedCard) {
+    m_detectedCard->setTitle(tr("Trình duyệt Đã cài đặt trên Hệ thống"));
   }
-  if (m_pairedCard) {
-    m_pairedCard->setTitle(tr("Các Phiên Trình duyệt Đang hoạt động"));
-  }
-  refreshClientsList();
+  refreshSupportedBrowsers();
 }
 
 } // namespace svm::views

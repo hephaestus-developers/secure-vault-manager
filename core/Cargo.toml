@@ -14,7 +14,6 @@ members = [
     "crates/svm-transfer",
     "crates/svm-core",
     "crates/svm-native-host",
-    "crates/svm-wasm",
     "crates/svm-cli",
 ]
 

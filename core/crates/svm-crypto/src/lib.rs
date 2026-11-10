@@ -73,6 +73,10 @@ mod tests {
         assert_eq!(dec, raw);
 
         let b32_dec = base32_decode("JBSWY3DPEHPK3PXP").expect("b32 decode");
-        assert!(!b32_dec.is_empty());
+        assert_eq!(b32_dec, b"Hello!\xde\xad\xbe\xef"[..b32_dec.len()]);
+
+        // "MZXW6YTBOJRGC4RAMZXW6YTBOI======" decodes to b"foobarbar foobar"
+        let b32_long = base32_decode("MZXW6YTBOJRGC4RAMZXW6YTBOI======").expect("b32 long");
+        assert_eq!(b32_long, b"foobarbar foobar");
     }
 }

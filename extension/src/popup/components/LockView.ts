@@ -128,11 +128,20 @@ export function createLockView(props: LockViewProps): HTMLElement {
 
   const input = document.createElement("input");
   input.type = "password";
-  input.className = "searchInput";
+  input.className = "inputField";
   input.placeholder = "Nhập Mật khẩu chính...";
   input.style.cssText =
-    "width: 100%; padding-right: 36px; padding-left: 12px; height: 38px; font-size: 13px; border-radius: 8px;";
+    "width: 100%; padding-right: 36px; padding-left: 12px; height: 38px; font-size: 13px; border-radius: 8px; background-color: var(--bg-mantle); color: var(--text-primary); border: 1px solid var(--border-subtle); outline: none;";
   input.autocomplete = "current-password";
+
+  input.addEventListener("focus", () => {
+    input.style.borderColor = "var(--accent-primary)";
+    input.style.boxShadow = "0 0 0 2px rgba(137, 180, 250, 0.25)";
+  });
+  input.addEventListener("blur", () => {
+    input.style.borderColor = "var(--border-subtle)";
+    input.style.boxShadow = "none";
+  });
 
   // Nút Show/Hide password
   const toggleBtn = document.createElement("button");

@@ -6,5 +6,11 @@
 //! và truy vấn danh sách Passkey theo tên miền.
 
 pub mod authenticator;
+pub mod cbor;
+pub mod fido2;
 
 pub use authenticator::WebAuthnAuthenticator;
+pub use fido2::{
+    authenticate_passkey_assertion, create_passkey_credential, PasskeyAssertion,
+    PasskeyRegistration, SVM_AAGUID,
+};

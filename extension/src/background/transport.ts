@@ -8,7 +8,7 @@ import {
   BridgeResponse,
   CredentialSummary,
 } from "../services/protocol";
-import { generatePasswordLocal, generateTotpLocal } from "../services/wasm-crypto";
+import { generatePasswordLocal } from "../services/crypto-local";
 import { HttpLoopbackClient } from "./http_client";
 import { NativeMessagingClient } from "./native_client";
 

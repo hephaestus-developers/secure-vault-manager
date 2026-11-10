@@ -4,28 +4,47 @@
  */
 
 import { sendExtensionBridgeMessage } from "../services/protocol";
+import { dismissPasskeyConsent, promptPasskeyConsent } from "./passkey_modal";
 
 export function setupPasskeyBridge(): void {
-  const chromeApi = (globalThis as Record<string, any>).chrome;
-  if (chromeApi?.runtime?.getURL) {
-    try {
-      const script = document.createElement("script");
-      script.src = chromeApi.runtime.getURL("passkey_injected.js");
-      script.async = false;
-      (document.head || document.documentElement).appendChild(script);
-      script.remove();
-    } catch {
-      // Bỏ qua nếu CSP của trang hạn chế chèn script trực tiếp
-    }
-  }
-
   window.addEventListener("message", async (event) => {
     if (event.source !== window || !event.data || event.data.source !== "svm-passkey-page") {
       return;
     }
 
     const { requestId, action, payload } = event.data;
+    if (action === "passkey_cancel") {
+      dismissPasskeyConsent();
+      return;
+    }
+
     if (action !== "passkey_create" && action !== "passkey_get") {
+      return;
+    }
+
+    const rpId = String(payload?.rpId || window.location.hostname);
+    const rpName = String(payload?.rpName || rpId);
+    const userName = String(payload?.userName || "");
+
+    const consented = await promptPasskeyConsent({
+      action,
+      rpId,
+      rpName,
+      userName,
+    });
+
+    if (!consented) {
+      window.postMessage(
+        {
+          source: "svm-passkey-content",
+          requestId,
+          response: {
+            ok: false,
+            error: { code: "USER_CANCELLED", message: "User cancelled passkey prompt" },
+          },
+        },
+        window.location.origin
+      );
       return;
     }
 

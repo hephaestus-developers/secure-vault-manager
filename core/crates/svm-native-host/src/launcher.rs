@@ -13,11 +13,8 @@ use std::time::Duration;
 use std::os::unix::net::UnixStream;
 
 use svm_bridge::BridgeServer;
-use svm_crypto::{
-    base64_encode, evaluate_password_strength, generate_password, generate_uuid_v4, hmac_sha256,
-    sha256,
-};
-use svm_domain::{Category, JsonValue, VaultItem};
+use svm_crypto::{evaluate_password_strength, generate_password, generate_uuid_v4};
+use svm_domain::{Category, CustomField, FieldKind, JsonValue, VaultItem};
 use svm_ipc::IpcEndpoint;
 use svm_storage::VaultStorage;
 use svm_totp::{generate_totp, parse_otpauth_uri};
@@ -159,6 +156,7 @@ pub fn launch_desktop_app() -> bool {
 pub struct NativeHostRouter {
     vault: VaultService,
     bridge: BridgeServer,
+    #[allow(dead_code)]
     webauthn: WebAuthnAuthenticator,
     session_token: String,
 }
@@ -308,11 +306,16 @@ impl NativeHostRouter {
                     }
                     let url_low = item.website_url.to_lowercase();
                     let title_low = item.title.to_lowercase();
-                    if domain.is_empty()
-                        || url_low.contains(&domain)
-                        || domain.contains(&url_low)
-                        || title_low.contains(&domain)
-                    {
+                    let matches_domain = if domain.is_empty() {
+                        true
+                    } else {
+                        let url_match = !url_low.is_empty()
+                            && (url_low.contains(&domain) || domain.contains(&url_low));
+                        let title_match = !title_low.is_empty()
+                            && (title_low.contains(&domain) || domain.contains(&title_low));
+                        url_match || title_match
+                    };
+                    if matches_domain {
                         let mut cred = JsonValue::new_object();
                         cred.insert("id", JsonValue::String(item.id.clone()));
                         cred.insert("title", JsonValue::String(item.title.clone()));
@@ -475,76 +478,155 @@ impl NativeHostRouter {
             "passkey_create" => {
                 let rp_id = payload.get_str_or("rpId", "example.com");
                 let rp_name = payload.get_str_or("rpName", rp_id);
-                let user_name = payload.get_str_or("userName", "user");
+                let user_name = payload.get_str_or("userName", "User");
                 let challenge = payload.get_str_or("challenge", "");
+                let default_origin = format!("https://{rp_id}");
+                let origin = payload.get_str_or("origin", &default_origin);
 
-                let cred_id_raw =
-                    sha256(format!("{rp_id}:{user_name}:{}", generate_uuid_v4()).as_bytes());
-                let credential_id = base64_encode(&cred_id_raw[..16]);
-                let client_data_json = format!(
-                    r#"{{"type":"webauthn.create","challenge":"{challenge}","origin":"https://{rp_id}","crossOrigin":false}}"#
-                );
-                let attestation_sig = hmac_sha256(&cred_id_raw, client_data_json.as_bytes());
+                match svm_webauthn::create_passkey_credential(rp_id, challenge, origin) {
+                    Ok(reg) => {
+                        let cred_id_b64 = svm_crypto::base64_encode(&reg.credential_id)
+                            .replace('+', "-")
+                            .replace('/', "_")
+                            .trim_end_matches('=')
+                            .to_string();
+                        let att_b64 = svm_crypto::base64_encode(&reg.attestation_object)
+                            .replace('+', "-")
+                            .replace('/', "_")
+                            .trim_end_matches('=')
+                            .to_string();
+                        let client_json_b64 =
+                            svm_crypto::base64_encode(reg.client_data_json.as_bytes())
+                                .replace('+', "-")
+                                .replace('/', "_")
+                                .trim_end_matches('=')
+                                .to_string();
 
-                let item = VaultItem {
-                    vault_id: "personal".to_string(),
-                    title: format!("{rp_name} Passkey"),
-                    category: Category::Passkey,
-                    username: user_name.to_string(),
-                    password: credential_id.clone(),
-                    website_url: format!("https://{rp_id}"),
-                    ..Default::default()
-                };
-                let saved_id = self.vault.upsert_item(item).unwrap_or_default();
+                        let item = VaultItem {
+                            vault_id: "personal".to_string(),
+                            title: format!("{rp_name} Passkey"),
+                            category: Category::Passkey,
+                            username: user_name.to_string(),
+                            website_url: format!("https://{rp_id}"),
+                            has_passkey: true,
+                            password: svm_crypto::base64_encode(&reg.private_key_pkcs8),
+                            custom_fields: vec![
+                                CustomField {
+                                    id: generate_uuid_v4(),
+                                    label: "credentialId".to_string(),
+                                    value: cred_id_b64.clone(),
+                                    kind: FieldKind::Text,
+                                },
+                                CustomField {
+                                    id: generate_uuid_v4(),
+                                    label: "rpId".to_string(),
+                                    value: rp_id.to_string(),
+                                    kind: FieldKind::Text,
+                                },
+                                CustomField {
+                                    id: generate_uuid_v4(),
+                                    label: "algorithm".to_string(),
+                                    value: "-7".to_string(),
+                                    kind: FieldKind::Text,
+                                },
+                            ],
+                            ..Default::default()
+                        };
+                        let saved_id = self.vault.upsert_item(item).unwrap_or_default();
 
-                let mut data = JsonValue::new_object();
-                data.insert("itemId", JsonValue::String(saved_id));
-                data.insert("credentialId", JsonValue::String(credential_id));
-                data.insert(
-                    "clientDataJSON",
-                    JsonValue::String(base64_encode(client_data_json.as_bytes())),
-                );
-                data.insert(
-                    "attestationObject",
-                    JsonValue::String(base64_encode(&attestation_sig)),
-                );
-                Self::ok_envelope(request_id, "passkey_created", data)
+                        let mut data = JsonValue::new_object();
+                        data.insert("itemId", JsonValue::String(saved_id));
+                        data.insert("credentialId", JsonValue::String(cred_id_b64));
+                        data.insert("clientDataJSON", JsonValue::String(client_json_b64));
+                        data.insert("attestationObject", JsonValue::String(att_b64));
+                        Self::ok_envelope(request_id, "passkey_created", data)
+                    }
+                    Err(e) => Self::error_envelope(request_id, "PASSKEY_CREATE_FAILED", &e),
+                }
             }
             "passkey_get" => {
                 let rp_id = payload.get_str_or("rpId", "");
                 let challenge = payload.get_str_or("challenge", "");
-                let list_json = self
-                    .webauthn
-                    .list_passkeys_json(self.vault.items(), Some(rp_id));
-                let list_val =
-                    JsonValue::parse(&list_json).unwrap_or_else(|_| JsonValue::new_array());
+                let default_origin = format!("https://{rp_id}");
+                let origin = payload.get_str_or("origin", &default_origin);
 
-                let credential_id = list_val
-                    .as_array()
-                    .and_then(|arr| arr.first())
-                    .and_then(|it| it.get_string("id"))
-                    .unwrap_or_else(|| format!("pk-{}", rp_id));
+                let target_item = self.vault.items().iter().find(|it| {
+                    if it.trashed || it.category != Category::Passkey {
+                        return false;
+                    }
+                    it.website_url.contains(rp_id)
+                        || it.title.to_lowercase().contains(&rp_id.to_lowercase())
+                        || it
+                            .custom_fields
+                            .iter()
+                            .any(|cf| cf.label == "rpId" && cf.value == rp_id)
+                });
 
-                let client_data_json = format!(
-                    r#"{{"type":"webauthn.get","challenge":"{challenge}","origin":"https://{rp_id}","crossOrigin":false}}"#
-                );
-                let auth_data = sha256(rp_id.as_bytes());
-                let signature = hmac_sha256(&auth_data, client_data_json.as_bytes());
+                let Some(item) = target_item else {
+                    return Self::error_envelope(
+                        request_id,
+                        "NOT_FOUND",
+                        "Không tìm thấy Passkey cho trang web này",
+                    );
+                };
 
-                let mut data = JsonValue::new_object();
-                data.insert("credentialId", JsonValue::String(credential_id));
-                data.insert("rpId", JsonValue::String(rp_id.to_string()));
-                data.insert(
-                    "authenticatorData",
-                    JsonValue::String(base64_encode(&auth_data)),
-                );
-                data.insert(
-                    "clientDataJSON",
-                    JsonValue::String(base64_encode(client_data_json.as_bytes())),
-                );
-                data.insert("signature", JsonValue::String(base64_encode(&signature)));
-                data.insert("passkeys", list_val);
-                Self::ok_envelope(request_id, "passkey_assertion", data)
+                let priv_bytes = svm_crypto::base64_decode(&item.password).unwrap_or_default();
+                let cred_id_str = item
+                    .custom_fields
+                    .iter()
+                    .find(|cf| cf.label == "credentialId")
+                    .map(|cf| cf.value.clone())
+                    .unwrap_or_default();
+                let cred_id_bytes =
+                    svm_crypto::base64_decode(&cred_id_str.replace('-', "+").replace('_', "/"))
+                        .unwrap_or_default();
+
+                match svm_webauthn::authenticate_passkey_assertion(
+                    rp_id,
+                    challenge,
+                    origin,
+                    &cred_id_bytes,
+                    &priv_bytes,
+                    0,
+                    None,
+                ) {
+                    Ok(assertion) => {
+                        let cred_id_b64 = if !cred_id_str.is_empty() {
+                            cred_id_str
+                        } else {
+                            svm_crypto::base64_encode(&assertion.credential_id)
+                                .replace('+', "-")
+                                .replace('/', "_")
+                                .trim_end_matches('=')
+                                .to_string()
+                        };
+                        let auth_data_b64 =
+                            svm_crypto::base64_encode(&assertion.authenticator_data)
+                                .replace('+', "-")
+                                .replace('/', "_")
+                                .trim_end_matches('=')
+                                .to_string();
+                        let sig_b64 = svm_crypto::base64_encode(&assertion.signature)
+                            .replace('+', "-")
+                            .replace('/', "_")
+                            .trim_end_matches('=')
+                            .to_string();
+                        let client_json_b64 =
+                            svm_crypto::base64_encode(assertion.client_data_json.as_bytes())
+                                .replace('+', "-")
+                                .replace('/', "_")
+                                .trim_end_matches('=')
+                                .to_string();
+
+                        let mut data = JsonValue::new_object();
+                        data.insert("credentialId", JsonValue::String(cred_id_b64));
+                        data.insert("clientDataJSON", JsonValue::String(client_json_b64));
+                        data.insert("authenticatorData", JsonValue::String(auth_data_b64));
+                        data.insert("signature", JsonValue::String(sig_b64));
+                        Self::ok_envelope(request_id, "passkey_assertion", data)
+                    }
+                    Err(e) => Self::error_envelope(request_id, "PASSKEY_ASSERTION_FAILED", &e),
+                }
             }
             other => Self::error_envelope(
                 request_id,

@@ -105,23 +105,24 @@ pub fn base64_decode(s: &str) -> Result<Vec<u8>, DomainError> {
 
 /// Giải mã chuỗi Base32 chuẩn RFC 4648 (dùng cho TOTP secret).
 pub fn base32_decode(s: &str) -> Result<Vec<u8>, DomainError> {
-    let mut bits: u64 = 0;
+    let mut bits: u32 = 0;
     let mut bit_count: u32 = 0;
     let mut out = Vec::new();
 
     for ch in s.bytes() {
         let val = match ch {
-            b'A'..=b'Z' => ch - b'A',
-            b'a'..=b'z' => ch - b'a',
-            b'2'..=b'7' => ch - b'2' + 26,
+            b'A'..=b'Z' => (ch - b'A') as u32,
+            b'a'..=b'z' => (ch - b'a') as u32,
+            b'2'..=b'7' => (ch - b'2' + 26) as u32,
             b' ' | b'-' | b'=' | b'\t' | b'\n' | b'\r' => continue,
             _ => return Err(DomainError::Parse("Invalid Base32 character".to_string())),
         };
-        bits = (bits << 5) | (val as u64);
+        bits = (bits << 5) | val;
         bit_count += 5;
         if bit_count >= 8 {
             bit_count -= 8;
             out.push(((bits >> bit_count) & 0xff) as u8);
+            bits &= (1 << bit_count) - 1;
         }
     }
     Ok(out)

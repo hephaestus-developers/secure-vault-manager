@@ -4,7 +4,6 @@
  */
 
 import { BridgeRequest } from "../services/protocol";
-import { initWasmCrypto } from "../services/wasm-crypto";
 import { PairingManager } from "./pairing";
 import { PasskeyRouter } from "./passkey_router";
 import { BridgeTransport } from "./transport";
@@ -12,9 +11,6 @@ import { BridgeTransport } from "./transport";
 const transport = new BridgeTransport();
 const pairingManager = new PairingManager(transport);
 const passkeyRouter = new PasskeyRouter(transport);
-
-// Khởi tạo mô-đun mật mã WebAssembly ngay khi Service Worker thức dậy
-void initWasmCrypto();
 
 const chromeApi = (globalThis as Record<string, any>).chrome;
 

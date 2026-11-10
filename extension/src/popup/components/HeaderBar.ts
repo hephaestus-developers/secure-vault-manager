@@ -1,14 +1,12 @@
 /**
  * @file extension/src/popup/components/HeaderBar.ts
- * @brief Thanh tiêu đề đồng nhất của Extension Popup chứa nút chuyển đổi giao diện Sáng / Tối và trạng thái kết nối.
+ * @brief Thanh tiêu đề của Extension Popup chứa logo, trạng thái mở khóa và nút khóa nhanh.
  */
 
 export interface HeaderBarProps {
-  theme: "dark" | "light";
   paired: boolean;
   unlocked: boolean;
   desktopRunning?: boolean;
-  onToggleTheme: () => void;
   onLockVault?: () => void;
 }
 
@@ -77,10 +75,12 @@ export function createHeaderBar(props: HeaderBarProps): HTMLElement {
   brand.appendChild(title);
   brand.appendChild(statusPill);
 
-  const actions = document.createElement("div");
-  actions.className = "headerActions";
+  header.appendChild(brand);
 
   if (props.unlocked && props.onLockVault) {
+    const actions = document.createElement("div");
+    actions.className = "headerActions";
+
     const lockBtn = document.createElement("button");
     lockBtn.type = "button";
     lockBtn.className = "iconBtn";
@@ -88,19 +88,10 @@ export function createHeaderBar(props: HeaderBarProps): HTMLElement {
     lockBtn.appendChild(createLockIconSvg());
     lockBtn.addEventListener("click", props.onLockVault);
     actions.appendChild(lockBtn);
+
+    header.appendChild(actions);
   }
 
-  const themeBtn = document.createElement("button");
-  themeBtn.type = "button";
-  themeBtn.className = "iconBtn";
-  themeBtn.title = props.theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode";
-  themeBtn.appendChild(createThemeIconSvg(props.theme));
-  themeBtn.addEventListener("click", props.onToggleTheme);
-
-  actions.appendChild(themeBtn);
-
-  header.appendChild(brand);
-  header.appendChild(actions);
   return header;
 }
 
@@ -122,38 +113,6 @@ function createLockIconSvg(): SVGSVGElement {
   const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
   path.setAttribute("d", "M7 11V7a5 5 0 0110 0v4");
   svg.appendChild(rect);
-  svg.appendChild(path);
-  return svg;
-}
-
-function createThemeIconSvg(theme: "dark" | "light"): SVGSVGElement {
-  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  svg.setAttribute("width", "15");
-  svg.setAttribute("height", "15");
-  svg.setAttribute("viewBox", "0 0 24 24");
-  svg.setAttribute("fill", "none");
-  svg.setAttribute("stroke", "currentColor");
-  svg.setAttribute("stroke-width", "2");
-  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  if (theme === "dark") {
-    path.setAttribute("d", "M12 3v2m0 14v2m9-9h-2M5 12H3m15.36-6.36l-1.42 1.42M7.05 16.95l-1.42 1.42m12.73 0l-1.42-1.42M7.05 7.05L5.63 5.63M12 8a4 4 0 100 8 4 4 0 000-8z");
-  } else {
-    path.setAttribute("d", "M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z");
-  }
-  svg.appendChild(path);
-  return svg;
-}
-
-function createLinkIconSvg(): SVGSVGElement {
-  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  svg.setAttribute("width", "15");
-  svg.setAttribute("height", "15");
-  svg.setAttribute("viewBox", "0 0 24 24");
-  svg.setAttribute("fill", "none");
-  svg.setAttribute("stroke", "currentColor");
-  svg.setAttribute("stroke-width", "2");
-  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  path.setAttribute("d", "M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71");
   svg.appendChild(path);
   return svg;
 }

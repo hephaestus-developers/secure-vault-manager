@@ -213,9 +213,10 @@ impl BridgeServer {
     }
 
     /// Ghi nhận hoặc cập nhật phiên trình duyệt đang hoạt động (Active Session).
-    pub fn record_active_session(&mut self, browser: &str, version: &str) -> PairedClient {
+    /// Trả về `(PairedClient, bool)` trong đó `bool` là true nếu đây là client mới hoặc vừa được kích hoạt lại.
+    pub fn record_active_session(&mut self, browser: &str, version: &str) -> (PairedClient, bool) {
         let b = if browser.trim().is_empty() {
-            "WebExtension"
+            "Google Chrome"
         } else {
             browser.trim()
         };
@@ -230,7 +231,7 @@ impl BridgeServer {
             client.last_used = "Vừa mới xong".to_string();
             let updated = client.clone();
             self.save_clients();
-            return updated;
+            return (updated, false);
         }
 
         let client = PairedClient {
@@ -242,7 +243,7 @@ impl BridgeServer {
         };
         self.clients.push(client.clone());
         self.save_clients();
-        client
+        (client, true)
     }
 
     /// Sinh mã PIN ghép nối 6 chữ số ngẫu nhiên có hiệu lực trong 60 giây (tương thích ngược).

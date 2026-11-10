@@ -5,7 +5,7 @@ use std::sync::atomic::Ordering;
 
 use svm_crypto::{evaluate_password_strength, generate_password, generate_uuid_v4};
 use svm_domain::status::SvmStatusCode;
-use svm_domain::{Category, DomainError, JsonValue, VaultItem};
+use svm_domain::{Category, CustomField, DomainError, FieldKind, JsonValue, VaultItem};
 use svm_ssh_agent::generate_ssh_keypair;
 use svm_totp::generate_totp;
 use svm_transfer::{export_items_to_file, parse_import_file, TransferFormat};
@@ -446,6 +446,18 @@ fn dispatch_bridge_request(ctx_raw: usize, req_json: &str) -> String {
         true
     };
 
+    let browser_name = payload.get_str_or("browser", req.get_str_or("browser", "Google Chrome"));
+    let version_str = payload.get_str_or("version", req.get_str_or("version", "v1.0.0"));
+
+    if let Ok(mut rt) = unsafe { (*ctx).runtime.lock() } {
+        let (_client, is_new) = rt.bridge.record_active_session(browser_name, version_str);
+        if is_new {
+            unsafe {
+                (*ctx).emit_event(EVENT_BRIDGE_CLIENTS_CHANGED, "{}");
+            }
+        }
+    }
+
     match action {
         "ping" | "get_vault_status" => {
             let bio_available = svm_system::is_biometric_available()
@@ -480,7 +492,7 @@ fn dispatch_bridge_request(ctx_raw: usize, req_json: &str) -> String {
                         (*ctx).emit_event(EVENT_VAULT_UNLOCKED, "{\"unlocked\":true}");
                     }
                     if let Ok(mut rt) = unsafe { (*ctx).runtime.lock() } {
-                        let client = rt.bridge.record_active_session(browser, version);
+                        let (client, _is_new) = rt.bridge.record_active_session(browser, version);
                         unsafe {
                             (*ctx).emit_event(EVENT_BRIDGE_CLIENTS_CHANGED, "{}");
                         }
@@ -515,7 +527,7 @@ fn dispatch_bridge_request(ctx_raw: usize, req_json: &str) -> String {
                         (*ctx).emit_event(EVENT_VAULT_UNLOCKED, "{\"unlocked\":true}");
                     }
                     if let Ok(mut rt) = unsafe { (*ctx).runtime.lock() } {
-                        let client = rt.bridge.record_active_session(browser, version);
+                        let (client, _is_new) = rt.bridge.record_active_session(browser, version);
                         unsafe {
                             (*ctx).emit_event(EVENT_BRIDGE_CLIENTS_CHANGED, "{}");
                         }
@@ -615,11 +627,16 @@ fn dispatch_bridge_request(ctx_raw: usize, req_json: &str) -> String {
                     }
                     let url_low = item.website_url.to_lowercase();
                     let title_low = item.title.to_lowercase();
-                    if domain.is_empty()
-                        || url_low.contains(&domain)
-                        || domain.contains(&url_low)
-                        || title_low.contains(&domain)
-                    {
+                    let matches_domain = if domain.is_empty() {
+                        true
+                    } else {
+                        let url_match = !url_low.is_empty()
+                            && (url_low.contains(&domain) || domain.contains(&url_low));
+                        let title_match = !title_low.is_empty()
+                            && (title_low.contains(&domain) || domain.contains(&title_low));
+                        url_match || title_match
+                    };
+                    if matches_domain {
                         let mut cred = JsonValue::new_object();
                         cred.insert("id", JsonValue::String(item.id.clone()));
                         cred.insert("title", JsonValue::String(item.title.clone()));
@@ -733,6 +750,285 @@ fn dispatch_bridge_request(ctx_raw: usize, req_json: &str) -> String {
             data.insert("percent", JsonValue::Number(eval.percent as f64));
             data.insert("feedback", JsonValue::String(eval.feedback));
             make_ok_envelope(request_id, "generated_password", data)
+        }
+        "get_totp" => {
+            if !is_paired {
+                return make_err_envelope(
+                    request_id,
+                    "NOT_PAIRED",
+                    "Tiện ích mở rộng chưa được ghép nối hoặc quyền truy cập đã bị thu hồi.",
+                );
+            }
+            if !is_unlocked {
+                return make_err_envelope(
+                    request_id,
+                    "VAULT_LOCKED",
+                    "Kho dữ liệu đang bị khóa. Vui lòng mở khóa trên Desktop.",
+                );
+            }
+            let item_id = payload.get_str_or("itemId", payload.get_str_or("item_id", ""));
+            let secret = if !item_id.is_empty() {
+                if let Ok(rt) = unsafe { (*ctx).runtime.lock() } {
+                    rt.vault_service
+                        .items()
+                        .iter()
+                        .find(|it| it.id == item_id)
+                        .map(|it| it.totp_secret.clone())
+                        .unwrap_or_default()
+                } else {
+                    String::new()
+                }
+            } else {
+                payload.get_str_or("secret", "").to_string()
+            };
+            if secret.is_empty() {
+                return make_err_envelope(
+                    request_id,
+                    "NO_TOTP_SECRET",
+                    "Mục này không có cấu hình mã bí mật TOTP",
+                );
+            }
+            let (code, remaining) = generate_totp(&secret, 0);
+            let mut data = JsonValue::new_object();
+            data.insert("code", JsonValue::String(code));
+            data.insert("remaining", JsonValue::Number(remaining as f64));
+            make_ok_envelope(request_id, "totp_code", data)
+        }
+        "passkey_create" => {
+            if !is_paired {
+                return make_err_envelope(
+                    request_id,
+                    "NOT_PAIRED",
+                    "Tiện ích mở rộng chưa được ghép nối hoặc quyền truy cập đã bị thu hồi.",
+                );
+            }
+            if !is_unlocked {
+                return make_err_envelope(
+                    request_id,
+                    "VAULT_LOCKED",
+                    "Kho dữ liệu đang bị khóa. Vui lòng mở khóa trên Desktop.",
+                );
+            }
+            let rp_id = payload.get_str_or("rpId", "example.com");
+            let rp_name = payload.get_str_or("rpName", rp_id);
+            let user_name = payload.get_str_or("userName", "User");
+            let user_display = payload.get_str_or("userDisplayName", user_name);
+            let challenge = payload.get_str_or("challenge", "");
+            let default_origin = format!("https://{rp_id}");
+            let origin = payload.get_str_or("origin", &default_origin);
+            let user_handle_b64 = payload.get_str_or("userHandle", "");
+
+            match svm_webauthn::create_passkey_credential(rp_id, challenge, origin) {
+                Ok(reg) => {
+                    let cred_id_b64 = svm_crypto::base64_encode(&reg.credential_id)
+                        .replace('+', "-")
+                        .replace('/', "_")
+                        .trim_end_matches('=')
+                        .to_string();
+                    let att_b64 = svm_crypto::base64_encode(&reg.attestation_object)
+                        .replace('+', "-")
+                        .replace('/', "_")
+                        .trim_end_matches('=')
+                        .to_string();
+                    let client_json_b64 =
+                        svm_crypto::base64_encode(reg.client_data_json.as_bytes())
+                            .replace('+', "-")
+                            .replace('/', "_")
+                            .trim_end_matches('=')
+                            .to_string();
+
+                    let item = VaultItem {
+                        vault_id: "personal".to_string(),
+                        title: format!("{rp_name} Passkey"),
+                        category: Category::Passkey,
+                        username: user_name.to_string(),
+                        website_url: format!("https://{rp_id}"),
+                        notes: format!("Passkey for {user_display} on {origin}"),
+                        has_passkey: true,
+                        password: svm_crypto::base64_encode(&reg.private_key_pkcs8),
+                        custom_fields: vec![
+                            CustomField {
+                                id: generate_uuid_v4(),
+                                label: "credentialId".to_string(),
+                                value: cred_id_b64.clone(),
+                                kind: FieldKind::Text,
+                            },
+                            CustomField {
+                                id: generate_uuid_v4(),
+                                label: "rpId".to_string(),
+                                value: rp_id.to_string(),
+                                kind: FieldKind::Text,
+                            },
+                            CustomField {
+                                id: generate_uuid_v4(),
+                                label: "algorithm".to_string(),
+                                value: "-7".to_string(),
+                                kind: FieldKind::Text,
+                            },
+                            CustomField {
+                                id: generate_uuid_v4(),
+                                label: "userHandle".to_string(),
+                                value: user_handle_b64.to_string(),
+                                kind: FieldKind::Text,
+                            },
+                        ],
+                        ..Default::default()
+                    };
+
+                    let mut saved_id = String::new();
+                    if let Ok(mut rt) = unsafe { (*ctx).runtime.lock() } {
+                        if let Ok(id) = rt.vault_service.upsert_item(item) {
+                            saved_id = id;
+                        }
+                    }
+                    unsafe {
+                        (*ctx).emit_event(EVENT_ITEMS_CHANGED, "{}");
+                    }
+
+                    let mut data = JsonValue::new_object();
+                    data.insert("itemId", JsonValue::String(saved_id));
+                    data.insert("credentialId", JsonValue::String(cred_id_b64));
+                    data.insert("clientDataJSON", JsonValue::String(client_json_b64));
+                    data.insert("attestationObject", JsonValue::String(att_b64));
+                    make_ok_envelope(request_id, "passkey_created", data)
+                }
+                Err(e) => make_err_envelope(request_id, "PASSKEY_CREATE_FAILED", &e),
+            }
+        }
+        "passkey_get" => {
+            if !is_paired {
+                return make_err_envelope(
+                    request_id,
+                    "NOT_PAIRED",
+                    "Tiện ích mở rộng chưa được ghép nối hoặc quyền truy cập đã bị thu hồi.",
+                );
+            }
+            if !is_unlocked {
+                return make_err_envelope(
+                    request_id,
+                    "VAULT_LOCKED",
+                    "Kho dữ liệu đang bị khóa. Vui lòng mở khóa trên Desktop.",
+                );
+            }
+            let rp_id = payload.get_str_or("rpId", "");
+            let challenge = payload.get_str_or("challenge", "");
+            let default_origin = format!("https://{rp_id}");
+            let origin = payload.get_str_or("origin", &default_origin);
+
+            let mut target_item: Option<VaultItem> = None;
+            if let Ok(rt) = unsafe { (*ctx).runtime.lock() } {
+                for it in rt.vault_service.items() {
+                    if it.trashed || it.category != Category::Passkey {
+                        continue;
+                    }
+                    let has_matching_rp = it.website_url.contains(rp_id)
+                        || it.title.to_lowercase().contains(&rp_id.to_lowercase())
+                        || it
+                            .custom_fields
+                            .iter()
+                            .any(|cf| cf.label == "rpId" && cf.value == rp_id);
+                    if has_matching_rp {
+                        target_item = Some(it.clone());
+                        break;
+                    }
+                }
+            }
+
+            let Some(item) = target_item else {
+                return make_err_envelope(
+                    request_id,
+                    "NOT_FOUND",
+                    "Không tìm thấy Passkey cho trang web này",
+                );
+            };
+
+            let priv_bytes = svm_crypto::base64_decode(&item.password).unwrap_or_default();
+            if priv_bytes.is_empty() {
+                return make_err_envelope(
+                    request_id,
+                    "INVALID_KEY",
+                    "Khóa riêng tư của Passkey không hợp lệ",
+                );
+            }
+
+            let cred_id_str = item
+                .custom_fields
+                .iter()
+                .find(|cf| cf.label == "credentialId")
+                .map(|cf| cf.value.clone())
+                .unwrap_or_default();
+            let cred_id_bytes =
+                svm_crypto::base64_decode(&cred_id_str.replace('-', "+").replace('_', "/"))
+                    .unwrap_or_default();
+
+            let user_handle_str = item
+                .custom_fields
+                .iter()
+                .find(|cf| cf.label == "userHandle")
+                .map(|cf| cf.value.clone())
+                .unwrap_or_default();
+            let user_handle_bytes = if !user_handle_str.is_empty() {
+                Some(
+                    svm_crypto::base64_decode(&user_handle_str.replace('-', "+").replace('_', "/"))
+                        .unwrap_or_default(),
+                )
+            } else {
+                None
+            };
+
+            match svm_webauthn::authenticate_passkey_assertion(
+                rp_id,
+                challenge,
+                origin,
+                &cred_id_bytes,
+                &priv_bytes,
+                0,
+                user_handle_bytes,
+            ) {
+                Ok(assertion) => {
+                    let cred_id_b64 = if !cred_id_str.is_empty() {
+                        cred_id_str
+                    } else {
+                        svm_crypto::base64_encode(&assertion.credential_id)
+                            .replace('+', "-")
+                            .replace('/', "_")
+                            .trim_end_matches('=')
+                            .to_string()
+                    };
+                    let auth_data_b64 = svm_crypto::base64_encode(&assertion.authenticator_data)
+                        .replace('+', "-")
+                        .replace('/', "_")
+                        .trim_end_matches('=')
+                        .to_string();
+                    let sig_b64 = svm_crypto::base64_encode(&assertion.signature)
+                        .replace('+', "-")
+                        .replace('/', "_")
+                        .trim_end_matches('=')
+                        .to_string();
+                    let client_json_b64 =
+                        svm_crypto::base64_encode(assertion.client_data_json.as_bytes())
+                            .replace('+', "-")
+                            .replace('/', "_")
+                            .trim_end_matches('=')
+                            .to_string();
+
+                    let mut data = JsonValue::new_object();
+                    data.insert("credentialId", JsonValue::String(cred_id_b64));
+                    data.insert("clientDataJSON", JsonValue::String(client_json_b64));
+                    data.insert("authenticatorData", JsonValue::String(auth_data_b64));
+                    data.insert("signature", JsonValue::String(sig_b64));
+                    if let Some(uh) = assertion.user_handle {
+                        let uh_b64 = svm_crypto::base64_encode(&uh)
+                            .replace('+', "-")
+                            .replace('/', "_")
+                            .trim_end_matches('=')
+                            .to_string();
+                        data.insert("userHandle", JsonValue::String(uh_b64));
+                    }
+                    make_ok_envelope(request_id, "passkey_assertion", data)
+                }
+                Err(e) => make_err_envelope(request_id, "PASSKEY_ASSERTION_FAILED", &e),
+            }
         }
         _ => make_err_envelope(
             request_id,

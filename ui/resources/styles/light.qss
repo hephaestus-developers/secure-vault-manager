@@ -2152,3 +2152,106 @@ QCalendarWidget QHeaderView::section {
     font-size: 12px;
     line-height: 1.4;
 }
+
+/* Browser Integration Tab */
+#BrowserHintBox {
+    background-color: #f2f4f8;
+    border: 1px solid #ccd0da;
+    border-radius: 6px;
+    padding: 10px 14px;
+}
+
+#BrowserHintText {
+    color: #6c6f85;
+    font-size: 11.5px;
+    line-height: 1.45;
+}
+
+#BrowserItemCard {
+    background-color: #ffffff;
+    border: 1px solid #ccd0da;
+    border-radius: 6px;
+    padding: 8px 12px;
+}
+
+#BrowserItemCard:hover {
+    border-color: #bcc0cc;
+    background-color: #f7f8fa;
+}
+
+#BrowserItemTitle {
+    color: #4c4f69;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+#BrowserItemDesc {
+    color: #6c6f85;
+    font-size: 11px;
+}
+
+#BrowserConnectedBadge {
+    background-color: rgba(64, 160, 43, 0.12);
+    color: #40a02b;
+    border: 1px solid rgba(64, 160, 43, 0.3);
+    border-radius: 4px;
+    font-size: 10.5px;
+    font-weight: 600;
+    padding: 2px 7px;
+}
+
+#BrowserPendingBadge {
+    background-color: rgba(223, 142, 29, 0.12);
+    color: #df8e1d;
+    border: 1px solid rgba(223, 142, 29, 0.3);
+    border-radius: 4px;
+    font-size: 10.5px;
+    font-weight: 600;
+    padding: 2px 7px;
+}
+
+#BrowserInactiveBadge {
+    background-color: rgba(108, 111, 133, 0.1);
+    color: #6c6f85;
+    border: 1px solid rgba(108, 111, 133, 0.25);
+    border-radius: 4px;
+    font-size: 10.5px;
+    font-weight: 500;
+    padding: 2px 7px;
+}
+
+#BrowserUnsupportedBadge {
+    background-color: rgba(156, 160, 176, 0.15);
+    color: #7c7f93;
+    border: 1px solid rgba(156, 160, 176, 0.3);
+    border-radius: 4px;
+    font-size: 10.5px;
+    font-weight: 500;
+    padding: 2px 7px;
+}
+
+#BrowserInstallBtn {
+    background-color: #e6e9ef;
+    color: #4c4f69;
+    border: 1px solid #ccd0da;
+    border-radius: 5px;
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 4px 12px;
+}
+
+#BrowserInstallBtn:hover {
+    background-color: #dce0e8;
+    color: #202020;
+    border-color: #bcc0cc;
+}
+
+#BrowserConnectedBtn {
+    background-color: rgba(64, 160, 43, 0.08);
+    color: #40a02b;
+    border: 1px solid rgba(64, 160, 43, 0.25);
+    border-radius: 5px;
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 4px 12px;
+}

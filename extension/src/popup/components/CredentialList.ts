@@ -8,6 +8,7 @@ import { CredentialSummary } from "../../services/protocol";
 export interface CredentialListProps {
   items: CredentialSummary[];
   activeOrigin?: string;
+  activeDomain?: string;
   onFill: (item: CredentialSummary) => void;
   onCopyUsername: (item: CredentialSummary) => void;
   onCopyPassword: (item: CredentialSummary) => void;
@@ -23,24 +24,42 @@ export function createCredentialList(props: CredentialListProps): HTMLElement {
     empty.className = "stateCard";
     const emptyTitle = document.createElement("div");
     emptyTitle.className = "stateTitle";
-    emptyTitle.textContent = "No Matching Logins";
+    emptyTitle.textContent = props.activeDomain
+      ? "Không có thông tin đăng nhập"
+      : "Chưa mở trang web nào";
     const emptyDesc = document.createElement("div");
     emptyDesc.className = "stateDesc";
-    emptyDesc.textContent =
-      "No saved credentials matched this website or search query.";
+    emptyDesc.textContent = props.activeDomain
+      ? `Không tìm thấy thông tin đăng nhập nào cho trang web ${props.activeDomain}.`
+      : "Hãy mở một trang web trên trình duyệt để xem các tài khoản tương ứng.";
     empty.appendChild(emptyTitle);
     empty.appendChild(emptyDesc);
     container.appendChild(empty);
     return container;
   }
 
-  let activeHost = "";
-  if (props.activeOrigin) {
-    try {
-      activeHost = new URL(props.activeOrigin).hostname.replace(/^www\./, "").toLowerCase();
-    } catch {
-      activeHost = "";
-    }
+  if (props.activeDomain) {
+    const domainHeader = document.createElement("div");
+    domainHeader.className = "activeDomainHeader";
+
+    const domainIcon = document.createElement("span");
+    domainIcon.className = "activeDomainIcon";
+    domainIcon.appendChild(
+      createSvgIcon("M12 2a10 10 0 100 20 10 10 0 000-20zm0 0c2.5 2.5 4 6.5 4 10s-1.5 7.5-4 10c-2.5-2.5-4-6.5-4-10s1.5-7.5 4-10zm-8 10h16")
+    );
+
+    const domainName = document.createElement("span");
+    domainName.className = "activeDomainName";
+    domainName.textContent = props.activeDomain;
+
+    const domainCount = document.createElement("span");
+    domainCount.className = "activeDomainCount";
+    domainCount.textContent = `${props.items.length} tài khoản`;
+
+    domainHeader.appendChild(domainIcon);
+    domainHeader.appendChild(domainName);
+    domainHeader.appendChild(domainCount);
+    container.appendChild(domainHeader);
   }
 
   for (const item of props.items) {
@@ -67,19 +86,10 @@ export function createCredentialList(props: CredentialListProps): HTMLElement {
     title.title = item.title;
     titleRow.appendChild(title);
 
-    const isDomainMatch =
-      activeHost.length > 0 &&
-      Boolean(item.url && item.url.toLowerCase().includes(activeHost));
-    if (isDomainMatch) {
-      const matchBadge = document.createElement("span");
-      matchBadge.className = "matchBadge";
-      matchBadge.textContent = "Match";
-      titleRow.appendChild(matchBadge);
-    }
-
+    const itemUrl = item.websiteUrl || (item as any).url || "";
     const subtitle = document.createElement("div");
     subtitle.className = "credSubtitle";
-    subtitle.textContent = item.username || item.url || "Saved account";
+    subtitle.textContent = item.username || itemUrl || "Tài khoản đã lưu";
     subtitle.title = item.username;
 
     info.appendChild(titleRow);
@@ -95,25 +105,25 @@ export function createCredentialList(props: CredentialListProps): HTMLElement {
     fillBtn.type = "button";
     fillBtn.className = "primaryBtn";
     fillBtn.textContent = "Autofill";
-    fillBtn.title = "Autofill login on current page";
+    fillBtn.title = "Tự động điền trên trang web hiện tại";
     fillBtn.addEventListener("click", () => props.onFill(item));
     actions.appendChild(fillBtn);
 
     const copyUserBtn = document.createElement("button");
     copyUserBtn.type = "button";
     copyUserBtn.className = "iconBtn";
-    copyUserBtn.title = "Copy username";
+    copyUserBtn.title = "Sao chép tên đăng nhập";
     copyUserBtn.appendChild(
       createSvgIcon("M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z")
     );
-    copyUserBtn.appendChild( createBtnLabel("User"));
+    copyUserBtn.appendChild(createBtnLabel("User"));
     copyUserBtn.addEventListener("click", () => props.onCopyUsername(item));
     actions.appendChild(copyUserBtn);
 
     const copyPassBtn = document.createElement("button");
     copyPassBtn.type = "button";
     copyPassBtn.className = "iconBtn";
-    copyPassBtn.title = "Copy password";
+    copyPassBtn.title = "Sao chép mật khẩu";
     copyPassBtn.appendChild(
       createSvgIcon("M9 9h10v10H9zM5 15H4a1 1 0 01-1-1V4a1 1 0 011-1h10a1 1 0 011 1v1")
     );
@@ -126,7 +136,7 @@ export function createCredentialList(props: CredentialListProps): HTMLElement {
       copyTotpBtn.type = "button";
       copyTotpBtn.className = "iconBtn";
       copyTotpBtn.style.color = "var(--status-success)";
-      copyTotpBtn.title = `Copy 2FA verification code (${item.totpCode})`;
+      copyTotpBtn.title = `Sao chép mã 2FA (${item.totpCode})`;
       copyTotpBtn.appendChild(
         createSvgIcon("M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z")
       );
