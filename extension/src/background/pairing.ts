@@ -4,6 +4,7 @@
  */
 
 import {
+  BridgeErrorDetail,
   createBridgeRequest,
   detectCurrentBrowserName,
   PairingChallengePayload,
@@ -71,7 +72,7 @@ export class PairingManager {
     return this.state;
   }
 
-  public async unlockVault(password: string): Promise<boolean> {
+  public async unlockVault(password: string): Promise<{ ok: boolean; error?: BridgeErrorDetail }> {
     const req = createBridgeRequest("unlock_vault", {
       password,
       browser: detectCurrentBrowserName(),
@@ -82,12 +83,18 @@ export class PairingManager {
       if (resp.payload.clientId && resp.payload.sessionToken) {
         this.setPaired(resp.payload.clientId, resp.payload.sessionToken);
       }
-      return true;
+      return { ok: true };
     }
-    return false;
+    return {
+      ok: false,
+      error: resp.error || {
+        code: "DESKTOP_NOT_RUNNING",
+        message: "Ứng dụng Desktop chưa khởi động hoặc mật khẩu không chính xác.",
+      },
+    };
   }
 
-  public async unlockBiometric(): Promise<boolean> {
+  public async unlockBiometric(): Promise<{ ok: boolean; error?: BridgeErrorDetail }> {
     const req = createBridgeRequest("unlock_vault_biometric", {
       browser: detectCurrentBrowserName(),
       version: "1.0.0",
@@ -97,9 +104,15 @@ export class PairingManager {
       if (resp.payload.clientId && resp.payload.sessionToken) {
         this.setPaired(resp.payload.clientId, resp.payload.sessionToken);
       }
-      return true;
+      return { ok: true };
     }
-    return false;
+    return {
+      ok: false,
+      error: resp.error || {
+        code: "BIOMETRIC_FAILED",
+        message: "Xác thực sinh trắc học không thành công hoặc Desktop chưa khởi động.",
+      },
+    };
   }
 
   public async lockVault(): Promise<boolean> {

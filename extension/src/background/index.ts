@@ -28,23 +28,25 @@ if (chromeApi?.runtime?.onMessage) {
       void (async () => {
         if (message.action === "unlock_vault") {
           const password = String(message.payload?.password || "");
-          const ok = await pairingManager.unlockVault(password);
+          const result = await pairingManager.unlockVault(password);
           sendResponse({
             requestId: message.requestId,
             type: "vault_unlocked",
-            ok,
-            payload: { unlocked: ok },
+            ok: result.ok,
+            payload: { unlocked: result.ok },
+            error: result.error,
           });
           return;
         }
 
         if (message.action === "unlock_vault_biometric") {
-          const ok = await pairingManager.unlockBiometric();
+          const result = await pairingManager.unlockBiometric();
           sendResponse({
             requestId: message.requestId,
             type: "vault_unlocked",
-            ok,
-            payload: { unlocked: ok },
+            ok: result.ok,
+            payload: { unlocked: result.ok },
+            error: result.error,
           });
           return;
         }

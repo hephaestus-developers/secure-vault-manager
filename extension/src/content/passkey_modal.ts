@@ -328,8 +328,53 @@ export function promptPasskeyConsent(params: PasskeyModalParams): Promise<boolea
 
       // Kiểm tra trạng thái mở khóa từ background
       const statusResp = await sendExtensionBridgeMessage<any>("get_vault_status");
+      const isDesktopRunning = Boolean(statusResp.ok && statusResp.payload?.desktopRunning);
       isUnlocked = Boolean(statusResp.ok && statusResp.payload?.unlocked);
 
+      // TRƯỜNG HỢP 1: Desktop App chưa chạy (Offline)
+      if (!isDesktopRunning) {
+        body.innerHTML = `
+          <div class="svm-title-row">
+            <div class="svm-icon-badge">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+                <line x1="8" y1="21" x2="16" y2="21"/>
+                <line x1="12" y1="17" x2="12" y2="21"/>
+              </svg>
+            </div>
+            <div>
+              <div class="svm-title">Ứng dụng Desktop chưa khởi chạy</div>
+              <div class="svm-rp-text">Mở ứng dụng trên máy tính để sử dụng Passkey</div>
+            </div>
+          </div>
+          <div class="svm-info-box" style="margin-bottom: 14px;">
+            <div style="font-size: 12px; color: #a6adc8; line-height: 1.5;">
+              Secure Vault Manager cần ứng dụng Desktop đang chạy để bảo vệ và ký xác thực Passkey an toàn.
+            </div>
+          </div>
+          <div class="svm-actions">
+            <button class="svm-btn svm-btn-secondary" id="svm-btn-cancel">Dùng phương thức khác / Hủy</button>
+            <button class="svm-btn svm-btn-primary" id="svm-btn-retry">
+              Kiểm tra kết nối
+            </button>
+          </div>
+        `;
+
+        container.appendChild(body);
+
+        body.querySelector("#svm-btn-cancel")?.addEventListener("click", () => cleanup(false));
+        const retryBtn = body.querySelector<HTMLButtonElement>("#svm-btn-retry");
+        retryBtn?.addEventListener("click", async () => {
+          if (retryBtn) {
+            retryBtn.disabled = true;
+            retryBtn.textContent = "Đang kiểm tra...";
+          }
+          await checkStatusAndRender();
+        });
+        return;
+      }
+
+      // TRƯỜNG HỢP 2: Desktop đang chạy nhưng Kho bị khóa
       if (!isUnlocked) {
         // Giao diện Yêu cầu Mở khóa kho
         body.innerHTML = `
@@ -396,7 +441,11 @@ export function promptPasskeyConsent(params: PasskeyModalParams): Promise<boolea
               btnUnlock.textContent = "Mở khóa";
             }
             if (errorMsg) {
-              errorMsg.textContent = unlockResp.error?.message || "Mật khẩu không đúng";
+              if (unlockResp.error?.code === "DESKTOP_NOT_RUNNING") {
+                errorMsg.textContent = "Ứng dụng Desktop chưa khởi động.";
+              } else {
+                errorMsg.textContent = unlockResp.error?.message || "Mật khẩu không đúng";
+              }
             }
           }
         }
