@@ -10,6 +10,7 @@
 #include "app/vault_manager.h"
 #include "components/dialog_drag_helper.h"
 #include "components/window_resize_handler.h"
+#include "reset_vault_dialog.h"
 
 #include <QEvent>
 #include <QHBoxLayout>
@@ -137,6 +138,20 @@ void RecoveryDialog::setupUI() {
   m_errorLabel->setObjectName(QStringLiteral("DialogErrorLabel"));
   layout->addWidget(m_errorLabel);
 
+  m_lostAllCredsBtn = new QPushButton(
+      tr("Lost your Recovery Key as well? Reset Vault"), bodyWidget);
+  m_lostAllCredsBtn->setObjectName(QStringLiteral("LostAllCredsBtn"));
+  m_lostAllCredsBtn->setFlat(true);
+  m_lostAllCredsBtn->setCursor(Qt::PointingHandCursor);
+  m_lostAllCredsBtn->setStyleSheet(
+      QStringLiteral("QPushButton { color: #f38ba8; font-size: 11.5px; border: "
+                     "none; text-decoration: underline; text-align: left; "
+                     "background: transparent; padding: 4px 0; } "
+                     "QPushButton:hover { color: #eba0ac; }"));
+  connect(m_lostAllCredsBtn, &QPushButton::clicked, this,
+          &RecoveryDialog::onResetVaultClicked);
+  layout->addWidget(m_lostAllCredsBtn);
+
   layout->addStretch(1);
 
   // Bottom action bar
@@ -196,6 +211,19 @@ void RecoveryDialog::onRestoreClicked() {
   accept();
 }
 
+void RecoveryDialog::onResetVaultClicked() {
+  hide();
+  ResetVaultDialog dlg(parentWidget());
+  const int res = components::DialogDragHelper::execDialog(dlg);
+  if (res == QDialog::Accepted) {
+    accept();
+  } else {
+    show();
+    raise();
+    activateWindow();
+  }
+}
+
 void RecoveryDialog::retranslateUi() {
   if (m_headerTitle) {
     m_headerTitle->setText(tr("Emergency Vault Recovery"));
@@ -215,6 +243,10 @@ void RecoveryDialog::retranslateUi() {
   }
   if (m_restoreBtn) {
     m_restoreBtn->setText(tr("Restore && Unlock Vault"));
+  }
+  if (m_lostAllCredsBtn) {
+    m_lostAllCredsBtn->setText(
+        tr("Lost your Recovery Key as well? Reset Vault"));
   }
 }
 

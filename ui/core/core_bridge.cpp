@@ -13,6 +13,7 @@
 #include <QDateTime>
 #include <QDebug>
 #include <QDir>
+#include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -183,6 +184,10 @@ void CoreBridge::handleRustEvent(int kind, const QString &payloadJson) {
     emit promptRequestedEvent(promptObj);
   } else if (kind == SVM_EVENT_BRIDGE_CLIENTS_CHANGED) {
     emit bridgeClientsChangedEvent();
+  } else if (kind == SVM_EVENT_SETTINGS_CHANGED) {
+    const QJsonObject settingsObj =
+        QJsonDocument::fromJson(payloadJson.toUtf8()).object();
+    emit coreSettingsChanged(settingsObj);
   }
 }
 
@@ -240,7 +245,21 @@ bool CoreBridge::resetStorage() {
                            "/.local/share/hephaestus/secure-vault-manager");
   candidateDirs << QStringLiteral("/tmp/hephaestus-svm-data");
 
+  // Safety Net Backup: Tự động sao lưu vault.svm cũ sang thư mục an toàn phòng
+  // khi người dùng nhớ lại mật khẩu
+  const QString backupDir =
+      QDir::homePath() +
+      QStringLiteral("/.local/share/hephaestus/secure-vault-manager-backups");
+  QDir().mkpath(backupDir);
+  const qint64 ts = QDateTime::currentDateTimeUtc().toSecsSinceEpoch();
+
   for (const QString &dPath : candidateDirs) {
+    const QString vaultFile = dPath + QStringLiteral("/vault.svm");
+    if (QFile::exists(vaultFile)) {
+      const QString backupTarget =
+          QStringLiteral("%1/vault_%2.svm.abandoned").arg(backupDir).arg(ts);
+      QFile::copy(vaultFile, backupTarget);
+    }
     QDir dir(dPath);
     if (dir.exists()) {
       dir.removeRecursively();
@@ -1325,7 +1344,11 @@ bool CoreBridge::saveCoreSettings(const QJsonObject &settings) {
   }
   const QByteArray jsonUtf8 =
       QJsonDocument(settings).toJson(QJsonDocument::Compact);
-  const bool ok = svm_settings_save(m_context, jsonUtf8.constData()) == SVM_OK;
+  const int res = svm_settings_save(m_context, jsonUtf8.constData());
+  const bool ok = res == SVM_OK;
+  if (!ok) {
+    qWarning() << "[CoreBridge] svm_settings_save failed code:" << res << "err:" << lastError();
+  }
   if (ok && settings.contains(QStringLiteral("favicon_fetch_enabled"))) {
     m_faviconFailed.clear();
     emit faviconUpdated(QString());

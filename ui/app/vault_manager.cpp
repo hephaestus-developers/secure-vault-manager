@@ -17,17 +17,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QRandomGenerator>
-#include <QSettings>
-
 namespace svm::app {
-
-namespace {
-QSettings openUnifiedSettings() {
-  return QSettings(QSettings::IniFormat, QSettings::UserScope,
-                   QStringLiteral("Hephaestus"),
-                   QStringLiteral("SecureVaultManager"));
-}
-} // namespace
 
 VaultManager &VaultManager::instance() {
   static VaultManager s_instance;
@@ -108,6 +98,12 @@ void VaultManager::refreshVaultsFromCore() {
   const QList<models::UiVault> coreVaults = bridge.fetchVaults(&coreConfigured);
   if (!coreVaults.isEmpty()) {
     m_vaults = coreVaults;
+    if (m_activeVaultId.isEmpty() ||
+        (m_activeVaultId != QStringLiteral("all") &&
+         vault(m_activeVaultId).id.isEmpty())) {
+      m_activeVaultId = defaultVault().id;
+      emit activeVaultChanged(m_activeVaultId);
+    }
     saveSettings();
     emit vaultListChanged();
   }
@@ -195,12 +191,7 @@ bool VaultManager::resetAllData() {
   m_biometricEnabled = false;
   m_isConfigured = false;
   m_isLocked = false;
-  SettingsManager::instance().setBiometricEnabled(false);
-
-  QSettings settings = openUnifiedSettings();
-  settings.remove(QStringLiteral("Security"));
-  settings.remove(QStringLiteral("Vaults"));
-  settings.sync();
+  SettingsManager::instance().resetSecurityAndVaults();
 
   emit configuredChanged(false);
   emit lockStateChanged(false);
@@ -591,51 +582,11 @@ QString VaultManager::primaryVaultId() const {
 }
 
 void VaultManager::loadSettings() {
-  QSettings settings = openUnifiedSettings();
-
-  // Di trú tự động một lần từ cấu hình QSettings mặc định cũ sang
-  // Hephaestus/SecureVaultManager.ini
-  if (!settings
-           .value(QStringLiteral("Migration/LegacyVaultSettingsDone"), false)
-           .toBool()) {
-    QSettings legacySettings;
-    if (!settings.contains(QStringLiteral("Security/IsConfigured")) &&
-        (legacySettings.contains(QStringLiteral("Security/IsConfigured")) ||
-         legacySettings.contains(QStringLiteral("Vaults/ListJson")))) {
-      const QStringList keysToMigrate = {
-          QStringLiteral("Security/IsConfigured"),
-          QStringLiteral("Security/PasswordHash"),
-          QStringLiteral("Security/PasswordSalt"),
-          QStringLiteral("Security/BiometricEnabled"),
-          QStringLiteral("Vaults/ListJson"),
-      };
-      for (const QString &key : keysToMigrate) {
-        if (legacySettings.contains(key)) {
-          settings.setValue(key, legacySettings.value(key));
-        }
-      }
-    }
-    legacySettings.remove(QStringLiteral("Security/RecoveryKey"));
-    legacySettings.sync();
-    settings.setValue(QStringLiteral("Migration/LegacyVaultSettingsDone"),
-                      true);
-    settings.sync();
-  }
-
-  m_isConfigured =
-      settings.value(QStringLiteral("Security/IsConfigured"), false).toBool();
-  m_passwordHash =
-      settings.value(QStringLiteral("Security/PasswordHash")).toString();
-  m_passwordSalt =
-      settings.value(QStringLiteral("Security/PasswordSalt")).toString();
-  settings.remove(QStringLiteral("Security/RecoveryKey"));
-  m_recoveryKey.clear();
-  m_biometricEnabled =
-      settings.value(QStringLiteral("Security/BiometricEnabled"), false)
-          .toBool();
-  if (SettingsManager::instance().biometricEnabled() != m_biometricEnabled) {
-    SettingsManager::instance().setBiometricEnabled(m_biometricEnabled);
-  }
+  auto &settingsMgr = SettingsManager::instance();
+  m_isConfigured = settingsMgr.isConfigured();
+  m_passwordHash = settingsMgr.passwordHash();
+  m_passwordSalt = settingsMgr.passwordSalt();
+  m_biometricEnabled = settingsMgr.biometricEnabled();
 
   auto &bridge = core::CoreBridge::instance();
   if (bridge.isInitialized()) {
@@ -643,6 +594,7 @@ void VaultManager::loadSettings() {
     const auto coreVaults = bridge.fetchVaults(&coreConfigured);
     if (coreConfigured && !m_isConfigured) {
       m_isConfigured = true;
+      settingsMgr.setConfigured(true);
     }
     if (!coreVaults.isEmpty()) {
       m_vaults = coreVaults;
@@ -652,29 +604,22 @@ void VaultManager::loadSettings() {
   m_isLocked = true; // Mặc định khi mở ứng dụng thì luôn ở trạng thái khóa
 
   if (m_vaults.isEmpty()) {
-    const QString jsonStr =
-        settings.value(QStringLiteral("Vaults/ListJson")).toString();
-    if (!jsonStr.isEmpty()) {
-      QJsonDocument doc = QJsonDocument::fromJson(jsonStr.toUtf8());
-      if (doc.isArray()) {
-        const QJsonArray arr = doc.array();
-        for (const auto &val : arr) {
-          if (val.isObject()) {
-            QJsonObject obj = val.toObject();
-            models::UiVault v;
-            v.id = obj.value(QStringLiteral("id")).toString();
-            v.name = obj.value(QStringLiteral("name")).toString();
-            v.iconName = obj.value(QStringLiteral("iconName"))
-                             .toString(QStringLiteral("vault_personal"));
-            v.description = obj.value(QStringLiteral("description")).toString();
-            v.itemCount = obj.value(QStringLiteral("itemCount")).toInt(0);
-            v.isDefault = obj.value(QStringLiteral("isDefault")).toBool(false);
-            v.createdAt = QDateTime::fromString(
-                obj.value(QStringLiteral("createdAt")).toString(), Qt::ISODate);
-            if (!v.id.isEmpty()) {
-              m_vaults.append(v);
-            }
-          }
+    const QJsonArray arr = settingsMgr.cachedVaults();
+    for (const auto &val : arr) {
+      if (val.isObject()) {
+        QJsonObject obj = val.toObject();
+        models::UiVault v;
+        v.id = obj.value(QStringLiteral("id")).toString();
+        v.name = obj.value(QStringLiteral("name")).toString();
+        v.iconName = obj.value(QStringLiteral("iconName"))
+                         .toString(QStringLiteral("vault_personal"));
+        v.description = obj.value(QStringLiteral("description")).toString();
+        v.itemCount = obj.value(QStringLiteral("itemCount")).toInt(0);
+        v.isDefault = obj.value(QStringLiteral("isDefault")).toBool(false);
+        v.createdAt = QDateTime::fromString(
+            obj.value(QStringLiteral("createdAt")).toString(), Qt::ISODate);
+        if (!v.id.isEmpty()) {
+          m_vaults.append(v);
         }
       }
     }
@@ -697,13 +642,10 @@ void VaultManager::loadSettings() {
 }
 
 void VaultManager::saveSettings() {
-  QSettings settings = openUnifiedSettings();
-  settings.setValue(QStringLiteral("Security/IsConfigured"), m_isConfigured);
-  settings.setValue(QStringLiteral("Security/PasswordHash"), m_passwordHash);
-  settings.setValue(QStringLiteral("Security/PasswordSalt"), m_passwordSalt);
-  settings.remove(QStringLiteral("Security/RecoveryKey"));
-  settings.setValue(QStringLiteral("Security/BiometricEnabled"),
-                    m_biometricEnabled);
+  auto &settingsMgr = SettingsManager::instance();
+  settingsMgr.setConfigured(m_isConfigured);
+  settingsMgr.setPasswordCredentials(m_passwordHash, m_passwordSalt);
+  settingsMgr.setBiometricEnabled(m_biometricEnabled);
 
   QJsonArray arr;
   for (const auto &v : m_vaults) {
@@ -717,9 +659,7 @@ void VaultManager::saveSettings() {
     obj.insert(QStringLiteral("createdAt"), v.createdAt.toString(Qt::ISODate));
     arr.append(obj);
   }
-  QJsonDocument doc(arr);
-  settings.setValue(QStringLiteral("Vaults/ListJson"),
-                    QString::fromUtf8(doc.toJson(QJsonDocument::Compact)));
+  settingsMgr.setCachedVaults(arr);
 }
 
 } // namespace svm::app

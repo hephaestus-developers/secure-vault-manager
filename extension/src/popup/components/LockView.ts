@@ -309,6 +309,18 @@ export function createLockView(props: LockViewProps): HTMLElement {
     actions.appendChild(bioBtn);
   }
 
+  const forgotHint = document.createElement("div");
+  forgotHint.style.cssText =
+    "font-size: 11.5px; color: var(--text-muted); text-align: center; margin-top: 6px; cursor: pointer; text-decoration: underline;";
+  forgotHint.textContent = "Quên mật khẩu hoặc mất Khóa khôi phục?";
+  forgotHint.addEventListener("click", () => {
+    errorLabel.textContent =
+      "Vui lòng mở ứng dụng Secure Vault Manager trên Desktop để khôi phục hoặc đặt lại kho an toàn.";
+    errorLabel.style.display = "block";
+    errorLabel.style.color = "var(--accent-primary)";
+  });
+  actions.appendChild(forgotHint);
+
   wrap.appendChild(iconWrap);
   wrap.appendChild(heading);
   wrap.appendChild(desc);

@@ -223,7 +223,7 @@ QWidget *OnboardingWizardView::createStepWelcome() {
   layout->setSpacing(12);
 
   // Badge bước
-  m_welcomeBadge = new QLabel(tr("STEP 1 OF 4 • WELCOME"), page);
+  m_welcomeBadge = new QLabel(tr("STEP 1 OF 4: WELCOME"), page);
   m_welcomeBadge->setObjectName(QStringLiteral("OnboardingBadge"));
   layout->addWidget(m_welcomeBadge);
 
@@ -309,7 +309,7 @@ QWidget *OnboardingWizardView::createStepWelcome() {
   layout->addStretch(1);
 
   // Nút hành động chính
-  m_createVaultBtn = new QPushButton(tr("Create a New Vault →"), page);
+  m_createVaultBtn = new QPushButton(tr("Create a New Vault"), page);
   m_createVaultBtn->setObjectName(QStringLiteral("OnboardingPrimaryBtn"));
   m_createVaultBtn->setFixedHeight(42);
   m_createVaultBtn->setCursor(Qt::PointingHandCursor);
@@ -317,7 +317,7 @@ QWidget *OnboardingWizardView::createStepWelcome() {
           [this]() { goToStep(1); });
   layout->addWidget(m_createVaultBtn);
 
-  m_welcomeFootnote = new QLabel(tr("Strictly offline & private • Your "
+  m_welcomeFootnote = new QLabel(tr("Strictly offline & private - Your "
                                     "credentials never leave your device"),
                                  page);
   m_welcomeFootnote->setObjectName(QStringLiteral("OnboardingDesc"));
@@ -336,7 +336,7 @@ QWidget *OnboardingWizardView::createStepPassword() {
   layout->setContentsMargins(0, 0, 0, 0);
   layout->setSpacing(10);
 
-  m_pwdBadge = new QLabel(tr("STEP 2 OF 4 • SECURITY"), page);
+  m_pwdBadge = new QLabel(tr("STEP 2 OF 4: SECURITY"), page);
   m_pwdBadge->setObjectName(QStringLiteral("OnboardingBadge"));
   layout->addWidget(m_pwdBadge);
 
@@ -459,7 +459,7 @@ QWidget *OnboardingWizardView::createStepPassword() {
 
   // Thanh nút điều hướng đáy
   auto *btnLayout = new QHBoxLayout();
-  m_pwdBackBtn = new QPushButton(tr("← Back"), page);
+  m_pwdBackBtn = new QPushButton(tr("Back"), page);
   m_pwdBackBtn->setObjectName(QStringLiteral("OnboardingSecondaryBtn"));
   m_pwdBackBtn->setFixedHeight(38);
   m_pwdBackBtn->setCursor(Qt::PointingHandCursor);
@@ -468,7 +468,7 @@ QWidget *OnboardingWizardView::createStepPassword() {
 
   btnLayout->addStretch(1);
 
-  m_pwdNextBtn = new QPushButton(tr("Continue →"), page);
+  m_pwdNextBtn = new QPushButton(tr("Continue"), page);
   m_pwdNextBtn->setObjectName(QStringLiteral("OnboardingPrimaryBtn"));
   m_pwdNextBtn->setFixedHeight(38);
   m_pwdNextBtn->setCursor(Qt::PointingHandCursor);
@@ -503,7 +503,7 @@ QWidget *OnboardingWizardView::createStepRecoveryKey() {
   layout->setContentsMargins(0, 0, 0, 0);
   layout->setSpacing(10);
 
-  m_recBadge = new QLabel(tr("STEP 3 OF 4 • EMERGENCY BACKUP"), page);
+  m_recBadge = new QLabel(tr("STEP 3 OF 4: EMERGENCY BACKUP"), page);
   m_recBadge->setObjectName(QStringLiteral("OnboardingBadge"));
   layout->addWidget(m_recBadge);
 
@@ -634,7 +634,7 @@ QWidget *OnboardingWizardView::createStepRecoveryKey() {
 
   // Bottom action bar
   auto *btnLayout = new QHBoxLayout();
-  m_recBackBtn = new QPushButton(tr("← Back"), page);
+  m_recBackBtn = new QPushButton(tr("Back"), page);
   m_recBackBtn->setObjectName(QStringLiteral("OnboardingSecondaryBtn"));
   m_recBackBtn->setFixedHeight(38);
   m_recBackBtn->setCursor(Qt::PointingHandCursor);
@@ -643,7 +643,7 @@ QWidget *OnboardingWizardView::createStepRecoveryKey() {
 
   btnLayout->addStretch(1);
 
-  m_recNextBtn = new QPushButton(tr("Continue →"), page);
+  m_recNextBtn = new QPushButton(tr("Continue"), page);
   m_recNextBtn->setObjectName(QStringLiteral("OnboardingPrimaryBtn"));
   m_recNextBtn->setFixedHeight(38);
   m_recNextBtn->setCursor(Qt::PointingHandCursor);
@@ -661,7 +661,7 @@ QWidget *OnboardingWizardView::createStepVaultSetup() {
   layout->setContentsMargins(0, 0, 0, 0);
   layout->setSpacing(10);
 
-  m_vaultBadge = new QLabel(tr("STEP 4 OF 4 • FINALIZE"), page);
+  m_vaultBadge = new QLabel(tr("STEP 4 OF 4: FINALIZE"), page);
   m_vaultBadge->setObjectName(QStringLiteral("OnboardingBadge"));
   layout->addWidget(m_vaultBadge);
 
@@ -783,7 +783,7 @@ QWidget *OnboardingWizardView::createStepVaultSetup() {
 
   // Bottom action bar
   auto *btnLayout = new QHBoxLayout();
-  m_vaultBackBtn = new QPushButton(tr("← Back"), page);
+  m_vaultBackBtn = new QPushButton(tr("Back"), page);
   m_vaultBackBtn->setObjectName(QStringLiteral("OnboardingSecondaryBtn"));
   m_vaultBackBtn->setFixedHeight(38);
   m_vaultBackBtn->setCursor(Qt::PointingHandCursor);
@@ -793,7 +793,7 @@ QWidget *OnboardingWizardView::createStepVaultSetup() {
 
   btnLayout->addStretch(1);
 
-  m_finishBtn = new QPushButton(tr("Complete Setup && Open Vault →"), page);
+  m_finishBtn = new QPushButton(tr("Complete Setup && Open Vault"), page);
   m_finishBtn->setObjectName(QStringLiteral("OnboardingPrimaryBtn"));
   m_finishBtn->setFixedHeight(38);
   m_finishBtn->setCursor(Qt::PointingHandCursor);
@@ -1001,7 +1001,7 @@ void OnboardingWizardView::retranslateUi() {
 
   // Step 1
   if (m_welcomeBadge) {
-    m_welcomeBadge->setText(tr("STEP 1 OF 4 • WELCOME"));
+    m_welcomeBadge->setText(tr("STEP 1 OF 4: WELCOME"));
   }
   if (m_welcomeTitle) {
     m_welcomeTitle->setText(tr("Welcome to Secure Vault Manager"));
@@ -1036,16 +1036,16 @@ void OnboardingWizardView::retranslateUi() {
            "if you ever forget your master password."));
   }
   if (m_createVaultBtn) {
-    m_createVaultBtn->setText(tr("Create a New Vault →"));
+    m_createVaultBtn->setText(tr("Create a New Vault"));
   }
   if (m_welcomeFootnote) {
-    m_welcomeFootnote->setText(tr("Strictly offline & private • Your "
+    m_welcomeFootnote->setText(tr("Strictly offline & private - Your "
                                   "credentials never leave your device"));
   }
 
   // Step 2
   if (m_pwdBadge) {
-    m_pwdBadge->setText(tr("STEP 2 OF 4 • SECURITY"));
+    m_pwdBadge->setText(tr("STEP 2 OF 4: SECURITY"));
   }
   if (m_pwdTitle) {
     m_pwdTitle->setText(tr("Create Your Master Password"));
@@ -1070,15 +1070,15 @@ void OnboardingWizardView::retranslateUi() {
     m_confirmPwdEdit->setPlaceholderText(tr("Repeat master password..."));
   }
   if (m_pwdBackBtn) {
-    m_pwdBackBtn->setText(tr("← Back"));
+    m_pwdBackBtn->setText(tr("Back"));
   }
   if (m_pwdNextBtn) {
-    m_pwdNextBtn->setText(tr("Continue →"));
+    m_pwdNextBtn->setText(tr("Continue"));
   }
 
   // Step 3
   if (m_recBadge) {
-    m_recBadge->setText(tr("STEP 3 OF 4 • EMERGENCY BACKUP"));
+    m_recBadge->setText(tr("STEP 3 OF 4: EMERGENCY BACKUP"));
   }
   if (m_recTitle) {
     m_recTitle->setText(tr("Save Your Emergency Recovery Key"));
@@ -1104,15 +1104,15 @@ void OnboardingWizardView::retranslateUi() {
         tr("I have saved this recovery key in a secure offline location."));
   }
   if (m_recBackBtn) {
-    m_recBackBtn->setText(tr("← Back"));
+    m_recBackBtn->setText(tr("Back"));
   }
   if (m_recNextBtn) {
-    m_recNextBtn->setText(tr("Continue →"));
+    m_recNextBtn->setText(tr("Continue"));
   }
 
   // Step 4
   if (m_vaultBadge) {
-    m_vaultBadge->setText(tr("STEP 4 OF 4 • FINALIZE"));
+    m_vaultBadge->setText(tr("STEP 4 OF 4: FINALIZE"));
   }
   if (m_vaultTitle) {
     m_vaultTitle->setText(tr("Personalize Your Vault"));
@@ -1146,10 +1146,10 @@ void OnboardingWizardView::retranslateUi() {
     m_summaryItem3->setText(tr("Emergency recovery key generated"));
   }
   if (m_vaultBackBtn) {
-    m_vaultBackBtn->setText(tr("← Back"));
+    m_vaultBackBtn->setText(tr("Back"));
   }
   if (m_finishBtn) {
-    m_finishBtn->setText(tr("Complete Setup && Open Vault →"));
+    m_finishBtn->setText(tr("Complete Setup && Open Vault"));
   }
 }
 

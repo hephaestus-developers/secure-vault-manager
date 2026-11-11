@@ -6,13 +6,13 @@
  */
 
 #include "language_manager.h"
+#include "app/settings_manager.h"
 
 #include <QCoreApplication>
 #include <QDebug>
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
-#include <QSettings>
 
 namespace svm::app {
 
@@ -82,24 +82,7 @@ LanguageManager::LanguageManager(QObject *parent) : QObject(parent) {
 }
 
 void LanguageManager::initialize() {
-  QSettings settings;
-  QString savedCode =
-      settings.value(QStringLiteral("General/Language")).toString();
-  if (savedCode.isEmpty()) {
-    QSettings iniSettings(QSettings::IniFormat, QSettings::UserScope,
-                          QStringLiteral("Hephaestus"),
-                          QStringLiteral("SecureVaultManager"));
-    const int val =
-        iniSettings.value(QStringLiteral("general/language"), -1).toInt();
-    if (val == static_cast<int>(AppLanguage::Vietnamese)) {
-      savedCode = QStringLiteral("vi");
-    } else if (val == static_cast<int>(AppLanguage::English)) {
-      savedCode = QStringLiteral("en");
-    } else {
-      savedCode = QStringLiteral("vi");
-    }
-  }
-  setLanguage(languageFromCode(savedCode));
+  setLanguage(SettingsManager::instance().language());
 }
 
 void LanguageManager::setLanguage(AppLanguage lang) {
@@ -116,15 +99,6 @@ void LanguageManager::setLanguage(AppLanguage lang) {
   if (m_translator->loadLanguage(qrcPath)) {
     QCoreApplication::installTranslator(m_translator);
   }
-
-  QSettings settings;
-  settings.setValue(QStringLiteral("General/Language"), languageCode());
-
-  QSettings iniSettings(QSettings::IniFormat, QSettings::UserScope,
-                        QStringLiteral("Hephaestus"),
-                        QStringLiteral("SecureVaultManager"));
-  iniSettings.setValue(QStringLiteral("general/language"),
-                       static_cast<int>(lang));
 
   emit languageChanged(lang);
 }

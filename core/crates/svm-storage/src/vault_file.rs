@@ -98,6 +98,42 @@ impl VaultStorage {
         atomic_write_file(path, bytes)
     }
 
+    /// Sao lưu an toàn tệp kho cũ sang `vault.svm.abandoned.<timestamp>` và đặt lại kho dữ liệu.
+    pub fn backup_and_reset_vault(&self) -> Result<Option<PathBuf>, DomainError> {
+        let vault_file = self.vault_file_path();
+        let backup_path = if vault_file.exists() {
+            let ts = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0);
+            let backup_target =
+                Path::new(&self.base_path).join(format!("vault.svm.abandoned.{ts}"));
+            fs::rename(&vault_file, &backup_target)
+                .map_err(|e| DomainError::Io(format!("Không thể sao lưu tệp kho cũ: {e}")))?;
+            Some(backup_target)
+        } else {
+            None
+        };
+
+        let bio_file = self.biometric_file_path();
+        if bio_file.exists() {
+            let _ = fs::remove_file(bio_file);
+        }
+        let _ = keystore_delete_secret(&self.biometric_keystore_account());
+
+        let clients_file = self.clients_file_path();
+        if clients_file.exists() {
+            let _ = fs::remove_file(clients_file);
+        }
+
+        let att_dir = Path::new(&self.base_path).join("attachments");
+        if att_dir.exists() {
+            let _ = fs::remove_dir_all(att_dir);
+        }
+
+        Ok(backup_path)
+    }
+
     /// Tạo mới hoàn toàn cấu trúc bọc khóa `VaultHeader` cho DEK từ Master Password và Recovery Key.
     pub fn create_header(dek: &[u8; 32], master_password: &str, recovery_key: &str) -> VaultHeader {
         VaultHeader::create(dek, master_password, recovery_key)
@@ -574,26 +610,76 @@ impl VaultStorage {
         Ok(())
     }
 
-    /// Đọc cấu hình `settings.json` từ đĩa (hoặc trả về mặc định nếu chưa có).
-    pub fn load_settings(&self) -> String {
-        let path = self.settings_file_path();
-        if let Ok(content) = fs::read_to_string(&path) {
-            if JsonValue::parse(&content).is_ok() {
-                return content;
-            }
-        }
+    /// Tạo cấu trúc đối tượng JSON mặc định chứa toàn bộ các thuộc tính hệ thống.
+    pub fn default_settings() -> JsonValue {
         let mut def = JsonValue::new_object();
-        def.insert("auto_lock_minutes", JsonValue::Number(15.0));
+        def.insert("version", JsonValue::Number(1.0));
         def.insert("theme", JsonValue::String("dark".to_string()));
         def.insert("language", JsonValue::String("en".to_string()));
+        def.insert("list_density", JsonValue::String("comfortable".to_string()));
+        def.insert("auto_lock_minutes", JsonValue::Number(15.0));
         def.insert("clipboard_clear_seconds", JsonValue::Number(30.0));
         def.insert("clear_clipboard_on_lock", JsonValue::Bool(true));
         def.insert("lock_on_sleep", JsonValue::Bool(true));
+        def.insert("close_to_tray", JsonValue::Bool(true));
+        def.insert("launch_on_startup", JsonValue::Bool(false));
+        def.insert("start_minimized", JsonValue::Bool(false));
         def.insert("biometric_enabled", JsonValue::Bool(false));
         def.insert("browser_bridge_enabled", JsonValue::Bool(true));
         def.insert("ssh_agent_enabled", JsonValue::Bool(false));
         def.insert("ssh_prompt_approval", JsonValue::Bool(true));
         def.insert("auto_empty_trash", JsonValue::Bool(true));
+        def.insert("favicon_fetch_enabled", JsonValue::Bool(false));
+
+        let mut sec = JsonValue::new_object();
+        sec.insert("configured", JsonValue::Bool(false));
+        sec.insert("password_hash", JsonValue::String(String::new()));
+        sec.insert("password_salt", JsonValue::String(String::new()));
+        def.insert("security", sec);
+        def.insert("vaults", JsonValue::new_array());
+
+        def
+    }
+
+    /// Đọc cấu hình `settings.json` từ đĩa (hợp nhất với mặc định nếu thiếu trường).
+    pub fn load_settings(&self) -> String {
+        let path = self.settings_file_path();
+        let mut def = Self::default_settings();
+        if let Ok(content) = fs::read_to_string(&path) {
+            if let Ok(mut parsed) = JsonValue::parse(&content) {
+                if let (JsonValue::Object(parsed_entries), JsonValue::Object(ref mut def_entries)) =
+                    (&mut parsed, &mut def)
+                {
+                    for (k, v) in parsed_entries.drain(..) {
+                        if k == "security" {
+                            if let JsonValue::Object(sec_entries) = v {
+                                if let Some(JsonValue::Object(def_sec)) = def_entries
+                                    .iter_mut()
+                                    .find(|(dk, _)| dk == "security")
+                                    .map(|(_, dv)| dv)
+                                {
+                                    for (sk, sv) in sec_entries {
+                                        if let Some(target) =
+                                            def_sec.iter_mut().find(|(tdk, _)| tdk == &sk)
+                                        {
+                                            target.1 = sv;
+                                        } else {
+                                            def_sec.push((sk, sv));
+                                        }
+                                    }
+                                }
+                            }
+                        } else if let Some(target) = def_entries.iter_mut().find(|(dk, _)| dk == &k) {
+                            target.1 = v;
+                        } else {
+                            def_entries.push((k, v));
+                        }
+                    }
+                    return def.to_json_string();
+                }
+                return content;
+            }
+        }
         def.to_json_string()
     }
 

@@ -21,7 +21,7 @@ public:
   static ClipboardManager &instance();
 
   void copySensitive(const QString &text,
-                     const QString &label = QStringLiteral("Dữ liệu"),
+                     const QString &label = QStringLiteral("Data"),
                      int timeoutSeconds = -1);
   void copyPlainText(const QString &text);
   void clearClipboard();

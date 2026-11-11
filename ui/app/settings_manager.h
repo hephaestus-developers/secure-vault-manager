@@ -1,7 +1,7 @@
 /**
  * @file ui/app/settings_manager.h
- * @brief Quản lý cấu hình ứng dụng tập trung sử dụng QSettings và đồng bộ thời
- * gian thực.
+ * @brief Quản lý cấu hình ứng dụng tập trung theo chuẩn Single Source of Truth
+ * với Rust Core (settings.json).
  * @author Hai Pham Ngoc <ngochai285nd@gmail.com>
  * @copyright (c) 2026 Hephaestus Developers. All rights reserved.
  */
@@ -11,8 +11,9 @@
 #include "app/language_manager.h"
 #include "app/theme_manager.h"
 
+#include <QJsonArray>
+#include <QJsonObject>
 #include <QObject>
-#include <QSettings>
 #include <QString>
 
 namespace svm::app {
@@ -28,6 +29,8 @@ public:
   ~SettingsManager() override = default;
   SettingsManager(const SettingsManager &) = delete;
   SettingsManager &operator=(const SettingsManager &) = delete;
+
+  void initialize();
 
   // 1. General Settings
   [[nodiscard]] ThemeMode themeMode() const;
@@ -68,11 +71,11 @@ public:
   [[nodiscard]] bool biometricEnabled() const;
   void setBiometricEnabled(bool enable);
 
-  // 3. Browser Integration (Mock)
+  // 3. Browser Integration
   [[nodiscard]] bool browserBridgeEnabled() const;
   void setBrowserBridgeEnabled(bool enable);
 
-  // 4. SSH Agent (Mock)
+  // 4. SSH Agent
   [[nodiscard]] bool sshAgentEnabled() const;
   void setSshAgentEnabled(bool enable);
 
@@ -83,16 +86,39 @@ public:
   [[nodiscard]] bool autoEmptyTrashDaysEnabled() const;
   void setAutoEmptyTrashDaysEnabled(bool enable);
 
+  // 6. Security Credentials & Vaults Metadata (Single Source of Truth)
+  [[nodiscard]] bool isConfigured() const;
+  void setConfigured(bool configured);
+
+  [[nodiscard]] QString passwordHash() const;
+  [[nodiscard]] QString passwordSalt() const;
+  void setPasswordCredentials(const QString &hash, const QString &salt);
+
+  [[nodiscard]] QJsonArray cachedVaults() const;
+  void setCachedVaults(const QJsonArray &vaults);
+
+  void resetSecurityAndVaults();
+
 signals:
   void settingsChanged();
   void autoLockTimeoutChanged(int minutes);
   void clipboardTimeoutChanged(int seconds);
   void listDensityChanged(ListDensity density);
 
+private slots:
+  void onCoreSettingsUpdated(const QJsonObject &settings);
+
 private:
   explicit SettingsManager(QObject *parent = nullptr);
 
-  QSettings m_settings;
+  void loadDefaults();
+  void loadFromCore();
+  void migrateLegacyIniIfNeeded();
+  void saveToCore();
+
+  QJsonObject m_cachedSettings;
+  bool m_syncingFromCore{false};
+  bool m_initialized{false};
 };
 
 } // namespace svm::app

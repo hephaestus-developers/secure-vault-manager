@@ -162,7 +162,7 @@ void TabBrowser::populateBrowsers() {
   const QList<DetectedBrowserInfo> catalog = {
       {QStringLiteral("chrome"),
        QStringLiteral("Google Chrome"),
-       tr("Popular Chromium browser • Two-way unlock & Autofill supported"),
+       tr("Popular Chromium browser - Two-way unlock & Autofill supported"),
        QStringLiteral(":/icons/browsers/browser_chrome.svg"),
        {QStringLiteral("google-chrome-stable"),
         QStringLiteral("google-chrome")},
@@ -174,7 +174,7 @@ void TabBrowser::populateBrowsers() {
        false},
       {QStringLiteral("firefox"),
        QStringLiteral("Mozilla Firefox"),
-       tr("Open-source privacy browser • Autofill & synchronized unlock"),
+       tr("Open-source privacy browser - Autofill & synchronized unlock"),
        QStringLiteral(":/icons/browsers/browser_firefox.svg"),
        {QStringLiteral("firefox"), QStringLiteral("firefox-esr")},
        {QStringLiteral("firefox.desktop"),
@@ -186,7 +186,7 @@ void TabBrowser::populateBrowsers() {
        false},
       {QStringLiteral("brave"),
        QStringLiteral("Brave Browser"),
-       tr("Privacy-focused browser • Full Chromium compatibility"),
+       tr("Privacy-focused browser - Full Chromium compatibility"),
        QStringLiteral(":/icons/browsers/browser_brave.svg"),
        {QStringLiteral("brave-browser"), QStringLiteral("brave")},
        {QStringLiteral("brave-browser.desktop"),
@@ -197,7 +197,7 @@ void TabBrowser::populateBrowsers() {
        false},
       {QStringLiteral("edge"),
        QStringLiteral("Microsoft Edge"),
-       tr("Modern cross-platform browser • Deep system integration"),
+       tr("Modern cross-platform browser - Deep system integration"),
        QStringLiteral(":/icons/browsers/browser_edge.svg"),
        {QStringLiteral("microsoft-edge"),
         QStringLiteral("microsoft-edge-stable")},
@@ -396,7 +396,7 @@ void TabBrowser::populateBrowsers() {
       connectedBadge->setObjectName(QStringLiteral("BrowserConnectedBadge"));
       rowLayout->addWidget(connectedBadge);
 
-      auto *connectedBtn = new QPushButton(tr("Connected ✓"), row);
+      auto *connectedBtn = new QPushButton(tr("Connected"), row);
       connectedBtn->setObjectName(QStringLiteral("BrowserConnectedBtn"));
       connectedBtn->setFixedHeight(30);
       connectedBtn->setEnabled(false);

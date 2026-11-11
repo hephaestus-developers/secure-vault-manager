@@ -160,7 +160,7 @@ QWidget *AboutDialog::createInfoTab() {
                               ? appVer
                               : core::CoreBridge::instance().coreVersion();
   m_versionLabel =
-      new QLabel(tr("Version %1 • Rust Core Engine v%2").arg(appVer, coreVer),
+      new QLabel(tr("Version %1 - Rust Core Engine v%2").arg(appVer, coreVer),
                  brandWidget);
   m_versionLabel->setObjectName(QStringLiteral("AboutMetaLabelVal"));
   titleCol->addWidget(m_versionLabel);
@@ -312,7 +312,7 @@ void AboutDialog::retranslateUi() {
                                 ? appVer
                                 : core::CoreBridge::instance().coreVersion();
     m_versionLabel->setText(
-        tr("Version %1 • Rust Core Engine v%2").arg(appVer, coreVer));
+        tr("Version %1 - Rust Core Engine v%2").arg(appVer, coreVer));
   }
   if (m_taglineLabel) {
     m_taglineLabel->setText(tr("Private, Fast & Secure Password Manager"));

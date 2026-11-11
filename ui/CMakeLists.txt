@@ -44,6 +44,7 @@ set(UI_SOURCES
     views/onboarding/password_entropy_meter.cpp
     views/onboarding/onboarding_wizard_view.cpp
     views/lock/recovery_dialog.cpp
+    views/lock/reset_vault_dialog.cpp
     views/lock/lock_screen_view.cpp
     views/vaults/new_vault_dialog.cpp
     views/settings/setting_row_widget.cpp
@@ -96,6 +97,7 @@ set(UI_HEADERS
     views/onboarding/password_entropy_meter.h
     views/onboarding/onboarding_wizard_view.h
     views/lock/recovery_dialog.h
+    views/lock/reset_vault_dialog.h
     views/lock/lock_screen_view.h
     views/vaults/new_vault_dialog.h
     views/settings/setting_row_widget.h

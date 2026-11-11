@@ -378,3 +378,29 @@ pub unsafe extern "C" fn svm_vault_report_idle(ctx: *mut SvmContext, idle_ms: u6
         );
     }
 }
+
+/// Đặt lại kho dữ liệu hoàn toàn (sao lưu kho cũ dạng abandoned và xóa các cấu hình liên quan).
+///
+/// # Safety
+/// `ctx` không được là NULL.
+#[no_mangle]
+pub unsafe extern "C" fn svm_vault_reset(ctx: *mut SvmContext) -> SvmStatusCode {
+    if ctx.is_null() {
+        return SvmStatusCode::InvalidArg;
+    }
+    let Ok(mut rt) = (*ctx).runtime.lock() else {
+        return SvmStatusCode::Panic;
+    };
+    match rt.vault_service.reset_vault() {
+        Ok(_) => {
+            (*ctx).unlocked.store(false, Ordering::SeqCst);
+            sync_ssh_agent(ctx);
+            (*ctx).emit_event(
+                EVENT_VAULT_LOCKED,
+                "{\"unlocked\":false,\"reason\":\"reset\"}",
+            );
+            SvmStatusCode::Ok
+        }
+        Err(e) => handle_domain_err(e),
+    }
+}

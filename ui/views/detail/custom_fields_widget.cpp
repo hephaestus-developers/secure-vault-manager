@@ -40,7 +40,7 @@ void CustomFieldsWidget::setupUI() {
 
   // 3. Thông báo rỗng
   m_emptyLabel = new QLabel(
-      tr("No custom fields yet. Click \"+ Add Field\" to create one."), this);
+      tr("No custom fields yet. Click \"Add Field\" to create one."), this);
   m_emptyLabel->setObjectName(QStringLiteral("DetailSectionEmptyLabel"));
   m_emptyLabel->setStyleSheet(
       QStringLiteral("color: #64748B; font-style: italic; padding: 4px 0;"));
@@ -52,7 +52,7 @@ void CustomFieldsWidget::setupUI() {
   m_addFieldBtn->setIcon(
       app::ThemeManager::instance().icon(QStringLiteral("plus")));
   m_addFieldBtn->setIconSize(QSize(14, 14));
-  m_addFieldBtn->setText(tr(" Add Field"));
+  m_addFieldBtn->setText(tr("Add Field"));
   m_addFieldBtn->setFixedHeight(32);
   m_addFieldBtn->setCursor(Qt::PointingHandCursor);
   m_addFieldBtn->setToolTip(tr("Add a custom field (Text or Concealed)"));
@@ -156,10 +156,10 @@ void CustomFieldsWidget::retranslateUi() {
   }
   if (m_emptyLabel) {
     m_emptyLabel->setText(
-        tr("No custom fields yet. Click \"+ Add Field\" to create one."));
+        tr("No custom fields yet. Click \"Add Field\" to create one."));
   }
   if (m_addFieldBtn) {
-    m_addFieldBtn->setText(tr(" Add Field"));
+    m_addFieldBtn->setText(tr("Add Field"));
     m_addFieldBtn->setToolTip(tr("Add a custom field (Text or Concealed)"));
   }
   for (auto *row : m_rowWidgets) {

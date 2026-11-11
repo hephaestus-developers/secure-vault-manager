@@ -7,6 +7,7 @@
  */
 
 #include "theme_manager.h"
+#include "app/settings_manager.h"
 
 #include "app/dev_logger.h"
 #include <QApplication>
@@ -14,7 +15,6 @@
 #include <QDirIterator>
 #include <QElapsedTimer>
 #include <QFile>
-#include <QSettings>
 #include <QWidget>
 
 namespace svm::app {
@@ -30,16 +30,7 @@ void ThemeManager::initialize() {
   if (m_initialized) {
     return;
   }
-  QSettings iniSettings(QSettings::IniFormat, QSettings::UserScope,
-                        QStringLiteral("Hephaestus"),
-                        QStringLiteral("SecureVaultManager"));
-  const int savedMode = iniSettings
-                            .value(QStringLiteral("general/theme"),
-                                   static_cast<int>(ThemeMode::Dark))
-                            .toInt();
-  m_currentMode = (savedMode == static_cast<int>(ThemeMode::Light))
-                      ? ThemeMode::Light
-                      : ThemeMode::Dark;
+  m_currentMode = SettingsManager::instance().themeMode();
 
   ensureStylesheetsLoaded();
   prewarmIcons();
@@ -157,13 +148,7 @@ void ThemeManager::applyTheme(ThemeMode mode) {
   // 3. Thông báo cho các widget cập nhật icon / trạng thái
   emit themeChanged(mode);
 
-  // 4. Lưu đồng bộ vào cấu hình để tự động nhớ cho các lần chạy tiếp theo
-  QSettings iniSettings(QSettings::IniFormat, QSettings::UserScope,
-                        QStringLiteral("Hephaestus"),
-                        QStringLiteral("SecureVaultManager"));
-  iniSettings.setValue(QStringLiteral("general/theme"), static_cast<int>(mode));
-
-  // 5. Mở khóa và vẽ lại 1 lần đồng nhất (Atomic Repaint)
+  // 4. Mở khóa và vẽ lại 1 lần đồng nhất (Atomic Repaint)
   for (QWidget *w : topWidgets) {
     if (w && w->isVisible()) {
       w->setUpdatesEnabled(true);

@@ -30,6 +30,7 @@ protected:
 private:
   void setupUI();
   void onRestoreClicked();
+  void onResetVaultClicked();
 
   QWidget *m_cardWidget{nullptr};
   QWidget *m_headerWidget{nullptr};
@@ -42,6 +43,7 @@ private:
   QLineEdit *m_newPwdEdit{nullptr};
   QLineEdit *m_confirmPwdEdit{nullptr};
   QLabel *m_errorLabel{nullptr};
+  QPushButton *m_lostAllCredsBtn{nullptr};
 
   QPushButton *m_cancelBtn{nullptr};
   QPushButton *m_restoreBtn{nullptr};

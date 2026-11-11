@@ -531,6 +531,8 @@ void MainWindow::loadItemsFromCore() {
   if (!bridge.isInitialized() || !bridge.isVaultUnlocked()) {
     return;
   }
+  m_itemListView->proxyModel()->setVaultFilter(
+      app::VaultManager::instance().activeVaultId());
   const QList<models::UiVaultItem> coreItems = bridge.listItems();
   if (!coreItems.isEmpty()) {
     const QString prevId = m_itemListView->selectedItemId();
@@ -662,6 +664,8 @@ void MainWindow::updateNavigationState() {
     m_headerBar->setTitleText(tr("Secure Vault Manager"));
     m_headerBar->setSettingsVisible(true);
     m_lockScreenView->resetLockScreen();
+    m_itemListView->proxyModel()->setVaultFilter(
+        app::VaultManager::instance().activeVaultId());
     loadItemsFromCore();
     updateSidebarCounts();
     updateInactivityTimer();
@@ -907,7 +911,24 @@ void MainWindow::closeEvent(QCloseEvent *event) {
 }
 
 QDialog *MainWindow::findActiveModalDialog() const {
-  if (auto *topModal = components::DialogDragHelper::activeModalDialog()) {
+  QDialog *topModal = components::DialogDragHelper::activeModalDialog();
+  if (topModal) {
+    // Tìm nốt lá sâu nhất nếu có dialog con đang hiển thị đè lên
+    const auto topLevels = QApplication::topLevelWidgets();
+    for (auto *w : topLevels) {
+      if (auto *dlg = qobject_cast<QDialog *>(w)) {
+        if (dlg->isVisible() && dlg != topModal) {
+          if (dlg->parentWidget() == topModal || dlg->parent() == topModal) {
+            return dlg;
+          }
+          if (dlg->windowHandle() && topModal->windowHandle() &&
+              dlg->windowHandle()->transientParent() ==
+                  topModal->windowHandle()) {
+            return dlg;
+          }
+        }
+      }
+    }
     return topModal;
   }
 

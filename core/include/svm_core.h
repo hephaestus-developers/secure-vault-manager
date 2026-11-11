@@ -98,7 +98,9 @@ typedef enum {
   SVM_EVENT_SHOW_WINDOW =
       9, /**< Yêu cầu đưa cửa sổ ứng dụng lên trên cùng màn hình. */
   SVM_EVENT_BRIDGE_CLIENTS_CHANGED =
-      10 /**< Danh sách Extension đã kết nối có sự thay đổi. */
+      10, /**< Danh sách Extension đã kết nối có sự thay đổi. */
+  SVM_EVENT_SETTINGS_CHANGED =
+      11 /**< Cấu hình settings.json của ứng dụng có sự thay đổi. */
 } SvmEventKind;
 
 /**

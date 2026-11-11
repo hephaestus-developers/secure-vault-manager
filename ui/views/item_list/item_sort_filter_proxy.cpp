@@ -6,12 +6,14 @@
  */
 
 #include "item_sort_filter_proxy.h"
+#include "app/vault_manager.h"
 #include "item_list_model.h"
 
 namespace svm::views {
 
 ItemSortFilterProxy::ItemSortFilterProxy(QObject *parent)
-    : QSortFilterProxyModel(parent) {
+    : QSortFilterProxyModel(parent),
+      m_vaultFilter(app::VaultManager::instance().activeVaultId()) {
   setDynamicSortFilter(true);
   setSortCaseSensitivity(Qt::CaseInsensitive);
 }
@@ -64,9 +66,12 @@ bool ItemSortFilterProxy::filterAcceptsRow(
   }
 
   // 2. Lọc theo Vault
-  if (!m_vaultFilter.isEmpty() && m_vaultFilter != QStringLiteral("all")) {
+  const QString currentVault = m_vaultFilter.isEmpty()
+                                   ? app::VaultManager::instance().activeVaultId()
+                                   : m_vaultFilter;
+  if (!currentVault.isEmpty() && currentVault != QStringLiteral("all")) {
     const QString itemVaultId = idx.data(ItemListModel::VaultIdRole).toString();
-    if (itemVaultId != m_vaultFilter) {
+    if (itemVaultId != currentVault) {
       return false;
     }
   }

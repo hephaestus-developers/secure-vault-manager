@@ -80,7 +80,8 @@ int main(int argc, char *argv[]) {
                   "offline/degraded mode.";
   }
 
-  // 2. Khởi tạo Đa ngôn ngữ, Quản lý Vault, Settings và Theme
+  // 2. Khởi tạo Settings (Single Source of Truth), Đa ngôn ngữ, Quản lý Vault, và Theme
+  svm::app::SettingsManager::instance().initialize();
   svm::app::LanguageManager::instance().initialize();
   svm::app::VaultManager::instance().initialize();
   svm::app::ThemeManager::instance().initialize();

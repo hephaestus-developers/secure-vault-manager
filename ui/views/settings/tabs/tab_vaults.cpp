@@ -50,7 +50,7 @@ void TabVaults::setupUI() {
   topBar->addWidget(subTitle);
   topBar->addStretch(1);
 
-  m_newVaultBtn = new QPushButton(tr("+ New Vault..."), m_vaultsListCard);
+  m_newVaultBtn = new QPushButton(tr("New Vault..."), m_vaultsListCard);
   m_newVaultBtn->setObjectName(QStringLiteral("OnboardingPrimaryBtn"));
   m_newVaultBtn->setFixedHeight(30);
   m_newVaultBtn->setCursor(Qt::PointingHandCursor);
@@ -391,7 +391,7 @@ void TabVaults::retranslateUi() {
     m_vaultsListCard->setTitle(tr("Active Vaults"));
   }
   if (m_newVaultBtn) {
-    m_newVaultBtn->setText(tr("+ New Vault..."));
+    m_newVaultBtn->setText(tr("New Vault..."));
   }
   if (m_dangerCard) {
     m_dangerCard->setTitle(tr("Danger Zone"));

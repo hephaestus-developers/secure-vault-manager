@@ -67,6 +67,7 @@ void ItemListView::setupUI() {
   m_model = new ItemListModel(this);
   m_proxyModel = new ItemSortFilterProxy(this);
   m_proxyModel->setSourceModel(m_model);
+  m_proxyModel->setVaultFilter(app::VaultManager::instance().activeVaultId());
 
   connect(&app::VaultManager::instance(),
           &app::VaultManager::activeVaultChanged, this,
@@ -149,6 +150,7 @@ void ItemListView::setupUI() {
 }
 
 void ItemListView::setItems(const QList<models::UiVaultItem> &items) {
+  m_proxyModel->setVaultFilter(app::VaultManager::instance().activeVaultId());
   m_model->setItems(items);
 }
 

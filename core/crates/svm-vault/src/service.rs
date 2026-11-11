@@ -162,6 +162,12 @@ impl VaultService {
         self.unlocked = false;
     }
 
+    /// Xóa toàn bộ dữ liệu trong RAM, sao lưu an toàn kho cũ và đặt lại trạng thái chưa cấu hình.
+    pub fn reset_vault(&mut self) -> Result<Option<std::path::PathBuf>, DomainError> {
+        self.lock();
+        self.storage.backup_and_reset_vault()
+    }
+
     /// Lấy Emergency Recovery Key (chỉ khi kho đang mở khóa).
     pub fn recovery_key(&self) -> &str {
         if !self.unlocked {

@@ -24,6 +24,7 @@ pub(crate) const EVENT_SSH_STATUS: i32 = 8;
 #[allow(dead_code)]
 pub(crate) const EVENT_SHOW_WINDOW: i32 = 9;
 pub(crate) const EVENT_BRIDGE_CLIENTS_CHANGED: i32 = 10;
+pub(crate) const EVENT_SETTINGS_CHANGED: i32 = 11;
 
 pub(crate) struct PendingPromptEntry {
     pub(crate) info: JsonValue,

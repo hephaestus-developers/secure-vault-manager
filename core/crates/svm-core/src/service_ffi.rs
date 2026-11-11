@@ -13,7 +13,7 @@ use svm_transfer::{export_items_to_file, parse_import_file, TransferFormat};
 use crate::context::{
     alloc_c_string, c_str_to_string, handle_domain_err, request_ssh_approval, sync_ssh_agent,
     SvmBuffer, SvmContext, EVENT_BRIDGE_CLIENTS_CHANGED, EVENT_BRIDGE_STATUS, EVENT_ITEMS_CHANGED,
-    EVENT_SSH_STATUS, EVENT_VAULT_LOCKED, EVENT_VAULT_UNLOCKED,
+    EVENT_SETTINGS_CHANGED, EVENT_SSH_STATUS, EVENT_VAULT_LOCKED, EVENT_VAULT_UNLOCKED,
 };
 use crate::item_ffi::svm_item_trash;
 
@@ -1237,6 +1237,7 @@ pub unsafe extern "C" fn svm_settings_save(
             return handle_domain_err(e);
         }
     }
+    (*ctx).emit_event(EVENT_SETTINGS_CHANGED, &json_str);
     SvmStatusCode::Ok
 }
 

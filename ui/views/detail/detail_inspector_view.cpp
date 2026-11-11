@@ -917,7 +917,7 @@ void DetailInspectorView::onHistoryRequested() {
     const auto &rev = revisions[i];
     const QDateTime dt = QDateTime::fromMSecsSinceEpoch(rev.timestamp);
     const QString label =
-        tr("Revision #%1 — %2 (%3)")
+        tr("Revision #%1 - %2 (%3)")
             .arg(rev.revision)
             .arg(dt.toString(QStringLiteral("yyyy-MM-dd HH:mm:ss")),
                  rev.snapshot.title);

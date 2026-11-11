@@ -1,20 +1,17 @@
 /**
  * @file extension/src/popup/popup.tsx
- * @brief Điểm nhập điều khiển giao diện Popup của Browser Extension (Logins, Password Generator).
+ * @brief Điểm nhập điều khiển giao diện Popup của Browser Extension (Logins theo domain).
  */
 
-import { PasswordGeneratorOptions } from "../services/domain";
 import {
   CredentialSecretPayload,
   CredentialSummary,
   CredentialsListPayload,
   detectCurrentBrowserName,
-  GeneratedPasswordPayload,
   sendExtensionBridgeMessage,
   VaultStatusPayload,
 } from "../services/protocol";
 import { createCredentialList } from "./components/CredentialList";
-import { createGeneratorTab } from "./components/GeneratorTab";
 import { createHeaderBar } from "./components/HeaderBar";
 import { createLockView } from "./components/LockView";
 
@@ -27,7 +24,6 @@ function getSystemTheme(): "dark" | "light" {
 
 interface PopupState {
   theme: "dark" | "light";
-  activeTab: "logins" | "generator";
   unlocked: boolean;
   configured: boolean;
   desktopRunning: boolean;
@@ -35,14 +31,11 @@ interface PopupState {
   activeOrigin: string;
   activeDomain: string;
   credentials: CredentialSummary[];
-  generatedPassword: string;
-  generatorOptions: PasswordGeneratorOptions;
   toastMessage: string;
 }
 
 const state: PopupState = {
   theme: getSystemTheme(),
-  activeTab: "logins",
   unlocked: false,
   configured: false,
   desktopRunning: false,
@@ -50,14 +43,6 @@ const state: PopupState = {
   activeOrigin: "",
   activeDomain: "",
   credentials: [],
-  generatedPassword: "",
-  generatorOptions: {
-    length: 20,
-    uppercase: true,
-    lowercase: true,
-    digits: true,
-    symbols: true,
-  },
   toastMessage: "",
 };
 
@@ -178,19 +163,6 @@ async function loadInitialData(): Promise<void> {
     state.credentials = [];
   }
 
-  await refreshGeneratedPassword(state.generatorOptions);
-  renderPopup();
-}
-
-async function refreshGeneratedPassword(options: PasswordGeneratorOptions): Promise<void> {
-  state.generatorOptions = options;
-  const genResp = await sendExtensionBridgeMessage<GeneratedPasswordPayload>(
-    "generate_password",
-    options as unknown as Record<string, unknown>
-  );
-  if (genResp.ok && genResp.payload?.password) {
-    state.generatedPassword = genResp.payload.password;
-  }
   renderPopup();
 }
 
@@ -344,46 +316,8 @@ export function renderPopup(): void {
     return;
   }
 
-  // Khi Vault ĐÃ MỞ KHÓA: Hiển thị Tabs (Logins theo domain, Password Generator)
-  const tabs = document.createElement("nav");
-  tabs.className = "navTabs";
-
-  const loginsTabBtn = document.createElement("button");
-  loginsTabBtn.type = "button";
-  loginsTabBtn.className = `navTabBtn ${state.activeTab === "logins" ? "navTabBtnActive" : ""}`;
-  loginsTabBtn.textContent =
-    state.credentials.length > 0 ? `Logins (${state.credentials.length})` : "Logins";
-  loginsTabBtn.addEventListener("click", () => {
-    state.activeTab = "logins";
-    renderPopup();
-  });
-
-  const genTabBtn = document.createElement("button");
-  genTabBtn.type = "button";
-  genTabBtn.className = `navTabBtn ${state.activeTab === "generator" ? "navTabBtnActive" : ""}`;
-  genTabBtn.textContent = "Password Generator";
-  genTabBtn.addEventListener("click", () => {
-    state.activeTab = "generator";
-    renderPopup();
-  });
-
-  tabs.appendChild(loginsTabBtn);
-  tabs.appendChild(genTabBtn);
-  shell.appendChild(tabs);
-
-  if (state.activeTab === "logins") {
-    content.appendChild(renderCredentialList());
-  } else {
-    content.appendChild(
-      createGeneratorTab({
-        password: state.generatedPassword,
-        options: state.generatorOptions,
-        onRegenerate: (opts) => void refreshGeneratedPassword(opts),
-        onCopy: (pw) => void copyText(pw, "Mật khẩu"),
-      })
-    );
-  }
-
+  // Khi Vault ĐÃ MỞ KHÓA: Hiển thị danh sách Logins trực tiếp theo domain đang mở
+  content.appendChild(renderCredentialList());
   shell.appendChild(content);
 
   if (state.toastMessage) {

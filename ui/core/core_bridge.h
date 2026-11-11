@@ -366,6 +366,7 @@ signals:
   void bridgeClientsChangedEvent();
   void promptRequestedEvent(const QJsonObject &prompt);
   void faviconUpdated(const QString &domainKey);
+  void coreSettingsChanged(const QJsonObject &settings);
 
 private:
   CoreBridge();

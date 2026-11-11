@@ -177,7 +177,7 @@ void ConfirmDeleteDialog::setupUI() {
   const QString subText =
       detailText.isEmpty()
           ? catLabel
-          : QStringLiteral("%1 • %2").arg(catLabel, detailText);
+          : QStringLiteral("%1 - %2").arg(catLabel, detailText);
   auto *itemSubLbl = new ElidedLabel(subText, previewCard);
   itemSubLbl->setObjectName(QStringLiteral("ConfirmDeleteItemSub"));
   itemMetaCol->addWidget(itemSubLbl);
