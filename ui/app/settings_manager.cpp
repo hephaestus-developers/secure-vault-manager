@@ -1,6 +1,7 @@
 /**
  * @file ui/app/settings_manager.cpp
- * @brief Hiện thực lớp SettingsManager quản lý cấu hình tập trung theo chuẩn Single Source of Truth.
+ * @brief Hiện thực lớp SettingsManager quản lý cấu hình tập trung theo chuẩn
+ * Single Source of Truth.
  * @author Hai Pham Ngoc <ngochai285nd@gmail.com>
  * @copyright (c) 2026 Hephaestus Developers. All rights reserved.
  */
@@ -90,12 +91,15 @@ void SettingsManager::migrateLegacyIniIfNeeded() {
                 QStringLiteral("Hephaestus"),
                 QStringLiteral("SecureVaultManager"));
 
-  if (ini.value(QStringLiteral("Migration/UnifiedSettingsDone"), false).toBool()) {
+  if (ini.value(QStringLiteral("Migration/UnifiedSettingsDone"), false)
+          .toBool()) {
     return;
   }
 
-  qInfo() << "[SettingsManager] Detected legacy INI settings. Starting one-time migration to settings.json..."
-          << "fileName:" << ini.fileName() << "status:" << ini.status() << "keys:" << ini.allKeys();
+  qInfo() << "[SettingsManager] Detected legacy INI settings. Starting "
+             "one-time migration to settings.json..."
+          << "fileName:" << ini.fileName() << "status:" << ini.status()
+          << "keys:" << ini.allKeys();
 
   auto findIniVal = [&](const QStringList &candidates) -> QVariant {
     for (const QString &k : candidates) {
@@ -133,9 +137,10 @@ void SettingsManager::migrateLegacyIniIfNeeded() {
   }
 
   // 3. List Density
-  const QVariant densityVal = findIniVal({QStringLiteral("general/list_density"),
-                                          QStringLiteral("General/list_density"),
-                                          QStringLiteral("%General/list_density")});
+  const QVariant densityVal =
+      findIniVal({QStringLiteral("general/list_density"),
+                  QStringLiteral("General/list_density"),
+                  QStringLiteral("%General/list_density")});
   if (densityVal.isValid()) {
     const int val = densityVal.toInt();
     m_cachedSettings.insert(QStringLiteral("list_density"),
@@ -145,83 +150,100 @@ void SettingsManager::migrateLegacyIniIfNeeded() {
   }
 
   // 4. Launch on Startup
-  const QVariant startupVal = findIniVal({QStringLiteral("general/launch_on_startup"),
-                                          QStringLiteral("General/launch_on_startup")});
+  const QVariant startupVal =
+      findIniVal({QStringLiteral("general/launch_on_startup"),
+                  QStringLiteral("General/launch_on_startup")});
   if (startupVal.isValid()) {
-    m_cachedSettings.insert(QStringLiteral("launch_on_startup"), startupVal.toBool());
+    m_cachedSettings.insert(QStringLiteral("launch_on_startup"),
+                            startupVal.toBool());
     changed = true;
   }
 
   // 5. Close to Tray
-  const QVariant trayVal = findIniVal({QStringLiteral("general/close_to_tray"),
-                                       QStringLiteral("General/close_to_tray")});
+  const QVariant trayVal =
+      findIniVal({QStringLiteral("general/close_to_tray"),
+                  QStringLiteral("General/close_to_tray")});
   if (trayVal.isValid()) {
     m_cachedSettings.insert(QStringLiteral("close_to_tray"), trayVal.toBool());
     changed = true;
   }
 
   // 6. Start Minimized
-  const QVariant minVal = findIniVal({QStringLiteral("general/start_minimized"),
-                                      QStringLiteral("General/start_minimized")});
+  const QVariant minVal =
+      findIniVal({QStringLiteral("general/start_minimized"),
+                  QStringLiteral("General/start_minimized")});
   if (minVal.isValid()) {
     m_cachedSettings.insert(QStringLiteral("start_minimized"), minVal.toBool());
     changed = true;
   }
 
   // 7. Favicon Fetch
-  const QVariant favVal = findIniVal({QStringLiteral("general/favicon_fetch_enabled"),
-                                      QStringLiteral("General/favicon_fetch_enabled")});
+  const QVariant favVal =
+      findIniVal({QStringLiteral("general/favicon_fetch_enabled"),
+                  QStringLiteral("General/favicon_fetch_enabled")});
   if (favVal.isValid()) {
-    m_cachedSettings.insert(QStringLiteral("favicon_fetch_enabled"), favVal.toBool());
+    m_cachedSettings.insert(QStringLiteral("favicon_fetch_enabled"),
+                            favVal.toBool());
     changed = true;
   }
 
   // 8. Auto Lock Minutes
-  const QVariant lockVal = findIniVal({QStringLiteral("security/auto_lock_minutes"),
-                                       QStringLiteral("Security/auto_lock_minutes")});
+  const QVariant lockVal =
+      findIniVal({QStringLiteral("security/auto_lock_minutes"),
+                  QStringLiteral("Security/auto_lock_minutes")});
   if (lockVal.isValid()) {
-    m_cachedSettings.insert(QStringLiteral("auto_lock_minutes"), lockVal.toInt());
+    m_cachedSettings.insert(QStringLiteral("auto_lock_minutes"),
+                            lockVal.toInt());
     changed = true;
   }
 
   // 9. Clipboard Clear Seconds
-  const QVariant clipVal = findIniVal({QStringLiteral("security/clipboard_clear_seconds"),
-                                       QStringLiteral("Security/clipboard_clear_seconds")});
+  const QVariant clipVal =
+      findIniVal({QStringLiteral("security/clipboard_clear_seconds"),
+                  QStringLiteral("Security/clipboard_clear_seconds")});
   if (clipVal.isValid()) {
-    m_cachedSettings.insert(QStringLiteral("clipboard_clear_seconds"), clipVal.toInt());
+    m_cachedSettings.insert(QStringLiteral("clipboard_clear_seconds"),
+                            clipVal.toInt());
     changed = true;
   }
 
   // 10. Clear Clipboard on Lock
-  const QVariant clipLockVal = findIniVal({QStringLiteral("security/clear_clipboard_on_lock"),
-                                           QStringLiteral("Security/clear_clipboard_on_lock")});
+  const QVariant clipLockVal =
+      findIniVal({QStringLiteral("security/clear_clipboard_on_lock"),
+                  QStringLiteral("Security/clear_clipboard_on_lock")});
   if (clipLockVal.isValid()) {
-    m_cachedSettings.insert(QStringLiteral("clear_clipboard_on_lock"), clipLockVal.toBool());
+    m_cachedSettings.insert(QStringLiteral("clear_clipboard_on_lock"),
+                            clipLockVal.toBool());
     changed = true;
   }
 
   // 11. Lock on Sleep
-  const QVariant sleepVal = findIniVal({QStringLiteral("security/lock_on_sleep"),
-                                        QStringLiteral("Security/lock_on_sleep")});
+  const QVariant sleepVal =
+      findIniVal({QStringLiteral("security/lock_on_sleep"),
+                  QStringLiteral("Security/lock_on_sleep")});
   if (sleepVal.isValid()) {
     m_cachedSettings.insert(QStringLiteral("lock_on_sleep"), sleepVal.toBool());
     changed = true;
   }
 
   // 12. Biometric Enabled
-  const QVariant bioVal = findIniVal({QStringLiteral("security/biometric_enabled"),
-                                      QStringLiteral("Security/biometric_enabled"),
-                                      QStringLiteral("Security/BiometricEnabled")});
+  const QVariant bioVal =
+      findIniVal({QStringLiteral("security/biometric_enabled"),
+                  QStringLiteral("Security/biometric_enabled"),
+                  QStringLiteral("Security/BiometricEnabled")});
   if (bioVal.isValid()) {
-    m_cachedSettings.insert(QStringLiteral("biometric_enabled"), bioVal.toBool());
+    m_cachedSettings.insert(QStringLiteral("biometric_enabled"),
+                            bioVal.toBool());
     changed = true;
   }
 
   // 13. Browser Bridge Enabled
-  const QVariant bridgeVal = findIniVal({QStringLiteral("browser/bridge_enabled"),
-                                         QStringLiteral("Browser/bridge_enabled")});
+  const QVariant bridgeVal =
+      findIniVal({QStringLiteral("browser/bridge_enabled"),
+                  QStringLiteral("Browser/bridge_enabled")});
   if (bridgeVal.isValid()) {
-    m_cachedSettings.insert(QStringLiteral("browser_bridge_enabled"), bridgeVal.toBool());
+    m_cachedSettings.insert(QStringLiteral("browser_bridge_enabled"),
+                            bridgeVal.toBool());
     changed = true;
   }
 
@@ -229,42 +251,51 @@ void SettingsManager::migrateLegacyIniIfNeeded() {
   const QVariant sshVal = findIniVal({QStringLiteral("ssh/agent_enabled"),
                                       QStringLiteral("Ssh/agent_enabled")});
   if (sshVal.isValid()) {
-    m_cachedSettings.insert(QStringLiteral("ssh_agent_enabled"), sshVal.toBool());
+    m_cachedSettings.insert(QStringLiteral("ssh_agent_enabled"),
+                            sshVal.toBool());
     changed = true;
   }
 
   // 15. SSH Prompt Approval
-  const QVariant sshPromptVal = findIniVal({QStringLiteral("ssh/prompt_approval"),
-                                            QStringLiteral("Ssh/prompt_approval")});
+  const QVariant sshPromptVal =
+      findIniVal({QStringLiteral("ssh/prompt_approval"),
+                  QStringLiteral("Ssh/prompt_approval")});
   if (sshPromptVal.isValid()) {
-    m_cachedSettings.insert(QStringLiteral("ssh_prompt_approval"), sshPromptVal.toBool());
+    m_cachedSettings.insert(QStringLiteral("ssh_prompt_approval"),
+                            sshPromptVal.toBool());
     changed = true;
   }
 
   // 16. Auto Empty Trash
-  const QVariant trashVal = findIniVal({QStringLiteral("data/auto_empty_trash"),
-                                        QStringLiteral("Data/auto_empty_trash")});
+  const QVariant trashVal =
+      findIniVal({QStringLiteral("data/auto_empty_trash"),
+                  QStringLiteral("Data/auto_empty_trash")});
   if (trashVal.isValid()) {
-    m_cachedSettings.insert(QStringLiteral("auto_empty_trash"), trashVal.toBool());
+    m_cachedSettings.insert(QStringLiteral("auto_empty_trash"),
+                            trashVal.toBool());
     changed = true;
   }
 
   // 17. Security Credentials
-  QJsonObject sec = m_cachedSettings.value(QStringLiteral("security")).toObject();
-  const QVariant confVal = findIniVal({QStringLiteral("Security/IsConfigured"),
-                                       QStringLiteral("security/is_configured")});
+  QJsonObject sec =
+      m_cachedSettings.value(QStringLiteral("security")).toObject();
+  const QVariant confVal =
+      findIniVal({QStringLiteral("Security/IsConfigured"),
+                  QStringLiteral("security/is_configured")});
   if (confVal.isValid()) {
     sec.insert(QStringLiteral("configured"), confVal.toBool());
     changed = true;
   }
-  const QVariant hashVal = findIniVal({QStringLiteral("Security/PasswordHash"),
-                                       QStringLiteral("security/password_hash")});
+  const QVariant hashVal =
+      findIniVal({QStringLiteral("Security/PasswordHash"),
+                  QStringLiteral("security/password_hash")});
   if (hashVal.isValid()) {
     sec.insert(QStringLiteral("password_hash"), hashVal.toString());
     changed = true;
   }
-  const QVariant saltVal = findIniVal({QStringLiteral("Security/PasswordSalt"),
-                                       QStringLiteral("security/password_salt")});
+  const QVariant saltVal =
+      findIniVal({QStringLiteral("Security/PasswordSalt"),
+                  QStringLiteral("security/password_salt")});
   if (saltVal.isValid()) {
     sec.insert(QStringLiteral("password_salt"), saltVal.toString());
     changed = true;
@@ -272,8 +303,8 @@ void SettingsManager::migrateLegacyIniIfNeeded() {
   m_cachedSettings.insert(QStringLiteral("security"), sec);
 
   // 18. Vaults List JSON
-  const QVariant vaultsVal = findIniVal({QStringLiteral("Vaults/ListJson"),
-                                        QStringLiteral("vaults/list_json")});
+  const QVariant vaultsVal = findIniVal(
+      {QStringLiteral("Vaults/ListJson"), QStringLiteral("vaults/list_json")});
   if (vaultsVal.isValid()) {
     const QString jsonStr = vaultsVal.toString();
     if (!jsonStr.isEmpty()) {
@@ -300,7 +331,9 @@ void SettingsManager::migrateLegacyIniIfNeeded() {
     defaultSettings.sync();
   }
 
-  qInfo() << "[SettingsManager] Migration from legacy INI to settings.json completed successfully. Changed =" << changed;
+  qInfo() << "[SettingsManager] Migration from legacy INI to settings.json "
+             "completed successfully. Changed ="
+          << changed;
 }
 
 void SettingsManager::saveToCore() {
@@ -373,10 +406,10 @@ ListDensity SettingsManager::listDensity() const {
 
 void SettingsManager::setListDensity(ListDensity density) {
   if (listDensity() != density) {
-    m_cachedSettings.insert(
-        QStringLiteral("list_density"),
-        density == ListDensity::Compact ? QStringLiteral("compact")
-                                        : QStringLiteral("comfortable"));
+    m_cachedSettings.insert(QStringLiteral("list_density"),
+                            density == ListDensity::Compact
+                                ? QStringLiteral("compact")
+                                : QStringLiteral("comfortable"));
     saveToCore();
     emit listDensityChanged(density);
     emit settingsChanged();
@@ -384,7 +417,8 @@ void SettingsManager::setListDensity(ListDensity density) {
 }
 
 bool SettingsManager::launchOnStartup() const {
-  return m_cachedSettings.value(QStringLiteral("launch_on_startup")).toBool(false);
+  return m_cachedSettings.value(QStringLiteral("launch_on_startup"))
+      .toBool(false);
 }
 
 void SettingsManager::setLaunchOnStartup(bool enable) {
@@ -464,7 +498,8 @@ void SettingsManager::setCloseToTray(bool enable) {
 }
 
 bool SettingsManager::startMinimized() const {
-  return m_cachedSettings.value(QStringLiteral("start_minimized")).toBool(false);
+  return m_cachedSettings.value(QStringLiteral("start_minimized"))
+      .toBool(false);
 }
 
 void SettingsManager::setStartMinimized(bool enable) {
@@ -474,7 +509,8 @@ void SettingsManager::setStartMinimized(bool enable) {
 }
 
 bool SettingsManager::faviconFetchEnabled() const {
-  return m_cachedSettings.value(QStringLiteral("favicon_fetch_enabled")).toBool(false);
+  return m_cachedSettings.value(QStringLiteral("favicon_fetch_enabled"))
+      .toBool(false);
 }
 
 bool SettingsManager::hasFaviconFetchSetting() const {
@@ -512,7 +548,8 @@ void SettingsManager::setLockOnSleep(bool enable) {
 }
 
 int SettingsManager::clipboardClearSeconds() const {
-  return m_cachedSettings.value(QStringLiteral("clipboard_clear_seconds")).toInt(30);
+  return m_cachedSettings.value(QStringLiteral("clipboard_clear_seconds"))
+      .toInt(30);
 }
 
 void SettingsManager::setClipboardClearSeconds(int seconds) {
@@ -525,7 +562,8 @@ void SettingsManager::setClipboardClearSeconds(int seconds) {
 }
 
 bool SettingsManager::clearClipboardOnLock() const {
-  return m_cachedSettings.value(QStringLiteral("clear_clipboard_on_lock")).toBool(true);
+  return m_cachedSettings.value(QStringLiteral("clear_clipboard_on_lock"))
+      .toBool(true);
 }
 
 void SettingsManager::setClearClipboardOnLock(bool enable) {
@@ -535,7 +573,8 @@ void SettingsManager::setClearClipboardOnLock(bool enable) {
 }
 
 bool SettingsManager::biometricEnabled() const {
-  return m_cachedSettings.value(QStringLiteral("biometric_enabled")).toBool(false);
+  return m_cachedSettings.value(QStringLiteral("biometric_enabled"))
+      .toBool(false);
 }
 
 void SettingsManager::setBiometricEnabled(bool enable) {
@@ -545,7 +584,8 @@ void SettingsManager::setBiometricEnabled(bool enable) {
 }
 
 bool SettingsManager::browserBridgeEnabled() const {
-  return m_cachedSettings.value(QStringLiteral("browser_bridge_enabled")).toBool(true);
+  return m_cachedSettings.value(QStringLiteral("browser_bridge_enabled"))
+      .toBool(true);
 }
 
 void SettingsManager::setBrowserBridgeEnabled(bool enable) {
@@ -555,7 +595,8 @@ void SettingsManager::setBrowserBridgeEnabled(bool enable) {
 }
 
 bool SettingsManager::sshAgentEnabled() const {
-  return m_cachedSettings.value(QStringLiteral("ssh_agent_enabled")).toBool(false);
+  return m_cachedSettings.value(QStringLiteral("ssh_agent_enabled"))
+      .toBool(false);
 }
 
 void SettingsManager::setSshAgentEnabled(bool enable) {
@@ -565,7 +606,8 @@ void SettingsManager::setSshAgentEnabled(bool enable) {
 }
 
 bool SettingsManager::sshPromptApproval() const {
-  return m_cachedSettings.value(QStringLiteral("ssh_prompt_approval")).toBool(true);
+  return m_cachedSettings.value(QStringLiteral("ssh_prompt_approval"))
+      .toBool(true);
 }
 
 void SettingsManager::setSshPromptApproval(bool enable) {
@@ -575,7 +617,8 @@ void SettingsManager::setSshPromptApproval(bool enable) {
 }
 
 bool SettingsManager::autoEmptyTrashDaysEnabled() const {
-  return m_cachedSettings.value(QStringLiteral("auto_empty_trash")).toBool(true);
+  return m_cachedSettings.value(QStringLiteral("auto_empty_trash"))
+      .toBool(true);
 }
 
 void SettingsManager::setAutoEmptyTrashDaysEnabled(bool enable) {
@@ -585,12 +628,14 @@ void SettingsManager::setAutoEmptyTrashDaysEnabled(bool enable) {
 }
 
 bool SettingsManager::isConfigured() const {
-  const QJsonObject sec = m_cachedSettings.value(QStringLiteral("security")).toObject();
+  const QJsonObject sec =
+      m_cachedSettings.value(QStringLiteral("security")).toObject();
   return sec.value(QStringLiteral("configured")).toBool(false);
 }
 
 void SettingsManager::setConfigured(bool configured) {
-  QJsonObject sec = m_cachedSettings.value(QStringLiteral("security")).toObject();
+  QJsonObject sec =
+      m_cachedSettings.value(QStringLiteral("security")).toObject();
   sec.insert(QStringLiteral("configured"), configured);
   m_cachedSettings.insert(QStringLiteral("security"), sec);
   saveToCore();
@@ -598,17 +643,21 @@ void SettingsManager::setConfigured(bool configured) {
 }
 
 QString SettingsManager::passwordHash() const {
-  const QJsonObject sec = m_cachedSettings.value(QStringLiteral("security")).toObject();
+  const QJsonObject sec =
+      m_cachedSettings.value(QStringLiteral("security")).toObject();
   return sec.value(QStringLiteral("password_hash")).toString();
 }
 
 QString SettingsManager::passwordSalt() const {
-  const QJsonObject sec = m_cachedSettings.value(QStringLiteral("security")).toObject();
+  const QJsonObject sec =
+      m_cachedSettings.value(QStringLiteral("security")).toObject();
   return sec.value(QStringLiteral("password_salt")).toString();
 }
 
-void SettingsManager::setPasswordCredentials(const QString &hash, const QString &salt) {
-  QJsonObject sec = m_cachedSettings.value(QStringLiteral("security")).toObject();
+void SettingsManager::setPasswordCredentials(const QString &hash,
+                                             const QString &salt) {
+  QJsonObject sec =
+      m_cachedSettings.value(QStringLiteral("security")).toObject();
   sec.insert(QStringLiteral("password_hash"), hash);
   sec.insert(QStringLiteral("password_salt"), salt);
   m_cachedSettings.insert(QStringLiteral("security"), sec);

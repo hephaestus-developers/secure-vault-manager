@@ -669,7 +669,8 @@ impl VaultStorage {
                                     }
                                 }
                             }
-                        } else if let Some(target) = def_entries.iter_mut().find(|(dk, _)| dk == &k) {
+                        } else if let Some(target) = def_entries.iter_mut().find(|(dk, _)| dk == &k)
+                        {
                             target.1 = v;
                         } else {
                             def_entries.push((k, v));

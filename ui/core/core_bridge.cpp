@@ -1347,7 +1347,8 @@ bool CoreBridge::saveCoreSettings(const QJsonObject &settings) {
   const int res = svm_settings_save(m_context, jsonUtf8.constData());
   const bool ok = res == SVM_OK;
   if (!ok) {
-    qWarning() << "[CoreBridge] svm_settings_save failed code:" << res << "err:" << lastError();
+    qWarning() << "[CoreBridge] svm_settings_save failed code:" << res
+               << "err:" << lastError();
   }
   if (ok && settings.contains(QStringLiteral("favicon_fetch_enabled"))) {
     m_faviconFailed.clear();

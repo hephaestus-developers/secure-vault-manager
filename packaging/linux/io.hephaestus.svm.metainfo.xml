@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.hephaestus.svm</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <name>Secure Vault Manager</name>
+  <summary>Enterprise-grade zero-knowledge local password and credential manager</summary>
+  <description>
+    <p>
+      Secure Vault Manager is a high-performance, private, and secure credential vault.
+      Powered by Qt 6 and a zero-knowledge Rust Core cryptographic engine (ChaCha20-Poly1305, Argon2id, PBKDF2),
+      it keeps your passwords, passkeys, SSH keys, cards, and sensitive notes safely encrypted on your local device.
+    </p>
+    <ul>
+      <li>Zero-knowledge local architecture with master passphrase &amp; emergency recovery keys.</li>
+      <li>FIDO2 WebAuthn Passkey support with seamless browser extension synchronization.</li>
+      <li>Integrated RFC 6238 TOTP two-factor authenticator token generator.</li>
+      <li>Built-in OpenSSH agent forwarding via local Unix domain socket.</li>
+      <li>Biometric quick unlock (Touch ID, Windows Hello, Linux PAM).</li>
+      <li>Multi-vault segmentation (Personal, Work, Finance, Team).</li>
+    </ul>
+  </description>
+  <launchable type="desktop-id">io.hephaestus.svm.desktop</launchable>
+  <provides>
+    <binary>svm</binary>
+    <binary>svm-cli</binary>
+    <binary>svm-native-host</binary>
+  </provides>
+  <url type="homepage">https://github.com/hephaestus-developers/secure-vault-manager</url>
+  <url type="bugtracker">https://github.com/hephaestus-developers/secure-vault-manager/issues</url>
+  <categories>
+    <category>Utility</category>
+    <category>Security</category>
+  </categories>
+  <releases>
+    <release version="0.1.0" date="2026-11-11">
+      <description>
+        <p>Initial release with zero-knowledge Rust core, Qt6 desktop UI, and WebAuthn passkey engine.</p>
+      </description>
+    </release>
+  </releases>
+</component>

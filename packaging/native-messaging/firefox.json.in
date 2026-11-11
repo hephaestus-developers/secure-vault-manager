@@ -1,0 +1,9 @@
+{
+  "name": "io.hephaestus.svm",
+  "description": "Secure Vault Manager Native Messaging Host",
+  "path": "@SVM_NATIVE_HOST_PATH@",
+  "type": "stdio",
+  "allowed_extensions": [
+    "svm@hephaestus.io"
+  ]
+}

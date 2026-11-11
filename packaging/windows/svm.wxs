@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product Id="*" 
+           Name="Secure Vault Manager" 
+           Language="1033" 
+           Version="0.1.0.0" 
+           Manufacturer="Hephaestus Developers" 
+           UpgradeCode="9D86F972-35F9-4BFB-A6AE-E6930AE46E4C">
+           
+    <Package InstallerVersion="500" 
+             Compressed="yes" 
+             InstallScope="perMachine" 
+             Platform="x64" 
+             Description="Secure Vault Manager Enterprise Installer" />
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <Icon Id="svm.ico" SourceFile="svm.ico" />
+    <Property Id="ARPPRODUCTICON" Value="svm.ico" />
+
+    <Feature Id="ProductFeature" Title="Secure Vault Manager" Level="1">
+      <ComponentGroupRef Id="ProductComponents" />
+      <ComponentRef Id="ApplicationShortcut" />
+    </Feature>
+  </Product>
+
+  <Fragment>
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFiles64Folder">
+        <Directory Id="INSTALLFOLDER" Name="Secure Vault Manager" />
+      </Directory>
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="ApplicationProgramsFolder" Name="Secure Vault Manager" />
+      </Directory>
+    </Directory>
+  </Fragment>
+
+  <Fragment>
+    <DirectoryRef Id="ApplicationProgramsFolder">
+      <Component Id="ApplicationShortcut" Guid="72346E20-2E89-4FA3-899E-6C18648B146E">
+        <Shortcut Id="ApplicationStartMenuShortcut"
+                  Name="Secure Vault Manager"
+                  Description="Enterprise-grade zero-knowledge local password and credential manager"
+                  Target="[INSTALLFOLDER]svm.exe"
+                  WorkingDirectory="INSTALLFOLDER"
+                  Icon="svm.ico" />
+        <RemoveFolder Id="CleanUpShortCut" Directory="ApplicationProgramsFolder" On="uninstall" />
+        <RegistryValue Root="HKCU" Key="Software\Hephaestus\SecureVaultManager" Name="installed" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+  </Fragment>
+
+  <Fragment>
+    <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
+      <Component Id="svm.exe" Guid="08C1BD82-BF20-410A-8A46-BF38EBE96734" Win64="yes">
+        <File Id="svm.exe" Source="..\..\build\release\ui\svm.exe" KeyPath="yes" />
+      </Component>
+      <Component Id="svm_cli.exe" Guid="C6B2BD91-8AF2-498A-824A-735914C2361B" Win64="yes">
+        <File Id="svm_cli.exe" Source="..\..\build\release\core\svm-cli.exe" KeyPath="yes" />
+      </Component>
+      <Component Id="svm_native_host.exe" Guid="84E1DE8F-5F84-48FE-98B2-9F1B2B3C4D5E" Win64="yes">
+        <File Id="svm_native_host.exe" Source="..\..\build\release\core\svm-native-host.exe" KeyPath="yes" />
+      </Component>
+      <Component Id="svm_core.dll" Guid="B4C12E3F-7A9B-4D8E-BC1F-2A3B4C5D6E7F" Win64="yes">
+        <File Id="svm_core.dll" Source="..\..\core\target\release\svm_core.dll" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+  </Fragment>
+</Wix>

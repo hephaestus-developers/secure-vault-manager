@@ -5,11 +5,24 @@
 
 import { sendExtensionBridgeMessage } from "../services/protocol";
 
+export interface MatchedPasskey {
+  id: string;
+  title: string;
+  username: string;
+  credentialId: string;
+}
+
 export interface PasskeyModalParams {
   action: "passkey_create" | "passkey_get";
   rpId: string;
   rpName?: string;
   userName?: string;
+  matchedPasskeys?: MatchedPasskey[];
+}
+
+export interface PasskeyConsentResult {
+  consented: boolean;
+  selectedCredentialId?: string;
 }
 
 export function dismissPasskeyConsent(): void {
@@ -19,7 +32,7 @@ export function dismissPasskeyConsent(): void {
   }
 }
 
-export function promptPasskeyConsent(params: PasskeyModalParams): Promise<boolean> {
+export function promptPasskeyConsent(params: PasskeyModalParams): Promise<PasskeyConsentResult> {
   return new Promise((resolve) => {
     const existing = document.getElementById("svm-passkey-modal-host");
     if (existing) {
@@ -300,9 +313,9 @@ export function promptPasskeyConsent(params: PasskeyModalParams): Promise<boolea
 
     let isUnlocked = false;
 
-    function cleanup(result: boolean) {
+    function cleanup(consented: boolean, selectedCredentialId?: string) {
       host.remove();
-      resolve(result);
+      resolve({ consented, selectedCredentialId });
     }
 
     async function checkStatusAndRender() {
@@ -473,10 +486,37 @@ export function promptPasskeyConsent(params: PasskeyModalParams): Promise<boolea
       const title = isCreate ? "Lưu Passkey mới" : "Đăng nhập bằng Passkey";
       const safeRpName = escapeHtml(params.rpName || params.rpId || "");
       const safeRpId = escapeHtml(params.rpId || "");
-      const safeUser = escapeHtml(params.userName || "");
+      const matched = params.matchedPasskeys || [];
+      const primaryPasskey = matched[0];
+      const safeUser = escapeHtml(
+        params.userName || primaryPasskey?.username || primaryPasskey?.title || ""
+      );
       const subtitle = isCreate
         ? `Lưu Passkey an toàn vào kho cho ${safeRpName}`
-        : `Xác thực với ${safeRpId}`;
+        : `Xác thực an toàn với ${safeRpId}`;
+
+      // Danh sách tài khoản nếu có nhiều passkey
+      let accountsHtml = "";
+      if (!isCreate && matched.length > 1) {
+        accountsHtml = `
+          <div class="svm-accounts-list" style="display: flex; flex-direction: column; gap: 6px; margin: 10px 0;">
+            <div style="font-size: 11.5px; color: #a6adc8; font-weight: 600;">Chọn tài khoản để đăng nhập:</div>
+            ${matched
+              .map(
+                (pk, idx) => `
+                <label style="display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: rgba(255,255,255,0.03); border: 1px solid #313244; border-radius: 6px; cursor: pointer;">
+                  <input type="radio" name="svm-selected-pk" value="${escapeHtml(pk.credentialId)}" ${idx === 0 ? "checked" : ""} />
+                  <div>
+                    <div style="font-weight: 600; color: #cdd6f4;">${escapeHtml(pk.username || pk.title || "Tài khoản Passkey")}</div>
+                    <div style="font-size: 11px; color: #6c7086;">${escapeHtml(pk.title || safeRpId)}</div>
+                  </div>
+                </label>
+              `
+              )
+              .join("")}
+          </div>
+        `;
+      }
 
       body.innerHTML = `
         <div class="svm-title-row">
@@ -499,7 +539,7 @@ export function promptPasskeyConsent(params: PasskeyModalParams): Promise<boolea
             <span class="svm-info-val" title="${safeRpId}">${safeRpId}</span>
           </div>
           ${
-            safeUser
+            safeUser && matched.length <= 1
               ? `<div class="svm-info-row">
                   <span class="svm-info-label">Tài khoản:</span>
                   <span class="svm-info-val" title="${safeUser}">${safeUser}</span>
@@ -507,10 +547,11 @@ export function promptPasskeyConsent(params: PasskeyModalParams): Promise<boolea
               : ""
           }
         </div>
+        ${accountsHtml}
         <div class="svm-actions">
           <button class="svm-btn svm-btn-secondary" id="svm-btn-cancel">Dùng phương thức khác / Hủy</button>
           <button class="svm-btn svm-btn-primary" id="svm-btn-confirm">
-            ${isCreate ? "Lưu Passkey" : "Đồng ý đăng nhập"}
+            ${isCreate ? "Lưu Passkey" : safeUser && matched.length === 1 ? `Đăng nhập (${safeUser})` : "Đồng ý đăng nhập"}
           </button>
         </div>
       `;
@@ -518,7 +559,16 @@ export function promptPasskeyConsent(params: PasskeyModalParams): Promise<boolea
       container.appendChild(body);
 
       body.querySelector("#svm-btn-cancel")?.addEventListener("click", () => cleanup(false));
-      body.querySelector("#svm-btn-confirm")?.addEventListener("click", () => cleanup(true));
+      body.querySelector("#svm-btn-confirm")?.addEventListener("click", () => {
+        let selectedCredId = primaryPasskey?.credentialId;
+        if (!isCreate && matched.length > 1) {
+          const checked = body.querySelector<HTMLInputElement>("input[name='svm-selected-pk']:checked");
+          if (checked?.value) {
+            selectedCredId = checked.value;
+          }
+        }
+        cleanup(true, selectedCredId);
+      });
     }
 
     shadow.appendChild(style);

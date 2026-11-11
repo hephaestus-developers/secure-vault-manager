@@ -24,16 +24,52 @@ export function setupPasskeyBridge(): void {
 
     const rpId = String(payload?.rpId || window.location.hostname);
     const rpName = String(payload?.rpName || rpId);
-    const userName = String(payload?.userName || "");
+    let userName = String(payload?.userName || "");
+    let matchedPasskeys: Array<{ id: string; title: string; username: string; credentialId: string }> = [];
 
-    const consented = await promptPasskeyConsent({
+    // Pre-flight check cho passkey_get: Kiểm tra xem kho có passkey phù hợp không
+    if (action === "passkey_get") {
+      const queryResp = await sendExtensionBridgeMessage<{
+        unlocked: boolean;
+        passkeys: Array<{ id: string; title: string; username: string; credentialId: string }>;
+      }>("passkey_query", {
+        rpId,
+        allowCredentials: payload?.allowCredentials || [],
+      });
+
+      // Nếu kho đã mở nhưng KHÔNG có passkey nào phù hợp -> SILENT FALLBACK về trình duyệt!
+      if (queryResp.ok && queryResp.payload?.unlocked && (!queryResp.payload.passkeys || queryResp.payload.passkeys.length === 0)) {
+        window.postMessage(
+          {
+            source: "svm-passkey-content",
+            requestId,
+            response: {
+              ok: false,
+              error: { code: "NOT_FOUND", message: "No matching passkey found" },
+            },
+          },
+          window.location.origin
+        );
+        return;
+      }
+
+      if (queryResp.ok && queryResp.payload?.passkeys) {
+        matchedPasskeys = queryResp.payload.passkeys;
+        if (matchedPasskeys.length > 0 && !userName) {
+          userName = matchedPasskeys[0].username || matchedPasskeys[0].title;
+        }
+      }
+    }
+
+    const consentResult = await promptPasskeyConsent({
       action,
       rpId,
       rpName,
       userName,
+      matchedPasskeys,
     });
 
-    if (!consented) {
+    if (!consentResult.consented) {
       window.postMessage(
         {
           source: "svm-passkey-content",
@@ -48,7 +84,13 @@ export function setupPasskeyBridge(): void {
       return;
     }
 
-    const response = await sendExtensionBridgeMessage(action, payload);
+    // Nếu người dùng chọn một passkey cụ thể từ danh sách tài khoản
+    const getPayload = { ...payload };
+    if (consentResult.selectedCredentialId) {
+      getPayload.allowCredentials = [consentResult.selectedCredentialId];
+    }
+
+    const response = await sendExtensionBridgeMessage(action, getPayload);
     window.postMessage(
       {
         source: "svm-passkey-content",

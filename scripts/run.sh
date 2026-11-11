@@ -94,7 +94,7 @@ elif [[ "${TARGET}" == "host" ]]; then
     echo "==> [SVM Run] Thực thi: ${BIN_PATH} ${EXTRA_ARGS[*]:-}"
     exec "${BIN_PATH}" ${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}
 elif [[ "${TARGET}" == "app" ]]; then
-    APP_PATH="build/${BUILD_MODE}/ui/svm_ui"
+    APP_PATH="build/${BUILD_MODE}/ui/svm"
     if [[ ! -f "${APP_PATH}" ]]; then
         echo "Lỗi: Ứng dụng Desktop UI chưa được biên dịch tại '${APP_PATH}'." >&2
         echo "Tầng UI Qt6 sẽ được liên kết khi phát triển phân hệ ui/." >&2

@@ -518,6 +518,47 @@ impl NativeHostRouter {
                 data.insert("feedback", JsonValue::String(eval.feedback));
                 Self::ok_envelope(request_id, "generated_password", data)
             }
+            "passkey_query" => {
+                if !self.vault.is_unlocked() {
+                    let mut data = JsonValue::new_object();
+                    data.insert("unlocked", JsonValue::Bool(false));
+                    data.insert("passkeys", JsonValue::Array(Vec::new()));
+                    return Self::ok_envelope(request_id, "passkey_query_result", data);
+                }
+                let rp_id = payload.get_str_or("rpId", "");
+                let allow_creds = payload
+                    .get("allowCredentials")
+                    .and_then(|v| v.as_array())
+                    .map(|a| a.to_vec())
+                    .unwrap_or_default();
+
+                let matched: Vec<JsonValue> = self
+                    .vault
+                    .items()
+                    .iter()
+                    .filter(|it| {
+                        !it.trashed
+                            && it.category == Category::Passkey
+                            && svm_webauthn::matches_passkey_rp_id(it, rp_id)
+                            && (allow_creds.is_empty()
+                                || svm_webauthn::passkey_matches_credential_list(it, &allow_creds))
+                    })
+                    .map(|it| {
+                        let mut obj = JsonValue::new_object();
+                        obj.insert("id", JsonValue::String(it.id.clone()));
+                        obj.insert("title", JsonValue::String(it.title.clone()));
+                        obj.insert("username", JsonValue::String(it.username.clone()));
+                        let cred_id = svm_webauthn::extract_passkey_credential_id(it);
+                        obj.insert("credentialId", JsonValue::String(cred_id));
+                        obj
+                    })
+                    .collect();
+
+                let mut data = JsonValue::new_object();
+                data.insert("unlocked", JsonValue::Bool(true));
+                data.insert("passkeys", JsonValue::Array(matched));
+                Self::ok_envelope(request_id, "passkey_query_result", data)
+            }
             "passkey_create" => {
                 if !self.vault.is_unlocked() {
                     return Self::error_envelope(

@@ -1,0 +1,28 @@
+Secure Vault Manager - Third-Party Software Notices & Licenses
+==============================================================
+
+This software incorporates components from the following third-party projects:
+
+1. Qt Toolkit (Qt6)
+   - License: GNU Lesser General Public License version 3 (LGPLv3)
+   - Copyright (C) The Qt Company Ltd and other contributors.
+   - Website: https://www.qt.io
+   - Source Code: https://code.qt.io/cgit/qt/qtbase.git/
+   - This application links dynamically with Qt libraries. You may replace or relink
+     these libraries with compatible versions in compliance with LGPLv3.
+
+2. Rust Cryptographic Libraries
+   - ChaCha20-Poly1305, Argon2, PBKDF2, Zeroize, SHA-2
+   - License: MIT License / Apache License 2.0
+   - Copyright (C) RustCrypto Developers
+   - Website: https://github.com/RustCrypto
+
+3. Serde Serialization Framework
+   - License: MIT License / Apache License 2.0
+   - Copyright (C) David Tolnay and Serde contributors
+   - Website: https://serde.rs
+
+4. Tokio Asynchronous Runtime
+   - License: MIT License
+   - Copyright (C) Tokio Contributors
+   - Website: https://tokio.rs

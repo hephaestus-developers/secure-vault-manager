@@ -1,0 +1,17 @@
+[Desktop Entry]
+Name=Secure Vault Manager
+GenericName=Password Manager
+Comment=Enterprise-grade zero-knowledge local password and credential manager
+Exec=svm %U
+Icon=io.hephaestus.svm
+Terminal=false
+Type=Application
+Categories=Utility;Security;
+Keywords=password;vault;security;credential;totp;passkey;ssh;
+StartupWMClass=svm
+MimeType=x-scheme-handler/svm;
+Actions=NewVault;
+
+[Desktop Action NewVault]
+Name=Create New Item
+Exec=svm --new-item

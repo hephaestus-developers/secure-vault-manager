@@ -5,7 +5,7 @@
       "name": "Launch SVM Desktop UI",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/build/debug/ui/svm_ui",
+      "program": "${workspaceFolder}/build/debug/ui/svm",
       "args": [],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
@@ -14,15 +14,15 @@
       "MIMode": "gdb",
       "linux": {
         "MIMode": "gdb",
-        "program": "${workspaceFolder}/build/debug/ui/svm_ui"
+        "program": "${workspaceFolder}/build/debug/ui/svm"
       },
       "osx": {
         "MIMode": "lldb",
-        "program": "${workspaceFolder}/build/debug/ui/svm_ui"
+        "program": "${workspaceFolder}/build/debug/ui/svm"
       },
       "windows": {
         "MIMode": "gdb",
-        "program": "${workspaceFolder}/build/debug/ui/svm_ui.exe"
+        "program": "${workspaceFolder}/build/debug/ui/svm.exe"
       }
     },
     {

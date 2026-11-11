@@ -127,6 +127,11 @@ target_link_libraries(svm_ui PRIVATE
 
 # Đảm bảo rpath trỏ đến thư mục chứa libsvm_core.so khi chạy
 set_target_properties(svm_ui PROPERTIES
+    OUTPUT_NAME "svm"
     BUILD_RPATH "${CMAKE_CURRENT_SOURCE_DIR}/../core/target/${CARGO_TARGET_DIR}"
-    INSTALL_RPATH "$ORIGIN/../../core/target/${CARGO_TARGET_DIR}"
+    INSTALL_RPATH "$ORIGIN/../lib:$ORIGIN"
+)
+
+install(TARGETS svm_ui
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )

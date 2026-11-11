@@ -26,6 +26,7 @@
 #include "core/core_bridge.h"
 #include "main_window.h"
 #include "views/detail/empty_state_widget.h"
+#include "views/lock/reset_vault_dialog.h"
 
 int main(int argc, char *argv[]) {
   // Cài đặt bộ ghi log và đo latency cho môi trường Dev / Debug
@@ -53,7 +54,8 @@ int main(int argc, char *argv[]) {
     const QString arg = QString::fromLatin1(argv[i]);
     if (arg == QStringLiteral("--screenshot") ||
         arg == QStringLiteral("--preview-notification") ||
-        arg == QStringLiteral("--preview-empty-state")) {
+        arg == QStringLiteral("--preview-empty-state") ||
+        arg == QStringLiteral("--preview-reset-dialog")) {
       isPreviewMode = true;
       break;
     }
@@ -80,7 +82,8 @@ int main(int argc, char *argv[]) {
                   "offline/degraded mode.";
   }
 
-  // 2. Khởi tạo Settings (Single Source of Truth), Đa ngôn ngữ, Quản lý Vault, và Theme
+  // 2. Khởi tạo Settings (Single Source of Truth), Đa ngôn ngữ, Quản lý Vault,
+  // và Theme
   svm::app::SettingsManager::instance().initialize();
   svm::app::LanguageManager::instance().initialize();
   svm::app::VaultManager::instance().initialize();
@@ -238,6 +241,11 @@ int main(int argc, char *argv[]) {
         auto *l = new QVBoxLayout(dlg);
         l->setContentsMargins(0, 0, 0, 0);
         l->addWidget(new svm::views::EmptyStateWidget(dlg));
+        dlg->show();
+      });
+    } else if (arg == QStringLiteral("--preview-reset-dialog")) {
+      QTimer::singleShot(50, [&mainWindow]() {
+        auto *dlg = new svm::views::ResetVaultDialog(&mainWindow);
         dlg->show();
       });
     } else if (arg == QStringLiteral("--onboarding-step") && i + 1 < argc) {

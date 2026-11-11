@@ -26,8 +26,8 @@ ResetVaultDialog::ResetVaultDialog(QWidget *parent)
   setAttribute(Qt::WA_TranslucentBackground, false);
   setModal(false);
   setWindowModality(Qt::NonModal);
-  setMinimumSize(480, 440);
-  resize(520, 460);
+  setMinimumSize(520, 500);
+  resize(540, 520);
 
   setupUI();
 
@@ -58,9 +58,8 @@ void ResetVaultDialog::setupUI() {
 
   m_headerIcon = new QLabel(m_headerWidget);
   m_headerIcon->setFixedSize(18, 18);
-  m_headerIcon->setPixmap(app::ThemeManager::instance()
-                              .icon(QStringLiteral("app_logo"))
-                              .pixmap(18, 18));
+  m_headerIcon->setPixmap(
+      QIcon(QStringLiteral(":/icons/brand/app_logo.svg")).pixmap(18, 18));
   headerLayout->addWidget(m_headerIcon);
 
   m_headerTitle = new QLabel(tr("Reset Vault"), m_headerWidget);
@@ -103,11 +102,15 @@ QWidget *ResetVaultDialog::createWarningPage() {
 
   // Icon cảnh báo lớn
   auto *iconRow = new QHBoxLayout();
+  iconRow->setContentsMargins(0, 0, 0, 0);
+  iconRow->setSpacing(12);
+  iconRow->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+
   auto *bigIcon = new QLabel(page);
-  bigIcon->setFixedSize(42, 42);
+  bigIcon->setFixedSize(36, 36);
   bigIcon->setPixmap(app::ThemeManager::instance()
                          .icon(QStringLiteral("watchtower_weak"))
-                         .pixmap(42, 42));
+                         .pixmap(36, 36));
   iconRow->addWidget(bigIcon);
 
   m_warnTitleLabel = new QLabel(tr("Cannot Recover Encrypted Data"), page);
@@ -123,7 +126,8 @@ QWidget *ResetVaultDialog::createWarningPage() {
       tr("Secure Vault Manager operates on a strict Zero-Knowledge "
          "architecture. Your vault is encrypted end-to-end using your Master "
          "Password and Recovery Key.\n\nWithout both of these credentials, it "
-         "is cryptographically impossible for anyone - including the developers - "
+         "is cryptographically impossible for anyone - including the "
+         "developers - "
          "to decrypt or retrieve your stored passwords."),
       page);
   m_warnDescLabel->setWordWrap(true);
@@ -143,8 +147,7 @@ QWidget *ResetVaultDialog::createWarningPage() {
   safetyLayout->setContentsMargins(12, 10, 12, 10);
   safetyLayout->setSpacing(6);
 
-  m_safetyTitle =
-      new QLabel(tr("Safety Net Automatic Backup"), safetyBox);
+  m_safetyTitle = new QLabel(tr("Safety Net Automatic Backup"), safetyBox);
   QFont sf = m_safetyTitle->font();
   sf.setBold(true);
   m_safetyTitle->setFont(sf);
@@ -200,12 +203,25 @@ QWidget *ResetVaultDialog::createConfirmPage() {
   layout->setContentsMargins(24, 20, 24, 8);
   layout->setSpacing(14);
 
+  auto *confirmTitleRow = new QHBoxLayout();
+  confirmTitleRow->setContentsMargins(0, 0, 0, 0);
+  confirmTitleRow->setSpacing(10);
+  confirmTitleRow->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+
+  auto *confirmIcon = new QLabel(page);
+  confirmIcon->setFixedSize(22, 22);
+  confirmIcon->setPixmap(app::ThemeManager::instance()
+                             .icon(QStringLiteral("watchtower_weak"))
+                             .pixmap(22, 22));
+  confirmTitleRow->addWidget(confirmIcon);
+
   m_confirmTitleLabel = new QLabel(tr("Confirm Vault Reset"), page);
   QFont tf = m_confirmTitleLabel->font();
   tf.setPointSize(14);
   tf.setBold(true);
   m_confirmTitleLabel->setFont(tf);
-  layout->addWidget(m_confirmTitleLabel);
+  confirmTitleRow->addWidget(m_confirmTitleLabel, 1);
+  layout->addLayout(confirmTitleRow);
 
   m_confirmPromptLabel = new QLabel(
       tr("This action will erase the active local vault and return the "
@@ -310,23 +326,24 @@ void ResetVaultDialog::retranslateUi() {
     m_warnTitleLabel->setText(tr("Cannot Recover Encrypted Data"));
   }
   if (m_warnDescLabel) {
-    m_warnDescLabel->setText(
-        tr("Secure Vault Manager operates on a strict Zero-Knowledge "
-           "architecture. Your vault is encrypted end-to-end using your Master "
-           "Password and Recovery Key.\n\nWithout both of these credentials, it "
-           "is cryptographically impossible for anyone - including the developers - "
-           "to decrypt or retrieve your stored passwords."));
+    m_warnDescLabel->setText(tr(
+        "Secure Vault Manager operates on a strict Zero-Knowledge "
+        "architecture. Your vault is encrypted end-to-end using your Master "
+        "Password and Recovery Key.\n\nWithout both of these credentials, it "
+        "is cryptographically impossible for anyone - including the developers "
+        "- "
+        "to decrypt or retrieve your stored passwords."));
   }
   if (m_safetyTitle) {
     m_safetyTitle->setText(tr("Safety Net Automatic Backup"));
   }
   if (m_backupNoticeLabel) {
-    m_backupNoticeLabel->setText(
-        tr("Before resetting, an archived backup of your current encrypted vault "
-           "file will be automatically preserved in:\n"
-           "~/.local/share/hephaestus/secure-vault-manager-backups/\n\n"
-           "If you remember your password in the future, your old data can still "
-           "be rescued."));
+    m_backupNoticeLabel->setText(tr(
+        "Before resetting, an archived backup of your current encrypted vault "
+        "file will be automatically preserved in:\n"
+        "~/.local/share/hephaestus/secure-vault-manager-backups/\n\n"
+        "If you remember your password in the future, your old data can still "
+        "be rescued."));
   }
   if (m_cancelBtn) {
     m_cancelBtn->setText(tr("Go Back / Try Again"));

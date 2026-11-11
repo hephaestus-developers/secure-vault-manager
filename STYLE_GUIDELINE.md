@@ -1,4 +1,5 @@
 # SECURE VAULT MANAGER — DESIGN & UI/UX STYLE GUIDELINE
+
 **Phiên bản:** 1.0 (Tài Liệu Quy Chuẩn Thiết Kế Hệ Thống)  
 **Tác giả:** Đội ngũ Thiết kế & Phát triển Secure Vault Manager  
 **Nền tảng:** Qt 6 Desktop (C++ / QSS) — Tương thích Linux (Wayland/X11), Windows, macOS  
@@ -59,12 +60,12 @@ Giao diện được phân bổ theo mô hình các tầng bề mặt phẳng (F
 | `border-strong` | Surface 1 | `#45475a` | Đường viền Dialog, viền ngoài Header Bar, viền cửa sổ | 3.2:1 (Đạt chuẩn) |
 | `border-focus` | White / Slate Light | `#ffffff` / `#cdd6f4` | Đường viền khi focus vào ô nhập liệu (ring highlight) | **16:1 (AAA)** |
 | `text-primary` | Pure White / Text | `#ffffff` / `#cdd6f4` | Tiêu đề chính, nội dung mật khẩu, chữ quan trọng | **16:1 (AAA)** |
-| `text-secondary`| Subtext 0 | `#a6adc8` | Nhãn phụ, mô tả ngắn, danh mục, thời gian tạo | **8.2:1 (AAA)** |
+| `text-secondary` | Subtext 0 | `#a6adc8` | Nhãn phụ, mô tả ngắn, danh mục, thời gian tạo | **8.2:1 (AAA)** |
 | `text-muted` | Overlay 0 | `#6c7086` | Chữ bị vô hiệu hóa (disabled), placeholder, phím tắt | **3.8:1 (Đạt chuẩn)** |
-| **`brand-primary`**| **Pure White** | **`#ffffff`** | **Nút bấm chính (CTA Button) với chữ Đen `#11111b`** | **16:1 (AAA Tuyệt đối)** |
+| **`brand-primary`** | **Pure White** | **`#ffffff`** | **Nút bấm chính (CTA Button) với chữ Đen `#11111b`** | **16:1 (AAA Tuyệt đối)** |
 | *CTA Hover* | Latte Base | `#eff1f5` | Trạng thái rê chuột lên nút chính | **14:1 (AAA)** |
-| `status-success`| Green | `#a6e3a1` | Trạng thái an toàn, Khóa khôi phục đã sao lưu | **11.2:1 (AAA)** |
-| `status-warning`| Yellow | `#f9e2af` | Mật khẩu yếu, cảnh báo hết hạn, cảnh báo rò rỉ | **13.5:1 (AAA)** |
+| `status-success` | Green | `#a6e3a1` | Trạng thái an toàn, Khóa khôi phục đã sao lưu | **11.2:1 (AAA)** |
+| `status-warning` | Yellow | `#f9e2af` | Mật khẩu yếu, cảnh báo hết hạn, cảnh báo rò rỉ | **13.5:1 (AAA)** |
 | `status-danger` | Red | `#f38ba8` | Nút xóa, lỗi nhập sai mật khẩu master, viền lỗi | **8.6:1 (AAA)** |
 
 ---
@@ -83,12 +84,12 @@ Giao diện được phân bổ theo mô hình các tầng bề mặt phẳng (F
 | `border-focus` | Deep Slate | `#1e1e2e` | Viền focus ô nhập liệu, viền nút chính | **13.5:1 (AAA)** |
 | `text-primary` | Latte Text | `#4c4f69` | Nội dung chính, dữ liệu mật khẩu, mô tả | **7.5:1 (AAA)** |
 | `text-heading` | Deep Charcoal | `#1e1e2e` | Tiêu đề lớn, tên kho, tiêu đề thẻ Onboarding | **13.5:1 (AAA)** |
-| `text-secondary`| Subtext 0 | `#6c6f85` | Nhãn phụ, mô tả tính năng, danh mục | **5.1:1 (AA)** |
+| `text-secondary` | Subtext 0 | `#6c6f85` | Nhãn phụ, mô tả tính năng, danh mục | **5.1:1 (AA)** |
 | `text-muted` | Subtext 1 Refined | `#7c7f93` | Trạng thái disabled của nút bấm & menu, placeholder | **3.8:1 (Đạt chuẩn)** |
-| **`brand-primary`**| **Deep Slate** | **`#1e1e2e`** | **Nút bấm chính (CTA Button) với chữ Trắng `#ffffff`** | **13.5:1 (AAA Tuyệt đối)** |
+| **`brand-primary`** | **Deep Slate** | **`#1e1e2e`** | **Nút bấm chính (CTA Button) với chữ Trắng `#ffffff`** | **13.5:1 (AAA Tuyệt đối)** |
 | *CTA Hover* | Surface 0 | `#313244` | Trạng thái rê chuột lên nút chính | **10:1 (AAA)** |
-| `status-success`| Latte Green | `#40a02b` | Mã khóa khôi phục, mật khẩu mạnh, trạng thái an toàn | **4.8:1 (AA)** |
-| `status-warning`| Latte Yellow | `#df8e1d` | Cảnh báo bảo mật, cảnh báo mật khẩu trùng | **3.2:1 (Large AA)** |
+| `status-success` | Latte Green | `#40a02b` | Mã khóa khôi phục, mật khẩu mạnh, trạng thái an toàn | **4.8:1 (AA)** |
+| `status-warning` | Latte Yellow | `#df8e1d` | Cảnh báo bảo mật, cảnh báo mật khẩu trùng | **3.2:1 (Large AA)** |
 | `status-danger` | Latte Red | `#d20f39` | Nút nguy hiểm, thông báo lỗi xác thực | **4.6:1 (AA)** |
 
 ---
@@ -110,6 +111,7 @@ Giao diện được phân bổ theo mô hình các tầng bề mặt phẳng (F
 ## 5. Quy Chuẩn Thành Phần Giao Diện (Component Specifications)
 
 ### 5.1. Window & Dialog (Cửa sổ & Hộp thoại)
+
 - **Đường viền (Border):** Khép kín 4 cạnh với độ dày cố định `1px solid`:
   - Dark Theme: `1px solid #45475a`
   - Light Theme: `1px solid #bcc0cc`
@@ -149,6 +151,7 @@ Giao diện được phân bổ theo mô hình các tầng bề mặt phẳng (F
 ---
 
 ### 5.3. Ô Nhập Liệu & Trường Mật Khẩu (Input Controls)
+
 - Chiều cao chuẩn: `34px` - `36px`.
 - Padding trong: `6px 12px`.
 - **Default State:**
@@ -163,13 +166,17 @@ Giao diện được phân bổ theo mô hình các tầng bề mặt phẳng (F
 ## 6. Hướng Dẫn Triển Khai Kỹ Thuật (Implementation Guidelines for Qt/C++)
 
 ### 6.1. Thuộc tính `WA_StyledBackground`
+
 Khi tạo các custom container widget kế thừa từ `QWidget` (như Header Widget, Card Widget, Bottom Bar) mà muốn áp dụng CSS `background-color` và `border` từ file QSS:
+
 ```cpp
 setAttribute(Qt::WA_StyledBackground, true);
 ```
 
 ### 6.2. Đồng bộ Màu Sắc trong C++ Custom Item Delegates
+
 Khi vẽ các item trong `QListView` hoặc `QTableView` qua `QStyledItemDelegate::paint()`:
+
 ```cpp
 const bool isDark = app::ThemeManager::instance().isDarkTheme();
 // Tiêu đề: Trắng trong Dark, Đen than trong Light

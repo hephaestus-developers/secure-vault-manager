@@ -87,6 +87,12 @@ if (chromeApi?.runtime?.onMessage) {
           return;
         }
 
+        if (message.action === "passkey_query") {
+          const resp = await passkeyRouter.handleQuery(message.payload);
+          sendResponse(resp);
+          return;
+        }
+
         if (message.action === "passkey_create") {
           const resp = await passkeyRouter.handleCreate(message.payload);
           sendResponse(resp);

@@ -29,6 +29,13 @@ export class PasskeyRouter {
     return this.transport.dispatch<PasskeyCreateResponse>(req);
   }
 
+  public async handleQuery(
+    params: { rpId: string; allowCredentials?: string[] }
+  ): Promise<BridgeResponse<{ unlocked: boolean; passkeys: Array<{ id: string; title: string; username: string; credentialId: string }> }>> {
+    const req = createBridgeRequest("passkey_query", params as unknown as Record<string, unknown>);
+    return this.transport.dispatch(req);
+  }
+
   public async handleGet(
     params: PasskeyGetRequest
   ): Promise<BridgeResponse<PasskeyGetResponse>> {
