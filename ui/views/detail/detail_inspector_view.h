@@ -15,7 +15,6 @@
 #include "models/vault_item.h"
 #include "totp_widget.h"
 
-#include <QComboBox>
 #include <QFrame>
 #include <QScrollArea>
 #include <QStackedWidget>
@@ -37,6 +36,7 @@ public:
   [[nodiscard]] bool isEditMode() const { return m_isEditMode; }
   void saveEdit();
   void cancelEdit();
+  void showRevisionHistory();
 
   void retranslateUi();
 
@@ -60,7 +60,6 @@ private slots:
 
 private:
   void setupUI();
-  void refreshFolderOptions();
   void refreshAttachments();
   void updateVisibilityForCategory(models::ItemCategory category);
   void refreshPrimaryCard(const QList<QWidget *> &visibleWidgets,
@@ -78,7 +77,9 @@ private:
   QWidget *m_primaryCard{nullptr};
   QVBoxLayout *m_primaryLayout{nullptr};
   QLabel *m_primaryHeader{nullptr};
+  QWidget *m_addTotpRow{nullptr};
   QPushButton *m_addTotpBtn{nullptr};
+  QWidget *m_genSshKeyRow{nullptr};
   QPushButton *m_genSshKeyBtn{nullptr};
   QList<FieldRowWidget *> m_allPrimaryFields;
   QList<QWidget *> m_allPrimaryWidgets;
@@ -92,12 +93,7 @@ private:
   QLabel *m_notesHeader{nullptr};
   FieldRowWidget *m_notesField{nullptr};
 
-  // 4. Tầng Folder & Attachments
-  QWidget *m_metaCard{nullptr};
-  QLabel *m_folderHeader{nullptr};
-  QLabel *m_folderValueLabel{nullptr};
-  QComboBox *m_folderCombo{nullptr};
-
+  // 4. Tầng Attachments
   QWidget *m_attachmentsCard{nullptr};
   QLabel *m_attachmentsHeader{nullptr};
   QVBoxLayout *m_attachmentsListLayout{nullptr};
@@ -118,6 +114,11 @@ private:
   FieldRowWidget *m_dbNameField{nullptr};
   FieldRowWidget *m_sshFingerprintField{nullptr};
   FieldRowWidget *m_sshKeyField{nullptr};
+  FieldRowWidget *m_passkeyRpIdField{nullptr};
+  FieldRowWidget *m_passkeyCredentialIdField{nullptr};
+  FieldRowWidget *m_passkeyAlgorithmField{nullptr};
+  FieldRowWidget *m_passkeyUserHandleField{nullptr};
+  FieldRowWidget *m_passkeySignCountField{nullptr};
 
   models::UiVaultItem m_currentItem;
   bool m_isEditMode{false};

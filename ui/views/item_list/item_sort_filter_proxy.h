@@ -29,8 +29,7 @@ public:
   explicit ItemSortFilterProxy(QObject *parent = nullptr);
   ~ItemSortFilterProxy() override = default;
 
-  void setFilterType(SidebarFilterType type, models::ItemCategory category,
-                     const QString &folderId = QString());
+  void setFilterType(SidebarFilterType type, models::ItemCategory category);
   void setVaultFilter(const QString &vaultId);
   void setSearchText(const QString &query);
   void setSortOption(SortOption option);
@@ -45,7 +44,6 @@ protected:
 private:
   SidebarFilterType m_filterType{SidebarFilterType::AllItems};
   models::ItemCategory m_targetCategory{models::ItemCategory::Login};
-  QString m_targetFolderId;
   QString m_vaultFilter;
   QString m_searchQuery;
   SortOption m_sortOption{SortOption::UpdatedDesc};

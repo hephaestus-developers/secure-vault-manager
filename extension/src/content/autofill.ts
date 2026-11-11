@@ -90,7 +90,7 @@ export function autofillCredentialsOnPage(data: {
           !inp.readOnly &&
           inp.type !== "hidden" &&
           inp.type !== "submit" &&
-          inp.type !== "button"
+          inp.type !== "button",
       ) as HTMLInputElement[];
       if (inputs.length === 1) {
         setNativeInputValue(inputs[0], data.totpCode);

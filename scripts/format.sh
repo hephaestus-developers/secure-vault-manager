@@ -49,4 +49,30 @@ else
     echo "  [Bỏ qua] clang-format chưa được cài đặt trên hệ thống."
 fi
 
+echo "==> [SVM Format] Định dạng mã nguồn Web/TS (prettier)..."
+PRETTIER_BIN="${ROOT_DIR}/extension/node_modules/.bin/prettier"
+if [[ ! -x "${PRETTIER_BIN}" ]] && command -v prettier >/dev/null 2>&1; then
+    PRETTIER_BIN="$(command -v prettier)"
+fi
+
+if [[ -x "${PRETTIER_BIN}" ]]; then
+    PRETTIER_TARGETS=(
+        "extension/src/**/*.{ts,tsx,js,mjs,css,html}"
+        "extension/scripts/**/*.{js,mjs,ts}"
+        "extension/public/*.json"
+        "extension/popup.html"
+        "extension/package.json"
+        "extension/tsconfig.json"
+        "extension/vite.config.ts"
+    )
+    if [[ "${CHECK_ONLY}" == true ]]; then
+        "${PRETTIER_BIN}" --check "${PRETTIER_TARGETS[@]}"
+    else
+        "${PRETTIER_BIN}" --write "${PRETTIER_TARGETS[@]}"
+    fi
+else
+    echo "  [Lỗi] Chưa cài đặt prettier cho extension (chạy: pnpm --dir extension install)." >&2
+    exit 1
+fi
+
 echo "==> [SVM Format] Định dạng hoàn tất!"

@@ -9,7 +9,6 @@
 pub mod category;
 pub mod custom_field;
 pub mod error;
-pub mod folder;
 pub mod item;
 pub mod json;
 pub mod prompt;
@@ -19,7 +18,6 @@ pub mod trash;
 pub use category::Category;
 pub use custom_field::{CustomField, FieldKind};
 pub use error::DomainError;
-pub use folder::Folder;
 pub use item::{ItemRevision, VaultItem, VaultProfile};
 pub use json::JsonValue;
 pub use prompt::PromptKind;

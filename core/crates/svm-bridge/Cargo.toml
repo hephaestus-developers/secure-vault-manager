@@ -10,7 +10,8 @@ svm-domain = { path = "../svm-domain" }
 svm-crypto = { path = "../svm-crypto" }
 svm-storage = { path = "../svm-storage" }
 svm-ipc = { path = "../svm-ipc" }
+svm-totp = { path = "../svm-totp" }
 svm-vault = { path = "../svm-vault" }
 
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_Storage_FileSystem", "Win32_System_Pipes", "Win32_System_Registry"] }
+windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_Storage_FileSystem", "Win32_System_Pipes", "Win32_System_Registry"] }

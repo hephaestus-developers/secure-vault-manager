@@ -40,7 +40,9 @@ set(UI_SOURCES
     views/detail/custom_fields_widget.cpp
     views/detail/detail_header_widget.cpp
     views/detail/detail_inspector_view.cpp
+    views/detail/revision_history_dialog.cpp
     views/about/about_dialog.cpp
+    views/about/keyboard_shortcuts_dialog.cpp
     views/onboarding/password_entropy_meter.cpp
     views/onboarding/onboarding_wizard_view.cpp
     views/lock/recovery_dialog.cpp
@@ -93,6 +95,7 @@ set(UI_HEADERS
     views/detail/custom_fields_widget.h
     views/detail/detail_header_widget.h
     views/detail/detail_inspector_view.h
+    views/detail/revision_history_dialog.h
     views/about/about_dialog.h
     views/onboarding/password_entropy_meter.h
     views/onboarding/onboarding_wizard_view.h

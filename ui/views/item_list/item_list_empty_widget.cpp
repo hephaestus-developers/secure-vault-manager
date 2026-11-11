@@ -133,19 +133,6 @@ void ItemListEmptyWidget::updateDisplay() {
     iconName = QStringLiteral("star");
     title = tr("No Favorites Yet");
     desc = tr("Star any important credential to quickly access it here.");
-  } else if (m_filterType == SidebarFilterType::WatchtowerWeak) {
-    iconName = QStringLiteral("watchtower_weak");
-    title = tr("No Weak Passwords");
-    desc = tr("Great job! All your stored credentials meet strong standards.");
-  } else if (m_filterType == SidebarFilterType::WatchtowerExpiring) {
-    iconName = QStringLiteral("watchtower_expiring");
-    title = tr("No Expiring Items");
-    desc = tr("None of your credit cards or credentials have upcoming "
-              "expiration dates.");
-  } else if (m_filterType == SidebarFilterType::Folder) {
-    iconName = QStringLiteral("folder_empty");
-    title = tr("Folder is Empty");
-    desc = tr("Items assigned to this folder will appear here.");
   } else if (m_filterType == SidebarFilterType::Category) {
     switch (m_category) {
     case models::ItemCategory::Login:

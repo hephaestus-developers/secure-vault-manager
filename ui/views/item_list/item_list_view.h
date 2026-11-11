@@ -17,9 +17,13 @@
 
 #include <QLineEdit>
 #include <QListView>
+#include <QModelIndex>
+#include <QPoint>
 #include <QPushButton>
 #include <QStackedWidget>
 #include <QWidget>
+
+class QMenu;
 
 namespace svm::views {
 
@@ -33,11 +37,11 @@ public:
   void setItems(const QList<models::UiVaultItem> &items);
   void upsertItem(const models::UiVaultItem &item);
   void removeItem(const QString &itemId);
-  void setFilter(SidebarFilterType type, models::ItemCategory category,
-                 const QString &folderId = QString());
+  void setFilter(SidebarFilterType type, models::ItemCategory category);
   void selectItem(const QString &itemId);
   void clearSelection();
   [[nodiscard]] QString selectedItemId() const;
+  [[nodiscard]] bool isItemVisible(const QString &itemId) const;
   void focusSearch();
 
   [[nodiscard]] ItemListModel *sourceModel() const { return m_model; }
@@ -52,18 +56,32 @@ signals:
   void itemSelected(const QString &itemId);
   void addNewItemRequested(models::ItemCategory defaultCategory);
   void quickCopyRequested(const QString &itemId, const QString &fieldName);
+  void itemEditRequested(const QString &itemId);
+  void itemFavoriteToggleRequested(const QString &itemId);
+  void itemMoveToVaultRequested(const QString &itemId,
+                                const QString &targetVaultId);
+  void itemTrashRequested(const QString &itemId);
+  void itemRestoreRequested(const QString &itemId);
+  void itemPurgeRequested(const QString &itemId);
 
 protected:
   void changeEvent(QEvent *event) override;
+  bool eventFilter(QObject *obj, QEvent *event) override;
 
 private slots:
   void onSearchTextChanged(const QString &text);
   void onListSelectionChanged(const QItemSelection &selected,
                               const QItemSelection &deselected);
+  void onContextMenuRequested(const QPoint &pos);
 
 private:
   void setupUI();
   void updateEmptyStateVisibility();
+  [[nodiscard]] QModelIndex findProxyIndexById(const QString &itemId) const;
+  void populateActiveContextMenu(QMenu &menu, const models::UiVaultItem &item);
+  void populateTrashContextMenu(QMenu &menu, const QString &itemId);
+  void populateMoveToVaultMenu(QMenu &vaultMenu,
+                               const models::UiVaultItem &item);
 
   QLineEdit *m_searchEdit{nullptr};
   QPushButton *m_newBtn{nullptr};

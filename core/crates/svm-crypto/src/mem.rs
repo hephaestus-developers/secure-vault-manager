@@ -22,14 +22,14 @@ pub fn mem_lock(slice: &[u8]) -> bool {
     }
     #[cfg(all(unix, not(target_arch = "wasm32")))]
     unsafe {
-        return mlock(slice.as_ptr(), slice.len()) == 0;
+        mlock(slice.as_ptr(), slice.len()) == 0
     }
     #[cfg(target_os = "windows")]
     unsafe {
-        return windows_sys::Win32::System::Memory::VirtualLock(
+        windows_sys::Win32::System::Memory::VirtualLock(
             slice.as_ptr() as *const core::ffi::c_void,
             slice.len(),
-        ) != 0;
+        ) != 0
     }
     #[cfg(not(any(all(unix, not(target_arch = "wasm32")), target_os = "windows")))]
     {
@@ -45,14 +45,14 @@ pub fn mem_unlock(slice: &[u8]) -> bool {
     }
     #[cfg(all(unix, not(target_arch = "wasm32")))]
     unsafe {
-        return munlock(slice.as_ptr(), slice.len()) == 0;
+        munlock(slice.as_ptr(), slice.len()) == 0
     }
     #[cfg(target_os = "windows")]
     unsafe {
-        return windows_sys::Win32::System::Memory::VirtualUnlock(
+        windows_sys::Win32::System::Memory::VirtualUnlock(
             slice.as_ptr() as *const core::ffi::c_void,
             slice.len(),
-        ) != 0;
+        ) != 0
     }
     #[cfg(not(any(all(unix, not(target_arch = "wasm32")), target_os = "windows")))]
     {

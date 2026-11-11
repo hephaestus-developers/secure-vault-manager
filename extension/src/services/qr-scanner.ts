@@ -13,13 +13,12 @@ export interface ScannedOtpAuth {
  * Quét DOM của trang hiện tại để tìm các liên kết hoặc thuộc tính chứa `otpauth://totp/`.
  */
 export function scanDocumentForOtpAuth(root: Document | Element = document): ScannedOtpAuth | null {
-  const links = root.querySelectorAll("a[href^='otpauth://'], [data-otpauth], [title*='otpauth://']");
+  const links = root.querySelectorAll(
+    "a[href^='otpauth://'], [data-otpauth], [title*='otpauth://']",
+  );
   for (const el of Array.from(links)) {
     const raw =
-      el.getAttribute("href") ||
-      el.getAttribute("data-otpauth") ||
-      el.getAttribute("title") ||
-      "";
+      el.getAttribute("href") || el.getAttribute("data-otpauth") || el.getAttribute("title") || "";
     if (raw.startsWith("otpauth://")) {
       return parseOtpAuthSummary(raw);
     }
@@ -81,7 +80,8 @@ export function parseOtpAuthSummary(uri: string): ScannedOtpAuth | null {
     const url = new URL(uri);
     const label = decodeURIComponent(url.pathname.replace(/^\/+/, ""));
     const parts = label.split(":");
-    const issuer = url.searchParams.get("issuer") || (parts.length > 1 ? parts[0].trim() : "Account");
+    const issuer =
+      url.searchParams.get("issuer") || (parts.length > 1 ? parts[0].trim() : "Account");
     const account = parts.length > 1 ? parts.slice(1).join(":").trim() : label;
     return { uri, issuer, account };
   } catch {

@@ -59,9 +59,6 @@
         <file>icons/security/unlock.svg</file>
         <file>icons/security/unlock_dark.svg</file>
         <file>icons/security/unlock_light.svg</file>
-        <file>icons/security/watchtower_expiring.svg</file>
-        <file>icons/security/watchtower_expiring_dark.svg</file>
-        <file>icons/security/watchtower_expiring_light.svg</file>
         <file>icons/security/watchtower_weak.svg</file>
         <file>icons/security/watchtower_weak_dark.svg</file>
         <file>icons/security/watchtower_weak_light.svg</file>

@@ -11,14 +11,6 @@
 
 namespace svm::views {
 
-enum class SidebarFilterType {
-  AllItems,
-  Favorites,
-  Trash,
-  Category,
-  Folder,
-  WatchtowerWeak,
-  WatchtowerExpiring
-};
+enum class SidebarFilterType { AllItems, Favorites, Trash, Category };
 
 } // namespace svm::views

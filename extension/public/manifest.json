@@ -3,17 +3,8 @@
   "name": "Secure Vault Manager",
   "version": "0.1.0",
   "description": "Autofill logins, verification codes, and passkeys securely from Secure Vault Manager.",
-  "permissions": [
-    "activeTab",
-    "tabs",
-    "storage",
-    "clipboardWrite",
-    "nativeMessaging",
-    "scripting"
-  ],
-  "host_permissions": [
-    "<all_urls>"
-  ],
+  "permissions": ["activeTab", "tabs", "storage", "clipboardWrite", "nativeMessaging", "scripting"],
+  "host_permissions": ["<all_urls>"],
   "action": {
     "default_title": "Secure Vault Manager",
     "default_popup": "popup.html",

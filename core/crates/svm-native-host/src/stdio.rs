@@ -7,8 +7,8 @@ use std::io::{self, Read, Write};
 use svm_domain::DomainError;
 use svm_ipc::IpcEndpoint;
 
-/// Giới hạn kích thước tối đa của bản tin nhận từ trình duyệt (1 MB theo chuẩn Chrome Native Messaging).
-pub const MAX_INBOUND_MESSAGE_BYTES: usize = 1024 * 1024;
+/// Giới hạn kích thước tối đa của bản tin nhận từ trình duyệt (4 MB, đồng bộ với khung IPC).
+pub const MAX_INBOUND_MESSAGE_BYTES: usize = 4 * 1024 * 1024;
 
 /// Giới hạn kích thước tối đa của bản tin gửi về trình duyệt (10 MB).
 pub const MAX_OUTBOUND_MESSAGE_BYTES: usize = 10 * 1024 * 1024;

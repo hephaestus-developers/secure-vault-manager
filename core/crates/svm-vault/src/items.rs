@@ -1,9 +1,9 @@
-//! Nghiệp vụ thêm, sửa, xóa mục lưu trữ (`VaultItem`), thư mục (`Folder`), thùng rác, lịch sử sửa đổi và đính kèm.
+//! Nghiệp vụ thêm, sửa, xóa mục lưu trữ (`VaultItem`), thùng rác, lịch sử sửa đổi và đính kèm.
 
 use std::path::Path;
 
 use svm_crypto::{evaluate_password_strength, generate_uuid_v4};
-use svm_domain::{Category, DomainError, Folder, ItemRevision, JsonValue, TrashItem, VaultItem};
+use svm_domain::{Category, DomainError, ItemRevision, JsonValue, TrashItem, VaultItem};
 
 use crate::attachment::AttachmentMeta;
 use crate::defaults::current_timestamp_ms;
@@ -177,11 +177,9 @@ impl VaultService {
         if let Some(item) = self.items.iter_mut().find(|it| it.id == item_id) {
             item.trashed = true;
             item.updated_at = current_timestamp_ms();
-            let orig_folder = item.folder_id.clone();
             if !self.trash.iter().any(|t| t.item_id == item_id) {
                 self.trash.push(TrashItem {
                     item_id: item_id.to_string(),
-                    original_folder_id: orig_folder,
                     trashed_at: current_timestamp_ms(),
                 });
             }
@@ -201,10 +199,7 @@ impl VaultService {
             item.trashed = false;
             item.updated_at = current_timestamp_ms();
             if let Some(pos) = self.trash.iter().position(|t| t.item_id == item_id) {
-                let t = self.trash.remove(pos);
-                if t.original_folder_id.is_some() {
-                    item.folder_id = t.original_folder_id;
-                }
+                self.trash.remove(pos);
             }
             self.persist()?;
             Ok(())
@@ -292,65 +287,6 @@ impl VaultService {
                 Err(DomainError::NotFound(format!("Field {field_id} not found")))
             }
         }
-    }
-
-    /// Lấy danh sách các thư mục dưới dạng JSON `[]`.
-    pub fn list_folders_json(&self) -> Result<String, DomainError> {
-        if !self.unlocked {
-            return Err(DomainError::Locked);
-        }
-        let mut arr = JsonValue::new_array();
-        for f in &self.folders {
-            arr.push(f.to_json());
-        }
-        Ok(arr.to_json_string())
-    }
-
-    /// Thêm mới hoặc cập nhật một thư mục.
-    pub fn upsert_folder_json(&mut self, folder_json: &str) -> Result<String, DomainError> {
-        if !self.unlocked {
-            return Err(DomainError::Locked);
-        }
-        if folder_json.trim().is_empty() || folder_json.trim() == "{}" {
-            return Err(DomainError::InvalidArg(
-                "Folder JSON cannot be empty".to_string(),
-            ));
-        }
-        let val = JsonValue::parse(folder_json).map_err(DomainError::Parse)?;
-        let mut folder = Folder::from_json(&val)
-            .ok_or_else(|| DomainError::Parse("Invalid Folder JSON".to_string()))?;
-        if folder.id.is_empty() {
-            folder.id = format!("folder-{}", generate_uuid_v4());
-        }
-        let out_id = folder.id.clone();
-        if let Some(existing) = self.folders.iter_mut().find(|f| f.id == out_id) {
-            *existing = folder;
-        } else {
-            self.folders.push(folder);
-        }
-        self.persist()?;
-        Ok(out_id)
-    }
-
-    /// Xóa một thư mục và đưa các mục bên trong về thư mục gốc.
-    pub fn delete_folder(&mut self, folder_id: &str) -> Result<(), DomainError> {
-        if !self.unlocked {
-            return Err(DomainError::Locked);
-        }
-        let prev_len = self.folders.len();
-        self.folders.retain(|f| f.id != folder_id);
-        if self.folders.len() == prev_len {
-            return Err(DomainError::NotFound(format!(
-                "Folder {folder_id} not found"
-            )));
-        }
-        for item in &mut self.items {
-            if item.folder_id.as_deref() == Some(folder_id) {
-                item.folder_id = None;
-            }
-        }
-        self.persist()?;
-        Ok(())
     }
 
     /// Lấy lịch sử các bản sửa đổi của một mục.

@@ -14,7 +14,12 @@ export type BridgeAction =
   | "save_credential"
   | "get_totp"
   | "update_totp"
+  | "decode_qr"
+  | "start_qr_crop"
+  | "qr_crop_selected"
+  | "qr_crop_cancelled"
   | "generate_password"
+  | "passkey_query"
   | "passkey_create"
   | "passkey_get";
 
@@ -103,6 +108,51 @@ export interface GeneratedPasswordPayload {
   feedback: string;
 }
 
+export interface DecodeQrResponsePayload {
+  text: string;
+  isOtpAuth: boolean;
+  isPasskeyQr?: boolean;
+  otpauth?: {
+    kind: string;
+    issuer: string;
+    account: string;
+    digits: number;
+    period: number;
+  } | null;
+}
+
+export interface UpdateTotpResponsePayload {
+  itemId: string;
+  code: string;
+  remaining: number;
+  issuer: string;
+  account: string;
+}
+
+export interface PendingTotpSetup {
+  uri: string;
+  issuer: string;
+  account: string;
+  origin: string;
+  domain: string;
+  createdAt: number;
+}
+
+export interface PasskeySummaryItem {
+  id: string;
+  title: string;
+  username: string;
+  credentialId: string;
+}
+
+export interface PasskeyQueryResponsePayload {
+  unlocked: boolean;
+  passkeys: PasskeySummaryItem[];
+}
+
+export const PENDING_TOTP_STORAGE_KEY = "svm_pending_totp_setup";
+export const PENDING_TOTP_TTL_MS = 5 * 60 * 1000;
+
 let requestSequence = 0;
 
 /**
@@ -137,7 +187,7 @@ export function detectCurrentBrowserName(): string {
 export function createBridgeRequest<TPayload = Record<string, unknown>>(
   action: BridgeAction,
   payload?: TPayload,
-  sessionToken?: string
+  sessionToken?: string,
 ): BridgeRequest<TPayload> {
   requestSequence = (requestSequence + 1) % 1_000_000;
   const currentBrowser = detectCurrentBrowserName();
@@ -158,7 +208,7 @@ export function createBridgeRequest<TPayload = Record<string, unknown>>(
  * Kiểm tra xem phản hồi Bridge có thành công và chứa `payload` hợp lệ hay không.
  */
 export function isBridgeSuccess<TPayload>(
-  resp: BridgeResponse<TPayload> | null | undefined
+  resp: BridgeResponse<TPayload> | null | undefined,
 ): resp is BridgeResponse<TPayload> & { ok: true; payload: TPayload } {
   return Boolean(resp && resp.ok && resp.payload !== undefined);
 }
@@ -168,7 +218,7 @@ export function isBridgeSuccess<TPayload>(
  */
 export async function sendExtensionBridgeMessage<TPayload = Record<string, unknown>>(
   action: BridgeAction,
-  payload?: Record<string, unknown>
+  payload?: Record<string, unknown>,
 ): Promise<BridgeResponse<TPayload>> {
   const req = createBridgeRequest(action, payload);
   const chromeApi = (globalThis as Record<string, any>).chrome;

@@ -389,7 +389,7 @@ SvmStatus svm_vault_rotate_recovery_key(SvmContext *ctx, const char *master_pw,
 void svm_vault_report_idle(SvmContext *ctx, uint64_t idle_ms);
 
 /* ========================================================================= */
-/* 3.4. Quản Lý Mục Dữ Liệu & Lịch Sử (Items, Folders & History)             */
+/* 3.4. Quản Lý Mục Dữ Liệu & Lịch Sử (Items & History)                      */
 /* ========================================================================= */
 
 /**
@@ -475,34 +475,6 @@ SvmStatus svm_item_delete(SvmContext *ctx, const char *item_id);
  */
 SvmStatus svm_item_reveal_field(SvmContext *ctx, const char *item_id,
                                 const char *field_id, char **out_secret);
-
-/**
- * @brief Lấy danh sách các thư mục (Folders) trong Vault.
- * @param[in] ctx Con trỏ ngữ cảnh ứng dụng.
- * @param[out] out_json Con trỏ nhận chuỗi JSON danh sách thư mục. Giải phóng
- * bằng @ref svm_free_string.
- * @return Mã trạng thái @ref SvmStatus.
- */
-SvmStatus svm_folders_list(SvmContext *ctx, char **out_json);
-
-/**
- * @brief Thêm mới hoặc cập nhật một thư mục tổ chức.
- * @param[in] ctx Con trỏ ngữ cảnh ứng dụng.
- * @param[in] folder_json Chuỗi JSON định nghĩa thư mục.
- * @param[out] out_folder_id Con trỏ nhận chuỗi UUID của thư mục. Giải phóng
- * bằng @ref svm_free_string.
- * @return Mã trạng thái @ref SvmStatus.
- */
-SvmStatus svm_folder_upsert(SvmContext *ctx, const char *folder_json,
-                            char **out_folder_id);
-
-/**
- * @brief Xóa một thư mục (các mục bên trong sẽ được chuyển về thư mục gốc).
- * @param[in] ctx Con trỏ ngữ cảnh ứng dụng.
- * @param[in] folder_id Định danh UUID của thư mục cần xóa.
- * @return Mã trạng thái @ref SvmStatus.
- */
-SvmStatus svm_folder_delete(SvmContext *ctx, const char *folder_id);
 
 /**
  * @brief Lấy lịch sử các bản sửa đổi (revisions) của một mục.

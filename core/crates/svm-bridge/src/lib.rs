@@ -5,6 +5,8 @@
 
 pub mod client;
 pub mod server;
+pub mod totp_actions;
 
 pub use client::PairedClient;
 pub use server::BridgeServer;
+pub use totp_actions::{handle_decode_qr_action, handle_update_totp_action};

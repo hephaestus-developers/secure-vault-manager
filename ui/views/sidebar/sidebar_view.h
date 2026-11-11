@@ -15,7 +15,6 @@
 #include <QLabel>
 #include <QListWidget>
 #include <QMap>
-#include <QMenu>
 #include <QPushButton>
 #include <QStackedWidget>
 #include <QWidget>
@@ -34,12 +33,15 @@ public:
   ~SidebarView() override = default;
 
   void updateCounts(const QMap<SidebarFilterType, int> &filterCounts,
-                    const QMap<models::ItemCategory, int> &categoryCounts,
-                    const QMap<QString, int> &folderCounts = {});
-  void refreshFolders();
+                    const QMap<models::ItemCategory, int> &categoryCounts);
 
   void setCollapsed(bool collapsed);
   [[nodiscard]] bool isCollapsed() const { return m_isCollapsed; }
+
+  void openNewVaultDialog();
+  void
+  selectFilter(SidebarFilterType type,
+               models::ItemCategory category = models::ItemCategory::Login);
 
   void retranslateUi();
 
@@ -47,9 +49,7 @@ public slots:
   void toggleCollapsed();
 
 signals:
-  void filterSelected(SidebarFilterType type, models::ItemCategory category,
-                      const QString &folderId = QString());
-  void foldersChanged();
+  void filterSelected(SidebarFilterType type, models::ItemCategory category);
   void lockVaultRequested();
   void settingsRequested();
   void vaultChanged(const QString &vaultName);
@@ -92,18 +92,11 @@ private:
   QListWidgetItem *m_allItem{nullptr};
   QListWidgetItem *m_favItem{nullptr};
   QListWidgetItem *m_trashItem{nullptr};
-  QListWidgetItem *m_watchtowerHeaderItem{nullptr};
-  QListWidgetItem *m_weakItem{nullptr};
-  QListWidgetItem *m_expiringItem{nullptr};
   QListWidgetItem *m_categoriesHeaderItem{nullptr};
-  QListWidgetItem *m_foldersHeaderItem{nullptr};
-  QListWidgetItem *m_addFolderItem{nullptr};
   QLabel *m_lockTextLabel{nullptr};
   QMap<models::ItemCategory, QListWidgetItem *> m_categoryItems;
-  QMap<QString, QListWidgetItem *> m_folderItems;
   QMap<SidebarFilterType, int> m_lastFilterCounts;
   QMap<models::ItemCategory, int> m_lastCategoryCounts;
-  QMap<QString, int> m_lastFolderCounts;
 
   // Trang 1: Collapsed View (Icon Rail)
   QWidget *m_collapsedWidget{nullptr};

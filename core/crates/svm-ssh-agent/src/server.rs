@@ -36,12 +36,15 @@ impl Drop for LoadedSshKey {
     }
 }
 
+/// Callback xác nhận người dùng khi SSH Agent ký yêu cầu từ client.
+pub type SshApprovalCallback = Arc<dyn Fn(&str, &str) -> bool + Send + Sync>;
+
 /// Trạng thái chia sẻ giữa tiến trình chính và luồng lắng nghe socket SSH Agent.
 pub struct SshAgentSharedState {
     pub unlocked: AtomicBool,
     pub prompt_approval: AtomicBool,
     pub keys: Mutex<Vec<LoadedSshKey>>,
-    pub approval_cb: Mutex<Option<Arc<dyn Fn(&str, &str) -> bool + Send + Sync>>>,
+    pub approval_cb: Mutex<Option<SshApprovalCallback>>,
 }
 
 fn push_string(buf: &mut Vec<u8>, data: &[u8]) {

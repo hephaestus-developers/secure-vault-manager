@@ -12,17 +12,12 @@
 #include "components/dialog_drag_helper.h"
 #include "components/in_window_combobox.h"
 #include "components/notification_dialog.h"
-#include "core/core_bridge.h"
 #include "views/vaults/new_vault_dialog.h"
 
-#include <QAction>
-#include <QActionGroup>
 #include <QEvent>
 #include <QHBoxLayout>
 #include <QIcon>
-#include <QInputDialog>
 #include <QLabel>
-#include <QMenu>
 #include <QVBoxLayout>
 
 namespace svm::views {
@@ -144,10 +139,8 @@ void SidebarView::setupExpandedUI() {
   m_newVaultBtn->setFixedSize(32, 32);
   m_newVaultBtn->setToolTip(tr("Create New Vault..."));
   m_newVaultBtn->setCursor(Qt::PointingHandCursor);
-  connect(m_newVaultBtn, &QPushButton::clicked, this, [this]() {
-    NewVaultDialog dlg(this);
-    components::DialogDragHelper::execDialog(dlg);
-  });
+  connect(m_newVaultBtn, &QPushButton::clicked, this,
+          &SidebarView::openNewVaultDialog);
   headerLayout->addWidget(m_newVaultBtn, 0, Qt::AlignVCenter);
 
   layout->addWidget(headerWidget);
@@ -160,51 +153,12 @@ void SidebarView::setupExpandedUI() {
   m_navList->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
   m_navList->setSelectionMode(QAbstractItemView::SingleSelection);
   m_navList->setSpacing(1);
-  m_navList->setContextMenuPolicy(Qt::CustomContextMenu);
 
   m_itemDelegate = new SidebarItemDelegate(this);
   m_navList->setItemDelegate(m_itemDelegate);
 
   connect(m_navList, &QListWidget::itemClicked, this,
           &SidebarView::onListItemClicked);
-  connect(m_navList, &QWidget::customContextMenuRequested, this,
-          [this](const QPoint &pos) {
-            QListWidgetItem *item = m_navList->itemAt(pos);
-            if (!item) {
-              return;
-            }
-            const QString fid = item->data(Qt::UserRole + 2).toString();
-            if (fid.isEmpty()) {
-              return;
-            }
-            QMenu menu(this);
-            QAction *renameAct = menu.addAction(tr("Rename Folder..."));
-            QAction *deleteAct = menu.addAction(tr("Delete Folder"));
-            QAction *chosen =
-                menu.exec(m_navList->viewport()->mapToGlobal(pos));
-            if (chosen == renameAct) {
-              bool ok = false;
-              const QString newName = QInputDialog::getText(
-                  this, tr("Rename Folder"), tr("Folder name:"),
-                  QLineEdit::Normal, item->text(), &ok);
-              if (ok && !newName.trimmed().isEmpty()) {
-                models::UiFolder f;
-                f.id = fid;
-                f.name = newName.trimmed();
-                if (!core::CoreBridge::instance().upsertFolder(f).isEmpty()) {
-                  refreshFolders();
-                  emit foldersChanged();
-                }
-              }
-            } else if (chosen == deleteAct) {
-              if (core::CoreBridge::instance().deleteFolder(fid)) {
-                refreshFolders();
-                emit foldersChanged();
-                emit filterSelected(SidebarFilterType::AllItems,
-                                    models::ItemCategory::Login);
-              }
-            }
-          });
   layout->addWidget(m_navList, 1);
 
   // 3. Footer: Lock Vault Button
@@ -411,43 +365,6 @@ void SidebarView::populateNavItems() {
     m_compactCategoryItems.insert(cat, compactItem);
   }
 
-  // 3. Nhóm Watchtower (Kiểm toán Bảo mật)
-  m_watchtowerHeaderItem = addHeader(tr("WATCHTOWER"));
-  m_weakItem = addNavItem(
-      app::ThemeManager::instance().icon(QStringLiteral("watchtower_weak")),
-      tr("Weak Passwords"), SidebarFilterType::WatchtowerWeak);
-  m_compactFilterItems[SidebarFilterType::WatchtowerWeak] = addCompactItem(
-      app::ThemeManager::instance().icon(QStringLiteral("watchtower_weak")),
-      tr("Weak Passwords (0)"), SidebarFilterType::WatchtowerWeak);
-
-  m_expiringItem = addNavItem(
-      app::ThemeManager::instance().icon(QStringLiteral("watchtower_expiring")),
-      tr("Expiring Items"), SidebarFilterType::WatchtowerExpiring);
-  m_compactFilterItems[SidebarFilterType::WatchtowerExpiring] = addCompactItem(
-      app::ThemeManager::instance().icon(QStringLiteral("watchtower_expiring")),
-      tr("Expiring Items (0)"), SidebarFilterType::WatchtowerExpiring);
-
-  // 4. Nhóm Thư mục (Folders)
-  m_foldersHeaderItem = addHeader(tr("FOLDERS"));
-  m_folderItems.clear();
-  auto &bridge = core::CoreBridge::instance();
-  if (bridge.isInitialized() && bridge.isVaultUnlocked()) {
-    const auto folders = bridge.listFolders();
-    const QIcon folderIcon =
-        app::ThemeManager::instance().icon(QStringLiteral("folder_open"));
-    for (const auto &f : folders) {
-      auto *fItem = addNavItem(folderIcon, f.name, SidebarFilterType::Folder);
-      fItem->setData(Qt::UserRole + 2, f.id);
-      m_folderItems.insert(f.id, fItem);
-    }
-  }
-  m_addFolderItem = new QListWidgetItem(
-      app::ThemeManager::instance().icon(QStringLiteral("plus")),
-      tr("New Folder..."), m_navList);
-  m_addFolderItem->setData(Qt::UserRole, -99);
-  m_addFolderItem->setData(SidebarItemDelegate::CountRole, 0);
-  m_addFolderItem->setData(SidebarItemDelegate::IsHeaderRole, false);
-
   // Chọn mặc định All Items
   m_navList->setCurrentItem(m_allItem);
   if (auto *allCompact =
@@ -456,11 +373,6 @@ void SidebarView::populateNavItems() {
   }
 
   updateThemeIcons();
-}
-
-void SidebarView::refreshFolders() {
-  populateNavItems();
-  updateCounts(m_lastFilterCounts, m_lastCategoryCounts, m_lastFolderCounts);
 }
 
 void SidebarView::updateThemeIcons() {
@@ -534,31 +446,6 @@ void SidebarView::updateThemeIcons() {
       ci->setIcon(catIcon);
     }
   }
-  const QIcon weakIcon = tm.icon(QStringLiteral("watchtower_weak"));
-  if (m_weakItem) {
-    m_weakItem->setIcon(weakIcon);
-  }
-  if (auto *ci = m_compactFilterItems.value(SidebarFilterType::WatchtowerWeak,
-                                            nullptr)) {
-    ci->setIcon(weakIcon);
-  }
-  const QIcon expIcon = tm.icon(QStringLiteral("watchtower_expiring"));
-  if (m_expiringItem) {
-    m_expiringItem->setIcon(expIcon);
-  }
-  if (auto *ci = m_compactFilterItems.value(
-          SidebarFilterType::WatchtowerExpiring, nullptr)) {
-    ci->setIcon(expIcon);
-  }
-  const QIcon folderIcon = tm.icon(QStringLiteral("folder_open"));
-  for (auto *fItem : m_folderItems) {
-    if (fItem) {
-      fItem->setIcon(folderIcon);
-    }
-  }
-  if (m_addFolderItem) {
-    m_addFolderItem->setIcon(tm.icon(QStringLiteral("plus")));
-  }
 }
 
 void SidebarView::setCollapsed(bool collapsed) {
@@ -583,6 +470,18 @@ void SidebarView::setCollapsed(bool collapsed) {
   emit collapsedChanged(m_isCollapsed);
 }
 
+void SidebarView::openNewVaultDialog() {
+  NewVaultDialog dlg(this);
+  components::DialogDragHelper::execDialog(dlg);
+}
+
+void SidebarView::selectFilter(SidebarFilterType type,
+                               models::ItemCategory category) {
+  syncSelectionToList(type, category);
+  syncSelectionToCompact(type, category);
+  emit filterSelected(type, category);
+}
+
 void SidebarView::toggleCollapsed() { setCollapsed(!m_isCollapsed); }
 
 void SidebarView::onListItemClicked(QListWidgetItem *item) {
@@ -590,29 +489,9 @@ void SidebarView::onListItemClicked(QListWidgetItem *item) {
     return;
   }
 
-  if (item->data(Qt::UserRole).toInt() == -99) {
-    bool ok = false;
-    const QString folderName =
-        QInputDialog::getText(this, tr("New Folder"), tr("Folder name:"),
-                              QLineEdit::Normal, QString(), &ok);
-    if (ok && !folderName.trimmed().isEmpty()) {
-      models::UiFolder f;
-      f.name = folderName.trimmed();
-      const QString createdId = core::CoreBridge::instance().upsertFolder(f);
-      if (!createdId.isEmpty()) {
-        refreshFolders();
-        emit foldersChanged();
-        emit filterSelected(SidebarFilterType::Folder,
-                            models::ItemCategory::Login, createdId);
-      }
-    }
-    return;
-  }
-
   const auto filterType =
       static_cast<SidebarFilterType>(item->data(Qt::UserRole).toInt());
   models::ItemCategory category = models::ItemCategory::Login;
-  const QString folderId = item->data(Qt::UserRole + 2).toString();
 
   if (filterType == SidebarFilterType::Category) {
     category =
@@ -620,7 +499,7 @@ void SidebarView::onListItemClicked(QListWidgetItem *item) {
   }
 
   syncSelectionToCompact(filterType, category);
-  emit filterSelected(filterType, category, folderId);
+  emit filterSelected(filterType, category);
 }
 
 void SidebarView::onCompactItemClicked(QListWidgetItem *item) {
@@ -701,12 +580,6 @@ void SidebarView::syncSelectionToList(SidebarFilterType type,
     case SidebarFilterType::Trash:
       m_navList->setCurrentItem(m_trashItem);
       break;
-    case SidebarFilterType::WatchtowerWeak:
-      m_navList->setCurrentItem(m_weakItem);
-      break;
-    case SidebarFilterType::WatchtowerExpiring:
-      m_navList->setCurrentItem(m_expiringItem);
-      break;
     default:
       break;
     }
@@ -715,11 +588,9 @@ void SidebarView::syncSelectionToList(SidebarFilterType type,
 
 void SidebarView::updateCounts(
     const QMap<SidebarFilterType, int> &filterCounts,
-    const QMap<models::ItemCategory, int> &categoryCounts,
-    const QMap<QString, int> &folderCounts) {
+    const QMap<models::ItemCategory, int> &categoryCounts) {
   m_lastFilterCounts = filterCounts;
   m_lastCategoryCounts = categoryCounts;
-  m_lastFolderCounts = folderCounts;
 
   auto updateCount = [](QListWidgetItem *item, int count) {
     if (item) {
@@ -730,20 +601,10 @@ void SidebarView::updateCounts(
   const int allCount = filterCounts.value(SidebarFilterType::AllItems, 0);
   const int favCount = filterCounts.value(SidebarFilterType::Favorites, 0);
   const int trashCount = filterCounts.value(SidebarFilterType::Trash, 0);
-  const int weakCount =
-      filterCounts.value(SidebarFilterType::WatchtowerWeak, 0);
-  const int expCount =
-      filterCounts.value(SidebarFilterType::WatchtowerExpiring, 0);
 
   updateCount(m_allItem, allCount);
   updateCount(m_favItem, favCount);
   updateCount(m_trashItem, trashCount);
-  updateCount(m_weakItem, weakCount);
-  updateCount(m_expiringItem, expCount);
-
-  for (auto it = m_folderItems.begin(); it != m_folderItems.end(); ++it) {
-    updateCount(it.value(), folderCounts.value(it.key(), 0));
-  }
 
   // Cập nhật Compact Tooltips
   if (auto *it =
@@ -757,14 +618,6 @@ void SidebarView::updateCounts(
   if (auto *it =
           m_compactFilterItems.value(SidebarFilterType::Trash, nullptr)) {
     it->setToolTip(tr("Trash (%1)").arg(trashCount));
-  }
-  if (auto *it = m_compactFilterItems.value(SidebarFilterType::WatchtowerWeak,
-                                            nullptr)) {
-    it->setToolTip(tr("Weak Passwords (%1)").arg(weakCount));
-  }
-  if (auto *it = m_compactFilterItems.value(
-          SidebarFilterType::WatchtowerExpiring, nullptr)) {
-    it->setToolTip(tr("Expiring Items (%1)").arg(expCount));
   }
 
   // Cập nhật Danh mục: Duyệt toàn bộ m_categoryItems để đảm bảo danh mục không
@@ -817,21 +670,6 @@ void SidebarView::retranslateUi() {
   if (m_categoriesHeaderItem) {
     m_categoriesHeaderItem->setText(tr("CATEGORIES"));
   }
-  if (m_watchtowerHeaderItem) {
-    m_watchtowerHeaderItem->setText(tr("WATCHTOWER"));
-  }
-  if (m_weakItem) {
-    m_weakItem->setText(tr("Weak Passwords"));
-  }
-  if (m_expiringItem) {
-    m_expiringItem->setText(tr("Expiring Items"));
-  }
-  if (m_foldersHeaderItem) {
-    m_foldersHeaderItem->setText(tr("FOLDERS"));
-  }
-  if (m_addFolderItem) {
-    m_addFolderItem->setText(tr("New Folder..."));
-  }
 
   for (auto it = m_categoryItems.begin(); it != m_categoryItems.end(); ++it) {
     if (it.value()) {
@@ -839,7 +677,7 @@ void SidebarView::retranslateUi() {
     }
   }
 
-  updateCounts(m_lastFilterCounts, m_lastCategoryCounts, m_lastFolderCounts);
+  updateCounts(m_lastFilterCounts, m_lastCategoryCounts);
 }
 
 void SidebarView::changeEvent(QEvent *event) {

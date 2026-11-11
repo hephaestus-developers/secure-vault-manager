@@ -69,14 +69,16 @@ export function classifyDocumentFields(root: Document | Element = document): Cla
   // (ví dụ GitHub "Two-factor authentication", có tiêu đề/URL chứa 2fa và chỉ có 1 ô input văn bản duy nhất)
   if (!totpInput && !passwordInput) {
     const pageText = `${document.title} ${window.location.href} ${document.body?.innerText?.slice(0, 800) || ""}`;
-    const is2FaPage = /two-factor|2fa|mfa|verification|verify|authenticator|checkpoint/i.test(pageText);
+    const is2FaPage = /two-factor|2fa|mfa|verification|verify|authenticator|checkpoint/i.test(
+      pageText,
+    );
     const visibleTextInputs = inputs.filter(
       (inp) =>
         !inp.disabled &&
         !inp.readOnly &&
         inp.type !== "hidden" &&
         inp.type !== "submit" &&
-        inp.type !== "button"
+        inp.type !== "button",
     );
     if (is2FaPage && visibleTextInputs.length === 1) {
       totpInput = visibleTextInputs[0];

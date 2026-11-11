@@ -3,9 +3,7 @@
 use svm_crypto::{
     generate_recovery_key, mem_lock, mem_unlock, random_bytes, zeroize_slice, zeroize_string,
 };
-use svm_domain::{
-    DomainError, Folder, ItemRevision, JsonValue, TrashItem, VaultItem, VaultProfile,
-};
+use svm_domain::{DomainError, ItemRevision, JsonValue, TrashItem, VaultItem, VaultProfile};
 use svm_storage::{VaultHeader, VaultStorage};
 
 use crate::attachment::AttachmentMeta;
@@ -20,11 +18,13 @@ fn zeroize_vault_item(item: &mut VaultItem) {
     zeroize_string(&mut item.website_url);
     zeroize_string(&mut item.notes);
     zeroize_string(&mut item.totp_secret);
+    zeroize_string(&mut item.passkey_credential_id);
+    zeroize_string(&mut item.passkey_rp_id);
+    zeroize_string(&mut item.passkey_user_handle);
+    item.passkey_algorithm = 0;
+    item.passkey_sign_count = 0;
     zeroize_string(&mut item.ssh_public_key);
     zeroize_string(&mut item.ssh_fingerprint);
-    if let Some(ref mut folder_id) = item.folder_id {
-        zeroize_string(folder_id);
-    }
     zeroize_string(&mut item.card_number);
     zeroize_string(&mut item.card_expiry);
     zeroize_string(&mut item.card_cvv);
@@ -48,7 +48,6 @@ pub struct VaultService {
     pub(crate) header: Option<VaultHeader>,
     pub(crate) vaults: Vec<VaultProfile>,
     pub(crate) items: Vec<VaultItem>,
-    pub(crate) folders: Vec<Folder>,
     pub(crate) revisions: Vec<(String, Vec<ItemRevision>)>,
     pub(crate) trash: Vec<TrashItem>,
     pub(crate) attachments: Vec<AttachmentMeta>,
@@ -76,7 +75,6 @@ impl VaultService {
             header: None,
             vaults: Vec::new(),
             items: Vec::new(),
-            folders: Vec::new(),
             revisions: Vec::new(),
             trash: Vec::new(),
             attachments: Vec::new(),
@@ -124,19 +122,9 @@ impl VaultService {
 
         for t in &mut self.trash {
             zeroize_string(&mut t.item_id);
-            if let Some(ref mut folder_id) = t.original_folder_id {
-                zeroize_string(folder_id);
-            }
         }
         self.trash.clear();
         self.trash.shrink_to_fit();
-
-        for f in &mut self.folders {
-            zeroize_string(&mut f.id);
-            zeroize_string(&mut f.name);
-        }
-        self.folders.clear();
-        self.folders.shrink_to_fit();
 
         for v in &mut self.vaults {
             zeroize_string(&mut v.id);
@@ -255,12 +243,6 @@ impl VaultService {
         }
         root.insert("items", i_arr);
 
-        let mut f_arr = JsonValue::new_array();
-        for f in &self.folders {
-            f_arr.push(f.to_json());
-        }
-        root.insert("folders", f_arr);
-
         let mut t_arr = JsonValue::new_array();
         for t in &self.trash {
             t_arr.push(t.to_json());
@@ -310,16 +292,6 @@ impl VaultService {
                 }
             }
             self.items = parsed;
-        }
-
-        if let Some(arr) = root.get("folders").and_then(|v| v.as_array()) {
-            let mut parsed = Vec::new();
-            for f in arr {
-                if let Some(folder) = Folder::from_json(f) {
-                    parsed.push(folder);
-                }
-            }
-            self.folders = parsed;
         }
 
         if let Some(arr) = root.get("trash").and_then(|v| v.as_array()) {

@@ -63,7 +63,6 @@ mod tests {
         assert!(!svc.is_unlocked());
         assert!(svc.list_items_json(None).is_err());
         assert!(svc.upsert_item(VaultItem::default()).is_err());
-        assert!(svc.list_folders_json().is_err());
         assert!(svc.delete_vault("personal", "StrongMaster#2026").is_err());
 
         svc.unlock_with_credentials("personal", "StrongMaster#2026")

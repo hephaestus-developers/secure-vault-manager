@@ -39,7 +39,7 @@ export function attachFormSubmitCapture(): void {
 
           if (resp.ok && resp.payload?.credentials?.length) {
             const match = resp.payload.credentials.find(
-              (c) => c.username.trim().toLowerCase() === username.toLowerCase()
+              (c) => c.username.trim().toLowerCase() === username.toLowerCase(),
             );
 
             if (match) {
@@ -51,7 +51,7 @@ export function attachFormSubmitCapture(): void {
               // Truy vấn chi tiết mật khẩu giải mã để đối chiếu chính xác
               const secretResp = await sendExtensionBridgeMessage<CredentialSecretPayload>(
                 "fill_credential",
-                { itemId: match.id }
+                { itemId: match.id },
               );
               if (secretResp.ok && secretResp.payload?.password === password) {
                 return;
@@ -83,6 +83,6 @@ export function attachFormSubmitCapture(): void {
         }
       })();
     },
-    true
+    true,
   );
 }

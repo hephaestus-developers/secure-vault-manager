@@ -9,17 +9,8 @@
       "strict_min_version": "115.0"
     }
   },
-  "permissions": [
-    "activeTab",
-    "tabs",
-    "storage",
-    "clipboardWrite",
-    "nativeMessaging",
-    "scripting"
-  ],
-  "host_permissions": [
-    "<all_urls>"
-  ],
+  "permissions": ["activeTab", "tabs", "storage", "clipboardWrite", "nativeMessaging", "scripting"],
+  "host_permissions": ["<all_urls>"],
   "action": {
     "default_title": "Secure Vault Manager",
     "default_popup": "popup.html",

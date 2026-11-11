@@ -71,8 +71,6 @@ pub struct VaultItem {
     pub title: String,
     /// Danh mục chuyên biệt thuộc @ref Category.
     pub category: Category,
-    /// Thư mục chứa mục này (None nếu ở thư mục gốc).
-    pub folder_id: Option<String>,
     /// Tên đăng nhập / Email / Chủ thẻ / Tài khoản.
     pub username: String,
     /// Mật khẩu / Passphrase / Secret chính.
@@ -93,6 +91,16 @@ pub struct VaultItem {
     pub has_totp: bool,
     /// Cờ đánh dấu có Passkey liên kết.
     pub has_passkey: bool,
+    /// Định danh Credential ID (Base64URL) của Passkey.
+    pub passkey_credential_id: String,
+    /// Tên miền Relying Party ID (RP ID) của Passkey.
+    pub passkey_rp_id: String,
+    /// Mã thuật toán COSE của Passkey (mặc định `-7` cho ES256).
+    pub passkey_algorithm: i32,
+    /// Định danh User Handle (Base64URL) của Passkey.
+    pub passkey_user_handle: String,
+    /// Bộ đếm số lần ký xác thực Passkey (`signCount`).
+    pub passkey_sign_count: u32,
     /// Cờ đánh dấu khóa SSH đang nạp vào Agent.
     pub is_ssh_loaded: bool,
     /// Khóa công khai OpenSSH.
@@ -132,7 +140,6 @@ impl Default for VaultItem {
             vault_id: "personal".to_string(),
             title: String::new(),
             category: Category::Login,
-            folder_id: None,
             username: String::new(),
             password: String::new(),
             website_url: String::new(),
@@ -143,6 +150,11 @@ impl Default for VaultItem {
             trashed: false,
             has_totp: false,
             has_passkey: false,
+            passkey_credential_id: String::new(),
+            passkey_rp_id: String::new(),
+            passkey_algorithm: 0,
+            passkey_user_handle: String::new(),
+            passkey_sign_count: 0,
             is_ssh_loaded: false,
             ssh_public_key: String::new(),
             ssh_fingerprint: String::new(),
@@ -194,11 +206,6 @@ impl VaultItem {
             "categoryIndex",
             JsonValue::Number(self.category.to_index() as f64),
         );
-        if let Some(ref fid) = self.folder_id {
-            obj.insert("folderId", JsonValue::String(fid.clone()));
-        } else {
-            obj.insert("folderId", JsonValue::Null);
-        }
         obj.insert("username", JsonValue::String(self.username.clone()));
         obj.insert("password", JsonValue::String(self.password.clone()));
         obj.insert("websiteUrl", JsonValue::String(self.website_url.clone()));
@@ -212,6 +219,23 @@ impl VaultItem {
             JsonValue::Bool(self.has_totp || !self.totp_secret.is_empty()),
         );
         obj.insert("hasPasskey", JsonValue::Bool(self.has_passkey));
+        obj.insert(
+            "passkeyCredentialId",
+            JsonValue::String(self.passkey_credential_id.clone()),
+        );
+        obj.insert("passkeyRpId", JsonValue::String(self.passkey_rp_id.clone()));
+        obj.insert(
+            "passkeyAlgorithm",
+            JsonValue::Number(self.passkey_algorithm as f64),
+        );
+        obj.insert(
+            "passkeyUserHandle",
+            JsonValue::String(self.passkey_user_handle.clone()),
+        );
+        obj.insert(
+            "passkeySignCount",
+            JsonValue::Number(self.passkey_sign_count as f64),
+        );
         obj.insert("isSshLoaded", JsonValue::Bool(self.is_ssh_loaded));
         obj.insert(
             "sshPublicKey",
@@ -263,11 +287,6 @@ impl VaultItem {
             "categoryIndex",
             JsonValue::Number(self.category.to_index() as f64),
         );
-        if let Some(ref fid) = self.folder_id {
-            obj.insert("folderId", JsonValue::String(fid.clone()));
-        } else {
-            obj.insert("folderId", JsonValue::Null);
-        }
         obj.insert("username", JsonValue::String(self.username.clone()));
         obj.insert("websiteUrl", JsonValue::String(self.website_url.clone()));
         obj.insert("isFavorite", JsonValue::Bool(self.favorite));
@@ -278,6 +297,23 @@ impl VaultItem {
             JsonValue::Bool(self.has_totp || !self.totp_secret.is_empty()),
         );
         obj.insert("hasPasskey", JsonValue::Bool(self.has_passkey));
+        obj.insert(
+            "passkeyCredentialId",
+            JsonValue::String(self.passkey_credential_id.clone()),
+        );
+        obj.insert("passkeyRpId", JsonValue::String(self.passkey_rp_id.clone()));
+        obj.insert(
+            "passkeyAlgorithm",
+            JsonValue::Number(self.passkey_algorithm as f64),
+        );
+        obj.insert(
+            "passkeyUserHandle",
+            JsonValue::String(self.passkey_user_handle.clone()),
+        );
+        obj.insert(
+            "passkeySignCount",
+            JsonValue::Number(self.passkey_sign_count as f64),
+        );
         obj.insert("isSshLoaded", JsonValue::Bool(self.is_ssh_loaded));
         obj.insert(
             "sshPublicKey",
@@ -326,13 +362,6 @@ impl VaultItem {
             Category::Login
         };
 
-        let folder_id = val
-            .get("folderId")
-            .or_else(|| val.get("folder_id"))
-            .and_then(|v| v.as_str())
-            .filter(|s| !s.is_empty())
-            .map(|s| s.to_string());
-
         let mut custom_fields = Vec::new();
         if let Some(arr) = val
             .get("customFields")
@@ -357,7 +386,6 @@ impl VaultItem {
             vault_id,
             title,
             category,
-            folder_id,
             username: val.get_string("username").unwrap_or_default(),
             password: val.get_string("password").unwrap_or_default(),
             website_url: val
@@ -371,6 +399,11 @@ impl VaultItem {
             trashed: val.get_bool_or("isDeleted", val.get_bool_or("trashed", false)),
             has_totp,
             has_passkey: val.get_bool_or("hasPasskey", false),
+            passkey_credential_id: val.get_string("passkeyCredentialId").unwrap_or_default(),
+            passkey_rp_id: val.get_string("passkeyRpId").unwrap_or_default(),
+            passkey_algorithm: val.get_i64_or("passkeyAlgorithm", 0) as i32,
+            passkey_user_handle: val.get_string("passkeyUserHandle").unwrap_or_default(),
+            passkey_sign_count: val.get_i64_or("passkeySignCount", 0).max(0) as u32,
             is_ssh_loaded: val.get_bool_or("isSshLoaded", false),
             ssh_public_key: val.get_string("sshPublicKey").unwrap_or_default(),
             ssh_fingerprint: val.get_string("sshFingerprint").unwrap_or_default(),

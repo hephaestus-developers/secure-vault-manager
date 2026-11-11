@@ -42,7 +42,7 @@ void SidebarItemDelegate::paint(QPainter *painter,
       (app::ThemeManager::instance().currentMode() == app::ThemeMode::Light);
   const bool isHeader = index.data(IsHeaderRole).toBool();
 
-  // 1. Vẽ Tiêu đề Nhóm (Header: CATEGORIES, WATCHTOWER)
+  // 1. Vẽ Tiêu đề Nhóm (Header: CATEGORIES)
   if (isHeader) {
     const QString headerText = index.data(Qt::DisplayRole).toString();
     painter->setPen(isLight ? QColor(0x6C, 0x6F, 0x85)

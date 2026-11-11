@@ -7,11 +7,9 @@
 
 #pragma once
 
-#include <QDate>
 #include <QDateTime>
 #include <QMap>
 #include <QObject>
-#include <QRegularExpression>
 #include <QString>
 #include <QStringList>
 
@@ -123,7 +121,6 @@ struct UiCustomField {
 struct UiVaultItem {
   QString id;
   QString vaultId{QStringLiteral("personal")};
-  QString folderId;
   QString title;
   ItemCategory category{ItemCategory::Login};
   QString username;        // Hoặc account/fingerprint/cardholder
@@ -143,6 +140,11 @@ struct UiVaultItem {
   bool isSshLoaded{false}; // Dành cho SSH Key đã nạp vào agent
 
   // Trường chuyên biệt theo từng danh mục
+  QString passkeyCredentialId;
+  QString passkeyRpId;
+  int passkeyAlgorithm{0};
+  QString passkeyUserHandle;
+  quint32 passkeySignCount{0};
   QString sshPublicKey;
   QString sshFingerprint;
   QString cardNumber;
@@ -161,15 +163,6 @@ struct UiVaultItem {
   QDateTime createdAt;
   QDateTime updatedAt;
   int passwordStrengthScore{85}; // 0 - 100%
-};
-
-/**
- * @brief Thực thể thư mục tổ chức bản ghi.
- */
-struct UiFolder {
-  QString id;
-  QString name;
-  QString parentId;
 };
 
 /**
@@ -193,59 +186,27 @@ struct UiAttachmentMeta {
 };
 
 /**
- * @brief Kiểm tra một mục có đang có mật khẩu yếu (< 60%) phục vụ Watchtower.
+ * @brief Định dạng mã thuật toán COSE WebAuthn sang mô tả dễ đọc cho UI.
  */
-inline bool isWeakPasswordItem(const UiVaultItem &item) {
-  if (item.isDeleted || item.isArchived) {
-    return false;
+inline QString formatPasskeyAlgorithm(int coseAlg) {
+  switch (coseAlg) {
+  case -7:
+    return QStringLiteral("ES256 (ECDSA P-256 / SHA-256) • COSE -7");
+  case -8:
+    return QStringLiteral("EdDSA (Ed25519 / Ed448) • COSE -8");
+  case -35:
+    return QStringLiteral("ES384 (ECDSA P-384 / SHA-384) • COSE -35");
+  case -36:
+    return QStringLiteral("ES512 (ECDSA P-521 / SHA-512) • COSE -36");
+  case -37:
+    return QStringLiteral("PS256 (RSASSA-PSS / SHA-256) • COSE -37");
+  case -257:
+    return QStringLiteral("RS256 (RSASSA-PKCS1-v1_5 / SHA-256) • COSE -257");
+  case 0:
+    return QString();
+  default:
+    return QStringLiteral("COSE %1").arg(coseAlg);
   }
-  const bool hasPasswordCategory = (item.category == ItemCategory::Login ||
-                                    item.category == ItemCategory::Database ||
-                                    item.category == ItemCategory::Server ||
-                                    item.category == ItemCategory::Wifi);
-  return hasPasswordCategory && item.passwordStrengthScore < 60;
-}
-
-/**
- * @brief Kiểm tra thẻ tín dụng / trường ngày hết hạn đã hoặc sắp hết hạn trong
- * 60 ngày.
- */
-inline bool isExpiringItem(const UiVaultItem &item) {
-  if (item.isDeleted || item.isArchived) {
-    return false;
-  }
-  const QDate today = QDate::currentDate();
-  const QDate cutoff = today.addDays(60);
-
-  if (!item.cardExpiry.trimmed().isEmpty()) {
-    static const QRegularExpression reCard(
-        QStringLiteral("^\\s*(\\d{1,2})\\s*/\\s*(\\d{2,4})\\s*$"));
-    const QRegularExpressionMatch m = reCard.match(item.cardExpiry);
-    if (m.hasMatch()) {
-      const int month = m.captured(1).toInt();
-      int year = m.captured(2).toInt();
-      if (m.captured(2).length() == 2) {
-        year += 2000;
-      }
-      if (month >= 1 && month <= 12) {
-        const QDate expDate(year, month, QDate(year, month, 1).daysInMonth());
-        if (expDate.isValid() && expDate <= cutoff) {
-          return true;
-        }
-      }
-    }
-  }
-
-  for (const auto &cf : item.customFields) {
-    if (cf.kind == CustomFieldKind::Date ||
-        cf.label.contains(QStringLiteral("expir"), Qt::CaseInsensitive)) {
-      const QDate d = QDate::fromString(cf.value.trimmed(), Qt::ISODate);
-      if (d.isValid() && d <= cutoff) {
-        return true;
-      }
-    }
-  }
-  return false;
 }
 
 } // namespace svm::models

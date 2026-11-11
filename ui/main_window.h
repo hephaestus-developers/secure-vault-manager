@@ -10,6 +10,7 @@
 
 #include "models/vault_item.h"
 #include "views/about/about_dialog.h"
+#include "views/about/keyboard_shortcuts_dialog.h"
 #include "views/detail/detail_inspector_view.h"
 #include "views/item_list/item_list_view.h"
 #include "views/lock/lock_screen_view.h"
@@ -21,6 +22,8 @@
 #include <QShortcut>
 #include <QSplitter>
 #include <QStackedWidget>
+
+#include <optional>
 
 namespace svm::app {
 class TrayManager;
@@ -53,7 +56,9 @@ public:
   }
 
   void retranslateUi();
-  void openSettingsDialog();
+  void openSettingsDialog(int tabIndex = 0);
+  void openAboutDialog();
+  void openKeyboardShortcutsDialog();
 
 protected:
   void resizeEvent(QResizeEvent *event) override;
@@ -65,6 +70,10 @@ private slots:
   void toggleSidebar();
   void onItemSelected(const QString &itemId);
   void onItemSaved(const models::UiVaultItem &item);
+  void onItemEditRequested(const QString &itemId);
+  void onItemFavoriteToggleRequested(const QString &itemId);
+  void onItemMoveToVaultRequested(const QString &itemId,
+                                  const QString &targetVaultId);
   void onItemTrashRequested(const QString &itemId);
   void onItemRestoreRequested(const QString &itemId);
   void onItemPurgeRequested(const QString &itemId);
@@ -75,9 +84,26 @@ private slots:
 private:
   void setupUI();
   void setupShortcuts();
+  void setupHeaderMenuBar();
+  void populateVaultMenu(QMenu &menu);
+  void populateItemMenu(QMenu &menu);
+  void populateViewMenu(QMenu &menu);
+  void populateHelpMenu(QMenu &menu);
+  void lockVaultSession();
+  void quitApplication();
+  void onEmptyTrashRequested();
+  void showNonModalDialog(QDialog *dialog);
+  void updateHeaderTitle();
   void loadItemsFromCore();
   void updateSidebarCounts();
   void updateNavigationState();
+  [[nodiscard]] std::optional<models::UiVaultItem>
+  resolveFullItem(const QString &itemId) const;
+  void persistItemUpdate(const models::UiVaultItem &item,
+                         bool focusIfVisible = false);
+  void syncSelectionAfterMutation(const QString &itemId,
+                                  const models::UiVaultItem *updated,
+                                  bool focusOrWasSelected);
 
   app::TrayManager *m_trayManager{nullptr};
   components::UnifiedHeaderBar *m_headerBar{nullptr};
@@ -97,8 +123,9 @@ private:
   // Trạng thái điều hướng
   QString m_previousSelectedItemId;
 
-  // About Dialog
+  // About & Keyboard Shortcuts Dialogs
   views::AboutDialog *m_aboutDialog{nullptr};
+  views::KeyboardShortcutsDialog *m_shortcutsDialog{nullptr};
 
   // Settings Dialog
   views::SettingsDialog *m_settingsDialog{nullptr};

@@ -10,9 +10,10 @@ import { PasswordGeneratorOptions, PasswordStrengthResult } from "./domain";
 /**
  * Sinh mật khẩu mạnh cục bộ sử dụng WebCrypto CSPRNG (crypto.getRandomValues).
  */
-export function generatePasswordLocal(
-  options: PasswordGeneratorOptions
-): { password: string; strength: PasswordStrengthResult } {
+export function generatePasswordLocal(options: PasswordGeneratorOptions): {
+  password: string;
+  strength: PasswordStrengthResult;
+} {
   let charset = "";
   if (options.lowercase) charset += "abcdefghijkmnopqrstuvwxyz";
   if (options.uppercase) charset += "ABCDEFGHJKLMNPQRSTUVWXYZ";

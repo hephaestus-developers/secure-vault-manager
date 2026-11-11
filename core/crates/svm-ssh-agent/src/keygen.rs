@@ -124,10 +124,11 @@ pub fn generate_ssh_keypair(comment: &str) -> GeneratedSshKey {
     }
 }
 
+/// Cặp dữ liệu khóa Ed25519 đã giải mã từ PEM OpenSSH: `(seed, pubkey, pub_wire)`.
+pub type ParsedOpenSshEd25519Key = ([u8; 32], [u8; 32], Vec<u8>);
+
 /// Giải mã khóa bí mật Ed25519 từ chuỗi PEM chuẩn `openssh-key-v1`, trả về `(seed, pubkey, pub_wire)`.
-pub fn parse_openssh_ed25519_private_key(
-    pem: &str,
-) -> Result<([u8; 32], [u8; 32], Vec<u8>), String> {
+pub fn parse_openssh_ed25519_private_key(pem: &str) -> Result<ParsedOpenSshEd25519Key, String> {
     let body: String = pem
         .lines()
         .map(str::trim)
@@ -145,7 +146,7 @@ pub fn parse_openssh_ed25519_private_key(
     }
 
     let mut cur = magic.len();
-    let res: Result<([u8; 32], [u8; 32], Vec<u8>), String> = (|| {
+    let res: Result<ParsedOpenSshEd25519Key, String> = (|| {
         let cipher = read_ssh_string(&raw, &mut cur)?;
         let _kdf = read_ssh_string(&raw, &mut cur)?;
         let _kdfopts = read_ssh_string(&raw, &mut cur)?;

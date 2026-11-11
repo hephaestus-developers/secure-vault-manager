@@ -4,9 +4,11 @@
 //! phân tích cú pháp URI `otpauth://` và giải mã ảnh mã QR.
 
 pub mod otpauth;
+pub mod qr;
 pub mod totp;
 
 pub use otpauth::{parse_otpauth_uri, OtpAuthConfig};
+pub use qr::{decode_qr_luma, decode_qr_rgba};
 pub use totp::generate_totp;
 
 #[cfg(test)]

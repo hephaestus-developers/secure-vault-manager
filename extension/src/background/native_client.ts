@@ -60,7 +60,7 @@ export class NativeMessagingClient {
 
   public async send<TPayload = Record<string, unknown>>(
     request: BridgeRequest<any>,
-    timeoutMs = 4000
+    timeoutMs = 4000,
   ): Promise<BridgeResponse<TPayload> | null> {
     if (!this.connect() || !this.port) {
       return null;

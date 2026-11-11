@@ -39,7 +39,7 @@ import { base64UrlToBytes, bytesToBase64Url } from "../services/webauthn";
   function requestPasskeyBridge(
     action: "passkey_create" | "passkey_get",
     payload: Record<string, unknown>,
-    signal?: AbortSignal | null
+    signal?: AbortSignal | null,
   ): Promise<any> {
     if (signal?.aborted) {
       return Promise.resolve(null);
@@ -68,7 +68,7 @@ import { base64UrlToBytes, bytesToBase64Url } from "../services/webauthn";
             requestId,
             action: "passkey_cancel",
           },
-          window.location.origin
+          window.location.origin,
         );
         resolve(null);
       }
@@ -96,12 +96,14 @@ import { base64UrlToBytes, bytesToBase64Url } from "../services/webauthn";
           action,
           payload,
         },
-        window.location.origin
+        window.location.origin,
       );
     });
   }
 
-  navigator.credentials.create = async function (options?: CredentialCreationOptions): Promise<Credential | null> {
+  navigator.credentials.create = async function (
+    options?: CredentialCreationOptions,
+  ): Promise<Credential | null> {
     if (options?.publicKey) {
       const pk = options.publicKey;
       const rpId = pk.rp?.id || window.location.hostname;
@@ -137,7 +139,7 @@ import { base64UrlToBytes, bytesToBase64Url } from "../services/webauthn";
           origin: window.location.origin,
           excludeCredentials: encodeCredentialDescriptors(pk.excludeCredentials),
         },
-        options?.signal
+        options?.signal,
       );
 
       if (bridgeResp?.ok && bridgeResp.payload?.credentialId) {
@@ -149,8 +151,10 @@ import { base64UrlToBytes, bytesToBase64Url } from "../services/webauthn";
           authenticatorAttachment: "platform",
           getClientExtensionResults: () => ({}),
           response: {
-            clientDataJSON: base64UrlToBytes(bridgeResp.payload.clientDataJSON || "").buffer as ArrayBuffer,
-            attestationObject: base64UrlToBytes(bridgeResp.payload.attestationObject || "").buffer as ArrayBuffer,
+            clientDataJSON: base64UrlToBytes(bridgeResp.payload.clientDataJSON || "")
+              .buffer as ArrayBuffer,
+            attestationObject: base64UrlToBytes(bridgeResp.payload.attestationObject || "")
+              .buffer as ArrayBuffer,
             getTransports: () => ["internal"],
             getAuthenticatorData: () => new ArrayBuffer(0),
             getPublicKey: () => null,
@@ -162,7 +166,9 @@ import { base64UrlToBytes, bytesToBase64Url } from "../services/webauthn";
     return nativeCreate(options);
   };
 
-  navigator.credentials.get = async function (options?: CredentialRequestOptions): Promise<Credential | null> {
+  navigator.credentials.get = async function (
+    options?: CredentialRequestOptions,
+  ): Promise<Credential | null> {
     // Bỏ qua Conditional UI (yêu cầu Autofill ngầm lúc tải trang) để không hiển thị Modal làm phiền người dùng
     if (options?.mediation === "conditional") {
       return nativeGet(options);
@@ -186,7 +192,7 @@ import { base64UrlToBytes, bytesToBase64Url } from "../services/webauthn";
           origin: window.location.origin,
           allowCredentials: encodeCredentialDescriptors(pk.allowCredentials),
         },
-        options?.signal
+        options?.signal,
       );
 
       if (bridgeResp?.ok && bridgeResp.payload?.credentialId) {
@@ -202,8 +208,10 @@ import { base64UrlToBytes, bytesToBase64Url } from "../services/webauthn";
           authenticatorAttachment: "platform",
           getClientExtensionResults: () => ({}),
           response: {
-            clientDataJSON: base64UrlToBytes(bridgeResp.payload.clientDataJSON || "").buffer as ArrayBuffer,
-            authenticatorData: base64UrlToBytes(bridgeResp.payload.authenticatorData || "").buffer as ArrayBuffer,
+            clientDataJSON: base64UrlToBytes(bridgeResp.payload.clientDataJSON || "")
+              .buffer as ArrayBuffer,
+            authenticatorData: base64UrlToBytes(bridgeResp.payload.authenticatorData || "")
+              .buffer as ArrayBuffer,
             signature: base64UrlToBytes(bridgeResp.payload.signature || "").buffer as ArrayBuffer,
             userHandle: userHandleBytes ? (userHandleBytes.buffer as ArrayBuffer) : null,
           },

@@ -6,8 +6,14 @@
   "type": "module",
   "scripts": {
     "build": "node scripts/build.mjs && node scripts/post-build.js",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint --deny-warnings src scripts vite.config.ts",
+    "format": "prettier --write \"src/**/*.{ts,tsx,js,mjs,css,html}\" \"scripts/**/*.{js,mjs,ts}\" \"public/*.json\" popup.html package.json tsconfig.json vite.config.ts",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,js,mjs,css,html}\" \"scripts/**/*.{js,mjs,ts}\" \"public/*.json\" popup.html package.json tsconfig.json vite.config.ts"
   },
-  "dependencies": {},
-  "license": "Proprietary"
+  "license": "Proprietary",
+  "devDependencies": {
+    "oxlint": "^1.93.0",
+    "prettier": "^3.9.6"
+  }
 }

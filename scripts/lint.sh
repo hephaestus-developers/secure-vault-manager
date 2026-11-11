@@ -26,4 +26,16 @@ else
     echo "  [Bỏ qua] cargo-deny chưa được cài đặt."
 fi
 
+echo "==> [SVM Lint] Kiểm tra mã nguồn Extension Web/TS bằng oxlint..."
+if [[ -x "${ROOT_DIR}/extension/node_modules/.bin/oxlint" ]] && command -v pnpm >/dev/null 2>&1; then
+    pnpm --dir "${ROOT_DIR}/extension" lint
+elif [[ -x "${ROOT_DIR}/extension/node_modules/.bin/oxlint" ]]; then
+    (cd "${ROOT_DIR}/extension" && ./node_modules/.bin/oxlint --deny-warnings src scripts vite.config.ts)
+elif command -v oxlint >/dev/null 2>&1; then
+    (cd "${ROOT_DIR}/extension" && oxlint --deny-warnings src scripts vite.config.ts)
+else
+    echo "  [Lỗi] Chưa cài đặt oxlint cho extension (chạy: pnpm --dir extension install)." >&2
+    exit 1
+fi
+
 echo "==> [SVM Lint] Kiểm tra tĩnh hoàn tất không phát hiện lỗi!"

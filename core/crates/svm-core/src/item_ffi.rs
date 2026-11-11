@@ -1,4 +1,4 @@
-//! Các hàm C-ABI quản lý mục dữ liệu (`VaultItem`), thư mục (`Folder`), lịch sử sửa đổi và tệp đính kèm.
+//! Các hàm C-ABI quản lý mục dữ liệu (`VaultItem`), lịch sử sửa đổi và tệp đính kèm.
 
 use std::ffi::c_char;
 
@@ -224,84 +224,6 @@ pub unsafe extern "C" fn svm_item_reveal_field(
                 *out_secret = alloc_c_string(&secret);
                 SvmStatusCode::Ok
             }
-            Err(e) => handle_domain_err(e),
-        }
-    })
-}
-
-/// Lấy danh sách các thư mục (Folders) trong Vault.
-///
-/// # Safety
-/// Mọi tham số con trỏ không được là NULL.
-#[no_mangle]
-pub unsafe extern "C" fn svm_folders_list(
-    ctx: *mut SvmContext,
-    out_json: *mut *mut c_char,
-) -> SvmStatusCode {
-    ffi_guard(|| {
-        if ctx.is_null() || out_json.is_null() {
-            return SvmStatusCode::InvalidArg;
-        }
-        let Ok(rt) = (*ctx).runtime.lock() else {
-            return SvmStatusCode::Panic;
-        };
-        match rt.vault_service.list_folders_json() {
-            Ok(json) => {
-                *out_json = alloc_c_string(&json);
-                SvmStatusCode::Ok
-            }
-            Err(e) => handle_domain_err(e),
-        }
-    })
-}
-
-/// Thêm mới hoặc cập nhật một thư mục tổ chức.
-///
-/// # Safety
-/// Mọi tham số con trỏ không được là NULL.
-#[no_mangle]
-pub unsafe extern "C" fn svm_folder_upsert(
-    ctx: *mut SvmContext,
-    folder_json: *const c_char,
-    out_folder_id: *mut *mut c_char,
-) -> SvmStatusCode {
-    ffi_guard(|| {
-        if ctx.is_null() || folder_json.is_null() || out_folder_id.is_null() {
-            return SvmStatusCode::InvalidArg;
-        }
-        let fjson = c_str_to_string(folder_json).unwrap_or_default();
-        let Ok(mut rt) = (*ctx).runtime.lock() else {
-            return SvmStatusCode::Panic;
-        };
-        match rt.vault_service.upsert_folder_json(&fjson) {
-            Ok(fid) => {
-                *out_folder_id = alloc_c_string(&fid);
-                SvmStatusCode::Ok
-            }
-            Err(e) => handle_domain_err(e),
-        }
-    })
-}
-
-/// Xóa một thư mục (các mục bên trong sẽ được chuyển về thư mục gốc).
-///
-/// # Safety
-/// Mọi tham số con trỏ không được là NULL.
-#[no_mangle]
-pub unsafe extern "C" fn svm_folder_delete(
-    ctx: *mut SvmContext,
-    folder_id: *const c_char,
-) -> SvmStatusCode {
-    ffi_guard(|| {
-        if ctx.is_null() || folder_id.is_null() {
-            return SvmStatusCode::InvalidArg;
-        }
-        let fid = c_str_to_string(folder_id).unwrap_or_default();
-        let Ok(mut rt) = (*ctx).runtime.lock() else {
-            return SvmStatusCode::Panic;
-        };
-        match rt.vault_service.delete_folder(&fid) {
-            Ok(()) => SvmStatusCode::Ok,
             Err(e) => handle_domain_err(e),
         }
     })

@@ -3,11 +3,7 @@
  * @brief Bộ điều phối giao vận hợp nhất qua Native Messaging và bộ đệm trạng thái ngoại tuyến.
  */
 
-import {
-  BridgeRequest,
-  BridgeResponse,
-  CredentialSummary,
-} from "../services/protocol";
+import { BridgeRequest, BridgeResponse, CredentialSummary } from "../services/protocol";
 import { generatePasswordLocal } from "../services/crypto-local";
 import { NativeMessagingClient } from "./native_client";
 
@@ -17,7 +13,7 @@ export class BridgeTransport {
   private unlocked = false;
 
   public async dispatch<TPayload = Record<string, unknown>>(
-    request: BridgeRequest<any>
+    request: BridgeRequest<any>,
   ): Promise<BridgeResponse<TPayload>> {
     const nativeResp = await this.nativeClient.send<TPayload>(request);
     if (nativeResp) {

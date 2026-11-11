@@ -70,6 +70,9 @@ export function extractRpIdFromUrl(rawUrl: string): string {
     const parsed = new URL(rawUrl);
     return parsed.hostname.toLowerCase();
   } catch {
-    return rawUrl.replace(/^https?:\/\//i, "").split("/")[0].toLowerCase();
+    return rawUrl
+      .replace(/^https?:\/\//i, "")
+      .split("/")[0]
+      .toLowerCase();
   }
 }

@@ -208,22 +208,62 @@ export function promptPasskeyConsent(params: PasskeyModalParams): Promise<Passke
       .svm-actions {
         display: flex;
         align-items: center;
-        justify-content: flex-end;
+        justify-content: space-between;
         gap: 8px;
         margin-top: 8px;
       }
       .svm-btn {
-        padding: 8px 14px;
-        border-radius: 6px;
-        font-size: 12px;
+        flex: 1;
+        height: 36px;
+        padding: 0 14px;
+        border-radius: 8px;
+        font-size: 12.5px;
         font-weight: 600;
         cursor: pointer;
         border: none;
+        white-space: nowrap;
         display: inline-flex;
         align-items: center;
         justify-content: center;
         gap: 6px;
         transition: background 0.15s ease;
+      }
+      .svm-offline-desc {
+        font-size: 12px;
+        color: #a6adc8;
+        line-height: 1.5;
+      }
+      .svm-accounts-list {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        margin: 10px 0 14px 0;
+      }
+      .svm-accounts-heading {
+        font-size: 11.5px;
+        color: #a6adc8;
+        font-weight: 600;
+      }
+      .svm-account-option {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 10px;
+        background: #11111b;
+        border: 1px solid #313244;
+        border-radius: 8px;
+        cursor: pointer;
+      }
+      .svm-account-option:hover {
+        border-color: #45475a;
+      }
+      .svm-account-user {
+        font-weight: 600;
+        color: #cdd6f4;
+      }
+      .svm-account-title {
+        font-size: 11px;
+        color: #6c7086;
       }
       .svm-btn-primary {
         background: #89b4fa;
@@ -305,6 +345,20 @@ export function promptPasskeyConsent(params: PasskeyModalParams): Promise<Passke
         .svm-btn-secondary:hover {
           background: #dce0e8;
         }
+        .svm-offline-desc,
+        .svm-accounts-heading {
+          color: #5c5f77;
+        }
+        .svm-account-option {
+          background: #f4f5f8;
+          border-color: #ccd0da;
+        }
+        .svm-account-user {
+          color: #1e1e2e;
+        }
+        .svm-account-title {
+          color: #7c7f93;
+        }
       }
     `;
 
@@ -361,14 +415,14 @@ export function promptPasskeyConsent(params: PasskeyModalParams): Promise<Passke
             </div>
           </div>
           <div class="svm-info-box" style="margin-bottom: 14px;">
-            <div style="font-size: 12px; color: #a6adc8; line-height: 1.5;">
+            <div class="svm-offline-desc">
               Secure Vault Manager cần ứng dụng Desktop đang chạy để bảo vệ và ký xác thực Passkey an toàn.
             </div>
           </div>
           <div class="svm-actions">
-            <button class="svm-btn svm-btn-secondary" id="svm-btn-cancel">Dùng phương thức khác / Hủy</button>
+            <button class="svm-btn svm-btn-secondary" id="svm-btn-cancel">Phương thức khác</button>
             <button class="svm-btn svm-btn-primary" id="svm-btn-retry">
-              Kiểm tra kết nối
+              Kiểm tra lại
             </button>
           </div>
         `;
@@ -444,7 +498,9 @@ export function promptPasskeyConsent(params: PasskeyModalParams): Promise<Passke
           }
           if (errorMsg) errorMsg.textContent = "";
 
-          const unlockResp = await sendExtensionBridgeMessage<any>("unlock_vault", { password: pwd });
+          const unlockResp = await sendExtensionBridgeMessage<any>("unlock_vault", {
+            password: pwd,
+          });
           if (unlockResp.ok && unlockResp.payload?.unlocked) {
             isUnlocked = true;
             checkStatusAndRender();
@@ -484,34 +540,33 @@ export function promptPasskeyConsent(params: PasskeyModalParams): Promise<Passke
 
       const isCreate = params.action === "passkey_create";
       const title = isCreate ? "Lưu Passkey mới" : "Đăng nhập bằng Passkey";
-      const safeRpName = escapeHtml(params.rpName || params.rpId || "");
       const safeRpId = escapeHtml(params.rpId || "");
       const matched = params.matchedPasskeys || [];
       const primaryPasskey = matched[0];
       const safeUser = escapeHtml(
-        params.userName || primaryPasskey?.username || primaryPasskey?.title || ""
+        params.userName || primaryPasskey?.username || primaryPasskey?.title || "",
       );
       const subtitle = isCreate
-        ? `Lưu Passkey an toàn vào kho cho ${safeRpName}`
-        : `Xác thực an toàn với ${safeRpId}`;
+        ? "Lưu khóa Passkey an toàn vào kho"
+        : "Xác thực nhanh bằng khóa lưu trong Secure Vault";
 
       // Danh sách tài khoản nếu có nhiều passkey
       let accountsHtml = "";
       if (!isCreate && matched.length > 1) {
         accountsHtml = `
-          <div class="svm-accounts-list" style="display: flex; flex-direction: column; gap: 6px; margin: 10px 0;">
-            <div style="font-size: 11.5px; color: #a6adc8; font-weight: 600;">Chọn tài khoản để đăng nhập:</div>
+          <div class="svm-accounts-list">
+            <div class="svm-accounts-heading">Chọn tài khoản để đăng nhập:</div>
             ${matched
               .map(
                 (pk, idx) => `
-                <label style="display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: rgba(255,255,255,0.03); border: 1px solid #313244; border-radius: 6px; cursor: pointer;">
+                <label class="svm-account-option">
                   <input type="radio" name="svm-selected-pk" value="${escapeHtml(pk.credentialId)}" ${idx === 0 ? "checked" : ""} />
                   <div>
-                    <div style="font-weight: 600; color: #cdd6f4;">${escapeHtml(pk.username || pk.title || "Tài khoản Passkey")}</div>
-                    <div style="font-size: 11px; color: #6c7086;">${escapeHtml(pk.title || safeRpId)}</div>
+                    <div class="svm-account-user">${escapeHtml(pk.username || pk.title || "Tài khoản Passkey")}</div>
+                    <div class="svm-account-title">${escapeHtml(pk.title || safeRpId)}</div>
                   </div>
                 </label>
-              `
+              `,
               )
               .join("")}
           </div>
@@ -549,9 +604,9 @@ export function promptPasskeyConsent(params: PasskeyModalParams): Promise<Passke
         </div>
         ${accountsHtml}
         <div class="svm-actions">
-          <button class="svm-btn svm-btn-secondary" id="svm-btn-cancel">Dùng phương thức khác / Hủy</button>
+          <button class="svm-btn svm-btn-secondary" id="svm-btn-cancel">Phương thức khác</button>
           <button class="svm-btn svm-btn-primary" id="svm-btn-confirm">
-            ${isCreate ? "Lưu Passkey" : safeUser && matched.length === 1 ? `Đăng nhập (${safeUser})` : "Đồng ý đăng nhập"}
+            ${isCreate ? "Lưu Passkey" : "Đăng nhập"}
           </button>
         </div>
       `;
@@ -562,7 +617,9 @@ export function promptPasskeyConsent(params: PasskeyModalParams): Promise<Passke
       body.querySelector("#svm-btn-confirm")?.addEventListener("click", () => {
         let selectedCredId = primaryPasskey?.credentialId;
         if (!isCreate && matched.length > 1) {
-          const checked = body.querySelector<HTMLInputElement>("input[name='svm-selected-pk']:checked");
+          const checked = body.querySelector<HTMLInputElement>(
+            "input[name='svm-selected-pk']:checked",
+          );
           if (checked?.value) {
             selectedCredId = checked.value;
           }

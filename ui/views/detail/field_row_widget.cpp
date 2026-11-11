@@ -181,6 +181,7 @@ void FieldRowWidget::updateThemeIcons() {
 
 void FieldRowWidget::setValue(const QString &value) {
   m_value = value;
+  m_displayOverride.clear();
   if (m_plainTextEdit) {
     m_plainTextEdit->setPlainText(value);
   } else if (m_lineEdit) {
@@ -190,8 +191,20 @@ void FieldRowWidget::setValue(const QString &value) {
   updateDisplay();
 }
 
+void FieldRowWidget::setDisplayText(const QString &displayText) {
+  m_displayOverride = displayText;
+  updateDisplay();
+}
+
+void FieldRowWidget::setReadOnly(bool readOnly) {
+  m_readOnly = readOnly;
+  if (m_readOnly && m_isEditMode) {
+    setEditMode(true);
+  }
+}
+
 QString FieldRowWidget::value() const {
-  if (m_isEditMode) {
+  if (m_isEditMode && !m_readOnly) {
     if (m_plainTextEdit) {
       return m_plainTextEdit->toPlainText();
     }
@@ -220,7 +233,7 @@ void FieldRowWidget::setPlaceholderText(const QString &placeholder) {
 void FieldRowWidget::setEditMode(bool editable) {
   m_isEditMode = editable;
 
-  if (editable) {
+  if (editable && !m_readOnly) {
     m_valueLabel->hide();
     if (m_plainTextEdit) {
       m_plainTextEdit->show();
@@ -235,11 +248,16 @@ void FieldRowWidget::setEditMode(bool editable) {
       m_openUrlBtn->hide();
     }
   } else {
+    if (!editable && !m_readOnly) {
+      if (m_plainTextEdit) {
+        m_value = m_plainTextEdit->toPlainText();
+      } else if (m_lineEdit) {
+        m_value = m_lineEdit->text();
+      }
+    }
     if (m_plainTextEdit) {
-      m_value = m_plainTextEdit->toPlainText();
       m_plainTextEdit->hide();
     } else if (m_lineEdit) {
-      m_value = m_lineEdit->text();
       m_lineEdit->hide();
     }
     if (m_generateBtn) {
@@ -307,7 +325,8 @@ void FieldRowWidget::updateDisplay() {
       m_valueLabel->setText(QStringLiteral("••••••••••••"));
     }
   } else {
-    m_valueLabel->setText(m_value);
+    m_valueLabel->setText(m_displayOverride.isEmpty() ? m_value
+                                                      : m_displayOverride);
   }
 }
 

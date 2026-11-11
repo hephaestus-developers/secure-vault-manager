@@ -5,7 +5,7 @@ use std::sync::atomic::Ordering;
 
 use svm_crypto::{evaluate_password_strength, generate_password, generate_uuid_v4};
 use svm_domain::status::SvmStatusCode;
-use svm_domain::{Category, CustomField, DomainError, FieldKind, JsonValue, VaultItem};
+use svm_domain::{Category, DomainError, JsonValue, VaultItem};
 use svm_ssh_agent::generate_ssh_keypair;
 use svm_totp::generate_totp;
 use svm_transfer::{export_items_to_file, parse_import_file, TransferFormat};
@@ -97,30 +97,20 @@ pub unsafe extern "C" fn svm_qr_decode_rgba(
         return SvmStatusCode::InvalidArg;
     };
     let pixels = std::slice::from_raw_parts(rgba, byte_len);
-    let width = w as usize;
-    let height = h as usize;
-
-    let mut prepared = rqrr::PreparedImage::prepare_from_greyscale(width, height, |x, y| {
-        let idx = (y * width + x) * 4;
-        let r = pixels[idx] as u32;
-        let g = pixels[idx + 1] as u32;
-        let b = pixels[idx + 2] as u32;
-        let a = pixels[idx + 3] as u32;
-        let luma = (299 * r + 587 * g + 114 * b) / 1000;
-        // Trộn alpha trên nền trắng để mã QR có nền trong suốt vẫn giữ tương phản chuẩn
-        ((luma * a + 255 * (255 - a)) / 255) as u8
-    });
-
-    let grids = prepared.detect_grids();
-    for grid in grids {
-        if let Ok((_, content)) = grid.decode() {
+    match svm_totp::decode_qr_rgba(pixels, w, h) {
+        Ok(content) => {
             *out_text = alloc_c_string(&content);
-            return SvmStatusCode::Ok;
+            SvmStatusCode::Ok
+        }
+        Err(DomainError::InvalidArg(_)) => {
+            *out_text = std::ptr::null_mut();
+            SvmStatusCode::InvalidArg
+        }
+        Err(_) => {
+            *out_text = std::ptr::null_mut();
+            SvmStatusCode::NotFound
         }
     }
-
-    *out_text = std::ptr::null_mut();
-    SvmStatusCode::NotFound
 }
 
 /// Sinh mật khẩu ngẫu nhiên hoặc cụm từ Diceware an toàn cao.
@@ -834,6 +824,38 @@ fn dispatch_bridge_request(ctx_raw: usize, req_json: &str) -> String {
             data.insert("remaining", JsonValue::Number(remaining as f64));
             make_ok_envelope(request_id, "totp_code", data)
         }
+        "decode_qr" => match svm_bridge::handle_decode_qr_action(is_unlocked, &payload) {
+            Ok(data) => make_ok_envelope(request_id, "qr_decoded", data),
+            Err((code, msg)) => make_err_envelope(request_id, code, &msg),
+        },
+        "update_totp" => {
+            let res = if let Ok(mut rt) = unsafe { (*ctx).runtime.lock() } {
+                svm_bridge::handle_update_totp_action(&mut rt.vault_service, &payload)
+            } else {
+                Err(("INTERNAL", "Runtime lock failed".to_string()))
+            };
+            match res {
+                Ok(data) => {
+                    unsafe {
+                        (*ctx).emit_event(EVENT_ITEMS_CHANGED, "{}");
+                    }
+                    make_ok_envelope(request_id, "totp_updated", data)
+                }
+                Err((code, msg)) => make_err_envelope(request_id, code, &msg),
+            }
+        }
+        "passkey_query" => {
+            let data = if let Ok(rt) = unsafe { (*ctx).runtime.lock() } {
+                svm_webauthn::query_passkeys_payload(
+                    is_unlocked,
+                    rt.vault_service.items(),
+                    &payload,
+                )
+            } else {
+                svm_webauthn::query_passkeys_payload(false, &[], &payload)
+            };
+            make_ok_envelope(request_id, "passkey_query_result", data)
+        }
         "passkey_create" => {
             if !is_unlocked {
                 return make_err_envelope(
@@ -876,66 +898,20 @@ fn dispatch_bridge_request(ctx_raw: usize, req_json: &str) -> String {
 
             match svm_webauthn::create_passkey_credential(rp_id, challenge, origin) {
                 Ok(reg) => {
-                    let cred_id_b64 = svm_crypto::base64_encode(&reg.credential_id)
-                        .replace('+', "-")
-                        .replace('/', "_")
-                        .trim_end_matches('=')
-                        .to_string();
-                    let att_b64 = svm_crypto::base64_encode(&reg.attestation_object)
-                        .replace('+', "-")
-                        .replace('/', "_")
-                        .trim_end_matches('=')
-                        .to_string();
+                    let cred_id_b64 = svm_webauthn::encode_base64url(&reg.credential_id);
+                    let att_b64 = svm_webauthn::encode_base64url(&reg.attestation_object);
                     let client_json_b64 =
-                        svm_crypto::base64_encode(reg.client_data_json.as_bytes())
-                            .replace('+', "-")
-                            .replace('/', "_")
-                            .trim_end_matches('=')
-                            .to_string();
-
-                    let item = VaultItem {
-                        vault_id: String::new(),
-                        title: format!("{rp_name} Passkey"),
-                        category: Category::Passkey,
-                        username: user_name.to_string(),
-                        website_url: format!("https://{rp_id}"),
-                        notes: format!("Passkey for {user_display} on {origin}"),
-                        has_passkey: true,
-                        password: svm_crypto::base64_encode(&reg.private_key_pkcs8),
-                        custom_fields: vec![
-                            CustomField {
-                                id: generate_uuid_v4(),
-                                label: "credentialId".to_string(),
-                                value: cred_id_b64.clone(),
-                                kind: FieldKind::Text,
-                            },
-                            CustomField {
-                                id: generate_uuid_v4(),
-                                label: "rpId".to_string(),
-                                value: rp_id.to_string(),
-                                kind: FieldKind::Text,
-                            },
-                            CustomField {
-                                id: generate_uuid_v4(),
-                                label: "algorithm".to_string(),
-                                value: "-7".to_string(),
-                                kind: FieldKind::Text,
-                            },
-                            CustomField {
-                                id: generate_uuid_v4(),
-                                label: "userHandle".to_string(),
-                                value: user_handle_b64.to_string(),
-                                kind: FieldKind::Text,
-                            },
-                            CustomField {
-                                id: generate_uuid_v4(),
-                                label: "signCount".to_string(),
-                                value: "0".to_string(),
-                                kind: FieldKind::Text,
-                            },
-                        ],
-                        ..Default::default()
+                        svm_webauthn::encode_base64url(reg.client_data_json.as_bytes());
+                    let params = svm_webauthn::PasskeyItemParams {
+                        vault_id: "",
+                        rp_id,
+                        rp_name,
+                        user_name,
+                        user_display,
+                        origin,
+                        user_handle_b64,
                     };
+                    let item = svm_webauthn::build_passkey_item(&params, &reg);
 
                     let mut saved_id = String::new();
                     if let Ok(mut rt) = unsafe { (*ctx).runtime.lock() } {
@@ -1002,46 +978,8 @@ fn dispatch_bridge_request(ctx_raw: usize, req_json: &str) -> String {
                 );
             };
 
-            let priv_bytes = svm_crypto::base64_decode(&item.password).unwrap_or_default();
-            if priv_bytes.is_empty() {
-                return make_err_envelope(
-                    request_id,
-                    "INVALID_KEY",
-                    "Khóa riêng tư của Passkey không hợp lệ",
-                );
-            }
-
             let cred_id_str = svm_webauthn::extract_passkey_credential_id(&item);
-            let cred_id_bytes =
-                svm_crypto::base64_decode(&cred_id_str.replace('-', "+").replace('_', "/"))
-                    .unwrap_or_default();
-
-            let user_handle_str = item
-                .custom_fields
-                .iter()
-                .find(|cf| cf.label == "userHandle")
-                .map(|cf| cf.value.clone())
-                .unwrap_or_default();
-            let user_handle_bytes = if !user_handle_str.is_empty() {
-                Some(
-                    svm_crypto::base64_decode(&user_handle_str.replace('-', "+").replace('_', "/"))
-                        .unwrap_or_default(),
-                )
-            } else {
-                None
-            };
-
-            let next_sign_count = svm_webauthn::bump_passkey_sign_count(&mut item);
-
-            match svm_webauthn::authenticate_passkey_assertion(
-                rp_id,
-                challenge,
-                origin,
-                &cred_id_bytes,
-                &priv_bytes,
-                next_sign_count,
-                user_handle_bytes,
-            ) {
+            match svm_webauthn::execute_passkey_assertion(&mut item, rp_id, challenge, origin) {
                 Ok(assertion) => {
                     if let Ok(mut rt) = unsafe { (*ctx).runtime.lock() } {
                         let _ = rt.vault_service.upsert_item(item);
@@ -1049,28 +987,13 @@ fn dispatch_bridge_request(ctx_raw: usize, req_json: &str) -> String {
                     let cred_id_b64 = if !cred_id_str.is_empty() {
                         cred_id_str
                     } else {
-                        svm_crypto::base64_encode(&assertion.credential_id)
-                            .replace('+', "-")
-                            .replace('/', "_")
-                            .trim_end_matches('=')
-                            .to_string()
+                        svm_webauthn::encode_base64url(&assertion.credential_id)
                     };
-                    let auth_data_b64 = svm_crypto::base64_encode(&assertion.authenticator_data)
-                        .replace('+', "-")
-                        .replace('/', "_")
-                        .trim_end_matches('=')
-                        .to_string();
-                    let sig_b64 = svm_crypto::base64_encode(&assertion.signature)
-                        .replace('+', "-")
-                        .replace('/', "_")
-                        .trim_end_matches('=')
-                        .to_string();
+                    let auth_data_b64 =
+                        svm_webauthn::encode_base64url(&assertion.authenticator_data);
+                    let sig_b64 = svm_webauthn::encode_base64url(&assertion.signature);
                     let client_json_b64 =
-                        svm_crypto::base64_encode(assertion.client_data_json.as_bytes())
-                            .replace('+', "-")
-                            .replace('/', "_")
-                            .trim_end_matches('=')
-                            .to_string();
+                        svm_webauthn::encode_base64url(assertion.client_data_json.as_bytes());
 
                     let mut data = JsonValue::new_object();
                     data.insert("credentialId", JsonValue::String(cred_id_b64));
@@ -1078,12 +1001,10 @@ fn dispatch_bridge_request(ctx_raw: usize, req_json: &str) -> String {
                     data.insert("authenticatorData", JsonValue::String(auth_data_b64));
                     data.insert("signature", JsonValue::String(sig_b64));
                     if let Some(uh) = assertion.user_handle {
-                        let uh_b64 = svm_crypto::base64_encode(&uh)
-                            .replace('+', "-")
-                            .replace('/', "_")
-                            .trim_end_matches('=')
-                            .to_string();
-                        data.insert("userHandle", JsonValue::String(uh_b64));
+                        data.insert(
+                            "userHandle",
+                            JsonValue::String(svm_webauthn::encode_base64url(&uh)),
+                        );
                     }
                     make_ok_envelope(request_id, "passkey_assertion", data)
                 }
@@ -1351,10 +1272,11 @@ pub unsafe extern "C" fn svm_favicon_fetch(
         }
     }
 
-    let agent = ureq::AgentBuilder::new()
-        .timeout(std::time::Duration::from_secs(5))
-        .redirects(3)
-        .build();
+    let agent: ureq::Agent = ureq::Agent::config_builder()
+        .timeout_global(Some(std::time::Duration::from_secs(5)))
+        .max_redirects(3)
+        .build()
+        .into();
 
     use std::io::Read;
     for path in ["favicon.ico", "favicon.png", "apple-touch-icon.png"] {
@@ -1363,7 +1285,10 @@ pub unsafe extern "C" fn svm_favicon_fetch(
             continue;
         };
         let mut buf = Vec::new();
-        let mut reader = resp.into_reader().take((MAX_FAVICON_BYTES + 1) as u64);
+        let mut reader = resp
+            .into_body()
+            .into_reader()
+            .take((MAX_FAVICON_BYTES + 1) as u64);
         if reader.read_to_end(&mut buf).is_ok()
             && !buf.is_empty()
             && buf.len() <= MAX_FAVICON_BYTES
@@ -1449,6 +1374,86 @@ mod tests {
 
         unsafe {
             crate::lifecycle_ffi::svm_free_buffer(buf);
+            crate::lifecycle_ffi::svm_context_free(ctx);
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn test_bridge_decode_qr_and_update_totp() {
+        let dir = std::env::temp_dir().join(format!(
+            "svm-bridge-qr-totp-{}",
+            svm_crypto::generate_uuid_v4()
+        ));
+        let _ = std::fs::create_dir_all(&dir);
+        let dir_c = CString::new(dir.to_string_lossy().as_ref()).unwrap();
+        let ctx = unsafe { crate::lifecycle_ffi::svm_context_new(dir_c.as_ptr()) };
+        assert!(!ctx.is_null());
+
+        // Khi đang khóa -> VAULT_LOCKED
+        let locked_resp = dispatch_bridge_request(
+            ctx as usize,
+            r#"{"requestId":"r1","action":"update_totp","payload":{"createNew":true,"uri":"otpauth://totp/GitLab:alice?secret=JBSWY3DPEHPK3PXP"}}"#,
+        );
+        assert!(locked_resp.contains("VAULT_LOCKED"));
+
+        // Khởi tạo vault trong runtime
+        {
+            let mut rt = unsafe { (*ctx).runtime.lock().unwrap() };
+            rt.vault_service
+                .create_vault("Personal Vault", "MasterPass!123")
+                .unwrap();
+        }
+        unsafe {
+            (*ctx).unlocked.store(true, Ordering::SeqCst);
+        }
+
+        // Tạo item mới với TOTP qua bridge
+        let create_resp = dispatch_bridge_request(
+            ctx as usize,
+            r#"{"requestId":"r2","action":"update_totp","payload":{"createNew":true,"websiteUrl":"https://gitlab.com","uri":"otpauth://totp/GitLab:alice?secret=JBSWY3DPEHPK3PXP&issuer=GitLab"}}"#,
+        );
+        let parsed = JsonValue::parse(&create_resp).unwrap();
+        assert!(parsed.get_bool_or("ok", false));
+        let payload = parsed.get("payload").unwrap();
+        let item_id = payload.get_string("itemId").unwrap();
+        assert_eq!(payload.get_string("code").unwrap().len(), 6);
+
+        // decode_qr trên ảnh trống trả QR_NOT_FOUND
+        let blank_b64 = svm_crypto::base64_encode(&vec![255u8; 32 * 32 * 4]);
+        let dec_resp = dispatch_bridge_request(
+            ctx as usize,
+            &format!(
+                r#"{{"requestId":"r3","action":"decode_qr","payload":{{"rgbaBase64":"{blank_b64}","width":32,"height":32}}}}"#
+            ),
+        );
+        assert!(dec_resp.contains("QR_NOT_FOUND"));
+
+        // Kiểm tra item đã lưu trong VaultService
+        let items_json = unsafe {
+            let rt = (*ctx).runtime.lock().unwrap();
+            rt.vault_service.list_items_json(None).unwrap()
+        };
+        assert!(items_json.contains(&item_id));
+
+        // passkey_query khi đã mở khóa và không có passkey cho www.passkeys.io -> trả passkeys rỗng
+        let pq_resp = dispatch_bridge_request(
+            ctx as usize,
+            r#"{"requestId":"r4","action":"passkey_query","payload":{"rpId":"www.passkeys.io","allowCredentials":[]}}"#,
+        );
+        let pq_parsed = JsonValue::parse(&pq_resp).unwrap();
+        assert!(pq_parsed.get_bool_or("ok", false));
+        let pq_payload = pq_parsed.get("payload").unwrap();
+        assert!(pq_payload.get_bool_or("unlocked", false));
+        assert_eq!(
+            pq_payload
+                .get("passkeys")
+                .and_then(|v| v.as_array())
+                .map(|a| a.len()),
+            Some(0)
+        );
+
+        unsafe {
             crate::lifecycle_ffi::svm_context_free(ctx);
         }
         let _ = std::fs::remove_dir_all(&dir);

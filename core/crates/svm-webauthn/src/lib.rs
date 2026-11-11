@@ -10,8 +10,10 @@ pub mod cbor;
 pub mod fido2;
 
 pub use authenticator::{
-    bump_passkey_sign_count, extract_passkey_credential_id, matches_passkey_rp_id,
-    passkey_matches_credential_list, WebAuthnAuthenticator,
+    build_passkey_item, bump_passkey_sign_count, decode_base64url, encode_base64url,
+    execute_passkey_assertion, extract_passkey_credential_id, matches_passkey_rp_id,
+    passkey_matches_credential_list, query_passkeys_payload, PasskeyItemParams,
+    WebAuthnAuthenticator,
 };
 pub use fido2::{
     authenticate_passkey_assertion, create_passkey_credential, PasskeyAssertion,

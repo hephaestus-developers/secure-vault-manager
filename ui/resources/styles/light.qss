@@ -98,6 +98,21 @@ QMenu::indicator:unchecked {
     image: none;
 }
 
+QMenu::icon {
+    left: 8px;
+}
+
+QMenu::right-arrow {
+    image: url(:/icons/controls/chevron_right_light.svg);
+    width: 12px;
+    height: 12px;
+    right: 8px;
+}
+
+#ItemListContextMenu {
+    min-width: 196px;
+}
+
 /* ==============================================================================
  * Các Nút Điều Khiển Cửa Sổ (Window Controls)
  * ============================================================================== */
@@ -356,6 +371,36 @@ QStatusBar::item {
 
 #HeaderSidebarToggleBtn:pressed, #HeaderThemeToggleBtn:pressed, #HeaderSettingsBtn:pressed, #HeaderAboutBtn:pressed {
     background-color: #bcc0cc;
+}
+
+/* Header Inline Menubar */
+#HeaderMenuBtn {
+    background: transparent;
+    border: none;
+    border-radius: 5px;
+    color: #4c4f69;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 4px 10px;
+}
+
+#HeaderMenuBtn:hover, #HeaderMenuBtn:open {
+    background-color: #ccd0da;
+    color: #1e1e2e;
+}
+
+#HeaderMenuBtn:pressed {
+    background-color: #bcc0cc;
+    color: #1e1e2e;
+}
+
+#HeaderMenuBtn::menu-indicator {
+    image: none;
+    width: 0px;
+}
+
+#HeaderDropDownMenu {
+    min-width: 215px;
 }
 
 /* 1. Cột 1: SidebarView */
@@ -1277,38 +1322,107 @@ QCalendarWidget QHeaderView::section {
 }
 
 #CustomFieldAddBtn, #AddTotpBtn {
-    background-color: #ffffff;
-    border: 1px dashed #bcc0cc;
-    border-radius: 6px;
-    color: #1e1e2e;
+    background-color: #f2f3f7;
+    border: 1px solid #ccd0da;
+    border-radius: 7px;
+    padding: 0 12px;
+    color: #4c4f69;
     font-weight: 600;
     font-size: 12px;
+    outline: none;
 }
 
 #CustomFieldAddBtn:hover, #AddTotpBtn:hover {
-    background-color: #eff1f5;
-    border-color: #1e1e2e;
+    background-color: #e6e9ef;
+    border-color: #acb0be;
     color: #1e1e2e;
 }
 
-/* 4. About Dialog */
-#AboutDialogCard {
+#CustomFieldAddBtn:pressed, #AddTotpBtn:pressed {
+    background-color: #dce0e8;
+    border-color: #9ca0b0;
+    color: #1e1e2e;
+}
+
+#CustomFieldAddBtn:focus, #AddTotpBtn:focus {
+    border-color: #1e66f5;
+    outline: none;
+}
+
+/* 4. About & Keyboard Shortcuts Dialogs */
+#AboutDialogCard, #KeyboardShortcutsDialogCard {
     background-color: #ffffff;
     border: 1px solid #bcc0cc;
     border-radius: 0px;
 }
 
-#AboutDialogHeader {
+#AboutDialogHeader, #KeyboardShortcutsDialogHeader {
     background-color: #e6e9ef;
     border: 1px solid #bcc0cc;
     border-radius: 0px;
     padding: 8px 12px;
 }
 
-#AboutDialogTitle {
+#AboutDialogTitle, #KeyboardShortcutsDialogTitle {
     color: #1e1e2e;
     font-size: 13px;
     font-weight: 600;
+}
+
+#KeyboardShortcutsScrollArea,
+#KeyboardShortcutsScrollContent {
+    background: transparent;
+    border: none;
+}
+
+#ShortcutSectionCard {
+    background-color: #f4f5f8;
+    border: 1px solid #ccd0da;
+    border-radius: 8px;
+}
+
+#ShortcutSectionTitle {
+    color: #1e66f5;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+}
+
+#ShortcutRowDivider {
+    background-color: #dce0e8;
+    border: none;
+}
+
+#ShortcutActionLabel {
+    color: #4c4f69;
+    font-size: 13px;
+}
+
+#ShortcutKeyBadge {
+    background-color: #e6e9ef;
+    border: 1px solid #bcc0cc;
+    border-radius: 5px;
+    color: #1e1e2e;
+    font-family: monospace;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 8px;
+    min-width: 44px;
+}
+
+#ShortcutDialogCloseBtn {
+    background-color: #e6e9ef;
+    color: #4c4f69;
+    border: 1px solid #bcc0cc;
+    border-radius: 6px;
+    padding: 4px 14px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+#ShortcutDialogCloseBtn:hover {
+    background-color: #dce0e8;
 }
 
 #AboutTabWidget::pane {
@@ -1723,8 +1837,7 @@ QCalendarWidget QHeaderView::section {
 
 #NotificationDialogHeader {
     background-color: #f4f5f8;
-    border: none;
-    border-bottom: 1px solid #e6e9ef;
+    border: 1px solid #bcc0cc;
     border-radius: 0px;
 }
 
@@ -1784,6 +1897,56 @@ QCalendarWidget QHeaderView::section {
 #NotificationPrimaryBtn:pressed {
     background-color: #45475a;
     border-color: #45475a;
+}
+
+#NotificationPrimaryBtn:disabled {
+    background-color: #dce0e8;
+    border-color: #ccd0da;
+    color: #9ca0b0;
+}
+
+/* Revision History Dialog */
+#RevisionHistoryList {
+    background-color: #f4f5f8;
+    border: 1px solid #ccd0da;
+    border-radius: 8px;
+    padding: 4px;
+    outline: none;
+}
+
+#RevisionHistoryList::item {
+    background: transparent;
+    border: none;
+}
+
+#RevisionEmptyBox {
+    background-color: #f4f5f8;
+    border: 1px solid #ccd0da;
+    border-radius: 8px;
+}
+
+#RevisionPreviewCard {
+    background-color: #f4f5f8;
+    border: 1px solid #ccd0da;
+    border-radius: 8px;
+}
+
+#RevisionPreviewHeader {
+    color: #5c5f77;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+}
+
+#RevisionPreviewTitle {
+    color: #1e1e2e;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+#RevisionPreviewMeta {
+    color: #6c6f85;
+    font-size: 12px;
 }
 
 #NotificationDangerBtn {

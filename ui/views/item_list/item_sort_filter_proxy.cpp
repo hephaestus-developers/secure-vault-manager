@@ -19,11 +19,9 @@ ItemSortFilterProxy::ItemSortFilterProxy(QObject *parent)
 }
 
 void ItemSortFilterProxy::setFilterType(SidebarFilterType type,
-                                        models::ItemCategory category,
-                                        const QString &folderId) {
+                                        models::ItemCategory category) {
   m_filterType = type;
   m_targetCategory = category;
-  m_targetFolderId = folderId;
   invalidateFilter();
 }
 
@@ -95,29 +93,6 @@ bool ItemSortFilterProxy::filterAcceptsRow(
       return false;
     }
     break;
-  case SidebarFilterType::Folder: {
-    const QString fid = idx.data(ItemListModel::FolderIdRole).toString();
-    if (isArchived || m_targetFolderId.isEmpty() || fid != m_targetFolderId) {
-      return false;
-    }
-    break;
-  }
-  case SidebarFilterType::WatchtowerWeak: {
-    const auto item =
-        idx.data(ItemListModel::VaultItemRole).value<models::UiVaultItem>();
-    if (!models::isWeakPasswordItem(item)) {
-      return false;
-    }
-    break;
-  }
-  case SidebarFilterType::WatchtowerExpiring: {
-    const auto item =
-        idx.data(ItemListModel::VaultItemRole).value<models::UiVaultItem>();
-    if (!models::isExpiringItem(item)) {
-      return false;
-    }
-    break;
-  }
   case SidebarFilterType::Trash:
     break;
   }

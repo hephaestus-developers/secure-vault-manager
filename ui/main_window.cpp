@@ -9,6 +9,7 @@
 #include "main_window.h"
 #include "app/clipboard_manager.h"
 #include "app/dev_logger.h"
+#include "app/language_manager.h"
 #include "app/settings_manager.h"
 #include "app/theme_manager.h"
 #include "app/tray_manager.h"
@@ -24,14 +25,17 @@
 #include <QApplication>
 #include <QCloseEvent>
 #include <QDateTime>
+#include <QDesktopServices>
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QLayout>
+#include <QMenu>
 #include <QMouseEvent>
 #include <QPropertyAnimation>
 #include <QStandardPaths>
+#include <QUrl>
 #include <QVBoxLayout>
 #include <QWindow>
 
@@ -182,11 +186,6 @@ void MainWindow::setupUI() {
           });
   connect(m_sidebarView, &views::SidebarView::filterSelected, m_itemListView,
           &views::ItemListView::setFilter);
-  connect(m_sidebarView, &views::SidebarView::foldersChanged, this, [this]() {
-    if (app::VaultManager::instance().isUnlocked()) {
-      loadItemsFromCore();
-    }
-  });
   connect(m_sidebarView, &views::SidebarView::lockVaultRequested, this,
           [this]() {
             app::VaultManager::instance().lock();
@@ -201,6 +200,18 @@ void MainWindow::setupUI() {
           &MainWindow::onAddNewItemRequested);
   connect(m_itemListView, &views::ItemListView::quickCopyRequested, this,
           &MainWindow::onQuickCopyRequested);
+  connect(m_itemListView, &views::ItemListView::itemEditRequested, this,
+          &MainWindow::onItemEditRequested);
+  connect(m_itemListView, &views::ItemListView::itemFavoriteToggleRequested,
+          this, &MainWindow::onItemFavoriteToggleRequested);
+  connect(m_itemListView, &views::ItemListView::itemMoveToVaultRequested, this,
+          &MainWindow::onItemMoveToVaultRequested);
+  connect(m_itemListView, &views::ItemListView::itemTrashRequested, this,
+          &MainWindow::onItemTrashRequested);
+  connect(m_itemListView, &views::ItemListView::itemRestoreRequested, this,
+          &MainWindow::onItemRestoreRequested);
+  connect(m_itemListView, &views::ItemListView::itemPurgeRequested, this,
+          &MainWindow::onItemPurgeRequested);
 
   connect(m_detailView, &views::DetailInspectorView::itemSaved, this,
           &MainWindow::onItemSaved);
@@ -219,33 +230,11 @@ void MainWindow::setupUI() {
           &MainWindow::onDetailCancelRequested);
 
   // 6. Kết nối HeaderBar, Sidebar & MenuBar Actions
-  connect(m_headerBar, &components::UnifiedHeaderBar::aboutRequested, this,
-          [this]() {
-            if (!m_aboutDialog) {
-              m_aboutDialog = new views::AboutDialog(this);
-              connect(m_aboutDialog, &QDialog::finished, this, [this]() {
-                components::DialogDragHelper::s_activeDialogs.removeOne(
-                    m_aboutDialog);
-              });
-            }
-            m_aboutDialog->setModal(false);
-            m_aboutDialog->setWindowModality(Qt::NonModal);
-            const QPoint center = geometry().center();
-            m_aboutDialog->move(center.x() - m_aboutDialog->width() / 2,
-                                center.y() - m_aboutDialog->height() / 2);
-            if (!components::DialogDragHelper::s_activeDialogs.contains(
-                    m_aboutDialog)) {
-              components::DialogDragHelper::s_activeDialogs.append(
-                  m_aboutDialog);
-            }
-            m_aboutDialog->show();
-            m_aboutDialog->raise();
-            m_aboutDialog->activateWindow();
-          });
+  setupHeaderMenuBar();
   connect(m_headerBar, &components::UnifiedHeaderBar::settingsRequested, this,
-          &MainWindow::openSettingsDialog);
+          [this]() { openSettingsDialog(0); });
   connect(m_sidebarView, &views::SidebarView::settingsRequested, this,
-          &MainWindow::openSettingsDialog);
+          [this]() { openSettingsDialog(0); });
 
   // 7. Thiết lập Inactivity Timer tự động khóa Vault & giám sát Sleep
   connect(&m_inactivityTimer, &QTimer::timeout, this, [this]() {
@@ -350,24 +339,511 @@ void MainWindow::setupShortcuts() {
   auto *settingsShortcut =
       new QShortcut(QKeySequence(QStringLiteral("Ctrl+,")), this);
   connect(settingsShortcut, &QShortcut::activated, this,
-          &MainWindow::openSettingsDialog);
+          [this]() { openSettingsDialog(0); });
 
   auto *lockShortcut =
       new QShortcut(QKeySequence(QStringLiteral("Ctrl+L")), this);
-  connect(lockShortcut, &QShortcut::activated, this, [this]() {
-    if (!app::VaultManager::instance().isLocked()) {
-      app::VaultManager::instance().lock();
-      if (m_trayManager) {
-        m_trayManager->setVaultLocked(true);
-      }
-    }
-  });
+  connect(lockShortcut, &QShortcut::activated, this,
+          &MainWindow::lockVaultSession);
+
+  auto *helpShortcut = new QShortcut(QKeySequence(Qt::Key_F1), this);
+  connect(helpShortcut, &QShortcut::activated, this,
+          &MainWindow::openKeyboardShortcutsDialog);
 
   auto *quitShortcut = new QShortcut(QKeySequence::Quit, this);
-  connect(quitShortcut, &QShortcut::activated, this, &QWidget::close);
+  connect(quitShortcut, &QShortcut::activated, this,
+          &MainWindow::quitApplication);
+}
+
+void MainWindow::lockVaultSession() {
+  if (!app::VaultManager::instance().isLocked()) {
+    app::VaultManager::instance().lock();
+    if (m_trayManager) {
+      m_trayManager->setVaultLocked(true);
+    }
+  }
+}
+
+void MainWindow::quitApplication() {
+  stopSleepMonitor();
+  QApplication::quit();
+}
+
+void MainWindow::setupHeaderMenuBar() {
+  if (!m_headerBar) {
+    return;
+  }
+  if (QMenu *m = m_headerBar->vaultMenu()) {
+    connect(m, &QMenu::aboutToShow, this,
+            [this, m]() { populateVaultMenu(*m); });
+  }
+  if (QMenu *m = m_headerBar->itemMenu()) {
+    connect(m, &QMenu::aboutToShow, this,
+            [this, m]() { populateItemMenu(*m); });
+  }
+  if (QMenu *m = m_headerBar->viewMenu()) {
+    connect(m, &QMenu::aboutToShow, this,
+            [this, m]() { populateViewMenu(*m); });
+  }
+  if (QMenu *m = m_headerBar->helpMenu()) {
+    connect(m, &QMenu::aboutToShow, this,
+            [this, m]() { populateHelpMenu(*m); });
+  }
+}
+
+namespace {
+void setMenuShortcutHint(QAction *action, const QString &shortcut) {
+  if (action && !shortcut.isEmpty()) {
+    action->setShortcut(QKeySequence(shortcut));
+    action->setShortcutContext(Qt::WidgetShortcut);
+  }
+}
+} // namespace
+
+void MainWindow::populateVaultMenu(QMenu &menu) {
+  menu.clear();
+  const auto &tm = app::ThemeManager::instance();
+  const bool unlocked = app::VaultManager::instance().isUnlocked();
+  if (!unlocked) {
+    return;
+  }
+
+  auto *newVaultAct =
+      menu.addAction(tm.icon(QStringLiteral("plus")), tr("New Vault..."));
+  connect(newVaultAct, &QAction::triggered, m_sidebarView,
+          &views::SidebarView::openNewVaultDialog);
+
+  auto *switchMenu =
+      menu.addMenu(tm.icon(QStringLiteral("vault_safe")), tr("Switch Vault"));
+  const QString activeId = app::VaultManager::instance().activeVaultId();
+  auto *allAct = switchMenu->addAction(tr("All Vaults"));
+  allAct->setCheckable(true);
+  allAct->setChecked(activeId == QStringLiteral("all"));
+  connect(allAct, &QAction::triggered, this, []() {
+    app::VaultManager::instance().setActiveVaultId(QStringLiteral("all"));
+  });
+
+  const auto vaults = app::VaultManager::instance().vaults();
+  if (!vaults.isEmpty()) {
+    switchMenu->addSeparator();
+  }
+  for (const auto &v : vaults) {
+    auto *vaultAct = switchMenu->addAction(v.name);
+    vaultAct->setCheckable(true);
+    vaultAct->setChecked(activeId == v.id);
+    connect(vaultAct, &QAction::triggered, this, [id = v.id]() {
+      app::VaultManager::instance().setActiveVaultId(id);
+    });
+  }
+
+  menu.addSeparator();
+
+  auto *importAct = menu.addAction(tr("Import Data..."));
+  connect(importAct, &QAction::triggered, this,
+          [this]() { openSettingsDialog(5); });
+
+  auto *exportAct = menu.addAction(tr("Export / Backup..."));
+  connect(exportAct, &QAction::triggered, this,
+          [this]() { openSettingsDialog(5); });
+
+  auto *manageVaultsAct = menu.addAction(tr("Manage Vaults..."));
+  connect(manageVaultsAct, &QAction::triggered, this,
+          [this]() { openSettingsDialog(2); });
+
+  menu.addSeparator();
+
+  auto *lockAct =
+      menu.addAction(tm.icon(QStringLiteral("lock")), tr("Lock Vault"));
+  setMenuShortcutHint(lockAct, QStringLiteral("Ctrl+L"));
+  connect(lockAct, &QAction::triggered, this, &MainWindow::lockVaultSession);
+
+  auto *settingsAct = menu.addAction(
+      tm.icon(QStringLiteral("category_settings")), tr("Settings..."));
+  setMenuShortcutHint(settingsAct, QStringLiteral("Ctrl+,"));
+  connect(settingsAct, &QAction::triggered, this,
+          [this]() { openSettingsDialog(0); });
+
+  menu.addSeparator();
+
+  if (m_trayManager && m_trayManager->isSystemTrayAvailable()) {
+    auto *trayAct = menu.addAction(tr("Close to Tray"));
+    connect(trayAct, &QAction::triggered, this, &QWidget::hide);
+  }
+
+  auto *quitAct = menu.addAction(tr("Quit"));
+  setMenuShortcutHint(quitAct, QStringLiteral("Ctrl+Q"));
+  connect(quitAct, &QAction::triggered, this, &MainWindow::quitApplication);
+}
+
+void MainWindow::populateItemMenu(QMenu &menu) {
+  menu.clear();
+  const auto &tm = app::ThemeManager::instance();
+  if (!app::VaultManager::instance().isUnlocked()) {
+    return;
+  }
+
+  auto *newItemAct =
+      menu.addAction(tm.icon(QStringLiteral("plus")), tr("New Item"));
+  setMenuShortcutHint(newItemAct, QStringLiteral("Ctrl+N"));
+  connect(newItemAct, &QAction::triggered, this, [this]() {
+    onAddNewItemRequested(m_itemListView->currentCategory());
+  });
+
+  auto *newByTypeMenu = menu.addMenu(tr("New Item by Type"));
+  const models::ItemCategory allCategories[] = {
+      models::ItemCategory::Login,      models::ItemCategory::Passkey,
+      models::ItemCategory::Card,       models::ItemCategory::Identity,
+      models::ItemCategory::SecureNote, models::ItemCategory::SshKey,
+      models::ItemCategory::Database,   models::ItemCategory::Server,
+      models::ItemCategory::Wifi,
+  };
+  for (const auto cat : allCategories) {
+    auto *catAct =
+        newByTypeMenu->addAction(tm.icon(models::categoryIconName(cat)),
+                                 models::categoryDisplayName(cat));
+    connect(catAct, &QAction::triggered, this,
+            [this, cat]() { onAddNewItemRequested(cat); });
+  }
+
+  menu.addSeparator();
+
+  const QString selectedId = m_itemListView->selectedItemId();
+  const auto resolved = resolveFullItem(selectedId);
+  const bool hasActiveItem = resolved.has_value() && !resolved->isDeleted;
+  const bool hasTrashItem = resolved.has_value() && resolved->isDeleted;
+  const bool inEditMode = m_detailView->isEditMode();
+
+  auto *editAct =
+      menu.addAction(tm.icon(QStringLiteral("edit")), tr("Edit Item"));
+  setMenuShortcutHint(editAct, QStringLiteral("Ctrl+E"));
+  editAct->setEnabled(hasActiveItem && !inEditMode);
+  connect(editAct, &QAction::triggered, this,
+          [this, selectedId]() { onItemEditRequested(selectedId); });
+
+  auto *saveAct = menu.addAction(tr("Save Changes"));
+  setMenuShortcutHint(saveAct, QStringLiteral("Ctrl+S"));
+  saveAct->setEnabled(inEditMode);
+  connect(saveAct, &QAction::triggered, m_detailView,
+          &views::DetailInspectorView::saveEdit);
+
+  auto *cancelEditAct = menu.addAction(tr("Cancel Editing"));
+  setMenuShortcutHint(cancelEditAct, QStringLiteral("Esc"));
+  cancelEditAct->setEnabled(inEditMode);
+  connect(cancelEditAct, &QAction::triggered, m_detailView,
+          &views::DetailInspectorView::cancelEdit);
+
+  menu.addSeparator();
+
+  auto *copyUserAct =
+      menu.addAction(tm.icon(QStringLiteral("copy")), tr("Copy Username"));
+  copyUserAct->setEnabled(hasActiveItem && !resolved->username.isEmpty());
+  connect(copyUserAct, &QAction::triggered, this, [this, selectedId]() {
+    onQuickCopyRequested(selectedId, QStringLiteral("username"));
+  });
+
+  auto *copyPassAct =
+      menu.addAction(tm.icon(QStringLiteral("copy")), tr("Copy Password"));
+  copyPassAct->setEnabled(hasActiveItem && !resolved->password.isEmpty());
+  connect(copyPassAct, &QAction::triggered, this, [this, selectedId]() {
+    onQuickCopyRequested(selectedId, QStringLiteral("password"));
+  });
+
+  auto *copyTotpAct = menu.addAction(tm.icon(QStringLiteral("shield_check")),
+                                     tr("Copy 2FA Code"));
+  copyTotpAct->setEnabled(
+      hasActiveItem && (resolved->hasTotp || !resolved->totpSecret.isEmpty()));
+  connect(copyTotpAct, &QAction::triggered, this, [this, selectedId]() {
+    onQuickCopyRequested(selectedId, QStringLiteral("totp"));
+  });
+
+  auto *openUrlAct = menu.addAction(tm.icon(QStringLiteral("external_link")),
+                                    tr("Open Website"));
+  const QString rawUrl =
+      resolved.has_value() ? resolved->websiteUrl.trimmed() : QString();
+  openUrlAct->setEnabled(hasActiveItem && !rawUrl.isEmpty());
+  connect(openUrlAct, &QAction::triggered, this, [rawUrl]() {
+    QUrl url(rawUrl);
+    if (url.scheme().isEmpty()) {
+      url.setScheme(QStringLiteral("https"));
+    }
+    QDesktopServices::openUrl(url);
+  });
+
+  menu.addSeparator();
+
+  const bool isFav = hasActiveItem && resolved->isFavorite;
+  auto *favAct = menu.addAction(
+      tm.icon(isFav ? QStringLiteral("star_filled") : QStringLiteral("star")),
+      isFav ? tr("Remove from Favorites") : tr("Add to Favorites"));
+  favAct->setEnabled(hasActiveItem);
+  connect(favAct, &QAction::triggered, this,
+          [this, selectedId]() { onItemFavoriteToggleRequested(selectedId); });
+
+  auto *moveMenu =
+      menu.addMenu(tm.icon(QStringLiteral("vault_safe")), tr("Move to Vault"));
+  moveMenu->setEnabled(hasActiveItem);
+  if (hasActiveItem) {
+    const auto vaults = app::VaultManager::instance().vaults();
+    int movableCount = 0;
+    for (const auto &v : vaults) {
+      const QString iconKey =
+          v.iconName.isEmpty() ? QStringLiteral("vault_personal") : v.iconName;
+      if (v.id == resolved->vaultId) {
+        auto *curAct = moveMenu->addAction(tm.icon(iconKey),
+                                           tr("%1 (Current)").arg(v.name));
+        curAct->setEnabled(false);
+      } else {
+        auto *dstAct = moveMenu->addAction(tm.icon(iconKey), v.name);
+        connect(dstAct, &QAction::triggered, this,
+                [this, selectedId, targetId = v.id]() {
+                  onItemMoveToVaultRequested(selectedId, targetId);
+                });
+        ++movableCount;
+      }
+    }
+    if (movableCount == 0) {
+      if (!vaults.isEmpty()) {
+        moveMenu->addSeparator();
+      }
+      auto *emptyAct = moveMenu->addAction(tr("No other vaults available"));
+      emptyAct->setEnabled(false);
+    }
+  }
+
+  auto *historyAct = menu.addAction(tm.icon(QStringLiteral("sort_time")),
+                                    tr("Revision History..."));
+  historyAct->setEnabled(hasActiveItem);
+  connect(historyAct, &QAction::triggered, m_detailView,
+          &views::DetailInspectorView::showRevisionHistory);
+
+  menu.addSeparator();
+
+  if (hasTrashItem) {
+    auto *restoreAct = menu.addAction(tr("Restore"));
+    connect(restoreAct, &QAction::triggered, this,
+            [this, selectedId]() { onItemRestoreRequested(selectedId); });
+
+    auto *purgeAct = menu.addAction(tm.icon(QStringLiteral("trash")),
+                                    tr("Delete Permanently"));
+    connect(purgeAct, &QAction::triggered, this,
+            [this, selectedId]() { onItemPurgeRequested(selectedId); });
+  } else {
+    auto *trashAct =
+        menu.addAction(tm.icon(QStringLiteral("trash")), tr("Move to Trash"));
+    trashAct->setEnabled(hasActiveItem);
+    connect(trashAct, &QAction::triggered, this,
+            [this, selectedId]() { onItemTrashRequested(selectedId); });
+  }
+
+  bool hasAnyTrashed = false;
+  for (const auto &it : m_itemListView->sourceModel()->items()) {
+    if (it.isDeleted) {
+      hasAnyTrashed = true;
+      break;
+    }
+  }
+  auto *emptyTrashAct = menu.addAction(tr("Empty Trash..."));
+  emptyTrashAct->setEnabled(hasAnyTrashed);
+  connect(emptyTrashAct, &QAction::triggered, this,
+          &MainWindow::onEmptyTrashRequested);
+}
+
+void MainWindow::populateViewMenu(QMenu &menu) {
+  menu.clear();
+  const auto &tm = app::ThemeManager::instance();
+  const bool unlocked = app::VaultManager::instance().isUnlocked();
+
+  if (unlocked) {
+    auto *searchAct =
+        menu.addAction(tm.icon(QStringLiteral("search")), tr("Search Vault"));
+    setMenuShortcutHint(searchAct, QStringLiteral("Ctrl+F"));
+    connect(searchAct, &QAction::triggered, m_itemListView,
+            &views::ItemListView::focusSearch);
+
+    auto *sidebarAct = menu.addAction(tm.icon(QStringLiteral("sidebar_toggle")),
+                                      tr("Toggle Sidebar"));
+    setMenuShortcutHint(sidebarAct, QStringLiteral("Ctrl+B"));
+    connect(sidebarAct, &QAction::triggered, this, &MainWindow::toggleSidebar);
+
+    menu.addSeparator();
+
+    auto *allAct = menu.addAction(tm.icon(QStringLiteral("category_all")),
+                                  tr("All Items"));
+    connect(allAct, &QAction::triggered, this, [this]() {
+      m_sidebarView->selectFilter(views::SidebarFilterType::AllItems);
+    });
+
+    auto *favAct =
+        menu.addAction(tm.icon(QStringLiteral("star")), tr("Favorites"));
+    connect(favAct, &QAction::triggered, this, [this]() {
+      m_sidebarView->selectFilter(views::SidebarFilterType::Favorites);
+    });
+
+    auto *trashAct =
+        menu.addAction(tm.icon(QStringLiteral("trash")), tr("Trash"));
+    connect(trashAct, &QAction::triggered, this, [this]() {
+      m_sidebarView->selectFilter(views::SidebarFilterType::Trash);
+    });
+
+    menu.addSeparator();
+
+    auto *densityMenu = menu.addMenu(tr("List Density"));
+    const auto curDensity = app::SettingsManager::instance().listDensity();
+    auto *compactAct = densityMenu->addAction(tr("Compact"));
+    compactAct->setCheckable(true);
+    compactAct->setChecked(curDensity == app::ListDensity::Compact);
+    connect(compactAct, &QAction::triggered, this, []() {
+      app::SettingsManager::instance().setListDensity(
+          app::ListDensity::Compact);
+    });
+
+    auto *comfortableAct = densityMenu->addAction(tr("Comfortable"));
+    comfortableAct->setCheckable(true);
+    comfortableAct->setChecked(curDensity == app::ListDensity::Comfortable);
+    connect(comfortableAct, &QAction::triggered, this, []() {
+      app::SettingsManager::instance().setListDensity(
+          app::ListDensity::Comfortable);
+    });
+
+    menu.addSeparator();
+  }
+
+  auto *langMenu = menu.addMenu(tr("Language"));
+  const auto curLang = app::SettingsManager::instance().language();
+  auto *enAct = langMenu->addAction(QStringLiteral("English"));
+  enAct->setCheckable(true);
+  enAct->setChecked(curLang == app::AppLanguage::English);
+  connect(enAct, &QAction::triggered, this, []() {
+    app::SettingsManager::instance().setLanguage(app::AppLanguage::English);
+  });
+
+  auto *viAct = langMenu->addAction(QStringLiteral("Tiếng Việt"));
+  viAct->setCheckable(true);
+  viAct->setChecked(curLang == app::AppLanguage::Vietnamese);
+  connect(viAct, &QAction::triggered, this, []() {
+    app::SettingsManager::instance().setLanguage(app::AppLanguage::Vietnamese);
+  });
+
+  const bool isDark = (tm.currentMode() == app::ThemeMode::Dark);
+  auto *themeAct = menu.addAction(tm.icon(QStringLiteral("theme_toggle")),
+                                  isDark ? tr("Switch to Light Theme")
+                                         : tr("Switch to Dark Theme"));
+  setMenuShortcutHint(themeAct, QStringLiteral("Ctrl+T"));
+  connect(themeAct, &QAction::triggered, this, [isDark]() {
+    app::ThemeManager::instance().applyTheme(isDark ? app::ThemeMode::Light
+                                                    : app::ThemeMode::Dark);
+  });
+}
+
+void MainWindow::populateHelpMenu(QMenu &menu) {
+  menu.clear();
+  const auto &tm = app::ThemeManager::instance();
+  const bool unlocked = app::VaultManager::instance().isUnlocked();
+
+  if (unlocked) {
+    auto *browserAct =
+        menu.addAction(tm.icon(QStringLiteral("category_server")),
+                       tr("Browser Extension Setup..."));
+    connect(browserAct, &QAction::triggered, this,
+            [this]() { openSettingsDialog(3); });
+
+    auto *sshAct = menu.addAction(tm.icon(QStringLiteral("category_ssh")),
+                                  tr("SSH Agent Configuration..."));
+    connect(sshAct, &QAction::triggered, this,
+            [this]() { openSettingsDialog(4); });
+
+    menu.addSeparator();
+  }
+
+  auto *shortcutsAct = menu.addAction(tr("Keyboard Shortcuts"));
+  setMenuShortcutHint(shortcutsAct, QStringLiteral("F1"));
+  connect(shortcutsAct, &QAction::triggered, this,
+          &MainWindow::openKeyboardShortcutsDialog);
+
+  menu.addSeparator();
+
+  auto *aboutAct = menu.addAction(tm.icon(QStringLiteral("info")),
+                                  tr("About Secure Vault Manager"));
+  connect(aboutAct, &QAction::triggered, this, &MainWindow::openAboutDialog);
+}
+
+void MainWindow::onEmptyTrashRequested() {
+  if (!app::VaultManager::instance().isUnlocked()) {
+    return;
+  }
+  const bool confirmed = components::NotificationDialog::question(
+      this, tr("Empty Trash?"),
+      tr("Permanently delete all items in Trash? This action cannot be "
+         "undone."),
+      tr("Empty Trash"), tr("Cancel"), true);
+  if (!confirmed) {
+    return;
+  }
+  if (core::CoreBridge::instance().emptyTrash()) {
+    app::VaultManager::instance().refreshVaultsFromCore();
+    loadItemsFromCore();
+  } else {
+    components::NotificationDialog::warning(
+        this, tr("Trash Clean Failed"),
+        core::CoreBridge::instance().lastError());
+  }
 }
 
 void MainWindow::toggleSidebar() { m_sidebarView->toggleCollapsed(); }
+
+std::optional<models::UiVaultItem>
+MainWindow::resolveFullItem(const QString &itemId) const {
+  if (itemId.isEmpty()) {
+    return std::nullopt;
+  }
+  auto &bridge = core::CoreBridge::instance();
+  if (bridge.isInitialized() && bridge.isVaultUnlocked()) {
+    if (auto full = bridge.getItem(itemId); full.has_value()) {
+      return full;
+    }
+  }
+  return m_itemListView->sourceModel()->findItemById(itemId);
+}
+
+void MainWindow::syncSelectionAfterMutation(const QString &itemId,
+                                            const models::UiVaultItem *updated,
+                                            bool focusOrWasSelected) {
+  if (focusOrWasSelected) {
+    if (updated && m_itemListView->isItemVisible(itemId)) {
+      m_previousSelectedItemId = itemId;
+      m_itemListView->selectItem(itemId);
+      m_detailView->setItem(*updated);
+    } else {
+      m_previousSelectedItemId.clear();
+      m_itemListView->clearSelection();
+      m_detailView->clearItem();
+    }
+  }
+  updateSidebarCounts();
+}
+
+void MainWindow::persistItemUpdate(const models::UiVaultItem &item,
+                                   bool focusIfVisible) {
+  models::UiVaultItem savedItem = item;
+  const bool wasSelected =
+      !item.id.isEmpty() && (m_itemListView->selectedItemId() == item.id);
+  auto &bridge = core::CoreBridge::instance();
+  if (bridge.isInitialized() && bridge.isVaultUnlocked()) {
+    const QString savedId = bridge.upsertItem(item);
+    if (!savedId.isEmpty()) {
+      savedItem.id = savedId;
+      if (const auto refreshed = bridge.getItem(savedId);
+          refreshed.has_value()) {
+        savedItem = refreshed.value();
+      }
+    }
+    app::VaultManager::instance().refreshVaultsFromCore();
+  }
+
+  m_itemListView->upsertItem(savedItem);
+  syncSelectionAfterMutation(savedItem.id, &savedItem,
+                             focusIfVisible || wasSelected);
+}
 
 void MainWindow::onItemSelected(const QString &itemId) {
   if (itemId.isEmpty()) {
@@ -375,15 +851,7 @@ void MainWindow::onItemSelected(const QString &itemId) {
     m_detailView->clearItem();
     return;
   }
-  auto &bridge = core::CoreBridge::instance();
-  std::optional<models::UiVaultItem> resolved;
-  if (bridge.isInitialized() && bridge.isVaultUnlocked()) {
-    resolved = bridge.getItem(itemId);
-  }
-  if (!resolved.has_value()) {
-    resolved = m_itemListView->sourceModel()->findItemById(itemId);
-  }
-  if (resolved.has_value()) {
+  if (const auto resolved = resolveFullItem(itemId); resolved.has_value()) {
     m_previousSelectedItemId = itemId;
     m_detailView->setItem(resolved.value());
   } else {
@@ -400,16 +868,8 @@ void MainWindow::onAddNewItemRequested(models::ItemCategory category) {
 
 void MainWindow::onDetailCancelRequested() {
   if (!m_previousSelectedItemId.isEmpty()) {
-    auto &bridge = core::CoreBridge::instance();
-    std::optional<models::UiVaultItem> resolved;
-    if (bridge.isInitialized() && bridge.isVaultUnlocked()) {
-      resolved = bridge.getItem(m_previousSelectedItemId);
-    }
-    if (!resolved.has_value()) {
-      resolved =
-          m_itemListView->sourceModel()->findItemById(m_previousSelectedItemId);
-    }
-    if (resolved.has_value()) {
+    if (const auto resolved = resolveFullItem(m_previousSelectedItemId);
+        resolved.has_value()) {
       m_itemListView->selectItem(m_previousSelectedItemId);
       m_detailView->setItem(resolved.value());
       return;
@@ -419,29 +879,46 @@ void MainWindow::onDetailCancelRequested() {
 }
 
 void MainWindow::onItemSaved(const models::UiVaultItem &item) {
-  models::UiVaultItem savedItem = item;
-  auto &bridge = core::CoreBridge::instance();
-  if (bridge.isInitialized() && bridge.isVaultUnlocked()) {
-    const QString savedId = bridge.upsertItem(item);
-    if (!savedId.isEmpty()) {
-      savedItem.id = savedId;
-      const auto refreshed = bridge.getItem(savedId);
-      if (refreshed.has_value()) {
-        savedItem = refreshed.value();
-      }
-    }
-    app::VaultManager::instance().refreshVaultsFromCore();
-  }
+  persistItemUpdate(item, true);
+}
 
-  m_itemListView->upsertItem(savedItem);
-  m_previousSelectedItemId = savedItem.id;
-  m_itemListView->selectItem(savedItem.id);
-  m_detailView->setItem(savedItem);
-  updateSidebarCounts();
+void MainWindow::onItemEditRequested(const QString &itemId) {
+  const auto resolved = resolveFullItem(itemId);
+  if (!resolved.has_value() || resolved->isDeleted) {
+    return;
+  }
+  m_previousSelectedItemId = itemId;
+  m_itemListView->selectItem(itemId);
+  m_detailView->setItem(resolved.value());
+  m_detailView->setEditMode(true);
+}
+
+void MainWindow::onItemFavoriteToggleRequested(const QString &itemId) {
+  auto resolved = resolveFullItem(itemId);
+  if (!resolved.has_value() || resolved->isDeleted) {
+    return;
+  }
+  resolved->isFavorite = !resolved->isFavorite;
+  resolved->updatedAt = QDateTime::currentDateTime();
+  persistItemUpdate(resolved.value(), false);
+}
+
+void MainWindow::onItemMoveToVaultRequested(const QString &itemId,
+                                            const QString &targetVaultId) {
+  if (targetVaultId.isEmpty()) {
+    return;
+  }
+  auto resolved = resolveFullItem(itemId);
+  if (!resolved.has_value() || resolved->vaultId == targetVaultId) {
+    return;
+  }
+  resolved->vaultId = targetVaultId;
+  resolved->updatedAt = QDateTime::currentDateTime();
+  persistItemUpdate(resolved.value(), false);
 }
 
 void MainWindow::onItemTrashRequested(const QString &itemId) {
-  const auto opt = m_itemListView->sourceModel()->findItemById(itemId);
+  const auto opt = resolveFullItem(itemId);
   if (!opt.has_value()) {
     return;
   }
@@ -450,33 +927,33 @@ void MainWindow::onItemTrashRequested(const QString &itemId) {
     return;
   }
 
+  const bool wasSelected = (m_itemListView->selectedItemId() == itemId);
   auto &bridge = core::CoreBridge::instance();
   if (bridge.isInitialized() && bridge.isVaultUnlocked()) {
     bridge.trashItem(itemId);
+    app::VaultManager::instance().refreshVaultsFromCore();
   }
   models::UiVaultItem updated = opt.value();
   updated.isDeleted = true;
   updated.updatedAt = QDateTime::currentDateTime();
   m_itemListView->upsertItem(updated);
-  m_detailView->clearItem();
-  updateSidebarCounts();
+  syncSelectionAfterMutation(itemId, &updated, wasSelected);
 }
 
 void MainWindow::onItemRestoreRequested(const QString &itemId) {
+  const bool wasSelected = (m_itemListView->selectedItemId() == itemId);
   auto &bridge = core::CoreBridge::instance();
   if (bridge.isInitialized() && bridge.isVaultUnlocked()) {
     bridge.restoreItem(itemId);
+    app::VaultManager::instance().refreshVaultsFromCore();
   }
-  const auto opt = m_itemListView->sourceModel()->findItemById(itemId);
-  if (opt.has_value()) {
-    models::UiVaultItem updated =
-        (bridge.isInitialized() && bridge.isVaultUnlocked())
-            ? bridge.getItem(itemId).value_or(opt.value())
-            : opt.value();
+  if (const auto opt = resolveFullItem(itemId); opt.has_value()) {
+    models::UiVaultItem updated = opt.value();
     updated.isDeleted = false;
     updated.updatedAt = QDateTime::currentDateTime();
     m_itemListView->upsertItem(updated);
-    m_detailView->setItem(updated);
+    syncSelectionAfterMutation(itemId, &updated, wasSelected);
+    return;
   }
   updateSidebarCounts();
 }
@@ -491,37 +968,64 @@ void MainWindow::onItemPurgeRequested(const QString &itemId) {
     return;
   }
 
+  const bool wasSelected = (m_itemListView->selectedItemId() == itemId);
   auto &bridge = core::CoreBridge::instance();
   if (bridge.isInitialized() && bridge.isVaultUnlocked()) {
     bridge.purgeItem(itemId);
+    app::VaultManager::instance().refreshVaultsFromCore();
   }
   m_itemListView->removeItem(itemId);
-  m_detailView->clearItem();
-  updateSidebarCounts();
+  syncSelectionAfterMutation(itemId, nullptr, wasSelected);
 }
 
 void MainWindow::onQuickCopyRequested(const QString &itemId,
                                       const QString &fieldName) {
-  const auto opt = m_itemListView->sourceModel()->findItemById(itemId);
+  const auto opt = resolveFullItem(itemId);
   if (!opt.has_value()) {
     return;
   }
 
   const auto &item = opt.value();
   auto &bridge = core::CoreBridge::instance();
-  if (fieldName == QStringLiteral("password")) {
-    QString secret = item.password;
-    if (bridge.isInitialized() && bridge.isVaultUnlocked()) {
-      const QString revealed =
-          bridge.revealField(itemId, QStringLiteral("password"));
+  const bool unlocked = bridge.isInitialized() && bridge.isVaultUnlocked();
+
+  auto revealOrFallback = [&](const QString &localValue,
+                              const QString &revealKey) -> QString {
+    if (unlocked) {
+      const QString revealed = bridge.revealField(itemId, revealKey);
       if (!revealed.isEmpty()) {
-        secret = revealed;
+        return revealed;
       }
     }
+    return localValue;
+  };
+
+  if (fieldName == QStringLiteral("username")) {
+    app::ClipboardManager::instance().copyPlainText(item.username);
+  } else if (fieldName == QStringLiteral("password")) {
+    const QString secret =
+        revealOrFallback(item.password, QStringLiteral("password"));
     app::ClipboardManager::instance().copySensitive(
         secret, tr("Password for %1").arg(item.title));
-  } else if (fieldName == QStringLiteral("username")) {
-    app::ClipboardManager::instance().copyPlainText(item.username);
+  } else if (fieldName == QStringLiteral("cardNumber")) {
+    const QString secret =
+        revealOrFallback(item.cardNumber, QStringLiteral("cardNumber"));
+    app::ClipboardManager::instance().copySensitive(
+        secret, tr("Card Number for %1").arg(item.title));
+  } else if (fieldName == QStringLiteral("cardCvv")) {
+    const QString secret =
+        revealOrFallback(item.cardCvv, QStringLiteral("cardCvv"));
+    app::ClipboardManager::instance().copySensitive(
+        secret, tr("CVV for %1").arg(item.title));
+  } else if (fieldName == QStringLiteral("totp") && unlocked) {
+    const QString totpInput =
+        item.totpSecret.isEmpty() ? itemId : item.totpSecret;
+    const QString code =
+        bridge.generateTotp(totpInput).first.trimmed().remove(QLatin1Char(' '));
+    if (!code.isEmpty() && !code.startsWith(QLatin1Char('-'))) {
+      app::ClipboardManager::instance().copySensitive(
+          code, tr("One-Time Code (2FA)"));
+    }
   }
 }
 
@@ -537,7 +1041,6 @@ void MainWindow::loadItemsFromCore() {
   if (!coreItems.isEmpty()) {
     const QString prevId = m_itemListView->selectedItemId();
     m_itemListView->setItems(coreItems);
-    m_sidebarView->refreshFolders();
     updateSidebarCounts();
 
     if (!prevId.isEmpty()) {
@@ -557,7 +1060,6 @@ void MainWindow::loadItemsFromCore() {
   } else {
     m_itemListView->setItems({});
     m_detailView->clearItem();
-    m_sidebarView->refreshFolders();
     updateSidebarCounts();
   }
 }
@@ -568,7 +1070,6 @@ void MainWindow::updateSidebarCounts() {
 
   QMap<views::SidebarFilterType, int> filterCounts;
   QMap<models::ItemCategory, int> categoryCounts;
-  QMap<QString, int> folderCounts;
 
   const std::array<models::ItemCategory, 9> allCategories = {
       models::ItemCategory::Login,      models::ItemCategory::Passkey,
@@ -583,8 +1084,6 @@ void MainWindow::updateSidebarCounts() {
   int allCount = 0;
   int favCount = 0;
   int trashCount = 0;
-  int weakCount = 0;
-  int expiringCount = 0;
 
   for (const auto &item : items) {
     if (!activeVId.isEmpty() && activeVId != QStringLiteral("all")) {
@@ -602,25 +1101,27 @@ void MainWindow::updateSidebarCounts() {
       if (item.isFavorite) {
         ++favCount;
       }
-      if (!item.folderId.isEmpty()) {
-        folderCounts[item.folderId] = folderCounts.value(item.folderId, 0) + 1;
-      }
-      if (models::isWeakPasswordItem(item)) {
-        ++weakCount;
-      }
-      if (models::isExpiringItem(item)) {
-        ++expiringCount;
-      }
     }
   }
 
   filterCounts[views::SidebarFilterType::AllItems] = allCount;
   filterCounts[views::SidebarFilterType::Favorites] = favCount;
   filterCounts[views::SidebarFilterType::Trash] = trashCount;
-  filterCounts[views::SidebarFilterType::WatchtowerWeak] = weakCount;
-  filterCounts[views::SidebarFilterType::WatchtowerExpiring] = expiringCount;
 
-  m_sidebarView->updateCounts(filterCounts, categoryCounts, folderCounts);
+  m_sidebarView->updateCounts(filterCounts, categoryCounts);
+}
+
+void MainWindow::updateHeaderTitle() {
+  if (!m_headerBar) {
+    return;
+  }
+  if (!app::VaultManager::instance().isConfigured()) {
+    m_headerBar->setTitleText(tr("Setup - Secure Vault Manager"));
+  } else if (app::VaultManager::instance().isLocked()) {
+    m_headerBar->setTitleText(tr("Locked - Secure Vault Manager"));
+  } else {
+    m_headerBar->setTitleText(tr("Secure Vault Manager"));
+  }
 }
 
 void MainWindow::updateNavigationState() {
@@ -637,14 +1138,14 @@ void MainWindow::updateNavigationState() {
     updateSidebarCounts();
     m_mainStack->setCurrentWidget(m_onboardingView);
     m_onboardingView->resetWizard();
-    m_headerBar->setTitleText(tr("Setup - Secure Vault Manager"));
-    m_headerBar->setSettingsVisible(false);
+    updateHeaderTitle();
+    m_headerBar->setUnlockedMenuVisible(false);
     m_inactivityTimer.stop();
   } else if (app::VaultManager::instance().isLocked()) {
     m_mainStack->setCurrentWidget(m_lockScreenView);
     m_lockScreenView->resetLockScreen();
-    m_headerBar->setTitleText(tr("Locked - Secure Vault Manager"));
-    m_headerBar->setSettingsVisible(false);
+    updateHeaderTitle();
+    m_headerBar->setUnlockedMenuVisible(false);
     m_inactivityTimer.stop();
     if (m_itemListView) {
       m_itemListView->clearSelection();
@@ -661,8 +1162,8 @@ void MainWindow::updateNavigationState() {
     }
   } else {
     m_mainStack->setCurrentWidget(m_mainSplitter);
-    m_headerBar->setTitleText(tr("Secure Vault Manager"));
-    m_headerBar->setSettingsVisible(true);
+    updateHeaderTitle();
+    m_headerBar->setUnlockedMenuVisible(true);
     m_lockScreenView->resetLockScreen();
     m_itemListView->proxyModel()->setVaultFilter(
         app::VaultManager::instance().activeVaultId());
@@ -672,7 +1173,24 @@ void MainWindow::updateNavigationState() {
   }
 }
 
-void MainWindow::openSettingsDialog() {
+void MainWindow::showNonModalDialog(QDialog *dialog) {
+  if (!dialog) {
+    return;
+  }
+  dialog->setModal(false);
+  dialog->setWindowModality(Qt::NonModal);
+  const QPoint center = geometry().center();
+  dialog->move(center.x() - dialog->width() / 2,
+               center.y() - dialog->height() / 2);
+  if (!components::DialogDragHelper::s_activeDialogs.contains(dialog)) {
+    components::DialogDragHelper::s_activeDialogs.append(dialog);
+  }
+  dialog->show();
+  dialog->raise();
+  dialog->activateWindow();
+}
+
+void MainWindow::openSettingsDialog(int tabIndex) {
   if (!app::VaultManager::instance().isUnlocked()) {
     return;
   }
@@ -682,18 +1200,29 @@ void MainWindow::openSettingsDialog() {
       components::DialogDragHelper::s_activeDialogs.removeOne(m_settingsDialog);
     });
   }
-  m_settingsDialog->setModal(false);
-  m_settingsDialog->setWindowModality(Qt::NonModal);
-  const QPoint center = geometry().center();
-  m_settingsDialog->move(center.x() - m_settingsDialog->width() / 2,
-                         center.y() - m_settingsDialog->height() / 2);
-  if (!components::DialogDragHelper::s_activeDialogs.contains(
-          m_settingsDialog)) {
-    components::DialogDragHelper::s_activeDialogs.append(m_settingsDialog);
+  m_settingsDialog->selectTab(tabIndex);
+  showNonModalDialog(m_settingsDialog);
+}
+
+void MainWindow::openAboutDialog() {
+  if (!m_aboutDialog) {
+    m_aboutDialog = new views::AboutDialog(this);
+    connect(m_aboutDialog, &QDialog::finished, this, [this]() {
+      components::DialogDragHelper::s_activeDialogs.removeOne(m_aboutDialog);
+    });
   }
-  m_settingsDialog->show();
-  m_settingsDialog->raise();
-  m_settingsDialog->activateWindow();
+  showNonModalDialog(m_aboutDialog);
+}
+
+void MainWindow::openKeyboardShortcutsDialog() {
+  if (!m_shortcutsDialog) {
+    m_shortcutsDialog = new views::KeyboardShortcutsDialog(this);
+    connect(m_shortcutsDialog, &QDialog::finished, this, [this]() {
+      components::DialogDragHelper::s_activeDialogs.removeOne(
+          m_shortcutsDialog);
+    });
+  }
+  showNonModalDialog(m_shortcutsDialog);
 }
 
 void MainWindow::updateInactivityTimer() {
@@ -828,6 +1357,7 @@ void MainWindow::retranslateUi() {
   setWindowTitle(tr("Secure Vault Manager"));
   if (m_headerBar) {
     m_headerBar->retranslateUi();
+    updateHeaderTitle();
   }
   if (m_onboardingView) {
     m_onboardingView->retranslateUi();
@@ -846,6 +1376,9 @@ void MainWindow::retranslateUi() {
   }
   if (m_aboutDialog) {
     m_aboutDialog->retranslateUi();
+  }
+  if (m_shortcutsDialog) {
+    m_shortcutsDialog->retranslateUi();
   }
   if (m_settingsDialog) {
     m_settingsDialog->retranslateUi();

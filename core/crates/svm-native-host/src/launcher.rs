@@ -12,11 +12,11 @@ use std::time::Duration;
 #[cfg(unix)]
 use std::os::unix::net::UnixStream;
 
-use svm_crypto::{evaluate_password_strength, generate_password, generate_uuid_v4};
-use svm_domain::{Category, CustomField, FieldKind, JsonValue, VaultItem};
+use svm_crypto::{evaluate_password_strength, generate_password};
+use svm_domain::{Category, JsonValue, VaultItem};
 use svm_ipc::IpcEndpoint;
 use svm_storage::VaultStorage;
-use svm_totp::{generate_totp, parse_otpauth_uri};
+use svm_totp::generate_totp;
 use svm_vault::VaultService;
 use svm_webauthn::WebAuthnAuthenticator;
 
@@ -479,34 +479,17 @@ impl NativeHostRouter {
                 data.insert("remaining", JsonValue::Number(remaining as f64));
                 Self::ok_envelope(request_id, "totp_code", data)
             }
-            "update_totp" => {
-                let item_id = payload.get_str_or("itemId", "");
-                let otpauth_uri = payload.get_str_or("uri", payload.get_str_or("secret", ""));
-                let parsed_cfg = match parse_otpauth_uri(otpauth_uri) {
-                    Ok(c) => c,
-                    Err(e) => {
-                        return Self::error_envelope(request_id, "INVALID_OTPAUTH", e.message())
-                    }
-                };
-                if let Some(existing) = self
-                    .vault
-                    .items()
-                    .iter()
-                    .find(|it| it.id == item_id)
-                    .cloned()
-                {
-                    let mut updated = existing;
-                    updated.totp_secret = parsed_cfg.secret.clone();
-                    updated.has_totp = true;
-                    let _ = self.vault.upsert_item(updated);
+            "decode_qr" => {
+                match svm_bridge::handle_decode_qr_action(self.vault.is_unlocked(), &payload) {
+                    Ok(data) => Self::ok_envelope(request_id, "qr_decoded", data),
+                    Err((code, msg)) => Self::error_envelope(request_id, code, &msg),
                 }
-                let (code, remaining) = generate_totp(&parsed_cfg.secret, 0);
-                let mut data = JsonValue::new_object();
-                data.insert("code", JsonValue::String(code));
-                data.insert("remaining", JsonValue::Number(remaining as f64));
-                data.insert("issuer", JsonValue::String(parsed_cfg.issuer));
-                data.insert("account", JsonValue::String(parsed_cfg.account));
-                Self::ok_envelope(request_id, "totp_updated", data)
+            }
+            "update_totp" => {
+                match svm_bridge::handle_update_totp_action(&mut self.vault, &payload) {
+                    Ok(data) => Self::ok_envelope(request_id, "totp_updated", data),
+                    Err((code, msg)) => Self::error_envelope(request_id, code, &msg),
+                }
             }
             "generate_password" => {
                 let pwd = generate_password(&payload.to_json_string());
@@ -519,44 +502,11 @@ impl NativeHostRouter {
                 Self::ok_envelope(request_id, "generated_password", data)
             }
             "passkey_query" => {
-                if !self.vault.is_unlocked() {
-                    let mut data = JsonValue::new_object();
-                    data.insert("unlocked", JsonValue::Bool(false));
-                    data.insert("passkeys", JsonValue::Array(Vec::new()));
-                    return Self::ok_envelope(request_id, "passkey_query_result", data);
-                }
-                let rp_id = payload.get_str_or("rpId", "");
-                let allow_creds = payload
-                    .get("allowCredentials")
-                    .and_then(|v| v.as_array())
-                    .map(|a| a.to_vec())
-                    .unwrap_or_default();
-
-                let matched: Vec<JsonValue> = self
-                    .vault
-                    .items()
-                    .iter()
-                    .filter(|it| {
-                        !it.trashed
-                            && it.category == Category::Passkey
-                            && svm_webauthn::matches_passkey_rp_id(it, rp_id)
-                            && (allow_creds.is_empty()
-                                || svm_webauthn::passkey_matches_credential_list(it, &allow_creds))
-                    })
-                    .map(|it| {
-                        let mut obj = JsonValue::new_object();
-                        obj.insert("id", JsonValue::String(it.id.clone()));
-                        obj.insert("title", JsonValue::String(it.title.clone()));
-                        obj.insert("username", JsonValue::String(it.username.clone()));
-                        let cred_id = svm_webauthn::extract_passkey_credential_id(it);
-                        obj.insert("credentialId", JsonValue::String(cred_id));
-                        obj
-                    })
-                    .collect();
-
-                let mut data = JsonValue::new_object();
-                data.insert("unlocked", JsonValue::Bool(true));
-                data.insert("passkeys", JsonValue::Array(matched));
+                let data = svm_webauthn::query_passkeys_payload(
+                    self.vault.is_unlocked(),
+                    self.vault.items(),
+                    &payload,
+                );
                 Self::ok_envelope(request_id, "passkey_query_result", data)
             }
             "passkey_create" => {
@@ -573,9 +523,11 @@ impl NativeHostRouter {
                 }
                 let rp_name = payload.get_str_or("rpName", rp_id);
                 let user_name = payload.get_str_or("userName", "User");
+                let user_display = payload.get_str_or("userDisplayName", user_name);
                 let challenge = payload.get_str_or("challenge", "");
                 let default_origin = format!("https://{rp_id}");
                 let origin = payload.get_str_or("origin", &default_origin);
+                let user_handle_b64 = payload.get_str_or("userHandle", "");
                 let exclude_creds = payload
                     .get("excludeCredentials")
                     .and_then(|v| v.as_array())
@@ -599,59 +551,21 @@ impl NativeHostRouter {
 
                 match svm_webauthn::create_passkey_credential(rp_id, challenge, origin) {
                     Ok(reg) => {
-                        let cred_id_b64 = svm_crypto::base64_encode(&reg.credential_id)
-                            .replace('+', "-")
-                            .replace('/', "_")
-                            .trim_end_matches('=')
-                            .to_string();
-                        let att_b64 = svm_crypto::base64_encode(&reg.attestation_object)
-                            .replace('+', "-")
-                            .replace('/', "_")
-                            .trim_end_matches('=')
-                            .to_string();
+                        let cred_id_b64 = svm_webauthn::encode_base64url(&reg.credential_id);
+                        let att_b64 = svm_webauthn::encode_base64url(&reg.attestation_object);
                         let client_json_b64 =
-                            svm_crypto::base64_encode(reg.client_data_json.as_bytes())
-                                .replace('+', "-")
-                                .replace('/', "_")
-                                .trim_end_matches('=')
-                                .to_string();
-
-                        let item = VaultItem {
-                            vault_id: self.vault.default_vault_id(),
-                            title: format!("{rp_name} Passkey"),
-                            category: Category::Passkey,
-                            username: user_name.to_string(),
-                            website_url: format!("https://{rp_id}"),
-                            has_passkey: true,
-                            password: svm_crypto::base64_encode(&reg.private_key_pkcs8),
-                            custom_fields: vec![
-                                CustomField {
-                                    id: generate_uuid_v4(),
-                                    label: "credentialId".to_string(),
-                                    value: cred_id_b64.clone(),
-                                    kind: FieldKind::Text,
-                                },
-                                CustomField {
-                                    id: generate_uuid_v4(),
-                                    label: "rpId".to_string(),
-                                    value: rp_id.to_string(),
-                                    kind: FieldKind::Text,
-                                },
-                                CustomField {
-                                    id: generate_uuid_v4(),
-                                    label: "algorithm".to_string(),
-                                    value: "-7".to_string(),
-                                    kind: FieldKind::Text,
-                                },
-                                CustomField {
-                                    id: generate_uuid_v4(),
-                                    label: "signCount".to_string(),
-                                    value: "0".to_string(),
-                                    kind: FieldKind::Text,
-                                },
-                            ],
-                            ..Default::default()
+                            svm_webauthn::encode_base64url(reg.client_data_json.as_bytes());
+                        let default_vid = self.vault.default_vault_id();
+                        let params = svm_webauthn::PasskeyItemParams {
+                            vault_id: &default_vid,
+                            rp_id,
+                            rp_name,
+                            user_name,
+                            user_display,
+                            origin,
+                            user_handle_b64,
                         };
+                        let item = svm_webauthn::build_passkey_item(&params, &reg);
                         let saved_id = match self.vault.upsert_item(item) {
                             Ok(id) => id,
                             Err(e) => {
@@ -712,56 +626,32 @@ impl NativeHostRouter {
                     );
                 };
 
-                let priv_bytes = svm_crypto::base64_decode(&item.password).unwrap_or_default();
                 let cred_id_str = svm_webauthn::extract_passkey_credential_id(&item);
-                let cred_id_bytes =
-                    svm_crypto::base64_decode(&cred_id_str.replace('-', "+").replace('_', "/"))
-                        .unwrap_or_default();
-                let next_sign_count = svm_webauthn::bump_passkey_sign_count(&mut item);
-
-                match svm_webauthn::authenticate_passkey_assertion(
-                    rp_id,
-                    challenge,
-                    origin,
-                    &cred_id_bytes,
-                    &priv_bytes,
-                    next_sign_count,
-                    None,
-                ) {
+                match svm_webauthn::execute_passkey_assertion(&mut item, rp_id, challenge, origin) {
                     Ok(assertion) => {
                         let _ = self.vault.upsert_item(item);
                         let cred_id_b64 = if !cred_id_str.is_empty() {
                             cred_id_str
                         } else {
-                            svm_crypto::base64_encode(&assertion.credential_id)
-                                .replace('+', "-")
-                                .replace('/', "_")
-                                .trim_end_matches('=')
-                                .to_string()
+                            svm_webauthn::encode_base64url(&assertion.credential_id)
                         };
                         let auth_data_b64 =
-                            svm_crypto::base64_encode(&assertion.authenticator_data)
-                                .replace('+', "-")
-                                .replace('/', "_")
-                                .trim_end_matches('=')
-                                .to_string();
-                        let sig_b64 = svm_crypto::base64_encode(&assertion.signature)
-                            .replace('+', "-")
-                            .replace('/', "_")
-                            .trim_end_matches('=')
-                            .to_string();
+                            svm_webauthn::encode_base64url(&assertion.authenticator_data);
+                        let sig_b64 = svm_webauthn::encode_base64url(&assertion.signature);
                         let client_json_b64 =
-                            svm_crypto::base64_encode(assertion.client_data_json.as_bytes())
-                                .replace('+', "-")
-                                .replace('/', "_")
-                                .trim_end_matches('=')
-                                .to_string();
+                            svm_webauthn::encode_base64url(assertion.client_data_json.as_bytes());
 
                         let mut data = JsonValue::new_object();
                         data.insert("credentialId", JsonValue::String(cred_id_b64));
                         data.insert("clientDataJSON", JsonValue::String(client_json_b64));
                         data.insert("authenticatorData", JsonValue::String(auth_data_b64));
                         data.insert("signature", JsonValue::String(sig_b64));
+                        if let Some(uh) = assertion.user_handle {
+                            data.insert(
+                                "userHandle",
+                                JsonValue::String(svm_webauthn::encode_base64url(&uh)),
+                            );
+                        }
                         Self::ok_envelope(request_id, "passkey_assertion", data)
                     }
                     Err(e) => Self::error_envelope(request_id, "PASSKEY_ASSERTION_FAILED", &e),

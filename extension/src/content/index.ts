@@ -4,6 +4,7 @@
  */
 
 import { autofillCredentialsOnPage } from "./autofill";
+import { QrCropResultToastParams, showQrResultToast, startQrCropOverlay } from "./crop-overlay";
 import { attachFormSubmitCapture } from "./form-capture";
 import { setupInlineAutofillOverlay } from "./overlay";
 import { setupPasskeyBridge } from "./passkey_bridge";
@@ -16,9 +17,16 @@ const chromeApi = (globalThis as Record<string, any>).chrome;
 if (chromeApi?.runtime?.onMessage) {
   chromeApi.runtime.onMessage.addListener(
     (
-      message: { type?: string; username?: string; password?: string; totpCode?: string },
+      message: {
+        type?: string;
+        username?: string;
+        password?: string;
+        totpCode?: string;
+        itemTitle?: string;
+        toast?: QrCropResultToastParams;
+      },
       _sender: unknown,
-      sendResponse: (resp: { filled: boolean }) => void
+      sendResponse: (resp: Record<string, unknown>) => void,
     ) => {
       if (message?.type === "SVM_FILL_ACTIVE_TAB") {
         const filled = autofillCredentialsOnPage({
@@ -27,8 +35,14 @@ if (chromeApi?.runtime?.onMessage) {
           totpCode: message.totpCode,
         });
         sendResponse({ filled });
+      } else if (message?.type === "SVM_START_QR_CROP") {
+        startQrCropOverlay(message.itemTitle);
+        sendResponse({ started: true });
+      } else if (message?.type === "SVM_QR_RESULT_TOAST" && message.toast) {
+        showQrResultToast(message.toast);
+        sendResponse({ shown: true });
       }
       return false;
-    }
+    },
   );
 }

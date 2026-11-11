@@ -42,7 +42,7 @@ export function setupInlineAutofillOverlay(): void {
 function renderInlinePopover(
   anchor: HTMLInputElement,
   credentials: CredentialSummary[],
-  isTotpField: boolean = false
+  isTotpField: boolean = false,
 ): void {
   const existing = document.getElementById("svm-inline-overlay-host");
   if (existing) {
@@ -173,7 +173,7 @@ function renderInlinePopover(
       }
       const secretResp = await sendExtensionBridgeMessage<CredentialSecretPayload>(
         "fill_credential",
-        { itemId: cred.id }
+        { itemId: cred.id },
       );
       const code = secretResp.payload?.totpCode || cred.totpCode;
       if (isTotpField && code) {

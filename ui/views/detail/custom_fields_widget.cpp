@@ -24,7 +24,7 @@ CustomFieldsWidget::CustomFieldsWidget(QWidget *parent) : QWidget(parent) {
 
 void CustomFieldsWidget::setupUI() {
   auto *rootLayout = new QVBoxLayout(this);
-  rootLayout->setContentsMargins(16, 14, 16, 14);
+  rootLayout->setContentsMargins(14, 12, 14, 12);
   rootLayout->setSpacing(10);
 
   // 1. Tiêu đề khối
@@ -34,7 +34,7 @@ void CustomFieldsWidget::setupUI() {
 
   // 2. Danh sách các hàng trường tùy biến
   m_rowsLayout = new QVBoxLayout();
-  m_rowsLayout->setContentsMargins(0, 0, 0, 0);
+  m_rowsLayout->setContentsMargins(12, 0, 12, 0);
   m_rowsLayout->setSpacing(8);
   rootLayout->addLayout(m_rowsLayout);
 
@@ -42,12 +42,18 @@ void CustomFieldsWidget::setupUI() {
   m_emptyLabel = new QLabel(
       tr("No custom fields yet. Click \"Add Field\" to create one."), this);
   m_emptyLabel->setObjectName(QStringLiteral("DetailSectionEmptyLabel"));
+  m_emptyLabel->setContentsMargins(12, 0, 12, 0);
   m_emptyLabel->setStyleSheet(
       QStringLiteral("color: #64748B; font-style: italic; padding: 4px 0;"));
   rootLayout->addWidget(m_emptyLabel);
 
-  // 4. Nút Thêm trường
-  m_addFieldBtn = new QPushButton(this);
+  // 4. Nút Thêm trường (căn lề ngang 12px khớp với FieldRowInput)
+  m_addFieldRow = new QWidget(this);
+  auto *addRowLayout = new QVBoxLayout(m_addFieldRow);
+  addRowLayout->setContentsMargins(12, 4, 12, 4);
+  addRowLayout->setSpacing(0);
+
+  m_addFieldBtn = new QPushButton(m_addFieldRow);
   m_addFieldBtn->setObjectName(QStringLiteral("CustomFieldAddBtn"));
   m_addFieldBtn->setIcon(
       app::ThemeManager::instance().icon(QStringLiteral("plus")));
@@ -63,7 +69,8 @@ void CustomFieldsWidget::setupUI() {
             m_addFieldBtn->setIcon(
                 app::ThemeManager::instance().icon(QStringLiteral("plus")));
           });
-  rootLayout->addWidget(m_addFieldBtn);
+  addRowLayout->addWidget(m_addFieldBtn);
+  rootLayout->addWidget(m_addFieldRow);
 
   setEditMode(false);
 }
@@ -103,7 +110,9 @@ void CustomFieldsWidget::setEditMode(bool editable) {
     w->setEditMode(editable);
   }
 
-  m_addFieldBtn->setVisible(editable);
+  if (m_addFieldRow) {
+    m_addFieldRow->setVisible(editable);
+  }
   updateVisibility();
 }
 

@@ -25,7 +25,12 @@ export function setupPasskeyBridge(): void {
     const rpId = String(payload?.rpId || window.location.hostname);
     const rpName = String(payload?.rpName || rpId);
     let userName = String(payload?.userName || "");
-    let matchedPasskeys: Array<{ id: string; title: string; username: string; credentialId: string }> = [];
+    let matchedPasskeys: Array<{
+      id: string;
+      title: string;
+      username: string;
+      credentialId: string;
+    }> = [];
 
     // Pre-flight check cho passkey_get: Kiểm tra xem kho có passkey phù hợp không
     if (action === "passkey_get") {
@@ -38,7 +43,11 @@ export function setupPasskeyBridge(): void {
       });
 
       // Nếu kho đã mở nhưng KHÔNG có passkey nào phù hợp -> SILENT FALLBACK về trình duyệt!
-      if (queryResp.ok && queryResp.payload?.unlocked && (!queryResp.payload.passkeys || queryResp.payload.passkeys.length === 0)) {
+      if (
+        queryResp.ok &&
+        queryResp.payload?.unlocked &&
+        (!queryResp.payload.passkeys || queryResp.payload.passkeys.length === 0)
+      ) {
         window.postMessage(
           {
             source: "svm-passkey-content",
@@ -48,7 +57,7 @@ export function setupPasskeyBridge(): void {
               error: { code: "NOT_FOUND", message: "No matching passkey found" },
             },
           },
-          window.location.origin
+          window.location.origin,
         );
         return;
       }
@@ -79,7 +88,7 @@ export function setupPasskeyBridge(): void {
             error: { code: "USER_CANCELLED", message: "User cancelled passkey prompt" },
           },
         },
-        window.location.origin
+        window.location.origin,
       );
       return;
     }
@@ -97,7 +106,7 @@ export function setupPasskeyBridge(): void {
         requestId,
         response,
       },
-      window.location.origin
+      window.location.origin,
     );
   });
 }

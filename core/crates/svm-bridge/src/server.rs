@@ -488,17 +488,16 @@ impl BridgeServer {
                                     .and_then(|n| n.as_str())
                                     .unwrap_or("")
                                     .to_lowercase();
-                                if path_str.contains("secure-vault-manager")
+                                let is_svm_extension = path_str.contains("secure-vault-manager")
                                     || path_str.contains("dist/chrome")
                                     || path_str.contains("dist/firefox")
-                                    || name_str.contains("secure vault manager")
+                                    || name_str.contains("secure vault manager");
+                                if is_svm_extension
+                                    && ext_id.len() == 32
+                                    && ext_id.chars().all(|c| c.is_ascii_lowercase())
+                                    && !ids.contains(ext_id)
                                 {
-                                    if ext_id.len() == 32
-                                        && ext_id.chars().all(|c| c.is_ascii_lowercase())
-                                        && !ids.contains(ext_id)
-                                    {
-                                        ids.push(ext_id.clone());
-                                    }
+                                    ids.push(ext_id.clone());
                                 }
                             }
                         }
@@ -585,18 +584,15 @@ impl BridgeServer {
         for dir_str in &candidate_dirs {
             let p = Path::new(dir_str);
             if let Some(parent) = p.parent() {
-                if parent.exists() {
-                    if fs::create_dir_all(p).is_ok() {
-                        let manifest_file = p.join(manifest_name);
-                        let content = if dir_str.contains("Mozilla") || dir_str.contains("mozilla")
-                        {
-                            &firefox_json
-                        } else {
-                            &chrome_json
-                        };
-                        if fs::write(&manifest_file, content.as_bytes()).is_ok() {
-                            installed_paths.push(manifest_file.to_string_lossy().to_string());
-                        }
+                if parent.exists() && fs::create_dir_all(p).is_ok() {
+                    let manifest_file = p.join(manifest_name);
+                    let content = if dir_str.contains("Mozilla") || dir_str.contains("mozilla") {
+                        &firefox_json
+                    } else {
+                        &chrome_json
+                    };
+                    if fs::write(&manifest_file, content.as_bytes()).is_ok() {
+                        installed_paths.push(manifest_file.to_string_lossy().to_string());
                     }
                 }
             }

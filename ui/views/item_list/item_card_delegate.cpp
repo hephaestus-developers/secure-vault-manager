@@ -27,7 +27,7 @@ QSize ItemCardDelegate::sizeHint(const QStyleOptionViewItem &option,
   Q_UNUSED(index);
   const bool compact = (app::SettingsManager::instance().listDensity() ==
                         app::ListDensity::Compact);
-  return {0, compact ? 52 : 68};
+  return {0, compact ? 56 : 72};
 }
 
 void ItemCardDelegate::paint(QPainter *painter,
@@ -45,7 +45,7 @@ void ItemCardDelegate::paint(QPainter *painter,
   const bool compact = (app::SettingsManager::instance().listDensity() ==
                         app::ListDensity::Compact);
   const QRect rect =
-      option.rect.adjusted(6, compact ? 2 : 3, -6, compact ? -2 : -3);
+      option.rect.adjusted(6, compact ? 4 : 5, -6, compact ? -4 : -5);
   const bool isSelected = (option.state & QStyle::State_Selected);
   const bool isHovered = (option.state & QStyle::State_MouseOver);
 
@@ -122,21 +122,15 @@ void ItemCardDelegate::paint(QPainter *painter,
     itemIcon.paint(painter, iconRect.adjusted(7, 7, -7, -7), Qt::AlignCenter);
   }
 
-  // 3. Tính toán không gian Badge chính xác tránh chồng lấn (Overlapping)
+  // 3. Tính toán không gian chữ & cột Favorite bên phải (badge 2FA gắn liền sau
+  // Title)
   const bool isFav = index.data(ItemListModel::IsFavoriteRole).toBool();
   const bool hasTotp = index.data(ItemListModel::HasTotpRole).toBool();
 
-  int badgesWidth = 0;
-  if (isFav) {
-    badgesWidth += 22; // 16px star + 6px spacing
-  }
-  if (hasTotp) {
-    badgesWidth += 40; // 34px badge + 6px spacing
-  }
-
   const int textLeft = iconRect.right() + 12;
-  const int rightReserved = (badgesWidth > 0 ? (badgesWidth + 8) : 12);
-  const int textWidth = std::max(20, rect.right() - textLeft - rightReserved);
+  const int rightReserved = isFav ? 32 : 12;
+  const int contentWidth =
+      std::max(20, rect.right() - textLeft - rightReserved);
 
   // 4. Tiêu đề và Username/Subtitle
   const QString title = index.data(ItemListModel::TitleRole).toString();
@@ -148,7 +142,12 @@ void ItemCardDelegate::paint(QPainter *painter,
     subtitle = models::categoryDisplayName(cat);
   }
 
-  // Dòng 1: Title (Rút gọn tự động với dấu ... trước mép badge)
+  // Dòng 1: Title + Badge 2FA (nếu có)
+  const int titleY = rect.top() + (compact ? 6 : 13);
+  constexpr int kTotpBadgeW = 30;
+  constexpr int kTotpBadgeH = 16;
+  constexpr int kTotpBadgeGap = 6;
+
   painter->setPen(
       isLight
           ? (isSelected ? QColor(0x1E, 0x1E, 0x2E) : QColor(0x31, 0x32, 0x44))
@@ -159,11 +158,30 @@ void ItemCardDelegate::paint(QPainter *painter,
   painter->setFont(titleFont);
 
   const QFontMetrics fmTitle(titleFont);
+  const int titleMaxWidth =
+      hasTotp ? std::max(20, contentWidth - kTotpBadgeW - kTotpBadgeGap)
+              : contentWidth;
   const QString elidedTitle =
-      fmTitle.elidedText(title, Qt::ElideRight, textWidth);
-  painter->drawText(
-      QRect(textLeft, rect.top() + (compact ? 6 : 13), textWidth, 20),
-      Qt::AlignLeft | Qt::AlignVCenter, elidedTitle);
+      fmTitle.elidedText(title, Qt::ElideRight, titleMaxWidth);
+  painter->drawText(QRect(textLeft, titleY, titleMaxWidth, 20),
+                    Qt::AlignLeft | Qt::AlignVCenter, elidedTitle);
+
+  if (hasTotp) {
+    const int drawnTitleW =
+        std::min(titleMaxWidth, fmTitle.horizontalAdvance(elidedTitle));
+    const QRect totpRect(textLeft + drawnTitleW + kTotpBadgeGap,
+                         titleY + (20 - kTotpBadgeH) / 2, kTotpBadgeW,
+                         kTotpBadgeH);
+    QPainterPath badgePath;
+    badgePath.addRoundedRect(totpRect, 4, 4);
+    painter->fillPath(badgePath, isLight ? QColor(0x88, 0x39, 0xEF, 0x22)
+                                         : QColor(0x8B, 0x5C, 0xF6, 0x33));
+    painter->setPen(isLight ? QColor(0x88, 0x39, 0xEF)
+                            : QColor(0xA7, 0x8B, 0xFA));
+    QFont badgeFont(QStringLiteral("sans-serif"), 7, QFont::Bold);
+    painter->setFont(badgeFont);
+    painter->drawText(totpRect, Qt::AlignCenter, QStringLiteral("2FA"));
+  }
 
   // Dòng 2: Subtitle
   painter->setPen(isLight ? QColor(0x6C, 0x6F, 0x85)
@@ -175,37 +193,19 @@ void ItemCardDelegate::paint(QPainter *painter,
 
   const QFontMetrics fmSub(subFont);
   const QString elidedSub =
-      fmSub.elidedText(subtitle, Qt::ElideRight, textWidth);
+      fmSub.elidedText(subtitle, Qt::ElideRight, contentWidth);
   painter->drawText(
-      QRect(textLeft, rect.top() + (compact ? 25 : 35), textWidth, 18),
+      QRect(textLeft, rect.top() + (compact ? 25 : 35), contentWidth, 18),
       Qt::AlignLeft | Qt::AlignVCenter, elidedSub);
 
-  // 5. Badges & Icons bên phải (Favorite star, 2FA)
-  int badgeX = rect.right() - 10;
-
+  // 5. Icon Favorite cố định sát mép phải
   if (isFav) {
-    const QRect starRect(badgeX - 16, rect.top() + (rect.height() - 16) / 2, 16,
-                         16);
+    const QRect starRect(rect.right() - 26,
+                         rect.top() + (rect.height() - 16) / 2, 16, 16);
     const QIcon starIcon(
         isLight ? QStringLiteral(":/icons/actions/star_filled_light.svg")
                 : QStringLiteral(":/icons/actions/star_filled_dark.svg"));
     starIcon.paint(painter, starRect);
-    badgeX -= 22;
-  }
-
-  if (hasTotp) {
-    const QRect totpRect(badgeX - 34, rect.top() + (rect.height() - 18) / 2, 34,
-                         18);
-    QPainterPath badgePath;
-    badgePath.addRoundedRect(totpRect, 4, 4);
-    painter->fillPath(badgePath,
-                      isLight ? QColor(0x88, 0x39, 0xEF, 0x22)
-                              : QColor(0x8B, 0x5C, 0xF6, 0x33)); // Purple
-    painter->setPen(isLight ? QColor(0x88, 0x39, 0xEF)
-                            : QColor(0xA7, 0x8B, 0xFA));
-    QFont badgeFont(QStringLiteral("sans-serif"), 7, QFont::Bold);
-    painter->setFont(badgeFont);
-    painter->drawText(totpRect, Qt::AlignCenter, QStringLiteral("2FA"));
   }
 
   painter->restore();

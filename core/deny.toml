@@ -1,9 +1,21 @@
 [advisories]
+ignore = [
+    # Transitive from `keyring -> zbus-secret-service-keyring-store -> secret-service -> zbus 5.x`
+    # until upstream migrates to zbus 6.x.
+    "RUSTSEC-2026-0370",
+    "RUSTSEC-2026-0371",
+    "RUSTSEC-2026-0372",
+]
 
 [licenses]
 allow = [
     "MIT",
     "Apache-2.0",
+    "ISC",
+    "BSD-3-Clause",
+    "Zlib",
+    "Unicode-3.0",
+    "CDLA-Permissive-2.0",
 ]
 
 [bans]

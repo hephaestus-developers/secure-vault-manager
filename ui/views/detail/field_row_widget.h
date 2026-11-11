@@ -29,10 +29,12 @@ public:
   ~FieldRowWidget() override = default;
 
   void setValue(const QString &value);
+  void setDisplayText(const QString &displayText);
   [[nodiscard]] QString value() const;
 
   void setLabel(const QString &label);
   void setPlaceholderText(const QString &placeholder);
+  void setReadOnly(bool readOnly);
 
   void setEditMode(bool editable);
   [[nodiscard]] bool isEditMode() const { return m_isEditMode; }
@@ -57,6 +59,8 @@ private:
   QString m_label;
   FieldType m_type{FieldType::Text};
   QString m_value;
+  QString m_displayOverride;
+  bool m_readOnly{false};
   bool m_isEditMode{false};
   bool m_isRevealed{false};
 

@@ -3,12 +3,9 @@
  * @brief Điểm nhập Background Service Worker (Manifest V3) điều phối Autofill, TOTP và Passkey.
  */
 
-import {
-  BridgeRequest,
-  createBridgeRequest,
-  detectCurrentBrowserName,
-} from "../services/protocol";
+import { BridgeRequest, createBridgeRequest, detectCurrentBrowserName } from "../services/protocol";
 import { PasskeyRouter } from "./passkey_router";
+import { clearCropSession, handleQrCropSelected, handleStartQrCrop } from "./qr_crop_handler";
 import { BridgeTransport } from "./transport";
 
 const transport = new BridgeTransport();
@@ -18,11 +15,7 @@ const chromeApi = (globalThis as Record<string, any>).chrome;
 
 if (chromeApi?.runtime?.onMessage) {
   chromeApi.runtime.onMessage.addListener(
-    (
-      message: BridgeRequest<any>,
-      _sender: unknown,
-      sendResponse: (response: unknown) => void
-    ) => {
+    (message: BridgeRequest<any>, _sender: unknown, sendResponse: (response: unknown) => void) => {
       if (!message || typeof message.action !== "string") {
         return false;
       }
@@ -105,11 +98,39 @@ if (chromeApi?.runtime?.onMessage) {
           return;
         }
 
+        if (message.action === "start_qr_crop") {
+          const resp = await handleStartQrCrop(message);
+          sendResponse(resp);
+          return;
+        }
+
+        if (message.action === "qr_crop_selected") {
+          const senderTab = (
+            _sender as {
+              tab?: { id?: number; windowId?: number; url?: string };
+            }
+          )?.tab;
+          const resp = await handleQrCropSelected(senderTab, message, transport);
+          sendResponse(resp);
+          return;
+        }
+
+        if (message.action === "qr_crop_cancelled") {
+          const senderTab = (_sender as { tab?: { id?: number } })?.tab;
+          await clearCropSession(senderTab?.id);
+          sendResponse({
+            ok: true,
+            type: "qr_crop_cancelled",
+            payload: { cancelled: true },
+          });
+          return;
+        }
+
         const resp = await transport.dispatch(message);
         sendResponse(resp);
       })();
 
       return true;
-    }
+    },
   );
 }

@@ -11,11 +11,13 @@
 #include <QFontMetrics>
 #include <QHBoxLayout>
 #include <QIcon>
+#include <QLayout>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QResizeEvent>
 #include <QSizePolicy>
 #include <QStyleOption>
+#include <QTimer>
 #include <QWindow>
 
 namespace svm::components {
@@ -40,7 +42,21 @@ UnifiedHeaderBar::UnifiedHeaderBar(QWidget *parent)
   m_logoLabel->setAlignment(Qt::AlignCenter);
   layout->addWidget(m_logoLabel, 0, Qt::AlignVCenter);
 
-  // Khoảng đệm dãn giữa Logo và các nút điều khiển cửa sổ góc phải
+  // 2. Compact Inline Menubar cạnh App Logo
+  m_menuBarWidget = new QWidget(this);
+  m_menuBarWidget->setObjectName(QStringLiteral("HeaderMenuBar"));
+  auto *menuLayout = new QHBoxLayout(m_menuBarWidget);
+  menuLayout->setContentsMargins(6, 0, 0, 0);
+  menuLayout->setSpacing(2);
+
+  addMenuEntry(QT_TR_NOOP("Vault"), m_vaultMenu, m_vaultMenuBtn, menuLayout);
+  addMenuEntry(QT_TR_NOOP("Item"), m_itemMenu, m_itemMenuBtn, menuLayout);
+  addMenuEntry(QT_TR_NOOP("View"), m_viewMenu, m_viewMenuBtn, menuLayout);
+  addMenuEntry(QT_TR_NOOP("Help"), m_helpMenu, m_helpMenuBtn, menuLayout);
+
+  layout->addWidget(m_menuBarWidget, 0, Qt::AlignVCenter);
+
+  // Khoảng đệm dãn giữa Menubar và các nút điều khiển cửa sổ góc phải
   layout->addStretch(1);
 
   // Nút Chuyển đổi Theme (Dark / Light)
@@ -50,7 +66,6 @@ UnifiedHeaderBar::UnifiedHeaderBar(QWidget *parent)
   m_themeToggleBtn->setFixedSize(28, 28);
   m_themeToggleBtn->setFlat(true);
   m_themeToggleBtn->setCursor(Qt::PointingHandCursor);
-  m_themeToggleBtn->setShortcut(QKeySequence(QStringLiteral("Ctrl+T")));
   connect(m_themeToggleBtn, &QPushButton::clicked, this,
           &UnifiedHeaderBar::themeToggleRequested);
   layout->addWidget(m_themeToggleBtn, 0, Qt::AlignVCenter);
@@ -63,22 +78,9 @@ UnifiedHeaderBar::UnifiedHeaderBar(QWidget *parent)
   m_settingsBtn->setFlat(true);
   m_settingsBtn->setCursor(Qt::PointingHandCursor);
   m_settingsBtn->setToolTip(tr("Settings (Ctrl+,)"));
-  m_settingsBtn->setShortcut(QKeySequence(QStringLiteral("Ctrl+,")));
   connect(m_settingsBtn, &QPushButton::clicked, this,
           &UnifiedHeaderBar::settingsRequested);
   layout->addWidget(m_settingsBtn, 0, Qt::AlignVCenter);
-
-  // Nút Giới thiệu (About Dialog)
-  m_aboutBtn = new QPushButton(this);
-  m_aboutBtn->setObjectName(QStringLiteral("HeaderAboutBtn"));
-  m_aboutBtn->setIconSize(QSize(15, 15));
-  m_aboutBtn->setFixedSize(28, 28);
-  m_aboutBtn->setFlat(true);
-  m_aboutBtn->setCursor(Qt::PointingHandCursor);
-  m_aboutBtn->setToolTip(tr("About Secure Vault Manager"));
-  connect(m_aboutBtn, &QPushButton::clicked, this,
-          &UnifiedHeaderBar::aboutRequested);
-  layout->addWidget(m_aboutBtn, 0, Qt::AlignVCenter);
 
   // 3. Nhãn tiêu đề căn giữa toàn bộ cửa sổ (Center Title Label Overlay)
   m_titleLabel = new QLabel(tr("Secure Vault Manager"), this);
@@ -133,6 +135,25 @@ UnifiedHeaderBar::UnifiedHeaderBar(QWidget *parent)
           &UnifiedHeaderBar::closeRequested);
 }
 
+void UnifiedHeaderBar::addMenuEntry(const char *titleSource, QMenu *&outMenu,
+                                    QPushButton *&outBtn,
+                                    QLayout *parentLayout) {
+  outBtn = new QPushButton(tr(titleSource), m_menuBarWidget);
+  outBtn->setObjectName(QStringLiteral("HeaderMenuBtn"));
+  outBtn->setFixedHeight(28);
+  outBtn->setFlat(true);
+  outBtn->setFocusPolicy(Qt::NoFocus);
+  outBtn->setCursor(Qt::PointingHandCursor);
+
+  outMenu = new QMenu(outBtn);
+  outMenu->setObjectName(QStringLiteral("HeaderDropDownMenu"));
+  outMenu->installEventFilter(this);
+  outBtn->setMenu(outMenu);
+
+  parentLayout->addWidget(outBtn);
+  m_menuEntries.append({outBtn, outMenu, titleSource});
+}
+
 void UnifiedHeaderBar::setTitleText(const QString &title) {
   if (m_titleLabel) {
     m_titleLabel->setProperty("fullTitle", title);
@@ -144,8 +165,16 @@ void UnifiedHeaderBar::repositionTitleOverlay() {
   if (!m_titleLabel) {
     return;
   }
+  if (layout()) {
+    layout()->activate();
+  }
 
-  int leftOccupied = (m_logoLabel ? m_logoLabel->geometry().right() : 24) + 12;
+  int leftEdge = m_logoLabel ? m_logoLabel->geometry().right() : 24;
+  if (m_menuBarWidget && m_menuBarWidget->isVisible()) {
+    leftEdge = qMax(leftEdge, m_menuBarWidget->geometry().right());
+  }
+  const int leftOccupied = leftEdge + 12;
+
   int rightOccupied =
       (m_themeToggleBtn && m_themeToggleBtn->isVisible()
            ? (width() - m_themeToggleBtn->geometry().left())
@@ -214,16 +243,15 @@ void UnifiedHeaderBar::updateThemeIcons(bool darkMode) {
   if (m_settingsBtn) {
     m_settingsBtn->setIcon(tm.icon(QStringLiteral("category_settings")));
   }
-
-  if (m_aboutBtn) {
-    m_aboutBtn->setIcon(tm.icon(QStringLiteral("info")));
-  }
 }
 
 void UnifiedHeaderBar::retranslateUi() {
-  if (m_titleLabel) {
-    m_titleLabel->setText(tr("Secure Vault Manager"));
+  for (const auto &entry : m_menuEntries) {
+    if (entry.button && entry.titleSource) {
+      entry.button->setText(tr(entry.titleSource));
+    }
   }
+  repositionTitleOverlay();
   if (m_themeToggleBtn) {
     m_themeToggleBtn->setToolTip(m_darkMode
                                      ? tr("Switch to Light theme (Ctrl+T)")
@@ -231,10 +259,6 @@ void UnifiedHeaderBar::retranslateUi() {
   }
   if (m_settingsBtn) {
     m_settingsBtn->setToolTip(tr("Settings (Ctrl+,)"));
-  }
-
-  if (m_aboutBtn) {
-    m_aboutBtn->setToolTip(tr("About Secure Vault Manager"));
   }
   if (m_minBtn) {
     m_minBtn->setToolTip(tr("Minimize"));
@@ -248,11 +272,46 @@ void UnifiedHeaderBar::retranslateUi() {
   }
 }
 
-void UnifiedHeaderBar::setSettingsVisible(bool visible) {
-  if (m_settingsBtn) {
-    m_settingsBtn->setVisible(visible);
-    repositionTitleOverlay();
+void UnifiedHeaderBar::setUnlockedMenuVisible(bool unlocked) {
+  if (m_vaultMenuBtn) {
+    m_vaultMenuBtn->setVisible(unlocked);
   }
+  if (m_itemMenuBtn) {
+    m_itemMenuBtn->setVisible(unlocked);
+  }
+  if (m_settingsBtn) {
+    m_settingsBtn->setVisible(unlocked);
+  }
+  if (m_menuBarWidget && m_menuBarWidget->layout()) {
+    m_menuBarWidget->layout()->activate();
+  }
+  repositionTitleOverlay();
+  QTimer::singleShot(0, this, &UnifiedHeaderBar::repositionTitleOverlay);
+}
+
+void UnifiedHeaderBar::setSettingsVisible(bool visible) {
+  setUnlockedMenuVisible(visible);
+}
+
+bool UnifiedHeaderBar::eventFilter(QObject *obj, QEvent *event) {
+  if (event->type() == QEvent::MouseMove) {
+    if (auto *activeMenu = qobject_cast<QMenu *>(obj);
+        activeMenu && activeMenu->isVisible() && m_menuBarWidget) {
+      const auto *me = static_cast<QMouseEvent *>(event);
+      const QPoint barPos =
+          m_menuBarWidget->mapFromGlobal(me->globalPosition().toPoint());
+      for (const auto &entry : m_menuEntries) {
+        if (entry.button && entry.button->isVisible() &&
+            entry.menu != activeMenu &&
+            entry.button->geometry().contains(barPos)) {
+          activeMenu->close();
+          QTimer::singleShot(0, entry.button, &QPushButton::showMenu);
+          return true;
+        }
+      }
+    }
+  }
+  return QWidget::eventFilter(obj, event);
 }
 
 void UnifiedHeaderBar::changeEvent(QEvent *event) {

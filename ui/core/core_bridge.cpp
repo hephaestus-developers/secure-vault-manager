@@ -606,7 +606,6 @@ models::UiVaultItem CoreBridge::itemFromJson(const QJsonObject &obj) {
   models::UiVaultItem item;
   item.id = obj.value(QStringLiteral("id")).toString();
   item.vaultId = obj.value(QStringLiteral("vaultId")).toString();
-  item.folderId = obj.value(QStringLiteral("folderId")).toString();
   item.title = obj.value(QStringLiteral("title")).toString();
   item.category =
       categoryFromCode(obj.value(QStringLiteral("category")).toString());
@@ -623,6 +622,15 @@ models::UiVaultItem CoreBridge::itemFromJson(const QJsonObject &obj) {
                      .toBool(!item.totpSecret.trimmed().isEmpty());
   item.hasPasskey = obj.value(QStringLiteral("hasPasskey"))
                         .toBool(item.category == models::ItemCategory::Passkey);
+  item.passkeyCredentialId =
+      obj.value(QStringLiteral("passkeyCredentialId")).toString();
+  item.passkeyRpId = obj.value(QStringLiteral("passkeyRpId")).toString();
+  item.passkeyAlgorithm =
+      obj.value(QStringLiteral("passkeyAlgorithm")).toInt(0);
+  item.passkeyUserHandle =
+      obj.value(QStringLiteral("passkeyUserHandle")).toString();
+  item.passkeySignCount = static_cast<quint32>(
+      std::max(0, obj.value(QStringLiteral("passkeySignCount")).toInt(0)));
   item.isSshLoaded = obj.value(QStringLiteral("isSshLoaded")).toBool(false);
 
   item.sshPublicKey = obj.value(QStringLiteral("sshPublicKey")).toString();
@@ -676,11 +684,6 @@ QJsonObject CoreBridge::itemToJson(const models::UiVaultItem &item) {
   QJsonObject obj;
   obj.insert(QStringLiteral("id"), item.id);
   obj.insert(QStringLiteral("vaultId"), item.vaultId);
-  if (!item.folderId.isEmpty()) {
-    obj.insert(QStringLiteral("folderId"), item.folderId);
-  } else {
-    obj.insert(QStringLiteral("folderId"), QJsonValue::Null);
-  }
   obj.insert(QStringLiteral("title"), item.title);
   obj.insert(QStringLiteral("category"), categoryToCode(item.category));
   obj.insert(QStringLiteral("username"), item.username);
@@ -696,6 +699,12 @@ QJsonObject CoreBridge::itemToJson(const models::UiVaultItem &item) {
              item.hasTotp || !item.totpSecret.trimmed().isEmpty());
   obj.insert(QStringLiteral("hasPasskey"),
              item.hasPasskey || item.category == models::ItemCategory::Passkey);
+  obj.insert(QStringLiteral("passkeyCredentialId"), item.passkeyCredentialId);
+  obj.insert(QStringLiteral("passkeyRpId"), item.passkeyRpId);
+  obj.insert(QStringLiteral("passkeyAlgorithm"), item.passkeyAlgorithm);
+  obj.insert(QStringLiteral("passkeyUserHandle"), item.passkeyUserHandle);
+  obj.insert(QStringLiteral("passkeySignCount"),
+             static_cast<qint64>(item.passkeySignCount));
   obj.insert(QStringLiteral("isSshLoaded"), item.isSshLoaded);
 
   obj.insert(QStringLiteral("sshPublicKey"), item.sshPublicKey);
@@ -870,73 +879,6 @@ QString CoreBridge::revealField(const QString &itemId, const QString &fieldId) {
   QString val = QString::fromUtf8(outPlain);
   svm_free_secret(outPlain);
   return val;
-}
-
-QList<models::UiFolder> CoreBridge::listFolders() {
-  QList<models::UiFolder> list;
-  if (!m_context) {
-    return list;
-  }
-  char *outJson = nullptr;
-  if (svm_folders_list(m_context, &outJson) != SVM_OK || !outJson) {
-    return list;
-  }
-  const QByteArray raw(outJson);
-  svm_free_string(outJson);
-  const QJsonDocument doc = QJsonDocument::fromJson(raw);
-  const QJsonArray arr =
-      doc.isArray() ? doc.array()
-                    : doc.object().value(QStringLiteral("folders")).toArray();
-  for (const auto &v : arr) {
-    if (!v.isObject()) {
-      continue;
-    }
-    const QJsonObject obj = v.toObject();
-    models::UiFolder f;
-    f.id = obj.value(QStringLiteral("id")).toString();
-    f.name = obj.value(QStringLiteral("name")).toString();
-    f.parentId = obj.value(QStringLiteral("parentId")).toString();
-    if (!f.id.isEmpty()) {
-      list.append(f);
-    }
-  }
-  return list;
-}
-
-QString CoreBridge::upsertFolder(const models::UiFolder &folder) {
-  if (!m_context || folder.name.trimmed().isEmpty()) {
-    return QString();
-  }
-  QJsonObject obj;
-  if (!folder.id.isEmpty()) {
-    obj.insert(QStringLiteral("id"), folder.id);
-  }
-  obj.insert(QStringLiteral("name"), folder.name.trimmed());
-  if (!folder.parentId.isEmpty()) {
-    obj.insert(QStringLiteral("parentId"), folder.parentId);
-  }
-  const QByteArray payload = QJsonDocument(obj).toJson(QJsonDocument::Compact);
-  char *outId = nullptr;
-  if (svm_folder_upsert(m_context, payload.constData(), &outId) != SVM_OK ||
-      !outId) {
-    emit errorOccurred(lastError());
-    return QString();
-  }
-  QString id = QString::fromUtf8(outId);
-  svm_free_string(outId);
-  return id;
-}
-
-bool CoreBridge::deleteFolder(const QString &folderId) {
-  if (!m_context || folderId.isEmpty()) {
-    return false;
-  }
-  const QByteArray fid = folderId.toUtf8();
-  if (svm_folder_delete(m_context, fid.constData()) != SVM_OK) {
-    emit errorOccurred(lastError());
-    return false;
-  }
-  return true;
 }
 
 QList<models::UiItemRevision> CoreBridge::listHistory(const QString &itemId) {

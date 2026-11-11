@@ -3,10 +3,13 @@
  * @brief Thanh tiêu đề của Extension Popup chứa logo, trạng thái mở khóa và nút khóa nhanh.
  */
 
+import { createQrCodeIconSvg } from "./icons";
+
 export interface HeaderBarProps {
   unlocked: boolean;
   configured?: boolean;
   desktopRunning?: boolean;
+  onScanQr?: () => void;
   onLockVault?: () => void;
 }
 
@@ -56,17 +59,29 @@ export function createHeaderBar(props: HeaderBarProps): HTMLElement {
 
   header.appendChild(brand);
 
-  if (props.unlocked && props.onLockVault) {
+  if (props.unlocked && (props.onLockVault || props.onScanQr)) {
     const actions = document.createElement("div");
     actions.className = "headerActions";
 
-    const lockBtn = document.createElement("button");
-    lockBtn.type = "button";
-    lockBtn.className = "iconBtn";
-    lockBtn.title = "Khóa kho mật khẩu (Lock Vault)";
-    lockBtn.appendChild(createLockIconSvg());
-    lockBtn.addEventListener("click", props.onLockVault);
-    actions.appendChild(lockBtn);
+    if (props.onScanQr) {
+      const qrBtn = document.createElement("button");
+      qrBtn.type = "button";
+      qrBtn.className = "iconBtn";
+      qrBtn.title = "Quét / Crop mã QR 2FA trên trang";
+      qrBtn.appendChild(createQrCodeIconSvg(14));
+      qrBtn.addEventListener("click", props.onScanQr);
+      actions.appendChild(qrBtn);
+    }
+
+    if (props.onLockVault) {
+      const lockBtn = document.createElement("button");
+      lockBtn.type = "button";
+      lockBtn.className = "iconBtn";
+      lockBtn.title = "Khóa kho mật khẩu (Lock Vault)";
+      lockBtn.appendChild(createLockIconSvg());
+      lockBtn.addEventListener("click", props.onLockVault);
+      actions.appendChild(lockBtn);
+    }
 
     header.appendChild(actions);
   }

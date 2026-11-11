@@ -51,6 +51,7 @@ private:
 
   QLabel *m_sectionTitle{nullptr};
   QLabel *m_emptyLabel{nullptr};
+  QWidget *m_addFieldRow{nullptr};
   QPushButton *m_addFieldBtn{nullptr};
 };
 

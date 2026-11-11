@@ -38,12 +38,14 @@ export function createLockView(props: LockViewProps): HTMLElement {
 
     const heading = document.createElement("div");
     heading.className = "stateTitle";
-    heading.style.cssText = "font-size: 16px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.2px;";
+    heading.style.cssText =
+      "font-size: 16px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.2px;";
     heading.textContent = "Ứng dụng Desktop chưa khởi chạy";
 
     const desc = document.createElement("div");
     desc.className = "stateDesc";
-    desc.style.cssText = "max-width: 270px; line-height: 1.55; font-size: 12.5px; color: var(--text-secondary);";
+    desc.style.cssText =
+      "max-width: 270px; line-height: 1.55; font-size: 12.5px; color: var(--text-secondary);";
     desc.textContent =
       "Vui lòng khởi chạy ứng dụng Secure Vault Manager trên máy tính để kết nối và mở khóa kho mật khẩu.";
 
@@ -84,7 +86,8 @@ export function createLockView(props: LockViewProps): HTMLElement {
     });
 
     const hint = document.createElement("div");
-    hint.style.cssText = "font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 2px;";
+    hint.style.cssText =
+      "font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 2px;";
     hint.textContent = "Tiện ích sẽ tự động đồng bộ khi ứng dụng khởi động";
 
     actions.appendChild(refreshBtn);
@@ -114,12 +117,14 @@ export function createLockView(props: LockViewProps): HTMLElement {
 
     const heading = document.createElement("div");
     heading.className = "stateTitle";
-    heading.style.cssText = "font-size: 16px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.2px;";
+    heading.style.cssText =
+      "font-size: 16px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.2px;";
     heading.textContent = "Chưa thiết lập kho mật khẩu";
 
     const desc = document.createElement("div");
     desc.className = "stateDesc";
-    desc.style.cssText = "max-width: 270px; line-height: 1.55; font-size: 12.5px; color: var(--text-secondary);";
+    desc.style.cssText =
+      "max-width: 270px; line-height: 1.55; font-size: 12.5px; color: var(--text-secondary);";
     desc.textContent =
       "Vui lòng hoàn tất tạo Mật khẩu chính trên ứng dụng Secure Vault Manager ở máy tính để bắt đầu sử dụng tiện ích.";
 
@@ -147,7 +152,8 @@ export function createLockView(props: LockViewProps): HTMLElement {
     });
 
     const hint = document.createElement("div");
-    hint.style.cssText = "font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 2px;";
+    hint.style.cssText =
+      "font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 2px;";
     hint.textContent = "Tiện ích sẽ tự động cập nhật ngay sau khi bạn tạo kho xong";
 
     actions.appendChild(refreshBtn);
@@ -176,12 +182,14 @@ export function createLockView(props: LockViewProps): HTMLElement {
 
   const heading = document.createElement("div");
   heading.className = "stateTitle";
-  heading.style.cssText = "font-size: 16px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.2px;";
+  heading.style.cssText =
+    "font-size: 16px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.2px;";
   heading.textContent = "Kho mật khẩu đang khóa";
 
   const desc = document.createElement("div");
   desc.className = "stateDesc";
-  desc.style.cssText = "max-width: 270px; line-height: 1.55; font-size: 12.5px; color: var(--text-secondary);";
+  desc.style.cssText =
+    "max-width: 270px; line-height: 1.55; font-size: 12.5px; color: var(--text-secondary);";
   desc.textContent =
     "Nhập Mật khẩu chính để mở khóa đồng thời cả tiện ích và ứng dụng Secure Vault Manager.";
 
@@ -244,7 +252,8 @@ export function createLockView(props: LockViewProps): HTMLElement {
   const unlockBtn = document.createElement("button");
   unlockBtn.type = "button";
   unlockBtn.className = "primaryBtn";
-  unlockBtn.style.cssText = "height: 38px; font-size: 13px; font-weight: 700; border-radius: 8px; cursor: pointer;";
+  unlockBtn.style.cssText =
+    "height: 38px; font-size: 13px; font-weight: 700; border-radius: 8px; cursor: pointer;";
   unlockBtn.textContent = "Mở khóa";
 
   const handleUnlock = async () => {

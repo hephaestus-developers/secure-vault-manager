@@ -9,6 +9,8 @@
 #pragma once
 
 #include <QLabel>
+#include <QList>
+#include <QMenu>
 #include <QPoint>
 #include <QPushButton>
 #include <QWidget>
@@ -44,9 +46,16 @@ public:
   void retranslateUi();
 
   /**
-   * @brief Ẩn/Hiện nút Cài đặt (chỉ hiển thị khi đã mở khóa).
+   * @brief Ẩn/Hiện các mục chỉ khả dụng sau khi mở khóa (Vault, Item,
+   * Settings).
    */
+  void setUnlockedMenuVisible(bool unlocked);
   void setSettingsVisible(bool visible);
+
+  [[nodiscard]] QMenu *vaultMenu() const { return m_vaultMenu; }
+  [[nodiscard]] QMenu *itemMenu() const { return m_itemMenu; }
+  [[nodiscard]] QMenu *viewMenu() const { return m_viewMenu; }
+  [[nodiscard]] QMenu *helpMenu() const { return m_helpMenu; }
 
 signals:
   void minimizeRequested();
@@ -54,9 +63,9 @@ signals:
   void closeRequested();
   void themeToggleRequested();
   void settingsRequested();
-  void aboutRequested();
 
 protected:
+  bool eventFilter(QObject *obj, QEvent *event) override;
   void changeEvent(QEvent *event) override;
   void paintEvent(QPaintEvent *event) override;
   void resizeEvent(QResizeEvent *event) override;
@@ -66,12 +75,30 @@ protected:
   void mouseDoubleClickEvent(QMouseEvent *event) override;
 
 private:
+  struct MenuEntry {
+    QPushButton *button{nullptr};
+    QMenu *menu{nullptr};
+    const char *titleSource{nullptr};
+  };
+
+  void addMenuEntry(const char *titleSource, QMenu *&outMenu,
+                    QPushButton *&outBtn, QLayout *parentLayout);
   void repositionTitleOverlay();
 
   QLabel *m_logoLabel{nullptr};
+  QWidget *m_menuBarWidget{nullptr};
+  QPushButton *m_vaultMenuBtn{nullptr};
+  QPushButton *m_itemMenuBtn{nullptr};
+  QPushButton *m_viewMenuBtn{nullptr};
+  QPushButton *m_helpMenuBtn{nullptr};
+  QMenu *m_vaultMenu{nullptr};
+  QMenu *m_itemMenu{nullptr};
+  QMenu *m_viewMenu{nullptr};
+  QMenu *m_helpMenu{nullptr};
+  QList<MenuEntry> m_menuEntries;
+
   QPushButton *m_themeToggleBtn{nullptr};
   QPushButton *m_settingsBtn{nullptr};
-  QPushButton *m_aboutBtn{nullptr};
   QLabel *m_titleLabel{nullptr};
   QPushButton *m_minBtn{nullptr};
   QPushButton *m_maxBtn{nullptr};

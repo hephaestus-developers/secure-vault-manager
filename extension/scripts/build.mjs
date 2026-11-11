@@ -79,7 +79,7 @@ function generateSafeLockPng(size) {
     const typeBuf = Buffer.from(type, "ascii");
     const crcInput = Buffer.concat([typeBuf, data]);
     const crc = Buffer.alloc(4);
-    crc.writeUInt32BE( zlib.crc32(crcInput) >>> 0, 0);
+    crc.writeUInt32BE(zlib.crc32(crcInput) >>> 0, 0);
     return Buffer.concat([len, typeBuf, data, crc]);
   }
 
@@ -138,8 +138,7 @@ function bundleEntry(entryRelPath) {
     const rawTs = fs.readFileSync(fileAbs, "utf8");
     const jsCode = stripTypeScriptTypes(rawTs, { mode: "transform" });
 
-    const importRegex =
-      /^\s*import\s+(?:([\w*{}\s,]+)\s+from\s+)?["']([^"']+)["']\s*;?/gm;
+    const importRegex = /^\s*import\s+(?:([\w*{}\s,]+)\s+from\s+)?["']([^"']+)["']\s*;?/gm;
     let match;
     while ((match = importRegex.exec(jsCode)) !== null) {
       const spec = match[2];
@@ -155,7 +154,9 @@ function bundleEntry(entryRelPath) {
       .replace(/^\s*export\s+\{[^}]*\}\s*(?:from\s+["'][^"']+["'])?\s*;?\s*$/gm, "")
       .replace(/\bexport\s+(async\s+function|function|class|const|let|var)\b/g, "$1");
 
-    orderedModules.push(`// --- Module: ${path.relative(REPO_ROOT, fileAbs)} ---\n${cleaned.trim()}`);
+    orderedModules.push(
+      `// --- Module: ${path.relative(REPO_ROOT, fileAbs)} ---\n${cleaned.trim()}`,
+    );
   }
 
   visit(entryAbs);
@@ -174,8 +175,7 @@ const brandMtime = hasBrandSvg ? fs.statSync(BRAND_LOGO_SVG).mtimeMs : 0;
 for (const size of [16, 32, 48, 128]) {
   const iconPath = path.join(PUBLIC_DIR, `icon-${size}.png`);
   const needsUpdate =
-    !fs.existsSync(iconPath) ||
-    (hasBrandSvg && fs.statSync(iconPath).mtimeMs < brandMtime);
+    !fs.existsSync(iconPath) || (hasBrandSvg && fs.statSync(iconPath).mtimeMs < brandMtime);
   if (needsUpdate) {
     let rendered = false;
     if (hasBrandSvg) {
@@ -183,7 +183,7 @@ for (const size of [16, 32, 48, 128]) {
         execFileSync(
           "rsvg-convert",
           ["-w", String(size), "-h", String(size), BRAND_LOGO_SVG, "-o", iconPath],
-          { stdio: "ignore" }
+          { stdio: "ignore" },
         );
         rendered = true;
       } catch {
@@ -218,12 +218,9 @@ fs.copyFileSync(path.join(EXT_ROOT, "popup.html"), path.join(DIST_CHROME, "popup
 fs.copyFileSync(path.join(EXT_ROOT, "src", "global.css"), path.join(DIST_CHROME, "global.css"));
 fs.copyFileSync(
   path.join(EXT_ROOT, "src", "popup", "popup.module.css"),
-  path.join(DIST_CHROME, "popup.css")
+  path.join(DIST_CHROME, "popup.css"),
 );
-fs.copyFileSync(
-  path.join(PUBLIC_DIR, "manifest.json"),
-  path.join(DIST_CHROME, "manifest.json")
-);
+fs.copyFileSync(path.join(PUBLIC_DIR, "manifest.json"), path.join(DIST_CHROME, "manifest.json"));
 if (fs.existsSync(publicLogoSvg)) {
   fs.copyFileSync(publicLogoSvg, path.join(DIST_CHROME, "app_logo.svg"));
 }
@@ -231,7 +228,7 @@ if (fs.existsSync(publicLogoSvg)) {
 for (const size of [16, 32, 48, 128]) {
   fs.copyFileSync(
     path.join(PUBLIC_DIR, `icon-${size}.png`),
-    path.join(DIST_CHROME, `icon-${size}.png`)
+    path.join(DIST_CHROME, `icon-${size}.png`),
   );
 }
 

@@ -37,7 +37,6 @@ export interface VaultProfile {
 export interface VaultItem {
   id: string;
   vaultId: string;
-  folderId?: string | null;
   title: string;
   category: Category;
   username: string;
@@ -48,6 +47,11 @@ export interface VaultItem {
   trashed: boolean;
   hasTotp: boolean;
   totpSecret: string;
+  passkeyCredentialId?: string;
+  passkeyRpId?: string;
+  passkeyAlgorithm?: number;
+  passkeyUserHandle?: string;
+  passkeySignCount?: number;
   cardNumber?: string;
   cardExpiry?: string;
   cardCvv?: string;
@@ -58,14 +62,6 @@ export interface VaultItem {
   updatedAt: number;
 }
 
-export interface Folder {
-  id: string;
-  vaultId: string;
-  parentId?: string | null;
-  name: string;
-  iconName: string;
-}
-
 export interface ItemRevision {
   revision: number;
   timestamp: number;
@@ -74,7 +70,6 @@ export interface ItemRevision {
 
 export interface TrashItem {
   itemId: string;
-  originalFolderId?: string | null;
   trashedAt: number;
 }
 

@@ -236,12 +236,8 @@ public:
                                     const QString &fieldId);
 
   /* ======================================================================= */
-  /* Thư mục, Lịch sử Sửa đổi & Tệp Đính kèm                                  */
+  /* Lịch sử Sửa đổi & Tệp Đính kèm                                          */
   /* ======================================================================= */
-
-  [[nodiscard]] QList<models::UiFolder> listFolders();
-  QString upsertFolder(const models::UiFolder &folder);
-  bool deleteFolder(const QString &folderId);
 
   [[nodiscard]] QList<models::UiItemRevision>
   listHistory(const QString &itemId);

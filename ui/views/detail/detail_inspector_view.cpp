@@ -10,16 +10,14 @@
 #include "app/dev_logger.h"
 #include "app/theme_manager.h"
 #include "app/vault_manager.h"
-#include "components/in_window_combobox.h"
 #include "components/notification_dialog.h"
 #include "core/core_bridge.h"
+#include "revision_history_dialog.h"
 
 #include <QDateTime>
-#include <QDialog>
 #include <QFileDialog>
 #include <QHBoxLayout>
 #include <QLabel>
-#include <QListWidget>
 #include <QPushButton>
 #include <QStandardPaths>
 #include <QUuid>
@@ -161,20 +159,63 @@ void DetailInspectorView::setupUI() {
   m_sshKeyField = new FieldRowWidget(
       tr("Public Key"), FieldRowWidget::FieldType::Multiline, m_primaryCard);
 
+  m_passkeyRpIdField =
+      new FieldRowWidget(tr("Relying Party (RP ID)"),
+                         FieldRowWidget::FieldType::Text, m_primaryCard);
+  m_passkeyRpIdField->setReadOnly(true);
+  m_passkeyCredentialIdField = new FieldRowWidget(
+      tr("Credential ID"), FieldRowWidget::FieldType::Text, m_primaryCard);
+  m_passkeyCredentialIdField->setReadOnly(true);
+  m_passkeyAlgorithmField = new FieldRowWidget(
+      tr("Algorithm"), FieldRowWidget::FieldType::Text, m_primaryCard);
+  m_passkeyAlgorithmField->setReadOnly(true);
+  m_passkeyUserHandleField = new FieldRowWidget(
+      tr("User Handle"), FieldRowWidget::FieldType::Text, m_primaryCard);
+  m_passkeyUserHandleField->setReadOnly(true);
+  m_passkeySignCountField = new FieldRowWidget(
+      tr("Sign Count"), FieldRowWidget::FieldType::Text, m_primaryCard);
+  m_passkeySignCountField->setReadOnly(true);
+
   m_totpWidget = new TotpWidget(m_primaryCard);
 
-  m_allPrimaryFields = {
-      m_usernameField,   m_passwordField,     m_websiteField,
-      m_cardNumberField, m_cardExpiryField,   m_cardCvvField,
-      m_wifiSsidField,   m_wifiSecurityField, m_dbHostField,
-      m_dbPortField,     m_dbNameField,       m_sshFingerprintField,
-      m_sshKeyField};
+  m_allPrimaryFields = {m_usernameField,
+                        m_passwordField,
+                        m_websiteField,
+                        m_cardNumberField,
+                        m_cardExpiryField,
+                        m_cardCvvField,
+                        m_wifiSsidField,
+                        m_wifiSecurityField,
+                        m_dbHostField,
+                        m_dbPortField,
+                        m_dbNameField,
+                        m_sshFingerprintField,
+                        m_sshKeyField,
+                        m_passkeyRpIdField,
+                        m_passkeyCredentialIdField,
+                        m_passkeyAlgorithmField,
+                        m_passkeyUserHandleField,
+                        m_passkeySignCountField};
 
-  m_allPrimaryWidgets = {
-      m_usernameField,       m_passwordField,   m_totpWidget,   m_websiteField,
-      m_cardNumberField,     m_cardExpiryField, m_cardCvvField, m_wifiSsidField,
-      m_wifiSecurityField,   m_dbHostField,     m_dbPortField,  m_dbNameField,
-      m_sshFingerprintField, m_sshKeyField};
+  m_allPrimaryWidgets = {m_usernameField,
+                         m_passwordField,
+                         m_totpWidget,
+                         m_websiteField,
+                         m_cardNumberField,
+                         m_cardExpiryField,
+                         m_cardCvvField,
+                         m_wifiSsidField,
+                         m_wifiSecurityField,
+                         m_dbHostField,
+                         m_dbPortField,
+                         m_dbNameField,
+                         m_sshFingerprintField,
+                         m_sshKeyField,
+                         m_passkeyRpIdField,
+                         m_passkeyCredentialIdField,
+                         m_passkeyAlgorithmField,
+                         m_passkeyUserHandleField,
+                         m_passkeySignCountField};
 
   for (auto *w : m_allPrimaryWidgets) {
     m_primaryLayout->addWidget(w);
@@ -187,22 +228,40 @@ void DetailInspectorView::setupUI() {
     m_primaryLayout->addWidget(div);
   }
 
+  auto wrapPrimaryActionButton = [this](QPushButton *&outBtn, QWidget *&outRow,
+                                        const QString &label) {
+    outRow = new QWidget(m_primaryCard);
+    auto *rowLayout = new QVBoxLayout(outRow);
+    rowLayout->setContentsMargins(12, 6, 12, 4);
+    rowLayout->setSpacing(0);
+
+    outBtn = new QPushButton(outRow);
+    outBtn->setObjectName(QStringLiteral("AddTotpBtn"));
+    outBtn->setIcon(app::ThemeManager::instance().icon(QStringLiteral("plus")));
+    outBtn->setIconSize(QSize(14, 14));
+    outBtn->setText(label);
+    outBtn->setFixedHeight(32);
+    outBtn->setCursor(Qt::PointingHandCursor);
+    rowLayout->addWidget(outBtn);
+
+    outRow->hide();
+    m_primaryLayout->addWidget(outRow);
+  };
+
   // Nút thiết lập 2FA chủ động cho Primary Credentials
-  m_addTotpBtn = new QPushButton(m_primaryCard);
-  m_addTotpBtn->setObjectName(QStringLiteral("AddTotpBtn"));
-  m_addTotpBtn->setIcon(
-      app::ThemeManager::instance().icon(QStringLiteral("plus")));
-  m_addTotpBtn->setIconSize(QSize(14, 14));
-  m_addTotpBtn->setText(tr("Set Up 2FA (One-Time Code)"));
-  m_addTotpBtn->setFixedHeight(32);
-  m_addTotpBtn->setCursor(Qt::PointingHandCursor);
-  m_addTotpBtn->hide();
-  m_primaryLayout->addWidget(m_addTotpBtn);
+  wrapPrimaryActionButton(m_addTotpBtn, m_addTotpRow,
+                          tr("Set Up 2FA (One-Time Code)"));
 
   connect(&app::ThemeManager::instance(), &app::ThemeManager::themeChanged,
           this, [this]() {
-            m_addTotpBtn->setIcon(
-                app::ThemeManager::instance().icon(QStringLiteral("plus")));
+            const QIcon plusIcon =
+                app::ThemeManager::instance().icon(QStringLiteral("plus"));
+            if (m_addTotpBtn) {
+              m_addTotpBtn->setIcon(plusIcon);
+            }
+            if (m_genSshKeyBtn) {
+              m_genSshKeyBtn->setIcon(plusIcon);
+            }
           });
 
   connect(m_addTotpBtn, &QPushButton::clicked, this, [this]() {
@@ -218,15 +277,8 @@ void DetailInspectorView::setupUI() {
     updateVisibilityForCategory(m_currentItem.category);
   });
 
-  m_genSshKeyBtn = new QPushButton(m_primaryCard);
-  m_genSshKeyBtn->setObjectName(QStringLiteral("AddTotpBtn"));
-  m_genSshKeyBtn->setIcon(
-      app::ThemeManager::instance().icon(QStringLiteral("plus")));
-  m_genSshKeyBtn->setIconSize(QSize(14, 14));
-  m_genSshKeyBtn->setText(tr("Generate Ed25519 SSH Keypair"));
-  m_genSshKeyBtn->setFixedHeight(32);
-  m_genSshKeyBtn->setCursor(Qt::PointingHandCursor);
-  m_genSshKeyBtn->hide();
+  wrapPrimaryActionButton(m_genSshKeyBtn, m_genSshKeyRow,
+                          tr("Generate Ed25519 SSH Keypair"));
   connect(m_genSshKeyBtn, &QPushButton::clicked, this, [this]() {
     auto &bridge = core::CoreBridge::instance();
     if (!bridge.isInitialized() || !bridge.isVaultUnlocked()) {
@@ -260,7 +312,6 @@ void DetailInspectorView::setupUI() {
       }
     }
   });
-  m_primaryLayout->addWidget(m_genSshKeyBtn);
 
   contentLayout->addWidget(m_primaryCard);
 
@@ -287,31 +338,7 @@ void DetailInspectorView::setupUI() {
 
   contentLayout->addWidget(m_notesCard);
 
-  // Tầng 6: Folder Assignment Card
-  m_metaCard = new QWidget(m_contentContainer);
-  m_metaCard->setObjectName(QStringLiteral("DetailSectionCard"));
-  m_metaCard->setAttribute(Qt::WA_StyledBackground, true);
-  auto *metaLayout = new QHBoxLayout(m_metaCard);
-  metaLayout->setContentsMargins(14, 10, 14, 10);
-  metaLayout->setSpacing(10);
-
-  m_folderHeader = new QLabel(tr("FOLDER"), m_metaCard);
-  m_folderHeader->setObjectName(QStringLiteral("DetailSectionHeader"));
-  metaLayout->addWidget(m_folderHeader);
-
-  m_folderValueLabel = new QLabel(tr("No Folder"), m_metaCard);
-  m_folderValueLabel->setObjectName(QStringLiteral("DetailUpdatedLabel"));
-  metaLayout->addWidget(m_folderValueLabel, 1);
-
-  auto *folderCombo = new svm::ui::InWindowComboBox(m_metaCard);
-  folderCombo->setFixedHeight(28);
-  folderCombo->setPopupMinWidth(180);
-  m_folderCombo = folderCombo;
-  m_folderCombo->hide();
-  metaLayout->addWidget(m_folderCombo, 1);
-  contentLayout->addWidget(m_metaCard);
-
-  // Tầng 7: Encrypted Attachments Card
+  // Tầng 6: Encrypted Attachments Card
   m_attachmentsCard = new QWidget(m_contentContainer);
   m_attachmentsCard->setObjectName(QStringLiteral("DetailSectionCard"));
   m_attachmentsCard->setAttribute(Qt::WA_StyledBackground, true);
@@ -388,10 +415,14 @@ void DetailInspectorView::refreshPrimaryCard(
     }
   }
 
-  // Đảm bảo m_addTotpBtn luôn ở cuối thẻ
-  if (m_addTotpBtn) {
-    m_primaryLayout->removeWidget(m_addTotpBtn);
-    m_primaryLayout->addWidget(m_addTotpBtn);
+  // Đảm bảo các nút hành động luôn ở cuối thẻ
+  if (m_addTotpRow) {
+    m_primaryLayout->removeWidget(m_addTotpRow);
+    m_primaryLayout->addWidget(m_addTotpRow);
+  }
+  if (m_genSshKeyRow) {
+    m_primaryLayout->removeWidget(m_genSshKeyRow);
+    m_primaryLayout->addWidget(m_genSshKeyRow);
   }
 }
 
@@ -431,11 +462,22 @@ void DetailInspectorView::setItem(const models::UiVaultItem &item) {
   m_wifiSecurityField->setValue(item.wifiSecurity.isEmpty()
                                     ? QStringLiteral("WPA2/WPA3")
                                     : item.wifiSecurity);
+  m_passkeyRpIdField->setValue(item.passkeyRpId);
+  m_passkeyCredentialIdField->setValue(item.passkeyCredentialId);
+  m_passkeyAlgorithmField->setValue(item.passkeyAlgorithm != 0
+                                        ? QString::number(item.passkeyAlgorithm)
+                                        : QString());
+  const QString algDisplay =
+      models::formatPasskeyAlgorithm(item.passkeyAlgorithm);
+  if (!algDisplay.isEmpty()) {
+    m_passkeyAlgorithmField->setDisplayText(algDisplay);
+  }
+  m_passkeyUserHandleField->setValue(item.passkeyUserHandle);
+  m_passkeySignCountField->setValue(QString::number(item.passkeySignCount));
 
   // Custom Fields
   m_customFieldsWidget->setCustomFields(item.customFields);
 
-  refreshFolderOptions();
   refreshAttachments();
 
   updateVisibilityForCategory(item.category);
@@ -497,13 +539,6 @@ void DetailInspectorView::setEditMode(bool editable) {
   m_totpWidget->setEditMode(editable);
   m_notesField->setEditMode(editable);
   m_customFieldsWidget->setEditMode(editable);
-  if (m_folderCombo && m_folderValueLabel) {
-    if (editable) {
-      refreshFolderOptions();
-    }
-    m_folderCombo->setVisible(editable);
-    m_folderValueLabel->setVisible(!editable);
-  }
 
   updateVisibilityForCategory(m_currentItem.category);
 }
@@ -555,11 +590,8 @@ void DetailInspectorView::onSaveRequested() {
                                    ? QStringLiteral("WPA2/WPA3")
                                    : m_wifiSecurityField->value().trimmed();
 
-  // Thu thập custom fields & folder
+  // Thu thập custom fields
   m_currentItem.customFields = m_customFieldsWidget->customFields();
-  if (m_folderCombo && m_folderCombo->currentIndex() >= 0) {
-    m_currentItem.folderId = m_folderCombo->currentData().toString();
-  }
 
   if (!m_currentItem.createdAt.isValid()) {
     m_currentItem.createdAt = QDateTime::currentDateTime();
@@ -608,7 +640,14 @@ void DetailInspectorView::updateVisibilityForCategory(
     m_usernameField->setPlaceholderText(tr("octocat@github"));
     m_websiteField->setLabel(tr("Relying Party / Domain"));
     m_websiteField->setPlaceholderText(tr("https://github.com"));
-    refreshPrimaryCard({m_usernameField, m_websiteField},
+    m_passkeyRpIdField->setLabel(tr("Relying Party (RP ID)"));
+    m_passkeyCredentialIdField->setLabel(tr("Credential ID"));
+    m_passkeyAlgorithmField->setLabel(tr("Algorithm"));
+    m_passkeyUserHandleField->setLabel(tr("User Handle"));
+    m_passkeySignCountField->setLabel(tr("Sign Count"));
+    refreshPrimaryCard({m_usernameField, m_websiteField, m_passkeyRpIdField,
+                        m_passkeyCredentialIdField, m_passkeyAlgorithmField,
+                        m_passkeyUserHandleField, m_passkeySignCountField},
                        tr("Passkey Metadata"));
     m_notesHeader->setText(tr("NOTES"));
     break;
@@ -719,9 +758,11 @@ void DetailInspectorView::updateVisibilityForCategory(
                              category == models::ItemCategory::Database ||
                              category == models::ItemCategory::Server);
   const bool showAddTotp = m_isEditMode && supportsTotp && !m_isTotpActive;
-  m_addTotpBtn->setVisible(showAddTotp);
-  if (m_genSshKeyBtn) {
-    m_genSshKeyBtn->setVisible(m_isEditMode &&
+  if (m_addTotpRow) {
+    m_addTotpRow->setVisible(showAddTotp);
+  }
+  if (m_genSshKeyRow) {
+    m_genSshKeyRow->setVisible(m_isEditMode &&
                                category == models::ItemCategory::SshKey);
   }
 }
@@ -750,9 +791,6 @@ void DetailInspectorView::retranslateUi() {
   if (m_genSshKeyBtn) {
     m_genSshKeyBtn->setText(tr("Generate Ed25519 SSH Keypair"));
   }
-  if (m_folderHeader) {
-    m_folderHeader->setText(tr("FOLDER"));
-  }
   if (m_attachmentsHeader) {
     m_attachmentsHeader->setText(tr("ATTACHMENTS"));
   }
@@ -768,33 +806,6 @@ void DetailInspectorView::retranslateUi() {
     }
   }
   updateVisibilityForCategory(m_currentItem.category);
-}
-
-void DetailInspectorView::refreshFolderOptions() {
-  if (!m_folderCombo || !m_folderValueLabel) {
-    return;
-  }
-  m_folderCombo->blockSignals(true);
-  m_folderCombo->clear();
-  m_folderCombo->addItem(tr("No Folder"), QString());
-
-  QString resolvedName = tr("No Folder");
-  int selectedIdx = 0;
-
-  auto &bridge = core::CoreBridge::instance();
-  if (bridge.isInitialized() && bridge.isVaultUnlocked()) {
-    const auto folders = bridge.listFolders();
-    for (int i = 0; i < folders.size(); ++i) {
-      m_folderCombo->addItem(folders[i].name, folders[i].id);
-      if (folders[i].id == m_currentItem.folderId) {
-        selectedIdx = i + 1;
-        resolvedName = folders[i].name;
-      }
-    }
-  }
-  m_folderCombo->setCurrentIndex(selectedIdx);
-  m_folderValueLabel->setText(resolvedName);
-  m_folderCombo->blockSignals(false);
 }
 
 void DetailInspectorView::refreshAttachments() {
@@ -892,66 +903,24 @@ void DetailInspectorView::onAddAttachmentClicked() {
   }
 }
 
+void DetailInspectorView::showRevisionHistory() { onHistoryRequested(); }
+
 void DetailInspectorView::onHistoryRequested() {
   if (m_currentItem.id.isEmpty()) {
     return;
   }
   auto &bridge = core::CoreBridge::instance();
   const auto revisions = bridge.listHistory(m_currentItem.id);
-  QDialog dlg(this);
-  dlg.setWindowTitle(tr("Revision History"));
-  dlg.resize(460, 340);
-  auto *vl = new QVBoxLayout(&dlg);
-  vl->setContentsMargins(16, 16, 16, 16);
-  vl->setSpacing(10);
-
-  auto *info =
-      new QLabel(revisions.isEmpty()
-                     ? tr("No revision snapshots recorded for this item yet.")
-                     : tr("Select a previous revision snapshot to restore:"),
-                 &dlg);
-  vl->addWidget(info);
-
-  auto *list = new QListWidget(&dlg);
-  for (int i = revisions.size() - 1; i >= 0; --i) {
-    const auto &rev = revisions[i];
-    const QDateTime dt = QDateTime::fromMSecsSinceEpoch(rev.timestamp);
-    const QString label =
-        tr("Revision #%1 - %2 (%3)")
-            .arg(rev.revision)
-            .arg(dt.toString(QStringLiteral("yyyy-MM-dd HH:mm:ss")),
-                 rev.snapshot.title);
-    auto *li = new QListWidgetItem(label, list);
-    li->setData(Qt::UserRole, rev.revision);
+  const int revNum = RevisionHistoryDialog::chooseRevision(this, revisions);
+  if (revNum <= 0) {
+    return;
   }
-  vl->addWidget(list, 1);
-
-  auto *btnRow = new QHBoxLayout();
-  btnRow->addStretch(1);
-  auto *closeBtn = new QPushButton(tr("Close"), &dlg);
-  connect(closeBtn, &QPushButton::clicked, &dlg, &QDialog::reject);
-  btnRow->addWidget(closeBtn);
-
-  auto *restoreBtn = new QPushButton(tr("Restore Selected"), &dlg);
-  restoreBtn->setEnabled(!revisions.isEmpty());
-  connect(restoreBtn, &QPushButton::clicked, &dlg, [this, &dlg, list]() {
-    auto *cur = list->currentItem();
-    if (!cur) {
-      return;
+  if (bridge.restoreHistory(m_currentItem.id, revNum)) {
+    if (const auto updated = bridge.getItem(m_currentItem.id)) {
+      setItem(*updated);
     }
-    const int revNum = cur->data(Qt::UserRole).toInt();
-    if (core::CoreBridge::instance().restoreHistory(m_currentItem.id, revNum)) {
-      if (const auto updated =
-              core::CoreBridge::instance().getItem(m_currentItem.id)) {
-        setItem(*updated);
-      }
-      emit historyRestored(m_currentItem.id);
-      dlg.accept();
-    }
-  });
-  btnRow->addWidget(restoreBtn);
-  vl->addLayout(btnRow);
-  dlg.exec();
+    emit historyRestored(m_currentItem.id);
+  }
 }
 
 void DetailInspectorView::changeEvent(QEvent *event) {

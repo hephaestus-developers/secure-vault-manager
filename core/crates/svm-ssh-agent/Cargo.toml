@@ -6,6 +6,6 @@ authors.workspace = true
 license.workspace = true
 
 [dependencies]
-ring = "0.17"
+ring = "0.17.14"
 svm-domain = { path = "../svm-domain" }
 svm-crypto = { path = "../svm-crypto" }
