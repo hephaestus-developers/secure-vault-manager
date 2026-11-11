@@ -1,63 +1,134 @@
+<div align="center">
+
+<img src="ui/resources/icons/brand/app_logo.svg" alt="Secure Vault Manager Logo" width="112" height="112" />
+
 # Secure Vault Manager (SVM)
 
-**Secure Vault Manager (SVM)** là hệ sinh thái quản lý mật khẩu, định danh số, khóa xác thực **Passkey (FIDO2/WebAuthn)** và **OpenSSH Agent** cục bộ theo triết lý **Local-First, Zero-Knowledge**.
+**Local-First, Offline-First Password Manager · Passkey (FIDO2/WebAuthn) · TOTP 2FA · OpenSSH Agent**
 
-Hệ thống được thiết kế tối ưu cho hiệu năng máy trạm và an toàn bộ nhớ mức phần cứng:
+<p>
+  <img src="https://img.shields.io/badge/Rust-14_Crates-000000?style=for-the-badge&logo=rust&logoColor=white" alt="Rust" />
+  <img src="https://img.shields.io/badge/C%2B%2B-17-00599C?style=for-the-badge&logo=cplusplus&logoColor=white" alt="C++17" />
+  <img src="https://img.shields.io/badge/Qt-6_Widgets-41CD52?style=for-the-badge&logo=qt&logoColor=white" alt="Qt6" />
+  <img src="https://img.shields.io/badge/TypeScript-MV3_Extension-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/CMake-Ninja-064F8C?style=for-the-badge&logo=cmake&logoColor=white" alt="CMake" />
+</p>
 
-- **Lõi mật mã & Dịch vụ nền (`core/`):** Viết hoàn toàn bằng **Rust** (15 crates chuyên biệt), biên dịch thành thư viện chia sẻ chuẩn C-ABI (`libsvm_core.so` / `.dylib` / `.dll`) kèm binary relay `svm-native-host` và công cụ dòng lệnh `svm-cli`.
-- **Giao diện người dùng máy trạm (`ui/`):** Viết bằng **C++17 & Qt6 Widgets Native**, khởi động tức thời (`< 150ms`), tiêu thụ cực ít tài nguyên (`< 40MB RAM` ở chế độ khay hệ thống).
-- **Tiện ích mở rộng trình duyệt (`extension/`):** Hỗ trợ Chromium (Chrome, Brave, Edge) và Firefox theo chuẩn **Manifest V3**, giao tiếp qua kênh **Native Messaging Host** được mã hóa đầu cuối bằng `X25519 + HKDF-SHA256 + AES-256-GCM`.
+<p>
+  <img src="https://img.shields.io/badge/Crypto-ChaCha20--Poly1305-1E1E2E?style=flat-square" alt="ChaCha20-Poly1305" />
+  <img src="https://img.shields.io/badge/Passkey-WebAuthn_ES256-1E66F5?style=flat-square" alt="WebAuthn ES256" />
+  <img src="https://img.shields.io/badge/SSH_Agent-Ed25519-45475A?style=flat-square" alt="OpenSSH Agent" />
+  <img src="https://img.shields.io/badge/Platform-Linux_%7C_Windows_%7C_macOS-313244?style=flat-square" alt="Platforms" />
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-40A02B?style=flat-square" alt="MIT License" /></a>
+</p>
+
+</div>
+
+---
+
+**Secure Vault Manager (SVM)** là hệ sinh thái quản lý mật khẩu, định danh số, mã xác thực 2FA (TOTP), khóa xác thực **Passkey (FIDO2/WebAuthn)** và **OpenSSH Agent** hoạt động cục bộ theo triết lý **Local-First, Offline-First**.
+
+Dự án được xây dựng theo kiến trúc phân lớp bản địa (Native) tối ưu cho hiệu năng máy trạm và an toàn bộ nhớ:
+
+- **Lõi mật mã & Dịch vụ nền (`core/`):** Viết bằng **Rust** (Cargo Workspace **14 crates**), biên dịch thành thư viện động chuẩn C-ABI (`libsvm_core.so` / `libsvm_core.dylib` / `svm_core.dll`) kèm binary relay `svm-native-host` và công cụ CLI `svm-cli`.
+- **Ứng dụng Desktop Native (`ui/`):** Viết bằng **C++17 & Qt6 Widgets** (`svm`), tích hợp giao diện không viền (`UnifiedHeaderBar`) với Inline Menubar (`Vault`, `Item`, `View`, `Help`), Context Menu chuột phải không đổi focus, hai chủ đề **Catppuccin Mocha / Latte** và song ngữ **EN / VI**.
+- **Tiện ích mở rộng trình duyệt (`extension/`):** WebExtension **Manifest V3** bằng TypeScript cho Chrome/Chromium, Brave, Edge và Mozilla Firefox, kết nối với Desktop App qua **Native Messaging Host** (`io.hephaestus.secure_vault_manager`).
 
 ---
 
 ## Tính Năng Cốt Lõi
 
-1. **Quản Lý Đa Kho & 9 Danh Mục Dữ Liệu Chuyên Biệt:** Hỗ trợ đa kho lưu trữ độc lập (`Multi-Vault`) với 9 danh mục: `Login` (tích hợp Mật khẩu và mã TOTP 2FA), `Passkey` (khóa xác thực FIDO2/WebAuthn), `SshKey` (khóa SSH), `Card`, `SecureNote`, `Identity`, `Wifi`, `Database`, `Server`, cùng khả năng mở rộng Trường Tùy Biến (Custom Fields) không giới hạn trên toàn bộ các danh mục.
-2. **Mật Mã Học & Bảo Vệ Bộ Nhớ Đa Tầng:**
-   - Dẫn xuất khóa `Argon2id` (`m=64MiB, t=3, p=4`) kết hợp mô hình **Envelope Encryption** (`Master Password -> KEK -> DEK`) với thuật toán AEAD `ChaCha20-Poly1305`.
-   - Khóa trang bộ nhớ vật lý (`mlock` / `VirtualLock`), tự động xóa sạch dữ liệu nhạy cảm (`ZeroizeOnDrop`), và vô hiệu hóa core dump toàn tiến trình (`PR_SET_DUMPABLE = 0`).
-3. **Trình Xác Thực Passkey (FIDO2 / WebAuthn Authenticator):** Tích hợp bộ xử lý khóa ảo hỗ trợ `ES256 (P-256)` và `EdDSA (Ed25519)`, xác thực nghiêm ngặt `rpId` qua Public Suffix List (PSL) và phê duyệt trực tiếp trên giao diện Desktop.
-4. **OpenSSH Agent Tích Hợp:** Cung cấp socket tương thích chuẩn `SSH_AUTH_SOCK`, nạp khóa trong RAM được bảo vệ và hiển thị hộp thoại phê duyệt (`SshApprovalDialog`) kèm thông tin tiến trình gọi (`PID`, đường dẫn binary).
-5. **Tệp Đính Kèm Mã Hóa Streaming & Lịch Sử Phiên Bản:** Mã hóa tệp đính kèm lên tới `50MB` theo từng phân đoạn `64KiB` (`STREAM AEAD`) và lưu trữ tối đa 20 bản ghi lịch sử sửa đổi cho mỗi mục.
+1. **Quản Lý Đa Kho & 9 Danh Mục Chuyên Biệt:**
+   - Hỗ trợ tạo, tùy chỉnh và chuyển đổi nhiều Vault (`VaultProfile`), di chuyển bản ghi nhanh giữa các Vault (**Move to Vault**).
+   - 9 danh mục dữ liệu: `Login` (kèm TOTP 2FA), `Passkey`, `Card`, `Identity`, `SecureNote`, `SshKey`, `Database`, `Server`, `Wifi` và hệ thống **Trường Tùy Biến (Custom Fields)** với 4 kiểu (`text`, `concealed`, `boolean`, `date`).
+2. **Mật Mã Học & Bảo Vệ Bộ Nhớ:**
+   - Dẫn xuất khóa `PBKDF2-HMAC-SHA256` (`100,000` vòng lặp) kết hợp mô hình **Dual-Wrapped Envelope** (`Master Password` và `Recovery Key` bọc độc lập khóa `DEK` 256-bit bằng `ChaCha20-Poly1305` trong header `SVM1` 169 byte).
+   - Bảo vệ khóa `DEK` đang hoạt động bằng `mlock` / `VirtualLock`, zeroize khi thu hồi, vô hiệu hóa core dump (`prctl(PR_SET_DUMPABLE, 0)` / `ptrace`), tự động khóa khi nhàn rỗi/ngủ và tự động xóa clipboard nhạy cảm.
+   - Hỗ trợ mở khóa sinh trắc học qua OS Keyring kèm tệp đồng hành `biometric.env` (`SVMB`).
+3. **Passkey (FIDO2 / WebAuthn Authenticator):**
+   - Triển khai Virtual Software Authenticator hỗ trợ **ES256 (ECDSA P-256 / SHA-256, COSE `-7`)** tại `svm-webauthn`, lưu trữ đầy đủ siêu dữ liệu (`rpId`, `credentialId`, `algorithm`, `userHandle`, `signCount`).
+   - Can thiệp `navigator.credentials.create()` / `get()` qua MAIN world + modal xác nhận cô lập trong closed Shadow DOM, hỗ trợ mở khóa inline và fallback tự động về WebAuthn gốc của hệ điều hành.
+4. **TOTP 2FA & Quét Mã QR Từ Màn Hình:**
+   - Sinh mã OTP chuẩn RFC 6238; hỗ trợ kéo chọn vùng màn hình chứa mã QR trên trình duyệt (`crop-overlay.ts`), giải mã qua `BarcodeDetector` hoặc lõi Rust `rqrr` (`decode_qr` -> `update_totp`).
+5. **OpenSSH Agent Tích Hợp (Unix):**
+   - Cung cấp OpenSSH Agent Server (`svm-ssh-agent`) qua Unix Domain Socket (`$XDG_RUNTIME_DIR/svm/ssh-agent.sock`), hỗ trợ sinh và ký khóa `ssh-ed25519` từ RAM kèm hộp thoại phê duyệt ký số (`NotificationDialog`).
+6. **Tệp Đính Kèm Mã Hóa, Lịch Sử Sửa Đổi & Chuyển Đổi Dữ Liệu:**
+   - Tệp đính kèm mã hóa streaming theo từng chunk **64 KiB** (`SVMA` tại `attachments/*.bin`).
+   - Tự động lưu tới **20 bản snapshot lịch sử** (`ItemRevision`) cho mỗi bản ghi và xem trước/khôi phục qua `RevisionHistoryDialog`.
+   - Hỗ trợ Import/Export tương thích `.svm`, Bitwarden JSON, 1Password `.1pux`, KeePass XML và CSV trình duyệt.
 
 ---
 
-## Danh Mục Tài Liệu Thiết Kế Kỹ Thuật (`docs/`)
+## Bắt Đầu Nhanh (Quick Start)
 
-Toàn bộ đặc tả nghiệp vụ, kiến trúc phần mềm, giao thức nhị phân và mô hình bảo mật của dự án được quy định chi tiết trong thư mục [`docs/`](./docs):
+### Yêu Cầu Môi Trường
 
-| STT | Tài Liệu | Nội Dung Trọng Tâm |
-| :--- | :--- | :--- |
-| **01** | [01. BRD - Business Requirements Document.md](docs/01.%20BRD%20-%20Business%20Requirements%20Document.md) | Yêu cầu nghiệp vụ, mục tiêu chiến lược, phạm vi dự án và các chỉ số hiệu năng phi chức năng. |
-| **02** | [02. SRS - System Requirements Specification.md](docs/02.%20SRS%20-%20System%20Requirements%20Specification.md) | Đặc tả yêu cầu chức năng chi tiết (FR) và yêu cầu phi chức năng (NFR) của toàn hệ thống. |
-| **03** | [03. SAD - Software Architecture Document.md](docs/03.%20SAD%20-%20Software%20Architecture%20Document.md) | Kiến trúc phân lớp, thiết kế 15 Rust crates, cơ chế Prompt Broker hai chiều và kiến trúc MVC Qt6. |
-| **04** | [04. FFI Contract.md](docs/04.%20FFI%20Contract.md) | Hợp đồng giao tiếp C-ABI (`svm_core.h`), quy tắc sở hữu bộ nhớ, an toàn đa luồng và chống Panic. |
-| **05** | [05. Vault File Format.md](docs/05.%20Vault%20File%20Format.md) | Đặc tả cấu trúc nhị phân tệp `vault.svm` (Header 112 bytes, AAD), `biometric.env` và `attachments/*.blob`. |
-| **06** | [06. Extension Bridge Protocol.md](docs/06.%20Extension%20Bridge%20Protocol.md) | Giao thức Native Messaging, IPC Framing, bắt cặp X25519 + Pairing Code 6 số và các Action JSON. |
-| **07** | [07. Passkey Implementation.md](docs/07.%20Passkey%20Implementation.md) | Luồng can thiệp trình duyệt (`create`/`get`), xác thực `rpId` qua PSL và mã hóa phong bì hai lớp. |
-| **08** | [08. SSH Agent Protocol.md](docs/08.%20SSH%20Agent%20Protocol.md) | Giao thức nhị phân OpenSSH Agent, cơ chế kiểm tra `SO_PEERCRED` và quy trình phê duyệt ký số. |
-| **09** | [09. Threat Model.md](docs/09.%20Threat%20Model.md) | Phân tích rủi ro theo mô hình STRIDE, các ranh giới tin cậy (Trust Boundaries) và giới hạn bảo mật. |
-| **10** | [10. Domain Data Schemas.md](docs/10.%20Domain%20Data%20Schemas.md) | Đặc tả JSON Schema cho `VaultItem`, Trường tùy biến (Custom Fields), 9 danh mục chuyên biệt, `ItemFilter`, `Prompt` và `AppSettings`. |
+- **Rust:** Toolchain `cargo` / `rustc` (Edition 2021) + `rustfmt`, `clippy` (tùy chọn `cargo-deny`).
+- **C++ & Qt6:** Trình biên dịch C++17 (`g++`/`clang++`), `cmake` (>= 3.20), `ninja`, và Qt6 (`Core`, `Gui`, `Network`, `Widgets`), `clang-format`.
+- **Extension:** Node.js (hỗ trợ `stripTypeScriptTypes`) và `pnpm` (tùy chọn `rsvg-convert` để render icon PNG từ SVG).
+
+### Biên Dịch, Khởi Chạy & Kiểm Định
+
+```bash
+# 1. Biên dịch toàn bộ Rust Core + Desktop Qt6 UI (Debug hoặc --release)
+./scripts/build.sh
+./scripts/build.sh --release
+
+# 2. Khởi chạy ứng dụng Desktop, Native Host hoặc CLI
+./scripts/run.sh --app
+./scripts/run.sh --cli -- --help
+
+# 3. Biên dịch Browser Extension (Chrome & Firefox -> extension/dist/{chrome,firefox})
+./scripts/build-extension.sh
+
+# 4. Chạy toàn bộ kiểm thử (Cargo Workspace tests, Doc tests, Python FFI smoke test, CTest)
+./scripts/test.sh
+
+# 5. Kiểm tra chất lượng mã & định dạng (Clippy, Rustdoc, cargo-deny, oxlint, rustfmt, clang-format, prettier)
+./scripts/lint.sh
+./scripts/format.sh --check
+```
 
 ---
 
-## Cấu Trúc Dự Án (Project Layout)
-
-Dự án được tổ chức theo mô hình Monorepo chuẩn hóa với các phân hệ độc lập:
+## Cấu Trúc Dự Án (Repository Layout)
 
 ```text
 secure-vault-manager/
-├── CMakeLists.txt                         # Root build script tích hợp core và ui
-├── CMakePresets.json                      # Cấu hình preset Ninja/Clang/GCC/MSVC
-├── docs/                                  # 10 tài liệu đặc tả kiến trúc & kỹ thuật chi tiết
-├── core/                                  # Rust Core workspace (15 crates, C-ABI shared library)
-├── ui/                                    # Ứng dụng Desktop Qt6 Widgets (C++17 MVC architecture)
-├── extension/                             # Tiện ích mở rộng trình duyệt WebExtension Manifest V3
-├── shared-ts/                             # Gói TypeScript dùng chung giữa extension & frontend
-├── packaging/                             # Bộ script đóng gói phân phối Linux, macOS, Windows
-├── scripts/                               # Tiện ích phát triển: build, test, format, lint, WASM
-├── .agents/skills/                        # Bộ kỹ năng hướng dẫn phát triển agentic coding
-└── .github/workflows/                     # CI/CD tự động hóa kiểm thử và phát hành
+├── CMakeLists.txt           # Root CMake tích hợp core/ và ui/
+├── CMakePresets.json        # Cấu hình preset Debug / Release / CI
+├── STYLE_GUIDELINE.md       # Quy chuẩn giao diện UI/UX (Catppuccin Mocha/Latte & QSS)
+├── LICENSE                  # Giấy phép MIT
+├── core/                    # Rust Core Workspace (14 crates -> libsvm_core, svm-native-host, svm-cli)
+├── ui/                      # Ứng dụng Desktop Qt6 Widgets C++17 (binary: svm)
+├── extension/               # Browser Extension Manifest V3 (TypeScript, build.mjs, oxlint, prettier)
+├── packaging/               # Bộ đóng gói phân phối cho Linux (.deb/.rpm/AppImage), macOS (.dmg/.pkg), Windows (.iss/.wxs)
+├── scripts/                 # Script phát triển: build, run, test, lint, format, clean, gen-header, build-extension
+└── docs/                    # Bộ 11 tài liệu đặc tả kiến trúc & giao thức kỹ thuật
 ```
 
-> Chi tiết toàn bộ cây thư mục tệp tin (scaffold layout) và vai trò của từng thành phần mã nguồn được đặc tả chi tiết tại [03. SAD - Software Architecture Document.md](docs/03.%20SAD%20-%20Software%20Architecture%20Document.md#3-cấu-trúc-thư-mục--phân-hệ-toàn-dự-án-repository-scaffold-architecture).
+---
+
+## Danh Mục Tài Liệu Kỹ Thuật (`docs/` & `STYLE_GUIDELINE.md`)
+
+| Tài Liệu | Nội Dung Trọng Tâm |
+| :--- | :--- |
+| [STYLE_GUIDELINE.md](STYLE_GUIDELINE.md) | Hệ phân cấp bề mặt, bảng màu Catppuccin Mocha/Latte, CTA nghịch đảo và quy chuẩn thành phần Qt6/QSS. |
+| [01. BRD - Business Requirements Document.md](docs/01.%20BRD%20-%20Business%20Requirements%20Document.md) | Bối cảnh, mục tiêu chiến lược, phạm vi dự án và yêu cầu nghiệp vụ chi tiết. |
+| [02. SRS - System Requirements Specification.md](docs/02.%20SRS%20-%20System%20Requirements%20Specification.md) | Đặc tả yêu cầu chức năng (FR) và phi chức năng (NFR) của Desktop, Core và Extension. |
+| [03. SAD - Software Architecture Document.md](docs/03.%20SAD%20-%20Software%20Architecture%20Document.md) | Kiến trúc phân lớp, danh mục 14 crates, cây thư mục thực tế, Prompt/IPC và mô hình luồng. |
+| [04. FFI Contract.md](docs/04.%20FFI%20Contract.md) | Đặc tả 67 hàm C-ABI (`svm_core.h`), quy tắc sở hữu bộ nhớ, `svm_free_secret` và `catch_unwind`. |
+| [05. Vault File Format.md](docs/05.%20Vault%20File%20Format.md) | Đặc tả tệp `vault.svm` (Header `SVM1` 169B), `biometric.env` (`SVMB` 64B) và chunk đính kèm `SVMA`. |
+| [06. Extension Bridge Protocol.md](docs/06.%20Extension%20Bridge%20Protocol.md) | Giao thức Native Messaging / IPC framing (4B LE + JSON) và chi tiết 15+ action JSON. |
+| [07. Passkey Implementation.md](docs/07.%20Passkey%20Implementation.md) | Kiến trúc can thiệp WebAuthn, quy trình `passkey_create`/`get` ES256 và Shadow DOM consent modal. |
+| [08. SSH Agent Protocol.md](docs/08.%20SSH%20Agent%20Protocol.md) | Giao thức OpenSSH Agent qua Unix Domain Socket, khóa `ssh-ed25519` và phê duyệt ký số. |
+| [09. Threat Model.md](docs/09.%20Threat%20Model.md) | Phân tích rủi ro STRIDE, ranh giới tin cậy và các giới hạn bảo mật hiện tại. |
+| [10. Domain Data Schemas.md](docs/10.%20Domain%20Data%20Schemas.md) | Schema JSON cho `VaultProfile`, `VaultItem` phẳng 32 trường, `CustomField`, 9 danh mục và cấu hình. |
+| [11. External Extensions Installation Specification.md](docs/11.%20External%20Extensions%20Installation%20Specification.md) | Đặc tả cài đặt Native Messaging Host (`io.hephaestus.secure_vault_manager`) và lộ trình External Extensions. |
+
+---
+
+## Giấy Phép (License)
+
+Phát hành theo giấy phép **MIT** — xem chi tiết tại [LICENSE](LICENSE).  
+Copyright (c) 2026 **Hephaestus Developers**.
