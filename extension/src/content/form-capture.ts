@@ -164,13 +164,13 @@ function hasVisibleLoginError(): boolean {
     /invalid[-_ ]?(credentials|password|username)|sai[-_ ]?mật[-_ ]?khẩu|tài[-_ ]?khoản[-_ ]?không[-_ ]?đúng|incorrect password|authentication failed|đăng[-_ ]?nhập[-_ ]?thất[-_ ]?bại/i;
 
   const errorElements = Array.from(
-    document.querySelectorAll(
+    document.querySelectorAll<HTMLElement>(
       "[role='alert'], .error, .alert-danger, .error-message, .text-danger, .error-text",
     ),
   );
 
   for (const el of errorElements) {
-    if (el.offsetParent !== null) {
+    if (el instanceof HTMLElement && el.offsetParent !== null) {
       const text = el.textContent || "";
       if (errorPatterns.test(text)) {
         return true;
