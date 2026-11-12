@@ -3,7 +3,12 @@
  * @brief Điểm nhập Background Service Worker (Manifest V3) điều phối Autofill, TOTP và Passkey.
  */
 
-import { BridgeRequest, createBridgeRequest, detectCurrentBrowserName, getChromeApi } from "../services/protocol";
+import {
+  BridgeRequest,
+  createBridgeRequest,
+  detectCurrentBrowserName,
+  getChromeApi,
+} from "../services/protocol";
 import { PasskeyRouter } from "./passkey_router";
 import { clearCropSession, handleQrCropSelected, handleStartQrCrop } from "./qr_crop_handler";
 import { BridgeTransport } from "./transport";
@@ -37,18 +42,20 @@ let latestGlobalPendingLogin: PendingLoginEntry | null = null;
 
 // Theo dõi điều hướng Tab để nhắc lưu mật khẩu khi tải trang mới
 if (chromeApi?.tabs?.onUpdated) {
-  chromeApi.tabs.onUpdated.addListener((tabId: number, changeInfo: { status?: string; url?: string }) => {
-    if (changeInfo.status === "complete") {
-      const entry = pendingLogins.get(tabId) || latestGlobalPendingLogin;
-      if (entry && Date.now() - entry.timestamp < 60000) {
-        chromeApi.tabs.sendMessage(tabId, { type: "SVM_CHECK_PENDING_LOGIN" }, () => {
-          if (chromeApi.runtime.lastError) {
-            // Tab chưa sẵn sàng nhận message
-          }
-        });
+  chromeApi.tabs.onUpdated.addListener(
+    (tabId: number, changeInfo: { status?: string; url?: string }) => {
+      if (changeInfo.status === "complete") {
+        const entry = pendingLogins.get(tabId) || latestGlobalPendingLogin;
+        if (entry && Date.now() - entry.timestamp < 60000) {
+          chromeApi.tabs.sendMessage(tabId, { type: "SVM_CHECK_PENDING_LOGIN" }, () => {
+            if (chromeApi.runtime.lastError) {
+              // Tab chưa sẵn sàng nhận message
+            }
+          });
+        }
       }
-    }
-  });
+    },
+  );
 }
 
 if (chromeApi?.runtime?.onMessage) {

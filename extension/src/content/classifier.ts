@@ -135,15 +135,17 @@ export function isSubmitElement(el: Element | null): boolean {
  * Tìm kiếm nút submit khả dĩ nhất trên biểu mẫu hoặc tài liệu.
  */
 export function findProbableSubmitButton(root: Document | Element = document): HTMLElement | null {
-  const explicitSubmit = root.querySelector<HTMLElement>('button[type="submit"], input[type="submit"]');
+  const explicitSubmit = root.querySelector<HTMLElement>(
+    'button[type="submit"], input[type="submit"]',
+  );
   if (explicitSubmit && explicitSubmit.offsetParent !== null) {
     return explicitSubmit;
   }
 
   const candidates = Array.from(
     root.querySelectorAll<HTMLElement>(
-      "button, [role='button'], input[type='button'], a.btn, a[role='button']"
-    )
+      "button, [role='button'], input[type='button'], a.btn, a[role='button']",
+    ),
   );
   for (const el of candidates) {
     if (el.offsetParent !== null && isSubmitElement(el)) {

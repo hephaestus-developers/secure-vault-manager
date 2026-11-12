@@ -32,6 +32,13 @@ let memoryPendingLogin: PendingLoginData | null = null;
 let lastTypedUsername = "";
 let lastTypedPassword = "";
 
+// Cờ khóa chống hiển thị Save Prompt trùng lặp gây nháy màn hình
+let isPromptProcessing = false;
+let lastPromptTimestamp = 0;
+let activeSpaObserver: MutationObserver | null = null;
+let activeSpaTimer: ReturnType<typeof setTimeout> | null = null;
+let activeFallbackTimer: ReturnType<typeof setTimeout> | null = null;
+
 /**
  * Lưu dữ liệu đăng nhập tạm thời vào Background Service Worker, chrome.storage.session và sessionStorage.
  */
@@ -40,7 +47,10 @@ async function storePendingLogin(data: PendingLoginData): Promise<void> {
 
   // 1. Gửi đồng bộ sang Background Service Worker (nơi không bao giờ bị hủy khi chuyển trang)
   try {
-    await sendExtensionBridgeMessage("record_pending_login", data as unknown as Record<string, unknown>);
+    await sendExtensionBridgeMessage(
+      "record_pending_login",
+      data as unknown as Record<string, unknown>,
+    );
   } catch {
     // Bỏ qua
   }
@@ -154,7 +164,9 @@ function hasVisibleLoginError(): boolean {
     /invalid[-_ ]?(credentials|password|username)|sai[-_ ]?mật[-_ ]?khẩu|tài[-_ ]?khoản[-_ ]?không[-_ ]?đúng|incorrect password|authentication failed|đăng[-_ ]?nhập[-_ ]?thất[-_ ]?bại/i;
 
   const errorElements = Array.from(
-    document.querySelectorAll("[role='alert'], .error, .alert-danger, .error-message, .text-danger, .error-text")
+    document.querySelectorAll(
+      "[role='alert'], .error, .alert-danger, .error-message, .text-danger, .error-text",
+    ),
   );
 
   for (const el of errorElements) {
@@ -200,7 +212,9 @@ function extractCurrentCredentials(searchRoot: Document | Element = document): {
 
   // Dự phòng cuối cho username: ô text đứng trước ô password
   if (!username) {
-    const textInputs = Array.from(searchRoot.querySelectorAll<HTMLInputElement>("input[type='text'], input[type='email']"));
+    const textInputs = Array.from(
+      searchRoot.querySelectorAll<HTMLInputElement>("input[type='text'], input[type='email']"),
+    );
     for (const ti of textInputs) {
       if (ti.value?.trim()) {
         username = ti.value.trim();
@@ -239,13 +253,28 @@ async function recordPotentialLoginAttempt(targetElement?: Element | null): Prom
 
   await storePendingLogin(pending);
 
+  // Hủy các quan sát/hẹn giờ cũ nếu có trước khi tạo mới
+  if (activeSpaObserver) {
+    activeSpaObserver.disconnect();
+    activeSpaObserver = null;
+  }
+  if (activeSpaTimer) {
+    clearTimeout(activeSpaTimer);
+    activeSpaTimer = null;
+  }
+  if (activeFallbackTimer) {
+    clearTimeout(activeFallbackTimer);
+    activeFallbackTimer = null;
+  }
+
   // Quan sát DOM hiện tại nếu form đăng nhập bị biến mất (SPA)
   if (passwordInput) {
     observeSpaFormRemoval(passwordInput, pending);
   }
 
   // Đặt thêm hẹn giờ dự phòng: nếu sau 1.5 giây URL thay đổi hoặc form đã submit mà không có lỗi
-  setTimeout(() => {
+  activeFallbackTimer = setTimeout(() => {
+    activeFallbackTimer = null;
     if (window.location.href !== pending.submittedUrl || !document.contains(passwordInput)) {
       void verifyAndPrompt(pending);
     }
@@ -256,25 +285,32 @@ async function recordPotentialLoginAttempt(targetElement?: Element | null): Prom
  * Theo dõi nếu trường password bị xóa khỏi DOM (dấu hiệu SPA đăng nhập thành công).
  */
 function observeSpaFormRemoval(pwdInput: HTMLInputElement, pending: PendingLoginData): void {
-  let timer: any = null;
-
   const observer = new MutationObserver(() => {
     const isDetached = !document.body.contains(pwdInput);
     const isHidden = pwdInput.offsetParent === null;
 
     if (isDetached || isHidden) {
       observer.disconnect();
-      clearTimeout(timer);
-      setTimeout(() => {
+      activeSpaObserver = null;
+      if (activeSpaTimer) {
+        clearTimeout(activeSpaTimer);
+      }
+      activeSpaTimer = setTimeout(() => {
+        activeSpaTimer = null;
         void verifyAndPrompt(pending);
-      }, 500);
+      }, 350);
     }
   });
 
+  activeSpaObserver = observer;
   observer.observe(document.body, { childList: true, subtree: true, attributes: true });
 
-  timer = setTimeout(() => {
+  activeSpaTimer = setTimeout(() => {
     observer.disconnect();
+    if (activeSpaObserver === observer) {
+      activeSpaObserver = null;
+    }
+    activeSpaTimer = null;
   }, 10000);
 }
 
@@ -282,42 +318,65 @@ function observeSpaFormRemoval(pwdInput: HTMLInputElement, pending: PendingLogin
  * Xác minh và hiển thị Save Prompt nếu thông tin hợp lệ và chưa tồn tại trong Vault.
  */
 async function verifyAndPrompt(pending: PendingLoginData): Promise<void> {
-  // Kiểm tra lỗi hiển thị trên trang
-  if (hasVisibleLoginError()) {
-    await clearPendingLogin();
+  // Chống kích hoạt trùng lặp làm nhấp nháy giao diện
+  if (isPromptProcessing || Date.now() - lastPromptTimestamp < 3500) {
+    return;
+  }
+  if (document.getElementById("svm-save-prompt-host")) {
     return;
   }
 
+  isPromptProcessing = true;
+
+  // Hủy ngay tất cả observer và timer đang chờ để không bị gọi lại lần thứ 2
+  if (activeSpaObserver) {
+    activeSpaObserver.disconnect();
+    activeSpaObserver = null;
+  }
+  if (activeSpaTimer) {
+    clearTimeout(activeSpaTimer);
+    activeSpaTimer = null;
+  }
+  if (activeFallbackTimer) {
+    clearTimeout(activeFallbackTimer);
+    activeFallbackTimer = null;
+  }
+
+  // Xóa ngay bộ nhớ đệm phiên đăng nhập để tránh race condition từ các sự kiện khác
+  await clearPendingLogin();
+
   try {
+    // Kiểm tra lỗi hiển thị trên trang
+    if (hasVisibleLoginError()) {
+      return;
+    }
+
     const resp = await sendExtensionBridgeMessage<CredentialsListPayload>("get_credentials", {
       domain: pending.domain,
     });
 
     if (resp.ok && resp.payload?.credentials?.length) {
       const match = resp.payload.credentials.find(
-        (c) => c.username.trim().toLowerCase() === pending.username.toLowerCase()
+        (c) => c.username.trim().toLowerCase() === pending.username.toLowerCase(),
       );
 
       if (match) {
         // Mật khẩu trùng khớp -> đã lưu trước đó, bỏ qua
         if (match.password && match.password === pending.password) {
-          await clearPendingLogin();
           return;
         }
 
         // Truy vấn mật khẩu giải mã để đối chiếu
         const secretResp = await sendExtensionBridgeMessage<CredentialSecretPayload>(
           "fill_credential",
-          { itemId: match.id }
+          { itemId: match.id },
         );
         if (secretResp.ok && secretResp.payload?.password === pending.password) {
-          await clearPendingLogin();
           return;
         }
 
         // Người dùng đổi mật khẩu mới -> Hỏi cập nhật
-        await clearPendingLogin();
-        showSaveCredentialPrompt({
+        await showSaveCredentialPrompt({
           itemId: match.id,
           title: pending.domain || "Website Login",
           username: pending.username,
@@ -330,8 +389,7 @@ async function verifyAndPrompt(pending: PendingLoginData): Promise<void> {
     }
 
     // Tài khoản mới hoàn toàn -> Hỏi lưu mới
-    await clearPendingLogin();
-    showSaveCredentialPrompt({
+    await showSaveCredentialPrompt({
       title: pending.domain || "Website Login",
       username: pending.username,
       password: pending.password,
@@ -340,14 +398,16 @@ async function verifyAndPrompt(pending: PendingLoginData): Promise<void> {
     });
   } catch {
     // Nếu có lỗi kết nối backend, vẫn hiển thị Save Prompt để người dùng không bị lỡ
-    await clearPendingLogin();
-    showSaveCredentialPrompt({
+    await showSaveCredentialPrompt({
       title: pending.domain || "Website Login",
       username: pending.username,
       password: pending.password,
       websiteUrl: pending.origin,
       isUpdate: false,
     });
+  } finally {
+    lastPromptTimestamp = Date.now();
+    isPromptProcessing = false;
   }
 }
 
@@ -355,6 +415,13 @@ async function verifyAndPrompt(pending: PendingLoginData): Promise<void> {
  * Kiểm tra xem có phiên đăng nhập pending nào từ trang trước chuyển hướng sang không.
  */
 export async function checkPendingLoginAfterNavigation(): Promise<void> {
+  if (isPromptProcessing || Date.now() - lastPromptTimestamp < 3500) {
+    return;
+  }
+  if (document.getElementById("svm-save-prompt-host")) {
+    return;
+  }
+
   const pending = await retrievePendingLogin();
   if (!pending) {
     return;
@@ -368,7 +435,7 @@ export async function checkPendingLoginAfterNavigation(): Promise<void> {
   if (pending.domain === window.location.hostname) {
     setTimeout(() => {
       void verifyAndPrompt(pending);
-    }, 400);
+    }, 250);
   }
 }
 
@@ -389,7 +456,8 @@ export function attachFormSubmitCapture(): void {
           lastTypedPassword = target.value;
         } else if (target.type === "text" || target.type === "email") {
           // Bỏ qua nếu ô này là mã xác thực 2FA/TOTP (tránh ghi đè username bằng mã số OTP 6 số)
-          const signature = `${target.name} ${target.id} ${target.placeholder} ${target.className} ${target.getAttribute("aria-label") || ""}`.toLowerCase();
+          const signature =
+            `${target.name} ${target.id} ${target.placeholder} ${target.className} ${target.getAttribute("aria-label") || ""}`.toLowerCase();
           const isOtpInput =
             target.getAttribute("autocomplete") === "one-time-code" ||
             target.maxLength === 6 ||
@@ -400,7 +468,7 @@ export function attachFormSubmitCapture(): void {
         }
       }
     },
-    true
+    true,
   );
 
   // 3. Bắt sự kiện submit truyền thống
@@ -410,7 +478,7 @@ export function attachFormSubmitCapture(): void {
       const form = event.target instanceof HTMLElement ? event.target : null;
       void recordPotentialLoginAttempt(form);
     },
-    true
+    true,
   );
 
   // 4. Bắt sự kiện click trên các nút dạng button / SPA có nội dung đăng nhập
@@ -420,12 +488,14 @@ export function attachFormSubmitCapture(): void {
       const target = event.target as HTMLElement | null;
       if (!target) return;
 
-      const clickable = target.closest("button, [role='button'], input[type='submit'], input[type='button'], a.btn");
+      const clickable = target.closest(
+        "button, [role='button'], input[type='submit'], input[type='button'], a.btn",
+      );
       if (clickable && isSubmitElement(clickable)) {
         void recordPotentialLoginAttempt(clickable);
       }
     },
-    true
+    true,
   );
 
   // 5. Bắt phím Enter trong ô input
@@ -439,7 +509,7 @@ export function attachFormSubmitCapture(): void {
         }
       }
     },
-    true
+    true,
   );
 
   // 6. Theo dõi điều hướng SPA (popstate & hashchange & pushState intercept)

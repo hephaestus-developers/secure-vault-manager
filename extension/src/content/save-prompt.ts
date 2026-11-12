@@ -18,7 +18,8 @@ export interface SavePromptOptions {
 export async function showSaveCredentialPrompt(data: SavePromptOptions): Promise<void> {
   const existing = document.getElementById("svm-save-prompt-host");
   if (existing) {
-    existing.remove();
+    // Đã hiển thị popup trên màn hình, không gỡ bỏ để tránh nhấp nháy / lặp lại animation
+    return;
   }
 
   // Lấy danh sách Vaults nếu có nhiều hơn 1 kho

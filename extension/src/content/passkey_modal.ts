@@ -442,7 +442,9 @@ export function promptPasskeyConsent(params: PasskeyModalParams): Promise<Passke
         </div>
         <button class="svm-close-btn" title="Đóng">✕</button>
       `;
-      header.querySelector(".svm-close-btn")?.addEventListener("click", () => cleanup(false, undefined, false));
+      header
+        .querySelector(".svm-close-btn")
+        ?.addEventListener("click", () => cleanup(false, undefined, false));
       container.appendChild(header);
 
       const body = document.createElement("div");
@@ -484,7 +486,9 @@ export function promptPasskeyConsent(params: PasskeyModalParams): Promise<Passke
 
         container.appendChild(body);
 
-        body.querySelector("#svm-btn-cancel")?.addEventListener("click", () => cleanup(false, undefined, true));
+        body
+          .querySelector("#svm-btn-cancel")
+          ?.addEventListener("click", () => cleanup(false, undefined, true));
         const retryBtn = body.querySelector<HTMLButtonElement>("#svm-btn-retry");
         retryBtn?.addEventListener("click", async () => {
           if (retryBtn) {
@@ -704,7 +708,9 @@ export function promptPasskeyConsent(params: PasskeyModalParams): Promise<Passke
 
       container.appendChild(body);
 
-      body.querySelector("#svm-btn-cancel")?.addEventListener("click", () => cleanup(false, undefined, true));
+      body
+        .querySelector("#svm-btn-cancel")
+        ?.addEventListener("click", () => cleanup(false, undefined, true));
       body.querySelector("#svm-btn-confirm")?.addEventListener("click", () => {
         let selectedCredId = primaryPasskey?.credentialId;
         if (!isCreate && matched.length > 1) {
