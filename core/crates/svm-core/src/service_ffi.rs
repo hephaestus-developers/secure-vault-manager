@@ -536,6 +536,19 @@ fn dispatch_bridge_request(ctx_raw: usize, req_json: &str) -> String {
             data.insert("version", JsonValue::String("0.1.0".to_string()));
             data.insert("bridgeListening", JsonValue::Bool(true));
             data.insert("biometricAvailable", JsonValue::Bool(bio_available));
+
+            let mut vaults_val = JsonValue::new_array();
+            if is_unlocked {
+                if let Ok(rt) = unsafe { (*ctx).runtime.lock() } {
+                    let raw_json = rt.vault_service.list_vaults_json();
+                    if let Ok(parsed) = JsonValue::parse(&raw_json) {
+                        if let Some(arr) = parsed.get("vaults").and_then(|v| v.as_array()) {
+                            vaults_val = JsonValue::Array(arr.to_vec());
+                        }
+                    }
+                }
+            }
+            data.insert("vaults", vaults_val);
             make_ok_envelope(request_id, "vault_status", data)
         }
         "unlock_vault" => {
@@ -902,8 +915,19 @@ fn dispatch_bridge_request(ctx_raw: usize, req_json: &str) -> String {
                     let att_b64 = svm_webauthn::encode_base64url(&reg.attestation_object);
                     let client_json_b64 =
                         svm_webauthn::encode_base64url(reg.client_data_json.as_bytes());
+                    let chosen_vault_id = payload.get_str_or("vaultId", "");
+                    let default_vid = if let Ok(rt) = unsafe { (*ctx).runtime.lock() } {
+                        rt.vault_service.default_vault_id()
+                    } else {
+                        String::new()
+                    };
+                    let target_vid = if !chosen_vault_id.is_empty() {
+                        chosen_vault_id
+                    } else {
+                        &default_vid
+                    };
                     let params = svm_webauthn::PasskeyItemParams {
-                        vault_id: "",
+                        vault_id: target_vid,
                         rp_id,
                         rp_name,
                         user_name,
@@ -1010,6 +1034,27 @@ fn dispatch_bridge_request(ctx_raw: usize, req_json: &str) -> String {
                 }
                 Err(e) => make_err_envelope(request_id, "PASSKEY_ASSERTION_FAILED", &e),
             }
+        }
+        "get_vaults" => {
+            if !is_unlocked {
+                return make_err_envelope(
+                    request_id,
+                    "VAULT_LOCKED",
+                    "Kho dữ liệu đang bị khóa. Vui lòng mở khóa trên Desktop.",
+                );
+            }
+            let vaults_val = if let Ok(rt) = unsafe { (*ctx).runtime.lock() } {
+                let raw_json = rt.vault_service.list_vaults_json();
+                JsonValue::parse(&raw_json)
+                    .ok()
+                    .and_then(|p| p.get("vaults").cloned())
+                    .unwrap_or_else(JsonValue::new_array)
+            } else {
+                JsonValue::new_array()
+            };
+            let mut data = JsonValue::new_object();
+            data.insert("vaults", vaults_val);
+            make_ok_envelope(request_id, "vaults_list", data)
         }
         _ => make_err_envelope(
             request_id,

@@ -21,7 +21,19 @@ export type BridgeAction =
   | "generate_password"
   | "passkey_query"
   | "passkey_create"
-  | "passkey_get";
+  | "passkey_get"
+  | "get_vaults"
+  | "record_pending_login"
+  | "get_pending_login"
+  | "clear_pending_login";
+
+export interface VaultProfileSummary {
+  id: string;
+  name: string;
+  iconName?: string;
+  description?: string;
+  isDefault?: boolean;
+}
 
 export interface BridgeRequest<TPayload = Record<string, unknown>> {
   requestId: string;
@@ -213,6 +225,10 @@ export function isBridgeSuccess<TPayload>(
   return Boolean(resp && resp.ok && resp.payload !== undefined);
 }
 
+export function getChromeApi(): any {
+  return (globalThis as Record<string, any>).chrome;
+}
+
 /**
  * Gửi yêu cầu từ Popup hoặc Content Script tới Background Service Worker.
  */
@@ -221,7 +237,7 @@ export async function sendExtensionBridgeMessage<TPayload = Record<string, unkno
   payload?: Record<string, unknown>,
 ): Promise<BridgeResponse<TPayload>> {
   const req = createBridgeRequest(action, payload);
-  const chromeApi = (globalThis as Record<string, any>).chrome;
+  const chromeApi = getChromeApi();
   if (chromeApi?.runtime?.sendMessage) {
     return new Promise((resolve) => {
       chromeApi.runtime.sendMessage(req, (resp: BridgeResponse<TPayload>) => {

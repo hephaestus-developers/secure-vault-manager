@@ -104,6 +104,10 @@ import { base64UrlToBytes, bytesToBase64Url } from "../services/webauthn";
   navigator.credentials.create = async function (
     options?: CredentialCreationOptions,
   ): Promise<Credential | null> {
+    if (options?.signal?.aborted) {
+      throw new DOMException("The operation was aborted.", "AbortError");
+    }
+
     if (options?.publicKey) {
       const pk = options.publicKey;
       const rpId = pk.rp?.id || window.location.hostname;
@@ -142,19 +146,24 @@ import { base64UrlToBytes, bytesToBase64Url } from "../services/webauthn";
         options?.signal,
       );
 
+      if (options?.signal?.aborted) {
+        throw new DOMException("The operation was aborted.", "AbortError");
+      }
+
       if (bridgeResp?.ok && bridgeResp.payload?.credentialId) {
         const rawIdBytes = base64UrlToBytes(bridgeResp.payload.credentialId);
+        const clientDataBytes = base64UrlToBytes(bridgeResp.payload.clientDataJSON || "");
+        const attestationBytes = base64UrlToBytes(bridgeResp.payload.attestationObject || "");
+
         return {
           id: bridgeResp.payload.credentialId,
-          rawId: rawIdBytes.buffer as ArrayBuffer,
+          rawId: rawIdBytes.slice().buffer as ArrayBuffer,
           type: "public-key",
           authenticatorAttachment: "platform",
           getClientExtensionResults: () => ({}),
           response: {
-            clientDataJSON: base64UrlToBytes(bridgeResp.payload.clientDataJSON || "")
-              .buffer as ArrayBuffer,
-            attestationObject: base64UrlToBytes(bridgeResp.payload.attestationObject || "")
-              .buffer as ArrayBuffer,
+            clientDataJSON: clientDataBytes.slice().buffer as ArrayBuffer,
+            attestationObject: attestationBytes.slice().buffer as ArrayBuffer,
             getTransports: () => ["internal"],
             getAuthenticatorData: () => new ArrayBuffer(0),
             getPublicKey: () => null,
@@ -162,6 +171,14 @@ import { base64UrlToBytes, bytesToBase64Url } from "../services/webauthn";
           },
         } as unknown as Credential;
       }
+
+      if (bridgeResp?.error?.code === "USER_CANCELLED") {
+        throw new DOMException("The user cancelled the authentication.", "NotAllowedError");
+      }
+    }
+
+    if (options?.signal?.aborted) {
+      throw new DOMException("The operation was aborted.", "AbortError");
     }
     return nativeCreate(options);
   };
@@ -169,6 +186,10 @@ import { base64UrlToBytes, bytesToBase64Url } from "../services/webauthn";
   navigator.credentials.get = async function (
     options?: CredentialRequestOptions,
   ): Promise<Credential | null> {
+    if (options?.signal?.aborted) {
+      throw new DOMException("The operation was aborted.", "AbortError");
+    }
+
     // Bỏ qua Conditional UI (yêu cầu Autofill ngầm lúc tải trang) để không hiển thị Modal làm phiền người dùng
     if (options?.mediation === "conditional") {
       return nativeGet(options);
@@ -195,28 +216,41 @@ import { base64UrlToBytes, bytesToBase64Url } from "../services/webauthn";
         options?.signal,
       );
 
+      if (options?.signal?.aborted) {
+        throw new DOMException("The operation was aborted.", "AbortError");
+      }
+
       if (bridgeResp?.ok && bridgeResp.payload?.credentialId) {
         const rawIdBytes = base64UrlToBytes(bridgeResp.payload.credentialId);
         const userHandleBytes = bridgeResp.payload.userHandle
           ? base64UrlToBytes(bridgeResp.payload.userHandle)
           : null;
+        const clientDataBytes = base64UrlToBytes(bridgeResp.payload.clientDataJSON || "");
+        const authDataBytes = base64UrlToBytes(bridgeResp.payload.authenticatorData || "");
+        const signatureBytes = base64UrlToBytes(bridgeResp.payload.signature || "");
 
         return {
           id: bridgeResp.payload.credentialId,
-          rawId: rawIdBytes.buffer as ArrayBuffer,
+          rawId: rawIdBytes.slice().buffer as ArrayBuffer,
           type: "public-key",
           authenticatorAttachment: "platform",
           getClientExtensionResults: () => ({}),
           response: {
-            clientDataJSON: base64UrlToBytes(bridgeResp.payload.clientDataJSON || "")
-              .buffer as ArrayBuffer,
-            authenticatorData: base64UrlToBytes(bridgeResp.payload.authenticatorData || "")
-              .buffer as ArrayBuffer,
-            signature: base64UrlToBytes(bridgeResp.payload.signature || "").buffer as ArrayBuffer,
-            userHandle: userHandleBytes ? (userHandleBytes.buffer as ArrayBuffer) : null,
+            clientDataJSON: clientDataBytes.slice().buffer as ArrayBuffer,
+            authenticatorData: authDataBytes.slice().buffer as ArrayBuffer,
+            signature: signatureBytes.slice().buffer as ArrayBuffer,
+            userHandle: userHandleBytes ? (userHandleBytes.slice().buffer as ArrayBuffer) : null,
           },
         } as unknown as Credential;
       }
+
+      if (bridgeResp?.error?.code === "USER_CANCELLED") {
+        throw new DOMException("The user cancelled the authentication.", "NotAllowedError");
+      }
+    }
+
+    if (options?.signal?.aborted) {
+      throw new DOMException("The operation was aborted.", "AbortError");
     }
     return nativeGet(options);
   };

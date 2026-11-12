@@ -5,17 +5,18 @@
 
 import { autofillCredentialsOnPage } from "./autofill";
 import { QrCropResultToastParams, showQrResultToast, startQrCropOverlay } from "./crop-overlay";
-import { attachFormSubmitCapture } from "./form-capture";
+import { attachFormSubmitCapture, checkPendingLoginAfterNavigation } from "./form-capture";
 import { setupInlineAutofillOverlay } from "./overlay";
 import { setupPasskeyBridge } from "./passkey_bridge";
+import { getChromeApi } from "../services/protocol";
 
 setupInlineAutofillOverlay();
 attachFormSubmitCapture();
 setupPasskeyBridge();
 
-const chromeApi = (globalThis as Record<string, any>).chrome;
-if (chromeApi?.runtime?.onMessage) {
-  chromeApi.runtime.onMessage.addListener(
+const runtimeChrome = getChromeApi();
+if (runtimeChrome?.runtime?.onMessage) {
+  runtimeChrome.runtime.onMessage.addListener(
     (
       message: {
         type?: string;
@@ -41,6 +42,9 @@ if (chromeApi?.runtime?.onMessage) {
       } else if (message?.type === "SVM_QR_RESULT_TOAST" && message.toast) {
         showQrResultToast(message.toast);
         sendResponse({ shown: true });
+      } else if (message?.type === "SVM_CHECK_PENDING_LOGIN") {
+        void checkPendingLoginAfterNavigation();
+        sendResponse({ checked: true });
       }
       return false;
     },

@@ -1,88 +1,470 @@
 /**
  * @file extension/src/content/form-capture.ts
- * @brief Bắt sự kiện gửi biểu mẫu (Form Submit) để đề xuất lưu tài khoản mới hoặc cập nhật mật khẩu vào Kho lưu trữ.
+ * @brief Bắt thông minh tương tác đăng nhập (Click / Enter / Submit / SPA Navigation) và đề xuất lưu tài khoản khi đăng nhập thành công.
  */
 
 import {
   CredentialSecretPayload,
   CredentialsListPayload,
+  getChromeApi,
   sendExtensionBridgeMessage,
 } from "../services/protocol";
 import { isRecentlyAutofilled } from "./autofill";
-import { classifyDocumentFields } from "./classifier";
+import { classifyDocumentFields, isSubmitElement } from "./classifier";
 import { showSaveCredentialPrompt } from "./save-prompt";
 
+const PENDING_LOGIN_KEY = "svm_pending_login";
+const PENDING_LOGIN_TTL_MS = 60000; // 60 giây
+
+export interface PendingLoginData {
+  domain: string;
+  origin: string;
+  username: string;
+  password: string;
+  timestamp: number;
+  submittedUrl: string;
+}
+
+// Bộ nhớ cache tạm thời trong biến JavaScript
+let memoryPendingLogin: PendingLoginData | null = null;
+
+// Ghi nhớ giá trị username / password gần nhất khi người dùng gõ
+let lastTypedUsername = "";
+let lastTypedPassword = "";
+
+/**
+ * Lưu dữ liệu đăng nhập tạm thời vào Background Service Worker, chrome.storage.session và sessionStorage.
+ */
+async function storePendingLogin(data: PendingLoginData): Promise<void> {
+  memoryPendingLogin = data;
+
+  // 1. Gửi đồng bộ sang Background Service Worker (nơi không bao giờ bị hủy khi chuyển trang)
+  try {
+    await sendExtensionBridgeMessage("record_pending_login", data as unknown as Record<string, unknown>);
+  } catch {
+    // Bỏ qua
+  }
+
+  // 2. Lưu vào chrome.storage.session
+  const chromeApi = getChromeApi();
+  if (chromeApi?.storage?.session?.set) {
+    try {
+      await chromeApi.storage.session.set({ [PENDING_LOGIN_KEY]: data });
+    } catch {
+      // Bỏ qua
+    }
+  }
+
+  // 3. Dự phòng sessionStorage
+  try {
+    sessionStorage.setItem(PENDING_LOGIN_KEY, JSON.stringify(data));
+  } catch {
+    // Bỏ qua
+  }
+}
+
+/**
+ * Lấy dữ liệu đăng nhập tạm thời.
+ */
+async function retrievePendingLogin(): Promise<PendingLoginData | null> {
+  if (memoryPendingLogin && Date.now() - memoryPendingLogin.timestamp < PENDING_LOGIN_TTL_MS) {
+    return memoryPendingLogin;
+  }
+
+  // 1. Hỏi từ Background Service Worker
+  try {
+    const bgResp = await sendExtensionBridgeMessage<PendingLoginData>("get_pending_login", {
+      domain: window.location.hostname,
+    });
+    if (bgResp.ok && bgResp.payload?.username && bgResp.payload?.password) {
+      if (Date.now() - bgResp.payload.timestamp < PENDING_LOGIN_TTL_MS) {
+        memoryPendingLogin = bgResp.payload;
+        return bgResp.payload;
+      }
+    }
+  } catch {
+    // Fallback tiếp
+  }
+
+  // 2. Thử chrome.storage.session
+  const chromeApi = getChromeApi();
+  if (chromeApi?.storage?.session?.get) {
+    try {
+      const res = await chromeApi.storage.session.get([PENDING_LOGIN_KEY]);
+      if (res && res[PENDING_LOGIN_KEY]) {
+        const item = res[PENDING_LOGIN_KEY] as PendingLoginData;
+        if (Date.now() - item.timestamp < PENDING_LOGIN_TTL_MS) {
+          return item;
+        }
+      }
+    } catch {
+      // Fallback xuống sessionStorage
+    }
+  }
+
+  // 3. Thử sessionStorage
+  try {
+    const raw = sessionStorage.getItem(PENDING_LOGIN_KEY);
+    if (raw) {
+      const item = JSON.parse(raw) as PendingLoginData;
+      if (Date.now() - item.timestamp < PENDING_LOGIN_TTL_MS) {
+        return item;
+      }
+    }
+  } catch {
+    // Bỏ qua lỗi
+  }
+
+  return null;
+}
+
+/**
+ * Xóa sạch dữ liệu đăng nhập tạm thời.
+ */
+async function clearPendingLogin(): Promise<void> {
+  memoryPendingLogin = null;
+
+  try {
+    await sendExtensionBridgeMessage("clear_pending_login");
+  } catch {
+    // Bỏ qua
+  }
+
+  const chromeApi = getChromeApi();
+  if (chromeApi?.storage?.session?.remove) {
+    try {
+      await chromeApi.storage.session.remove([PENDING_LOGIN_KEY]);
+    } catch {
+      // Bỏ qua
+    }
+  }
+
+  try {
+    sessionStorage.removeItem(PENDING_LOGIN_KEY);
+  } catch {
+    // Bỏ qua
+  }
+}
+
+/**
+ * Kiểm tra xem trang hiện tại có hiển thị thông báo lỗi đăng nhập rõ ràng hay không.
+ */
+function hasVisibleLoginError(): boolean {
+  const errorPatterns =
+    /invalid[-_ ]?(credentials|password|username)|sai[-_ ]?mật[-_ ]?khẩu|tài[-_ ]?khoản[-_ ]?không[-_ ]?đúng|incorrect password|authentication failed|đăng[-_ ]?nhập[-_ ]?thất[-_ ]?bại/i;
+
+  const errorElements = Array.from(
+    document.querySelectorAll("[role='alert'], .error, .alert-danger, .error-message, .text-danger, .error-text")
+  );
+
+  for (const el of errorElements) {
+    if (el.offsetParent !== null) {
+      const text = el.textContent || "";
+      if (errorPatterns.test(text)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Thu thập username và password khả dĩ nhất trên trang hiện tại.
+ */
+function extractCurrentCredentials(searchRoot: Document | Element = document): {
+  username: string;
+  password: string;
+  passwordInput: HTMLInputElement | null;
+} {
+  const { usernameInput, passwordInput } = classifyDocumentFields(searchRoot);
+
+  let username = usernameInput?.value?.trim() || "";
+  let password = passwordInput?.value || "";
+
+  // Nếu không thấy qua classifyDocumentFields, dùng giá trị đã ghi nhớ lúc user gõ
+  if (!username && lastTypedUsername) {
+    username = lastTypedUsername;
+  }
+  if (!password && lastTypedPassword) {
+    password = lastTypedPassword;
+  }
+
+  // Dự phòng cuối: Quét trực tiếp ô input type="password" bất kỳ
+  if (!password) {
+    const anyPwd = searchRoot.querySelector<HTMLInputElement>("input[type='password']");
+    if (anyPwd && anyPwd.value) {
+      password = anyPwd.value;
+    }
+  }
+
+  // Dự phòng cuối cho username: ô text đứng trước ô password
+  if (!username) {
+    const textInputs = Array.from(searchRoot.querySelectorAll<HTMLInputElement>("input[type='text'], input[type='email']"));
+    for (const ti of textInputs) {
+      if (ti.value?.trim()) {
+        username = ti.value.trim();
+        break;
+      }
+    }
+  }
+
+  return { username, password, passwordInput };
+}
+
+/**
+ * Xử lý khi bắt được thao tác submit/click đăng nhập từ phía người dùng.
+ */
+async function recordPotentialLoginAttempt(targetElement?: Element | null): Promise<void> {
+  const searchRoot = targetElement?.closest("form") || document;
+  const { username, password, passwordInput } = extractCurrentCredentials(searchRoot);
+
+  if (!username || !password) {
+    return;
+  }
+
+  // Bỏ qua nếu vừa được autofill bởi chính extension
+  if (isRecentlyAutofilled(username, password)) {
+    return;
+  }
+
+  const pending: PendingLoginData = {
+    domain: window.location.hostname,
+    origin: window.location.origin,
+    username,
+    password,
+    timestamp: Date.now(),
+    submittedUrl: window.location.href,
+  };
+
+  await storePendingLogin(pending);
+
+  // Quan sát DOM hiện tại nếu form đăng nhập bị biến mất (SPA)
+  if (passwordInput) {
+    observeSpaFormRemoval(passwordInput, pending);
+  }
+
+  // Đặt thêm hẹn giờ dự phòng: nếu sau 1.5 giây URL thay đổi hoặc form đã submit mà không có lỗi
+  setTimeout(() => {
+    if (window.location.href !== pending.submittedUrl || !document.contains(passwordInput)) {
+      void verifyAndPrompt(pending);
+    }
+  }, 1500);
+}
+
+/**
+ * Theo dõi nếu trường password bị xóa khỏi DOM (dấu hiệu SPA đăng nhập thành công).
+ */
+function observeSpaFormRemoval(pwdInput: HTMLInputElement, pending: PendingLoginData): void {
+  let timer: any = null;
+
+  const observer = new MutationObserver(() => {
+    const isDetached = !document.body.contains(pwdInput);
+    const isHidden = pwdInput.offsetParent === null;
+
+    if (isDetached || isHidden) {
+      observer.disconnect();
+      clearTimeout(timer);
+      setTimeout(() => {
+        void verifyAndPrompt(pending);
+      }, 500);
+    }
+  });
+
+  observer.observe(document.body, { childList: true, subtree: true, attributes: true });
+
+  timer = setTimeout(() => {
+    observer.disconnect();
+  }, 10000);
+}
+
+/**
+ * Xác minh và hiển thị Save Prompt nếu thông tin hợp lệ và chưa tồn tại trong Vault.
+ */
+async function verifyAndPrompt(pending: PendingLoginData): Promise<void> {
+  // Kiểm tra lỗi hiển thị trên trang
+  if (hasVisibleLoginError()) {
+    await clearPendingLogin();
+    return;
+  }
+
+  try {
+    const resp = await sendExtensionBridgeMessage<CredentialsListPayload>("get_credentials", {
+      domain: pending.domain,
+    });
+
+    if (resp.ok && resp.payload?.credentials?.length) {
+      const match = resp.payload.credentials.find(
+        (c) => c.username.trim().toLowerCase() === pending.username.toLowerCase()
+      );
+
+      if (match) {
+        // Mật khẩu trùng khớp -> đã lưu trước đó, bỏ qua
+        if (match.password && match.password === pending.password) {
+          await clearPendingLogin();
+          return;
+        }
+
+        // Truy vấn mật khẩu giải mã để đối chiếu
+        const secretResp = await sendExtensionBridgeMessage<CredentialSecretPayload>(
+          "fill_credential",
+          { itemId: match.id }
+        );
+        if (secretResp.ok && secretResp.payload?.password === pending.password) {
+          await clearPendingLogin();
+          return;
+        }
+
+        // Người dùng đổi mật khẩu mới -> Hỏi cập nhật
+        await clearPendingLogin();
+        showSaveCredentialPrompt({
+          itemId: match.id,
+          title: pending.domain || "Website Login",
+          username: pending.username,
+          password: pending.password,
+          websiteUrl: pending.origin,
+          isUpdate: true,
+        });
+        return;
+      }
+    }
+
+    // Tài khoản mới hoàn toàn -> Hỏi lưu mới
+    await clearPendingLogin();
+    showSaveCredentialPrompt({
+      title: pending.domain || "Website Login",
+      username: pending.username,
+      password: pending.password,
+      websiteUrl: pending.origin,
+      isUpdate: false,
+    });
+  } catch {
+    // Nếu có lỗi kết nối backend, vẫn hiển thị Save Prompt để người dùng không bị lỡ
+    await clearPendingLogin();
+    showSaveCredentialPrompt({
+      title: pending.domain || "Website Login",
+      username: pending.username,
+      password: pending.password,
+      websiteUrl: pending.origin,
+      isUpdate: false,
+    });
+  }
+}
+
+/**
+ * Kiểm tra xem có phiên đăng nhập pending nào từ trang trước chuyển hướng sang không.
+ */
+export async function checkPendingLoginAfterNavigation(): Promise<void> {
+  const pending = await retrievePendingLogin();
+  if (!pending) {
+    return;
+  }
+
+  if (Date.now() - pending.timestamp > PENDING_LOGIN_TTL_MS) {
+    await clearPendingLogin();
+    return;
+  }
+
+  if (pending.domain === window.location.hostname) {
+    setTimeout(() => {
+      void verifyAndPrompt(pending);
+    }, 400);
+  }
+}
+
+/**
+ * Đính kèm bộ lắng nghe đa sự kiện (Input tracking, Submit, Click nút Sign-in, Phím Enter, SPA navigation).
+ */
 export function attachFormSubmitCapture(): void {
+  // 1. Kiểm tra ngay phiên pending từ lần chuyển hướng trước
+  void checkPendingLoginAfterNavigation();
+
+  // 2. Theo dõi người dùng gõ phím vào ô username và password để luôn có dữ liệu mới nhất
+  document.addEventListener(
+    "input",
+    (event) => {
+      const target = event.target as HTMLElement | null;
+      if (target instanceof HTMLInputElement) {
+        if (target.type === "password") {
+          lastTypedPassword = target.value;
+        } else if (target.type === "text" || target.type === "email") {
+          // Bỏ qua nếu ô này là mã xác thực 2FA/TOTP (tránh ghi đè username bằng mã số OTP 6 số)
+          const signature = `${target.name} ${target.id} ${target.placeholder} ${target.className} ${target.getAttribute("aria-label") || ""}`.toLowerCase();
+          const isOtpInput =
+            target.getAttribute("autocomplete") === "one-time-code" ||
+            target.maxLength === 6 ||
+            /totp|otp|2fa|code|mfa|auth|token|checkpoint/i.test(signature);
+          if (!isOtpInput) {
+            lastTypedUsername = target.value.trim();
+          }
+        }
+      }
+    },
+    true
+  );
+
+  // 3. Bắt sự kiện submit truyền thống
   document.addEventListener(
     "submit",
     (event) => {
-      const form = event.target instanceof HTMLFormElement ? event.target : document;
-      const { usernameInput, passwordInput } = classifyDocumentFields(form);
-      const username = usernameInput?.value?.trim() || "";
-      const password = passwordInput?.value || "";
-
-      if (!username || !password) {
-        return;
-      }
-
-      // 1. Kiểm tra tức thì: Nếu vừa được chính extension Autofill điền thì bỏ qua hoàn toàn
-      if (isRecentlyAutofilled(username, password)) {
-        return;
-      }
-
-      // 2. Đối chiếu với dữ liệu hiện có trong Vault
-      void (async () => {
-        try {
-          const resp = await sendExtensionBridgeMessage<CredentialsListPayload>("get_credentials", {
-            domain: window.location.hostname,
-          });
-
-          if (resp.ok && resp.payload?.credentials?.length) {
-            const match = resp.payload.credentials.find(
-              (c) => c.username.trim().toLowerCase() === username.toLowerCase(),
-            );
-
-            if (match) {
-              // Nếu mật khẩu trùng khớp với bản ghi đã lưu -> Đã tồn tại, bỏ qua
-              if (match.password && match.password === password) {
-                return;
-              }
-
-              // Truy vấn chi tiết mật khẩu giải mã để đối chiếu chính xác
-              const secretResp = await sendExtensionBridgeMessage<CredentialSecretPayload>(
-                "fill_credential",
-                { itemId: match.id },
-              );
-              if (secretResp.ok && secretResp.payload?.password === password) {
-                return;
-              }
-
-              // Người dùng đã đổi mật khẩu mới cho tài khoản cũ -> Hỏi "Update Password"
-              showSaveCredentialPrompt({
-                itemId: match.id,
-                title: window.location.hostname || "Website Login",
-                username,
-                password,
-                websiteUrl: window.location.origin,
-                isUpdate: true,
-              });
-              return;
-            }
-          }
-
-          // Tài khoản mới chưa từng lưu trong Vault -> Hỏi "Save Login"
-          showSaveCredentialPrompt({
-            title: window.location.hostname || "Website Login",
-            username,
-            password,
-            websiteUrl: window.location.origin,
-            isUpdate: false,
-          });
-        } catch {
-          // Bỏ qua nếu có lỗi kết nối
-        }
-      })();
+      const form = event.target instanceof HTMLElement ? event.target : null;
+      void recordPotentialLoginAttempt(form);
     },
-    true,
+    true
   );
+
+  // 4. Bắt sự kiện click trên các nút dạng button / SPA có nội dung đăng nhập
+  document.addEventListener(
+    "click",
+    (event) => {
+      const target = event.target as HTMLElement | null;
+      if (!target) return;
+
+      const clickable = target.closest("button, [role='button'], input[type='submit'], input[type='button'], a.btn");
+      if (clickable && isSubmitElement(clickable)) {
+        void recordPotentialLoginAttempt(clickable);
+      }
+    },
+    true
+  );
+
+  // 5. Bắt phím Enter trong ô input
+  document.addEventListener(
+    "keydown",
+    (event) => {
+      if (event.key === "Enter") {
+        const target = event.target as HTMLElement | null;
+        if (target instanceof HTMLInputElement) {
+          void recordPotentialLoginAttempt(target);
+        }
+      }
+    },
+    true
+  );
+
+  // 6. Theo dõi điều hướng SPA (popstate & hashchange & pushState intercept)
+  window.addEventListener("popstate", () => {
+    void checkPendingLoginAfterNavigation();
+  });
+  window.addEventListener("hashchange", () => {
+    void checkPendingLoginAfterNavigation();
+  });
+
+  // Đánh chặn pushState / replaceState trong trang SPA
+  try {
+    const origPush = history.pushState.bind(history);
+    const origReplace = history.replaceState.bind(history);
+    history.pushState = function (...args) {
+      const res = origPush(...args);
+      setTimeout(() => void checkPendingLoginAfterNavigation(), 400);
+      return res;
+    };
+    history.replaceState = function (...args) {
+      const res = origReplace(...args);
+      setTimeout(() => void checkPendingLoginAfterNavigation(), 400);
+      return res;
+    };
+  } catch {
+    // Bỏ qua nếu bị trang web bảo vệ đóng băng history
+  }
 }

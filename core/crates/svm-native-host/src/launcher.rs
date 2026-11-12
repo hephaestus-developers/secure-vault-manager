@@ -417,8 +417,18 @@ impl NativeHostRouter {
                     None
                 };
 
+                let chosen_vault_id = payload.get_str_or("vaultId", "");
+                let target_vault_id = if !chosen_vault_id.is_empty() {
+                    chosen_vault_id.to_string()
+                } else {
+                    self.vault.default_vault_id()
+                };
+
                 let item = if let Some(mut old) = existing {
                     old.password = password.to_string();
+                    if !chosen_vault_id.is_empty() {
+                        old.vault_id = chosen_vault_id.to_string();
+                    }
                     if !totp_secret.is_empty() {
                         old.totp_secret = totp_secret.to_string();
                         old.has_totp = true;
@@ -426,7 +436,7 @@ impl NativeHostRouter {
                     old
                 } else {
                     VaultItem {
-                        vault_id: self.vault.default_vault_id(),
+                        vault_id: target_vault_id,
                         title: title.to_string(),
                         category: Category::Login,
                         username: username.to_string(),
@@ -555,9 +565,15 @@ impl NativeHostRouter {
                         let att_b64 = svm_webauthn::encode_base64url(&reg.attestation_object);
                         let client_json_b64 =
                             svm_webauthn::encode_base64url(reg.client_data_json.as_bytes());
+                        let chosen_vid = payload.get_str_or("vaultId", "");
                         let default_vid = self.vault.default_vault_id();
+                        let target_vid = if !chosen_vid.is_empty() {
+                            chosen_vid
+                        } else {
+                            &default_vid
+                        };
                         let params = svm_webauthn::PasskeyItemParams {
-                            vault_id: &default_vid,
+                            vault_id: target_vid,
                             rp_id,
                             rp_name,
                             user_name,
@@ -656,6 +672,23 @@ impl NativeHostRouter {
                     }
                     Err(e) => Self::error_envelope(request_id, "PASSKEY_ASSERTION_FAILED", &e),
                 }
+            }
+            "get_vaults" => {
+                if !self.vault.is_unlocked() {
+                    return Self::error_envelope(
+                        request_id,
+                        "VAULT_LOCKED",
+                        "Vault is currently locked",
+                    );
+                }
+                let raw_json = self.vault.list_vaults_json();
+                let vaults = JsonValue::parse(&raw_json)
+                    .ok()
+                    .and_then(|p| p.get("vaults").cloned())
+                    .unwrap_or_else(JsonValue::new_array);
+                let mut data = JsonValue::new_object();
+                data.insert("vaults", vaults);
+                Self::ok_envelope(request_id, "vaults_list", data)
             }
             other => Self::error_envelope(
                 request_id,

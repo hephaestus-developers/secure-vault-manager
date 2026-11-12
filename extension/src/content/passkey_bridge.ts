@@ -79,13 +79,18 @@ export function setupPasskeyBridge(): void {
     });
 
     if (!consentResult.consented) {
+      const errorCode = consentResult.useFallbackNative ? "USE_NATIVE_FALLBACK" : "USER_CANCELLED";
+      const errorMsg = consentResult.useFallbackNative
+        ? "User chose native authenticator method"
+        : "User cancelled passkey prompt";
+
       window.postMessage(
         {
           source: "svm-passkey-content",
           requestId,
           response: {
             ok: false,
-            error: { code: "USER_CANCELLED", message: "User cancelled passkey prompt" },
+            error: { code: errorCode, message: errorMsg },
           },
         },
         window.location.origin,
@@ -97,6 +102,9 @@ export function setupPasskeyBridge(): void {
     const getPayload = { ...payload };
     if (consentResult.selectedCredentialId) {
       getPayload.allowCredentials = [consentResult.selectedCredentialId];
+    }
+    if (consentResult.selectedVaultId) {
+      getPayload.vaultId = consentResult.selectedVaultId;
     }
 
     const response = await sendExtensionBridgeMessage(action, getPayload);

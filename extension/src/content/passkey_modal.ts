@@ -23,9 +23,17 @@ export interface PasskeyModalParams {
 export interface PasskeyConsentResult {
   consented: boolean;
   selectedCredentialId?: string;
+  useFallbackNative?: boolean;
+  selectedVaultId?: string;
 }
 
+let activeModalCleanup: (() => void) | null = null;
+
 export function dismissPasskeyConsent(): void {
+  if (activeModalCleanup) {
+    activeModalCleanup();
+    activeModalCleanup = null;
+  }
   const existing = document.getElementById("svm-passkey-modal-host");
   if (existing) {
     existing.remove();
@@ -34,10 +42,7 @@ export function dismissPasskeyConsent(): void {
 
 export function promptPasskeyConsent(params: PasskeyModalParams): Promise<PasskeyConsentResult> {
   return new Promise((resolve) => {
-    const existing = document.getElementById("svm-passkey-modal-host");
-    if (existing) {
-      existing.remove();
-    }
+    dismissPasskeyConsent();
 
     const host = document.createElement("div");
     host.id = "svm-passkey-modal-host";
@@ -48,17 +53,29 @@ export function promptPasskeyConsent(params: PasskeyModalParams): Promise<Passke
       :host {
         all: initial;
       }
-      .svm-overlay {
+      .svm-backdrop {
         position: fixed;
-        top: 20px;
-        right: 20px;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(2px);
+        z-index: 2147483646;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .svm-overlay {
+        position: relative;
         z-index: 2147483647;
-        width: 380px;
+        width: 400px;
+        max-width: 92vw;
         background: #181825;
         color: #cdd6f4;
         border: 1px solid #313244;
-        border-radius: 14px;
-        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.05);
+        border-radius: 16px;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.08);
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
         font-size: 13px;
         line-height: 1.5;
@@ -359,18 +376,56 @@ export function promptPasskeyConsent(params: PasskeyModalParams): Promise<Passke
         .svm-account-title {
           color: #7c7f93;
         }
+        .svm-vault-select {
+          background: #ffffff;
+          border-color: #ccd0da;
+          color: #1e1e2e;
+        }
+      }
+      .svm-vault-select {
+        background: #11111b;
+        color: #cdd6f4;
+        border: 1px solid #45475a;
+        border-radius: 6px;
+        padding: 4px 8px;
+        font-size: 12px;
+        font-family: inherit;
+        outline: none;
+        cursor: pointer;
+        max-width: 180px;
+      }
+      .svm-vault-select:focus {
+        border-color: #89b4fa;
       }
     `;
 
+    const backdrop = document.createElement("div");
+    backdrop.className = "svm-backdrop";
+
     const container = document.createElement("div");
     container.className = "svm-overlay";
+    backdrop.appendChild(container);
 
     let isUnlocked = false;
 
-    function cleanup(consented: boolean, selectedCredentialId?: string) {
+    function cleanup(
+      consented: boolean,
+      selectedCredentialId?: string,
+      useFallbackNative = false,
+      selectedVaultId?: string,
+    ) {
+      activeModalCleanup = null;
       host.remove();
-      resolve({ consented, selectedCredentialId });
+      resolve({ consented, selectedCredentialId, useFallbackNative, selectedVaultId });
     }
+
+    activeModalCleanup = () => cleanup(false, undefined, false);
+
+    backdrop.addEventListener("click", (e) => {
+      if (e.target === backdrop) {
+        cleanup(false, undefined, false);
+      }
+    });
 
     async function checkStatusAndRender() {
       container.innerHTML = "";
@@ -387,7 +442,7 @@ export function promptPasskeyConsent(params: PasskeyModalParams): Promise<Passke
         </div>
         <button class="svm-close-btn" title="Đóng">✕</button>
       `;
-      header.querySelector(".svm-close-btn")?.addEventListener("click", () => cleanup(false));
+      header.querySelector(".svm-close-btn")?.addEventListener("click", () => cleanup(false, undefined, false));
       container.appendChild(header);
 
       const body = document.createElement("div");
@@ -429,7 +484,7 @@ export function promptPasskeyConsent(params: PasskeyModalParams): Promise<Passke
 
         container.appendChild(body);
 
-        body.querySelector("#svm-btn-cancel")?.addEventListener("click", () => cleanup(false));
+        body.querySelector("#svm-btn-cancel")?.addEventListener("click", () => cleanup(false, undefined, true));
         const retryBtn = body.querySelector<HTMLButtonElement>("#svm-btn-retry");
         retryBtn?.addEventListener("click", async () => {
           if (retryBtn) {
@@ -573,6 +628,41 @@ export function promptPasskeyConsent(params: PasskeyModalParams): Promise<Passke
         `;
       }
 
+      // Lấy danh sách Vaults khả dụng
+      let availableVaults: Array<{ id: string; name: string; isDefault?: boolean }> = [];
+      if (statusResp.ok && Array.isArray(statusResp.payload?.vaults)) {
+        availableVaults = statusResp.payload.vaults;
+      } else {
+        const vaultsResp = await sendExtensionBridgeMessage<any>("get_vaults");
+        if (vaultsResp.ok && Array.isArray(vaultsResp.payload?.vaults)) {
+          availableVaults = vaultsResp.payload.vaults;
+        }
+      }
+
+      let vaultSelectorHtml = "";
+      if (isCreate && availableVaults.length >= 2) {
+        vaultSelectorHtml = `
+          <div class="svm-info-row" style="align-items: center;">
+            <span class="svm-info-label">Lưu vào kho:</span>
+            <select class="svm-vault-select" id="svm-vault-select">
+              ${availableVaults
+                .map(
+                  (v) =>
+                    `<option value="${escapeHtml(v.id)}" ${v.isDefault ? "selected" : ""}>${escapeHtml(v.name)}</option>`,
+                )
+                .join("")}
+            </select>
+          </div>
+        `;
+      } else if (isCreate && availableVaults.length === 1) {
+        vaultSelectorHtml = `
+          <div class="svm-info-row">
+            <span class="svm-info-label">Kho lưu trữ:</span>
+            <span class="svm-info-val">${escapeHtml(availableVaults[0].name)}</span>
+          </div>
+        `;
+      }
+
       body.innerHTML = `
         <div class="svm-title-row">
           <div class="svm-icon-badge">
@@ -601,6 +691,7 @@ export function promptPasskeyConsent(params: PasskeyModalParams): Promise<Passke
                 </div>`
               : ""
           }
+          ${vaultSelectorHtml}
         </div>
         ${accountsHtml}
         <div class="svm-actions">
@@ -613,7 +704,7 @@ export function promptPasskeyConsent(params: PasskeyModalParams): Promise<Passke
 
       container.appendChild(body);
 
-      body.querySelector("#svm-btn-cancel")?.addEventListener("click", () => cleanup(false));
+      body.querySelector("#svm-btn-cancel")?.addEventListener("click", () => cleanup(false, undefined, true));
       body.querySelector("#svm-btn-confirm")?.addEventListener("click", () => {
         let selectedCredId = primaryPasskey?.credentialId;
         if (!isCreate && matched.length > 1) {
@@ -624,12 +715,19 @@ export function promptPasskeyConsent(params: PasskeyModalParams): Promise<Passke
             selectedCredId = checked.value;
           }
         }
-        cleanup(true, selectedCredId);
+        let selectedVaultId: string | undefined;
+        if (isCreate) {
+          const selectEl = body.querySelector<HTMLSelectElement>("#svm-vault-select");
+          if (selectEl?.value) {
+            selectedVaultId = selectEl.value;
+          }
+        }
+        cleanup(true, selectedCredId, false, selectedVaultId);
       });
     }
 
     shadow.appendChild(style);
-    shadow.appendChild(container);
+    shadow.appendChild(backdrop);
     document.documentElement.appendChild(host);
 
     void checkStatusAndRender();

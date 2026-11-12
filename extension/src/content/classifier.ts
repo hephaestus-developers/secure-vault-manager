@@ -13,6 +13,9 @@ const USERNAME_PATTERNS = /user|email|login|account|identifier|^id$|\bid\b/i;
 const TOTP_PATTERNS =
   /totp|otp|2fa|mfa|otc|pin|passcode|one[-_ ]?time|two[-_ ]?factor|2[-_ ]?factor|verification|verify|security[-_ ]?code|auth[-_ ]?code|authenticator|challenge|^x{6,8}$/i;
 
+const SUBMIT_PATTERNS =
+  /sign[-_ ]?in|log[-_ ]?in|đăng[-_ ]?nhập|submit|continue|tiếp[-_ ]?tục|authenticate|xác[-_ ]?thực/i;
+
 /**
  * Tìm kiếm và phân loại các trường đăng nhập trên trang hiện tại.
  */
@@ -66,7 +69,6 @@ export function classifyDocumentFields(root: Document | Element = document): Cla
   }
 
   // Heuristic dự phòng: Nếu không tìm thấy totpInput nhưng trang là màn hình Two-Factor Authentication
-  // (ví dụ GitHub "Two-factor authentication", có tiêu đề/URL chứa 2fa và chỉ có 1 ô input văn bản duy nhất)
   if (!totpInput && !passwordInput) {
     const pageText = `${document.title} ${window.location.href} ${document.body?.innerText?.slice(0, 800) || ""}`;
     const is2FaPage = /two-factor|2fa|mfa|verification|verify|authenticator|checkpoint/i.test(
@@ -89,4 +91,65 @@ export function classifyDocumentFields(root: Document | Element = document): Cla
   }
 
   return { usernameInput, passwordInput, totpInput };
+}
+
+/**
+ * Kiểm tra xem một phần tử có phải là nút Submit / Đăng nhập khả dĩ không.
+ */
+export function isSubmitElement(el: Element | null): boolean {
+  if (!el || !(el instanceof HTMLElement)) {
+    return false;
+  }
+
+  // 1. Kiểm tra type="submit"
+  const type = (el.getAttribute("type") || "").toLowerCase();
+  if (type === "submit") {
+    return true;
+  }
+
+  // 2. Thẻ button hoặc phần tử có role="button" hoặc class nút
+  const tagName = el.tagName.toLowerCase();
+  const role = (el.getAttribute("role") || "").toLowerCase();
+  const isButtonLike =
+    tagName === "button" ||
+    role === "button" ||
+    el.classList.contains("btn") ||
+    el.classList.contains("button");
+
+  if (!isButtonLike && tagName !== "input" && tagName !== "a") {
+    return false;
+  }
+
+  // 3. Đối chiếu văn bản nội dung và các thuộc tính
+  const text = (el.innerText || el.textContent || "").trim();
+  const value = (el as HTMLInputElement).value || "";
+  const ariaLabel = el.getAttribute("aria-label") || "";
+  const title = el.getAttribute("title") || "";
+  const idAndClass = `${el.id} ${el.className}`;
+
+  const combined = `${text} ${value} ${ariaLabel} ${title} ${idAndClass}`;
+  return SUBMIT_PATTERNS.test(combined);
+}
+
+/**
+ * Tìm kiếm nút submit khả dĩ nhất trên biểu mẫu hoặc tài liệu.
+ */
+export function findProbableSubmitButton(root: Document | Element = document): HTMLElement | null {
+  const explicitSubmit = root.querySelector<HTMLElement>('button[type="submit"], input[type="submit"]');
+  if (explicitSubmit && explicitSubmit.offsetParent !== null) {
+    return explicitSubmit;
+  }
+
+  const candidates = Array.from(
+    root.querySelectorAll<HTMLElement>(
+      "button, [role='button'], input[type='button'], a.btn, a[role='button']"
+    )
+  );
+  for (const el of candidates) {
+    if (el.offsetParent !== null && isSubmitElement(el)) {
+      return el;
+    }
+  }
+
+  return null;
 }
