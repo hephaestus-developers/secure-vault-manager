@@ -18,16 +18,7 @@ const passkeyRouter = new PasskeyRouter(transport);
 
 const chromeApi = getChromeApi();
 
-// Cấp phép cho Content Script truy cập chrome.storage.session trong Chromium MV3
-if (chromeApi?.storage?.session?.setAccessLevel) {
-  try {
-    chromeApi.storage.session.setAccessLevel({ accessLevel: "TRUSTED_AND_UNTRUSTED_CONTEXTS" });
-  } catch {
-    // Bỏ qua nếu phiên bản Chromium cũ hơn 102
-  }
-}
-
-// Lưu trữ các phiên đăng nhập đang chờ xác nhận lưu thông tin
+// Quản lý dữ liệu đăng nhập đang chờ lưu: lưu thuần trong bộ nhớ RAM của Background Worker theo tabId
 interface PendingLoginEntry {
   domain: string;
   origin: string;
@@ -38,14 +29,13 @@ interface PendingLoginEntry {
   tabId?: number;
 }
 const pendingLogins = new Map<number, PendingLoginEntry>();
-let latestGlobalPendingLogin: PendingLoginEntry | null = null;
 
 // Theo dõi điều hướng Tab để nhắc lưu mật khẩu khi tải trang mới
 if (chromeApi?.tabs?.onUpdated) {
   chromeApi.tabs.onUpdated.addListener(
     (tabId: number, changeInfo: { status?: string; url?: string }) => {
       if (changeInfo.status === "complete") {
-        const entry = pendingLogins.get(tabId) || latestGlobalPendingLogin;
+        const entry = pendingLogins.get(tabId);
         if (entry && Date.now() - entry.timestamp < 60000) {
           chromeApi.tabs.sendMessage(tabId, { type: "SVM_CHECK_PENDING_LOGIN" }, () => {
             if (chromeApi.runtime.lastError) {
@@ -56,6 +46,13 @@ if (chromeApi?.tabs?.onUpdated) {
       }
     },
   );
+}
+
+// Xóa pending login khi đóng tab
+if (chromeApi?.tabs?.onRemoved) {
+  chromeApi.tabs.onRemoved.addListener((tabId: number) => {
+    pendingLogins.delete(tabId);
+  });
 }
 
 if (chromeApi?.runtime?.onMessage) {
@@ -81,14 +78,12 @@ if (chromeApi?.runtime?.onMessage) {
           if (senderTabId) {
             pendingLogins.set(senderTabId, entry);
           }
-          latestGlobalPendingLogin = entry;
           sendResponse({ ok: true, type: "pending_login_recorded" });
           return;
         }
 
         if (message.action === "get_pending_login") {
-          const entry =
-            (senderTabId ? pendingLogins.get(senderTabId) : null) || latestGlobalPendingLogin;
+          const entry = senderTabId ? pendingLogins.get(senderTabId) : null;
           if (entry && Date.now() - entry.timestamp < 60000) {
             sendResponse({ ok: true, type: "pending_login_data", payload: entry });
           } else {
@@ -101,7 +96,6 @@ if (chromeApi?.runtime?.onMessage) {
           if (senderTabId) {
             pendingLogins.delete(senderTabId);
           }
-          latestGlobalPendingLogin = null;
           sendResponse({ ok: true, type: "pending_login_cleared" });
           return;
         }

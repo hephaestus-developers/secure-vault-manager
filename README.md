@@ -125,6 +125,7 @@ secure-vault-manager/
 | [09. Threat Model.md](docs/09.%20Threat%20Model.md) | Phân tích rủi ro STRIDE, ranh giới tin cậy và các giới hạn bảo mật hiện tại. |
 | [10. Domain Data Schemas.md](docs/10.%20Domain%20Data%20Schemas.md) | Schema JSON cho `VaultProfile`, `VaultItem` phẳng 32 trường, `CustomField`, 9 danh mục và cấu hình. |
 | [11. External Extensions Installation Specification.md](docs/11.%20External%20Extensions%20Installation%20Specification.md) | Đặc tả cài đặt Native Messaging Host (`io.hephaestus.secure_vault_manager`) và lộ trình External Extensions. |
+| [12. Browser Extension Setup & Testing Guide.md](docs/12.%20Browser%20Extension%20Setup%20%26%20Testing%20Guide.md) | Hướng dẫn chi tiết từng bước nạp unpacked extension trên Chrome, Firefox, Brave, Edge; kịch bản test Autofill, TOTP QR Crop, Passkey WebAuthn và khắc phục lỗi. |
 
 ---
 

@@ -633,8 +633,6 @@ impl VaultStorage {
 
         let mut sec = JsonValue::new_object();
         sec.insert("configured", JsonValue::Bool(false));
-        sec.insert("password_hash", JsonValue::String(String::new()));
-        sec.insert("password_salt", JsonValue::String(String::new()));
         def.insert("security", sec);
         def.insert("vaults", JsonValue::new_array());
 

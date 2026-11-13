@@ -90,10 +90,6 @@ public:
   [[nodiscard]] bool isConfigured() const;
   void setConfigured(bool configured);
 
-  [[nodiscard]] QString passwordHash() const;
-  [[nodiscard]] QString passwordSalt() const;
-  void setPasswordCredentials(const QString &hash, const QString &salt);
-
   [[nodiscard]] QJsonArray cachedVaults() const;
   void setCachedVaults(const QJsonArray &vaults);
 

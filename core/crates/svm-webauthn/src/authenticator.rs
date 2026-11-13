@@ -94,7 +94,7 @@ pub fn execute_passkey_assertion(
 }
 
 /// Trích xuất hostname từ URL và chuẩn hóa chữ thường.
-fn extract_normalized_host(raw: &str) -> Option<String> {
+pub fn extract_normalized_host(raw: &str) -> Option<String> {
     let trimmed = raw.trim().to_ascii_lowercase();
     if trimmed.is_empty() {
         return None;
@@ -114,24 +114,35 @@ fn extract_normalized_host(raw: &str) -> Option<String> {
 }
 
 /// Kiểm tra xem một mục Passkey có khớp chuẩn Relying Party ID (`rp_id`) hay không.
-/// Từ chối `rp_id` rỗng và chỉ khớp theo ranh giới tên miền đầy đủ (exact hoặc valid subdomain).
+/// Từ chối `rp_id` rỗng, cấm TLD đơn lẻ và chỉ khớp theo ranh giới tên miền đầy đủ hợp lệ.
 pub fn matches_passkey_rp_id(item: &VaultItem, rp_id: &str) -> bool {
     let rp = rp_id.trim().to_ascii_lowercase();
     let rp = rp.trim_end_matches('.');
-    if rp.is_empty() {
+    if rp.is_empty() || !rp.contains('.') || rp.starts_with('.') {
         return false;
     }
 
     if !item.passkey_rp_id.trim().is_empty() {
         let item_rp = item.passkey_rp_id.trim().to_ascii_lowercase();
         let item_rp = item_rp.trim_end_matches('.');
-        return !item_rp.is_empty() && item_rp == rp;
+        if item_rp.is_empty() || !item_rp.contains('.') || item_rp.starts_with('.') {
+            return false;
+        }
+        return item_rp == rp
+            || rp.ends_with(&format!(".{item_rp}"))
+            || item_rp.ends_with(&format!(".{rp}"))
+            || item_rp.trim_start_matches("www.") == rp.trim_start_matches("www.");
     }
 
     if let Some(host) = extract_normalized_host(&item.website_url) {
+        let host = host.trim_end_matches('.');
+        if host.is_empty() || !host.contains('.') || host.starts_with('.') {
+            return false;
+        }
         return host == rp
             || host.ends_with(&format!(".{rp}"))
-            || rp.ends_with(&format!(".{host}"));
+            || rp.ends_with(&format!(".{host}"))
+            || host.trim_start_matches("www.") == rp.trim_start_matches("www.");
     }
 
     false
@@ -273,6 +284,15 @@ mod tests {
         item.passkey_rp_id = "auth.corp.internal".to_string();
         assert!(matches_passkey_rp_id(&item, "auth.corp.internal"));
         assert!(!matches_passkey_rp_id(&item, "example.com"));
+
+        // Kiểm tra khớp tương đương giữa apex domain và www / subdomain
+        item.passkey_rp_id = "passkeys.io".to_string();
+        assert!(matches_passkey_rp_id(&item, "passkeys.io"));
+        assert!(matches_passkey_rp_id(&item, "www.passkeys.io"));
+
+        item.passkey_rp_id = "www.passkeys.io".to_string();
+        assert!(matches_passkey_rp_id(&item, "passkeys.io"));
+        assert!(matches_passkey_rp_id(&item, "www.passkeys.io"));
     }
 
     #[test]

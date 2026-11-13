@@ -185,8 +185,6 @@ bool VaultManager::resetAllData() {
 
   m_vaults.clear();
   m_activeVaultId.clear();
-  m_passwordHash.clear();
-  m_passwordSalt.clear();
   m_recoveryKey.clear();
   m_biometricEnabled = false;
   m_isConfigured = false;
@@ -230,14 +228,6 @@ bool VaultManager::setupInitialMasterPassword(const QString &password,
     return false;
   }
 
-  // Tạo salt ngẫu nhiên 16 bytes
-  QByteArray saltBytes;
-  saltBytes.resize(16);
-  QRandomGenerator::system()->fillRange(
-      reinterpret_cast<quint32 *>(saltBytes.data()),
-      saltBytes.size() / sizeof(quint32));
-  m_passwordSalt = QString::fromLatin1(saltBytes.toHex());
-  m_passwordHash = hashPassword(password, m_passwordSalt);
   m_recoveryKey = recoveryKey.trimmed().toUpper();
 
   m_vaults.clear();
@@ -302,7 +292,6 @@ bool VaultManager::changeMasterPassword(const QString &oldPassword,
     }
   }
 
-  m_passwordHash = hashPassword(newPassword, m_passwordSalt);
   saveSettings();
   return true;
 }
@@ -314,51 +303,14 @@ bool VaultManager::unlock(const QString &password) {
   }
 
   auto &bridge = core::CoreBridge::instance();
-  bool coreUnlocked = false;
-  bool coreConfigured = false;
-  const QString targetVault = primaryVaultId();
-  if (bridge.isInitialized()) {
-    const auto _coreVaults = bridge.fetchVaults(&coreConfigured);
-    Q_UNUSED(_coreVaults);
-    coreUnlocked = bridge.unlockVault(targetVault, password);
+  if (!bridge.isInitialized()) {
+    return false;
   }
 
-  const bool localMatch =
-      !m_passwordHash.isEmpty() &&
-      (hashPassword(password, m_passwordSalt) == m_passwordHash);
+  const QString targetVault = primaryVaultId();
+  const bool coreUnlocked = bridge.unlockVault(targetVault, password);
 
-  // Nếu Rust Core đã có kho mã hóa thì bắt buộc giải mã Rust Core thành công.
-  const bool canUnlock =
-      coreConfigured ? coreUnlocked : (coreUnlocked || localMatch);
-
-  if (canUnlock) {
-    if (!coreConfigured && !coreUnlocked && bridge.isInitialized()) {
-      // Tự động đồng bộ / khởi tạo kho mã hóa Rust Core nếu trước đó chỉ có cấu
-      // hình QSettings
-      models::UiVault defaultVault;
-      defaultVault.id = targetVault;
-      defaultVault.name = m_vaults.isEmpty() ? QStringLiteral("Personal Vault")
-                                             : m_vaults.first().name;
-      defaultVault.iconName = QStringLiteral("vault_personal");
-      defaultVault.description =
-          QStringLiteral("Primary personal credentials & logins");
-      defaultVault.isDefault = true;
-      if (bridge.createVault(defaultVault, password, m_recoveryKey, true) &&
-          m_biometricEnabled && bridge.isBiometricAvailable()) {
-        m_biometricEnabled = bridge.enableBiometric(targetVault, password);
-      }
-    }
-    if (m_passwordHash.isEmpty() || !localMatch) {
-      if (m_passwordSalt.isEmpty()) {
-        QByteArray saltBytes(16, Qt::Uninitialized);
-        QRandomGenerator::system()->fillRange(
-            reinterpret_cast<quint32 *>(saltBytes.data()),
-            saltBytes.size() / static_cast<int>(sizeof(quint32)));
-        m_passwordSalt = QString::fromLatin1(saltBytes.toHex());
-      }
-      m_passwordHash = hashPassword(password, m_passwordSalt);
-      saveSettings();
-    }
+  if (coreUnlocked) {
     m_isLocked = false;
     refreshVaultsFromCore();
     emit lockStateChanged(m_isLocked);
@@ -370,10 +322,6 @@ bool VaultManager::unlock(const QString &password) {
 bool VaultManager::validateMasterPassword(const QString &password) const {
   if (!m_isConfigured) {
     return false;
-  }
-  if (!m_passwordHash.isEmpty() &&
-      hashPassword(password, m_passwordSalt) == m_passwordHash) {
-    return true;
   }
   auto &bridge = core::CoreBridge::instance();
   if (bridge.isInitialized()) {
@@ -390,29 +338,13 @@ bool VaultManager::unlockWithRecoveryKey(const QString &recoveryKey,
   }
   const QString normalizedKey = normalizeRecoveryKey(recoveryKey);
   auto &bridge = core::CoreBridge::instance();
-  bool coreOk = false;
-  if (bridge.isInitialized()) {
-    coreOk = bridge.unlockWithRecoveryKey(normalizedKey, newPassword);
+  if (!bridge.isInitialized()) {
+    return false;
   }
 
-  if (coreOk || (!m_recoveryKey.isEmpty() && normalizedKey == m_recoveryKey)) {
-    if (!newPassword.isEmpty()) {
-      if (m_passwordSalt.isEmpty()) {
-        QByteArray saltBytes(16, Qt::Uninitialized);
-        QRandomGenerator::system()->fillRange(
-            reinterpret_cast<quint32 *>(saltBytes.data()),
-            saltBytes.size() / static_cast<int>(sizeof(quint32)));
-        m_passwordSalt = QString::fromLatin1(saltBytes.toHex());
-      }
-      m_passwordHash = hashPassword(newPassword, m_passwordSalt);
-      if (!coreOk && bridge.isInitialized()) {
-        models::UiVault initVault;
-        initVault.id = primaryVaultId();
-        initVault.name = QStringLiteral("Personal Vault");
-        bridge.createVault(initVault, newPassword, normalizedKey, true);
-      }
-      saveSettings();
-    }
+  const bool coreOk = bridge.unlockWithRecoveryKey(normalizedKey, newPassword);
+
+  if (coreOk) {
     m_isLocked = false;
     refreshVaultsFromCore();
     emit lockStateChanged(m_isLocked);
@@ -563,13 +495,6 @@ QString VaultManager::normalizeRecoveryKey(const QString &raw) {
   return raw.trimmed().toUpper();
 }
 
-QString VaultManager::hashPassword(const QString &password,
-                                   const QString &salt) const {
-  QByteArray data = (salt + password).toUtf8();
-  return QString::fromLatin1(
-      QCryptographicHash::hash(data, QCryptographicHash::Sha256).toHex());
-}
-
 QString VaultManager::primaryVaultId() const {
   const QString defId = defaultVault().id;
   if (!defId.isEmpty()) {
@@ -584,8 +509,6 @@ QString VaultManager::primaryVaultId() const {
 void VaultManager::loadSettings() {
   auto &settingsMgr = SettingsManager::instance();
   m_isConfigured = settingsMgr.isConfigured();
-  m_passwordHash = settingsMgr.passwordHash();
-  m_passwordSalt = settingsMgr.passwordSalt();
   m_biometricEnabled = settingsMgr.biometricEnabled();
 
   auto &bridge = core::CoreBridge::instance();
@@ -644,7 +567,6 @@ void VaultManager::loadSettings() {
 void VaultManager::saveSettings() {
   auto &settingsMgr = SettingsManager::instance();
   settingsMgr.setConfigured(m_isConfigured);
-  settingsMgr.setPasswordCredentials(m_passwordHash, m_passwordSalt);
   settingsMgr.setBiometricEnabled(m_biometricEnabled);
 
   QJsonArray arr;

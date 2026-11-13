@@ -11,20 +11,35 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-HOST_NAME="io.hephaestus.svm"
-HOST_BIN="${ROOT_DIR}/core/target/release/svm-native-host"
+HOST_NAME="io.hephaestus.secure_vault_manager"
+HOST_BIN=""
 
-if [[ ! -f "${HOST_BIN}" ]]; then
-    HOST_BIN="${ROOT_DIR}/core/target/debug/svm-native-host"
-fi
+CANDIDATES=(
+    "${ROOT_DIR}/build/debug/core/svm-native-host"
+    "${ROOT_DIR}/build/release/core/svm-native-host"
+    "${ROOT_DIR}/core/target/debug/svm-native-host"
+    "${ROOT_DIR}/core/target/release/svm-native-host"
+)
 
-if [[ ! -f "${HOST_BIN}" ]]; then
-    echo "Lỗi: Binary svm-native-host chưa được biên dịch. Chạy ./scripts/build.sh trước." >&2
+for c in "${CANDIDATES[@]}"; do
+    if [[ -f "${c}" ]]; then
+        HOST_BIN="$(cd "$(dirname "${c}")" && pwd)/$(basename "${c}")"
+        break
+    fi
+done
+
+if [[ -z "${HOST_BIN}" ]]; then
+    echo "Lỗi: Binary svm-native-host chưa được biên dịch. Vui lòng chạy ./scripts/build.sh trước." >&2
     exit 1
 fi
 
+CUSTOM_CHROME_ID="${1:-}"
+
 echo "==> [SVM Native Host] Cài đặt Native Messaging Host manifest cho [${HOST_NAME}]..."
 echo "    Đường dẫn binary: ${HOST_BIN}"
+if [[ -n "${CUSTOM_CHROME_ID}" ]]; then
+    echo "    Bổ sung Custom Chrome Extension ID: ${CUSTOM_CHROME_ID}"
+fi
 
 # Xác định thư mục cấu hình trình duyệt theo hệ điều hành
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then
@@ -44,6 +59,28 @@ else
     exit 1
 fi
 
+# Danh sách origins cho Chrome/Chromium/Brave/Edge
+ORIGINS=(
+    "chrome-extension://nhkjlnifnoicniecninomjjckhnbkmem/"
+    "chrome-extension://cblgnkccngfnmepkgkgljklmjgfkcfhd/"
+    "chrome-extension://dkmcefgkjjfkhdlnodfkblffchgajhgn/"
+    "chrome-extension://fkmjebflnmjmfppkcfcjjlkbbbfgnofn/"
+)
+
+if [[ -n "${CUSTOM_CHROME_ID}" ]]; then
+    ORIGINS+=("chrome-extension://${CUSTOM_CHROME_ID}/")
+fi
+
+ORIGIN_JSON_ENTRIES=""
+for orig in "${ORIGINS[@]}"; do
+    if [[ -z "${ORIGIN_JSON_ENTRIES}" ]]; then
+        ORIGIN_JSON_ENTRIES="    \"${orig}\""
+    else
+        ORIGIN_JSON_ENTRIES="${ORIGIN_JSON_ENTRIES},
+    \"${orig}\""
+    fi
+done
+
 # Nội dung manifest cho Chromium-based browsers
 MANIFEST_CHROME=$(cat <<EOF
 {
@@ -52,7 +89,7 @@ MANIFEST_CHROME=$(cat <<EOF
   "path": "${HOST_BIN}",
   "type": "stdio",
   "allowed_origins": [
-    "chrome-extension://fkmjebflnmjmfppkcfcjjlkbbbfgnofn/"
+${ORIGIN_JSON_ENTRIES}
   ]
 }
 EOF
@@ -66,7 +103,8 @@ MANIFEST_FIREFOX=$(cat <<EOF
   "path": "${HOST_BIN}",
   "type": "stdio",
   "allowed_extensions": [
-    "svm@hephaestus.io"
+    "extension@secure-vault.hephaestus.io",
+    "secure-vault-manager@hephaestus.io"
   ]
 }
 EOF

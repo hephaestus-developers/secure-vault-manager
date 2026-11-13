@@ -142,7 +142,7 @@ pub fn authenticate_os_user(reason: &str) -> bool {
                     return true;
                 }
             }
-            return false;
+            // Fallback sang Polkit nếu fprintd-verify thất bại hoặc cảm biến bị hủy
         }
 
         if has_polkit_gui_session() {

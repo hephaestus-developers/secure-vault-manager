@@ -650,16 +650,20 @@ fn dispatch_bridge_request(ctx_raw: usize, req_json: &str) -> String {
                     if item.trashed || item.category != Category::Login {
                         continue;
                     }
-                    let url_low = item.website_url.to_lowercase();
-                    let title_low = item.title.to_lowercase();
                     let matches_domain = if domain.is_empty() {
                         true
+                    } else if let Some(item_host) =
+                        svm_webauthn::extract_normalized_host(&item.website_url)
+                    {
+                        let norm_item = item_host.trim_start_matches("www.");
+                        let norm_dom = domain.trim_start_matches("www.");
+                        norm_item == norm_dom
+                            || norm_item.ends_with(&format!(".{norm_dom}"))
+                            || norm_dom.ends_with(&format!(".{norm_item}"))
                     } else {
-                        let url_match = !url_low.is_empty()
-                            && (url_low.contains(&domain) || domain.contains(&url_low));
-                        let title_match = !title_low.is_empty()
-                            && (title_low.contains(&domain) || domain.contains(&title_low));
-                        url_match || title_match
+                        // Nếu item chưa lưu URL, chỉ kiểm tra title nếu domain có ít nhất 4 ký tự và khớp chính xác hoặc bắt đầu
+                        let title_low = item.title.to_lowercase();
+                        domain.len() >= 4 && title_low.contains(&domain)
                     };
                     if matches_domain {
                         let mut cred = JsonValue::new_object();
@@ -668,11 +672,6 @@ fn dispatch_bridge_request(ctx_raw: usize, req_json: &str) -> String {
                         cred.insert("username", JsonValue::String(item.username.clone()));
                         cred.insert("websiteUrl", JsonValue::String(item.website_url.clone()));
                         cred.insert("hasTotp", JsonValue::Bool(!item.totp_secret.is_empty()));
-                        if !item.totp_secret.is_empty() {
-                            let (code, remaining) = generate_totp(&item.totp_secret, 0);
-                            cred.insert("totpCode", JsonValue::String(code));
-                            cred.insert("totpRemaining", JsonValue::Number(remaining as f64));
-                        }
                         matches.push(cred);
                     }
                 }

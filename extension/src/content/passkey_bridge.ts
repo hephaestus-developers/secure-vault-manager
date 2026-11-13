@@ -22,7 +22,42 @@ export function setupPasskeyBridge(): void {
       return;
     }
 
-    const rpId = String(payload?.rpId || window.location.hostname);
+    // Xác thực nguồn gốc (Origin & rpId Validation):
+    // 1. Tuyệt đối không tin cậy payload.origin từ trang web, luôn dùng window.location.origin
+    const origin = window.location.origin;
+    const currentHost = window.location.hostname.toLowerCase();
+    let rpId = String(payload?.rpId || currentHost)
+      .trim()
+      .toLowerCase();
+
+    // 2. Chống giả mạo RP ID (W3C WebAuthn Level 3 Spec §5.1.4):
+    // rpId phải bằng currentHost hoặc là registrable domain suffix của currentHost
+    const isDomainSuffix =
+      currentHost === rpId ||
+      currentHost.endsWith("." + rpId) ||
+      currentHost.replace(/^www\./, "") === rpId.replace(/^www\./, "");
+
+    // Cấm rpId là TLD hoặc Public Suffix đơn lẻ (.com, .io, .net, ...)
+    const isTldOnly = !rpId.includes(".") || rpId.startsWith(".");
+
+    if (!isDomainSuffix || isTldOnly) {
+      window.postMessage(
+        {
+          source: "svm-passkey-content",
+          requestId,
+          response: {
+            ok: false,
+            error: {
+              code: "SECURITY_ERROR",
+              message: `The relying party ID "${rpId}" is not permitted for origin "${origin}"`,
+            },
+          },
+        },
+        origin,
+      );
+      return;
+    }
+
     const rpName = String(payload?.rpName || rpId);
     let userName = String(payload?.userName || "");
     let matchedPasskeys: Array<{
@@ -99,7 +134,7 @@ export function setupPasskeyBridge(): void {
     }
 
     // Nếu người dùng chọn một passkey cụ thể từ danh sách tài khoản
-    const getPayload = { ...payload };
+    const getPayload = { ...payload, rpId, origin };
     if (consentResult.selectedCredentialId) {
       getPayload.allowCredentials = [consentResult.selectedCredentialId];
     }

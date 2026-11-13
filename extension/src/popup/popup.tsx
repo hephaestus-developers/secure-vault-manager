@@ -130,12 +130,16 @@ async function getActiveTabInfo(): Promise<{
 
 async function loadPendingTotpSetup(): Promise<PendingTotpSetup | null> {
   const chromeApi = (globalThis as Record<string, any>).chrome;
-  if (!chromeApi?.storage?.local?.get) {
-    return null;
-  }
   try {
-    const res = await chromeApi.storage.local.get([PENDING_TOTP_STORAGE_KEY]);
-    const item = res?.[PENDING_TOTP_STORAGE_KEY] as PendingTotpSetup | undefined;
+    let item: PendingTotpSetup | undefined;
+    if (chromeApi?.storage?.session?.get) {
+      const res = await chromeApi.storage.session.get([PENDING_TOTP_STORAGE_KEY]);
+      item = res?.[PENDING_TOTP_STORAGE_KEY] as PendingTotpSetup | undefined;
+    }
+    if (!item && chromeApi?.storage?.local?.get) {
+      const res = await chromeApi.storage.local.get([PENDING_TOTP_STORAGE_KEY]);
+      item = res?.[PENDING_TOTP_STORAGE_KEY] as PendingTotpSetup | undefined;
+    }
     if (!item || !item.uri) {
       return null;
     }
@@ -152,12 +156,15 @@ async function loadPendingTotpSetup(): Promise<PendingTotpSetup | null> {
 async function clearPendingTotpSetup(): Promise<void> {
   state.pendingTotp = null;
   const chromeApi = (globalThis as Record<string, any>).chrome;
-  if (chromeApi?.storage?.local?.remove) {
-    try {
-      await chromeApi.storage.local.remove([PENDING_TOTP_STORAGE_KEY]);
-    } catch {
-      // ignore
+  try {
+    if (chromeApi?.storage?.session?.remove) {
+      await chromeApi.storage.session.remove([PENDING_TOTP_STORAGE_KEY]);
     }
+    if (chromeApi?.storage?.local?.remove) {
+      await chromeApi.storage.local.remove([PENDING_TOTP_STORAGE_KEY]);
+    }
+  } catch {
+    // ignore
   }
 }
 

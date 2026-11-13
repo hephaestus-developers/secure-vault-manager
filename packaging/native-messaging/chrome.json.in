@@ -1,10 +1,12 @@
 {
-  "name": "io.hephaestus.svm",
+  "name": "io.hephaestus.secure_vault_manager",
   "description": "Secure Vault Manager Native Messaging Host",
   "path": "@SVM_NATIVE_HOST_PATH@",
   "type": "stdio",
   "allowed_origins": [
-    "chrome-extension://fkmjebflnmjmfppkcfcjjlkbbbfgnofn/",
-    "chrome-extension://hephaestus-svm-local-dev-id/"
+    "chrome-extension://nhkjlnifnoicniecninomjjckhnbkmem/",
+    "chrome-extension://cblgnkccngfnmepkgkgljklmjgfkcfhd/",
+    "chrome-extension://dkmcefgkjjfkhdlnodfkblffchgajhgn/",
+    "chrome-extension://fkmjebflnmjmfppkcfcjjlkbbbfgnofn/"
   ]
 }

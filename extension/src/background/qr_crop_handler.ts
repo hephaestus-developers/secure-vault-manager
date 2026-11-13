@@ -472,7 +472,9 @@ export async function handleQrCropSelected(
       domain,
       createdAt: Date.now(),
     };
-    if (extChrome?.storage?.local?.set) {
+    if (extChrome?.storage?.session?.set) {
+      await extChrome.storage.session.set({ [PENDING_TOTP_STORAGE_KEY]: pending });
+    } else if (extChrome?.storage?.local?.set) {
       await extChrome.storage.local.set({ [PENDING_TOTP_STORAGE_KEY]: pending });
     }
 

@@ -40,12 +40,14 @@ let activeSpaTimer: ReturnType<typeof setTimeout> | null = null;
 let activeFallbackTimer: ReturnType<typeof setTimeout> | null = null;
 
 /**
- * Lưu dữ liệu đăng nhập tạm thời vào Background Service Worker, chrome.storage.session và sessionStorage.
+ * Lưu dữ liệu đăng nhập tạm thời.
+ * Lưu ý bảo mật: Tuyệt đối không dùng sessionStorage (chia sẻ với Main World/trang web)
+ * hoặc storage.session chia sẻ mọi context; chỉ gửi một chiều lên RAM của Background Service Worker.
  */
 async function storePendingLogin(data: PendingLoginData): Promise<void> {
   memoryPendingLogin = data;
 
-  // 1. Gửi đồng bộ sang Background Service Worker (nơi không bao giờ bị hủy khi chuyển trang)
+  // Gửi đồng bộ sang RAM của Background Service Worker theo tabId
   try {
     await sendExtensionBridgeMessage(
       "record_pending_login",
@@ -54,34 +56,17 @@ async function storePendingLogin(data: PendingLoginData): Promise<void> {
   } catch {
     // Bỏ qua
   }
-
-  // 2. Lưu vào chrome.storage.session
-  const chromeApi = getChromeApi();
-  if (chromeApi?.storage?.session?.set) {
-    try {
-      await chromeApi.storage.session.set({ [PENDING_LOGIN_KEY]: data });
-    } catch {
-      // Bỏ qua
-    }
-  }
-
-  // 3. Dự phòng sessionStorage
-  try {
-    sessionStorage.setItem(PENDING_LOGIN_KEY, JSON.stringify(data));
-  } catch {
-    // Bỏ qua
-  }
 }
 
 /**
- * Lấy dữ liệu đăng nhập tạm thời.
+ * Lấy dữ liệu đăng nhập tạm thời từ RAM / Background Service Worker.
  */
 async function retrievePendingLogin(): Promise<PendingLoginData | null> {
   if (memoryPendingLogin && Date.now() - memoryPendingLogin.timestamp < PENDING_LOGIN_TTL_MS) {
     return memoryPendingLogin;
   }
 
-  // 1. Hỏi từ Background Service Worker
+  // Hỏi từ Background Service Worker gắn với Tab hiện tại
   try {
     const bgResp = await sendExtensionBridgeMessage<PendingLoginData>("get_pending_login", {
       domain: window.location.hostname,
@@ -93,35 +78,6 @@ async function retrievePendingLogin(): Promise<PendingLoginData | null> {
       }
     }
   } catch {
-    // Fallback tiếp
-  }
-
-  // 2. Thử chrome.storage.session
-  const chromeApi = getChromeApi();
-  if (chromeApi?.storage?.session?.get) {
-    try {
-      const res = await chromeApi.storage.session.get([PENDING_LOGIN_KEY]);
-      if (res && res[PENDING_LOGIN_KEY]) {
-        const item = res[PENDING_LOGIN_KEY] as PendingLoginData;
-        if (Date.now() - item.timestamp < PENDING_LOGIN_TTL_MS) {
-          return item;
-        }
-      }
-    } catch {
-      // Fallback xuống sessionStorage
-    }
-  }
-
-  // 3. Thử sessionStorage
-  try {
-    const raw = sessionStorage.getItem(PENDING_LOGIN_KEY);
-    if (raw) {
-      const item = JSON.parse(raw) as PendingLoginData;
-      if (Date.now() - item.timestamp < PENDING_LOGIN_TTL_MS) {
-        return item;
-      }
-    }
-  } catch {
     // Bỏ qua lỗi
   }
 
@@ -129,28 +85,13 @@ async function retrievePendingLogin(): Promise<PendingLoginData | null> {
 }
 
 /**
- * Xóa sạch dữ liệu đăng nhập tạm thời.
+ * Xóa sạch dữ liệu đăng nhập tạm thời khỏi RAM và Background Worker.
  */
 async function clearPendingLogin(): Promise<void> {
   memoryPendingLogin = null;
 
   try {
     await sendExtensionBridgeMessage("clear_pending_login");
-  } catch {
-    // Bỏ qua
-  }
-
-  const chromeApi = getChromeApi();
-  if (chromeApi?.storage?.session?.remove) {
-    try {
-      await chromeApi.storage.session.remove([PENDING_LOGIN_KEY]);
-    } catch {
-      // Bỏ qua
-    }
-  }
-
-  try {
-    sessionStorage.removeItem(PENDING_LOGIN_KEY);
   } catch {
     // Bỏ qua
   }

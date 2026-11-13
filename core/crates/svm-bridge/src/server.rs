@@ -185,23 +185,33 @@ impl BridgeServer {
 
         #[cfg(unix)]
         {
+            use std::os::unix::fs::PermissionsExt;
+
             let candidates = {
                 let mut c = Vec::new();
                 if let Ok(runtime_dir) = std::env::var("XDG_RUNTIME_DIR") {
                     let dir = PathBuf::from(runtime_dir).join("svm");
                     if fs::create_dir_all(&dir).is_ok() {
+                        let _ = fs::set_permissions(&dir, fs::Permissions::from_mode(0o700));
                         c.push(dir.join("bridge.sock"));
                     }
                 }
                 if let Ok(home) = std::env::var("HOME") {
                     let dir = PathBuf::from(home).join(".svm");
                     if fs::create_dir_all(&dir).is_ok() {
+                        let _ = fs::set_permissions(&dir, fs::Permissions::from_mode(0o700));
                         c.push(dir.join("bridge.sock"));
                     }
                 }
-                let dir = PathBuf::from("/tmp/hephaestus-svm-data");
-                let _ = fs::create_dir_all(&dir);
-                c.push(dir.join("bridge.sock"));
+                // Dùng thư mục theo USER trong tmp để tránh xung đột quyền giữa các user
+                let user_suffix = std::env::var("USER")
+                    .or_else(|_| std::env::var("LOGNAME"))
+                    .unwrap_or_else(|_| "user".to_string());
+                let dir = PathBuf::from(format!("/tmp/hephaestus-svm-data-{user_suffix}"));
+                if fs::create_dir_all(&dir).is_ok() {
+                    let _ = fs::set_permissions(&dir, fs::Permissions::from_mode(0o700));
+                    c.push(dir.join("bridge.sock"));
+                }
                 c
             };
 
@@ -213,6 +223,7 @@ impl BridgeServer {
                     let _ = fs::remove_file(&socket_path);
                 }
                 if let Ok(listener) = UnixListener::bind(&socket_path) {
+                    let _ = fs::set_permissions(&socket_path, fs::Permissions::from_mode(0o600));
                     let _ = listener.set_nonblocking(true);
                     bound_listener = Some(listener);
                     bound_path = Some(socket_path);

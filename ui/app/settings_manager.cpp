@@ -642,28 +642,6 @@ void SettingsManager::setConfigured(bool configured) {
   emit settingsChanged();
 }
 
-QString SettingsManager::passwordHash() const {
-  const QJsonObject sec =
-      m_cachedSettings.value(QStringLiteral("security")).toObject();
-  return sec.value(QStringLiteral("password_hash")).toString();
-}
-
-QString SettingsManager::passwordSalt() const {
-  const QJsonObject sec =
-      m_cachedSettings.value(QStringLiteral("security")).toObject();
-  return sec.value(QStringLiteral("password_salt")).toString();
-}
-
-void SettingsManager::setPasswordCredentials(const QString &hash,
-                                             const QString &salt) {
-  QJsonObject sec =
-      m_cachedSettings.value(QStringLiteral("security")).toObject();
-  sec.insert(QStringLiteral("password_hash"), hash);
-  sec.insert(QStringLiteral("password_salt"), salt);
-  m_cachedSettings.insert(QStringLiteral("security"), sec);
-  saveToCore();
-}
-
 QJsonArray SettingsManager::cachedVaults() const {
   return m_cachedSettings.value(QStringLiteral("vaults")).toArray();
 }
@@ -676,8 +654,6 @@ void SettingsManager::setCachedVaults(const QJsonArray &vaults) {
 void SettingsManager::resetSecurityAndVaults() {
   QJsonObject sec;
   sec.insert(QStringLiteral("configured"), false);
-  sec.insert(QStringLiteral("password_hash"), QString());
-  sec.insert(QStringLiteral("password_salt"), QString());
   m_cachedSettings.insert(QStringLiteral("security"), sec);
   m_cachedSettings.insert(QStringLiteral("vaults"), QJsonArray());
   m_cachedSettings.insert(QStringLiteral("biometric_enabled"), false);
