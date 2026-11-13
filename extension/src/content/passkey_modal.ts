@@ -41,6 +41,67 @@ export function dismissPasskeyConsent(): void {
   }
 }
 
+function createSvg(
+  viewBox: string,
+  width: number,
+  height: number,
+  strokeWidth: number,
+  children: SVGElement[],
+): SVGSVGElement {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", viewBox);
+  svg.setAttribute("width", String(width));
+  svg.setAttribute("height", String(height));
+  svg.setAttribute("fill", "none");
+  svg.setAttribute("stroke", "currentColor");
+  svg.setAttribute("stroke-width", String(strokeWidth));
+  for (const child of children) {
+    svg.appendChild(child);
+  }
+  return svg;
+}
+
+function createSvgPath(d: string): SVGPathElement {
+  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  path.setAttribute("d", d);
+  return path;
+}
+
+function createSvgRect(
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  rx: number,
+  ry: number,
+): SVGRectElement {
+  const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+  rect.setAttribute("x", String(x));
+  rect.setAttribute("y", String(y));
+  rect.setAttribute("width", String(w));
+  rect.setAttribute("height", String(h));
+  rect.setAttribute("rx", String(rx));
+  rect.setAttribute("ry", String(ry));
+  return rect;
+}
+
+function createSvgLine(x1: number, y1: number, x2: number, y2: number): SVGLineElement {
+  const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+  line.setAttribute("x1", String(x1));
+  line.setAttribute("y1", String(y1));
+  line.setAttribute("x2", String(x2));
+  line.setAttribute("y2", String(y2));
+  return line;
+}
+
+function createSvgCircle(cx: number, cy: number, r: number): SVGCircleElement {
+  const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+  circle.setAttribute("cx", String(cx));
+  circle.setAttribute("cy", String(cy));
+  circle.setAttribute("r", String(r));
+  return circle;
+}
+
 export function promptPasskeyConsent(params: PasskeyModalParams): Promise<PasskeyConsentResult> {
   return new Promise((resolve) => {
     dismissPasskeyConsent();
@@ -453,23 +514,31 @@ export function promptPasskeyConsent(params: PasskeyModalParams): Promise<Passke
     });
 
     async function checkStatusAndRender() {
-      container.innerHTML = "";
+      container.replaceChildren();
 
       // Header
       const header = document.createElement("div");
       header.className = "svm-header";
-      header.innerHTML = `
-        <div class="svm-brand">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-          </svg>
-          Secure Vault
-        </div>
-        <button class="svm-close-btn" title="Đóng">✕</button>
-      `;
-      header
-        .querySelector(".svm-close-btn")
-        ?.addEventListener("click", () => cleanup(false, undefined, false));
+
+      const brand = document.createElement("div");
+      brand.className = "svm-brand";
+      brand.appendChild(
+        createSvg("0 0 24 24", 16, 16, 2.5, [
+          createSvgPath("M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"),
+        ]),
+      );
+      const brandText = document.createTextNode(" Secure Vault");
+      brand.appendChild(brandText);
+
+      const closeBtn = document.createElement("button");
+      closeBtn.type = "button";
+      closeBtn.className = "svm-close-btn";
+      closeBtn.title = "Đóng";
+      closeBtn.textContent = "✕";
+      closeBtn.addEventListener("click", () => cleanup(false, undefined, false));
+
+      header.appendChild(brand);
+      header.appendChild(closeBtn);
       container.appendChild(header);
 
       const body = document.createElement("div");
@@ -482,112 +551,158 @@ export function promptPasskeyConsent(params: PasskeyModalParams): Promise<Passke
 
       // TRƯỜNG HỢP 1: Desktop App chưa chạy (Offline)
       if (!isDesktopRunning) {
-        body.innerHTML = `
-          <div class="svm-title-row">
-            <div class="svm-icon-badge">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
-                <line x1="8" y1="21" x2="16" y2="21"/>
-                <line x1="12" y1="17" x2="12" y2="21"/>
-              </svg>
-            </div>
-            <div>
-              <div class="svm-title">Ứng dụng Desktop chưa khởi chạy</div>
-              <div class="svm-rp-text">Mở ứng dụng trên máy tính để sử dụng Passkey</div>
-            </div>
-          </div>
-          <div class="svm-info-box" style="margin-bottom: 14px;">
-            <div class="svm-offline-desc">
-              Secure Vault Manager cần ứng dụng Desktop đang chạy để bảo vệ và ký xác thực Passkey an toàn.
-            </div>
-          </div>
-          <div class="svm-actions">
-            <button class="svm-btn svm-btn-secondary" id="svm-btn-cancel">Phương thức khác</button>
-            <button class="svm-btn svm-btn-primary" id="svm-btn-retry">
-              Kiểm tra lại
-            </button>
-          </div>
-        `;
+        const titleRow = document.createElement("div");
+        titleRow.className = "svm-title-row";
+        const iconBadge = document.createElement("div");
+        iconBadge.className = "svm-icon-badge";
+        iconBadge.appendChild(
+          createSvg("0 0 24 24", 20, 20, 2, [
+            createSvgRect(2, 3, 20, 14, 2, 2),
+            createSvgLine(8, 21, 16, 21),
+            createSvgLine(12, 17, 12, 21),
+          ]),
+        );
+        const titleTextWrap = document.createElement("div");
+        const titleEl = document.createElement("div");
+        titleEl.className = "svm-title";
+        titleEl.textContent = "Ứng dụng Desktop chưa khởi chạy";
+        const rpEl = document.createElement("div");
+        rpEl.className = "svm-rp-text";
+        rpEl.textContent = "Mở ứng dụng trên máy tính để sử dụng Passkey";
+        titleTextWrap.appendChild(titleEl);
+        titleTextWrap.appendChild(rpEl);
+        titleRow.appendChild(iconBadge);
+        titleRow.appendChild(titleTextWrap);
 
-        container.appendChild(body);
+        const infoBox = document.createElement("div");
+        infoBox.className = "svm-info-box";
+        infoBox.style.marginBottom = "14px";
+        const offlineDesc = document.createElement("div");
+        offlineDesc.className = "svm-offline-desc";
+        offlineDesc.textContent =
+          "Secure Vault Manager cần ứng dụng Desktop đang chạy để bảo vệ và ký xác thực Passkey an toàn.";
+        infoBox.appendChild(offlineDesc);
 
-        body
-          .querySelector("#svm-btn-cancel")
-          ?.addEventListener("click", () => cleanup(false, undefined, true));
-        const retryBtn = body.querySelector<HTMLButtonElement>("#svm-btn-retry");
-        retryBtn?.addEventListener("click", async () => {
-          if (retryBtn) {
-            retryBtn.disabled = true;
-            retryBtn.textContent = "Đang kiểm tra...";
-          }
+        const actions = document.createElement("div");
+        actions.className = "svm-actions";
+        const cancelBtn = document.createElement("button");
+        cancelBtn.type = "button";
+        cancelBtn.className = "svm-btn svm-btn-secondary";
+        cancelBtn.id = "svm-btn-cancel";
+        cancelBtn.textContent = "Phương thức khác";
+        cancelBtn.addEventListener("click", () => cleanup(false, undefined, true));
+
+        const retryBtn = document.createElement("button");
+        retryBtn.type = "button";
+        retryBtn.className = "svm-btn svm-btn-primary";
+        retryBtn.id = "svm-btn-retry";
+        retryBtn.textContent = "Kiểm tra lại";
+        retryBtn.addEventListener("click", async () => {
+          retryBtn.disabled = true;
+          retryBtn.textContent = "Đang kiểm tra...";
           await checkStatusAndRender();
         });
+
+        actions.appendChild(cancelBtn);
+        actions.appendChild(retryBtn);
+
+        body.appendChild(titleRow);
+        body.appendChild(infoBox);
+        body.appendChild(actions);
+        container.appendChild(body);
         return;
       }
 
       // TRƯỜNG HỢP 2: Desktop đang chạy nhưng Kho bị khóa
       if (!isUnlocked) {
         const bioAvailable = Boolean(statusResp.ok && statusResp.payload?.biometricAvailable);
-        body.innerHTML = `
-          <div class="svm-title-row">
-            <div class="svm-icon-badge">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-              </svg>
-            </div>
-            <div>
-              <div class="svm-title">Kho mật khẩu đang khóa</div>
-              <div class="svm-rp-text">Mở khóa an toàn để tiếp tục với Passkey</div>
-            </div>
-          </div>
-          <div class="svm-info-box" style="margin-bottom: 10px;">
-            <div class="svm-offline-desc">
-              Vì lý do bảo mật, không nhập Mật khẩu chính trực tiếp trên trang web. Vui lòng mở khóa bằng Sinh trắc học hoặc qua biểu tượng Secure Vault trên thanh công cụ trình duyệt / ứng dụng Desktop.
-            </div>
-          </div>
-          <div class="svm-error-text" id="svm-error-msg"></div>
-          <div class="svm-actions">
-            <button class="svm-btn svm-btn-secondary" id="svm-btn-cancel">Phương thức khác</button>
-            ${
-              bioAvailable
-                ? `<button class="svm-btn svm-btn-primary" id="svm-btn-bio">Mở khóa Sinh trắc học</button>`
-                : `<button class="svm-btn svm-btn-primary" id="svm-btn-retry">Kiểm tra lại</button>`
-            }
-          </div>
-        `;
 
-        container.appendChild(body);
+        const titleRow = document.createElement("div");
+        titleRow.className = "svm-title-row";
+        const iconBadge = document.createElement("div");
+        iconBadge.className = "svm-icon-badge";
+        iconBadge.appendChild(
+          createSvg("0 0 24 24", 20, 20, 2, [
+            createSvgRect(3, 11, 18, 11, 2, 2),
+            createSvgPath("M7 11V7a5 5 0 0 1 10 0v4"),
+          ]),
+        );
+        const titleTextWrap = document.createElement("div");
+        const titleEl = document.createElement("div");
+        titleEl.className = "svm-title";
+        titleEl.textContent = "Kho mật khẩu đang khóa";
+        const rpEl = document.createElement("div");
+        rpEl.className = "svm-rp-text";
+        rpEl.textContent = "Mở khóa an toàn để tiếp tục với Passkey";
+        titleTextWrap.appendChild(titleEl);
+        titleTextWrap.appendChild(rpEl);
+        titleRow.appendChild(iconBadge);
+        titleRow.appendChild(titleTextWrap);
 
-        const errorMsg = body.querySelector<HTMLDivElement>("#svm-error-msg");
-        const btnCancel = body.querySelector<HTMLButtonElement>("#svm-btn-cancel");
-        const btnBio = body.querySelector<HTMLButtonElement>("#svm-btn-bio");
-        const btnRetry = body.querySelector<HTMLButtonElement>("#svm-btn-retry");
+        const infoBox = document.createElement("div");
+        infoBox.className = "svm-info-box";
+        infoBox.style.marginBottom = "10px";
+        const offlineDesc = document.createElement("div");
+        offlineDesc.className = "svm-offline-desc";
+        offlineDesc.textContent =
+          "Vì lý do bảo mật, không nhập Mật khẩu chính trực tiếp trên trang web. Vui lòng mở khóa bằng Sinh trắc học hoặc qua biểu tượng Secure Vault trên thanh công cụ trình duyệt / ứng dụng Desktop.";
+        infoBox.appendChild(offlineDesc);
 
-        btnCancel?.addEventListener("click", () => cleanup(false, undefined, true));
+        const errorMsg = document.createElement("div");
+        errorMsg.className = "svm-error-text";
+        errorMsg.id = "svm-error-msg";
 
-        btnRetry?.addEventListener("click", () => {
-          void checkStatusAndRender();
-        });
+        const actions = document.createElement("div");
+        actions.className = "svm-actions";
+        const btnCancel = document.createElement("button");
+        btnCancel.type = "button";
+        btnCancel.className = "svm-btn svm-btn-secondary";
+        btnCancel.id = "svm-btn-cancel";
+        btnCancel.textContent = "Phương thức khác";
+        btnCancel.addEventListener("click", () => cleanup(false, undefined, true));
 
-        btnBio?.addEventListener("click", async () => {
-          btnBio.disabled = true;
-          btnBio.textContent = "Đang xác thực...";
-          if (errorMsg) errorMsg.textContent = "";
-          const bioResp = await sendExtensionBridgeMessage<any>("unlock_vault_biometric");
-          if (bioResp.ok && bioResp.payload?.unlocked) {
-            stopLockPolling();
-            isUnlocked = true;
-            void checkStatusAndRender();
-          } else {
-            btnBio.disabled = false;
-            btnBio.textContent = "Mở khóa Sinh trắc học";
-            if (errorMsg) {
+        actions.appendChild(btnCancel);
+
+        if (bioAvailable) {
+          const btnBio = document.createElement("button");
+          btnBio.type = "button";
+          btnBio.className = "svm-btn svm-btn-primary";
+          btnBio.id = "svm-btn-bio";
+          btnBio.textContent = "Mở khóa Sinh trắc học";
+          btnBio.addEventListener("click", async () => {
+            btnBio.disabled = true;
+            btnBio.textContent = "Đang xác thực...";
+            errorMsg.textContent = "";
+            const bioResp = await sendExtensionBridgeMessage<any>("unlock_vault_biometric");
+            if (bioResp.ok && bioResp.payload?.unlocked) {
+              stopLockPolling();
+              isUnlocked = true;
+              void checkStatusAndRender();
+            } else {
+              btnBio.disabled = false;
+              btnBio.textContent = "Mở khóa Sinh trắc học";
               errorMsg.textContent =
                 bioResp.error?.message || "Xác thực sinh trắc học không thành công.";
             }
-          }
-        });
+          });
+          actions.appendChild(btnBio);
+        } else {
+          const btnRetry = document.createElement("button");
+          btnRetry.type = "button";
+          btnRetry.className = "svm-btn svm-btn-primary";
+          btnRetry.id = "svm-btn-retry";
+          btnRetry.textContent = "Kiểm tra lại";
+          btnRetry.addEventListener("click", () => {
+            void checkStatusAndRender();
+          });
+          actions.appendChild(btnRetry);
+        }
+
+        body.appendChild(titleRow);
+        body.appendChild(infoBox);
+        body.appendChild(errorMsg);
+        body.appendChild(actions);
+        container.appendChild(body);
 
         if (!lockPollTimer) {
           lockPollTimer = setInterval(() => {
@@ -606,47 +721,72 @@ export function promptPasskeyConsent(params: PasskeyModalParams): Promise<Passke
       stopLockPolling();
 
       // Khi kho đã mở: Hiển thị xác nhận Passkey Tạo / Đăng nhập
-      const escapeHtml = (raw: string): string =>
-        raw
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;")
-          .replace(/"/g, "&quot;")
-          .replace(/'/g, "&#39;");
-
       const isCreate = params.action === "passkey_create";
       const title = isCreate ? "Lưu Passkey mới" : "Đăng nhập bằng Passkey";
-      const safeRpId = escapeHtml(params.rpId || "");
+      const rpId = params.rpId || "";
       const matched = params.matchedPasskeys || [];
       const primaryPasskey = matched[0];
-      const safeUser = escapeHtml(
-        params.userName || primaryPasskey?.username || primaryPasskey?.title || "",
-      );
+      const userName = params.userName || primaryPasskey?.username || primaryPasskey?.title || "";
       const subtitle = isCreate
         ? "Lưu khóa Passkey an toàn vào kho"
         : "Xác thực nhanh bằng khóa lưu trong Secure Vault";
 
-      // Danh sách tài khoản nếu có nhiều passkey
-      let accountsHtml = "";
-      if (!isCreate && matched.length > 1) {
-        accountsHtml = `
-          <div class="svm-accounts-list">
-            <div class="svm-accounts-heading">Chọn tài khoản để đăng nhập:</div>
-            ${matched
-              .map(
-                (pk, idx) => `
-                <label class="svm-account-option">
-                  <input type="radio" name="svm-selected-pk" value="${escapeHtml(pk.credentialId)}" ${idx === 0 ? "checked" : ""} />
-                  <div>
-                    <div class="svm-account-user">${escapeHtml(pk.username || pk.title || "Tài khoản Passkey")}</div>
-                    <div class="svm-account-title">${escapeHtml(pk.title || safeRpId)}</div>
-                  </div>
-                </label>
-              `,
-              )
-              .join("")}
-          </div>
-        `;
+      // Tiêu đề & Icon Key
+      const titleRow = document.createElement("div");
+      titleRow.className = "svm-title-row";
+      const iconBadge = document.createElement("div");
+      iconBadge.className = "svm-icon-badge";
+      iconBadge.appendChild(
+        createSvg("0 0 24 24", 20, 20, 2, [
+          createSvgCircle(8.5, 8.5, 4.5),
+          createSvgLine(12, 12, 21, 21),
+          createSvgLine(16, 16, 16, 18),
+          createSvgLine(19, 19, 19, 21),
+        ]),
+      );
+      const titleTextWrap = document.createElement("div");
+      const titleEl = document.createElement("div");
+      titleEl.className = "svm-title";
+      titleEl.textContent = title;
+      const subtitleEl = document.createElement("div");
+      subtitleEl.className = "svm-rp-text";
+      subtitleEl.textContent = subtitle;
+      titleTextWrap.appendChild(titleEl);
+      titleTextWrap.appendChild(subtitleEl);
+      titleRow.appendChild(iconBadge);
+      titleRow.appendChild(titleTextWrap);
+      body.appendChild(titleRow);
+
+      // Info box
+      const infoBox = document.createElement("div");
+      infoBox.className = "svm-info-box";
+
+      const rpRow = document.createElement("div");
+      rpRow.className = "svm-info-row";
+      const rpLabel = document.createElement("span");
+      rpLabel.className = "svm-info-label";
+      rpLabel.textContent = "Trang web:";
+      const rpVal = document.createElement("span");
+      rpVal.className = "svm-info-val";
+      rpVal.title = rpId;
+      rpVal.textContent = rpId;
+      rpRow.appendChild(rpLabel);
+      rpRow.appendChild(rpVal);
+      infoBox.appendChild(rpRow);
+
+      if (userName && matched.length <= 1) {
+        const userRow = document.createElement("div");
+        userRow.className = "svm-info-row";
+        const userLabel = document.createElement("span");
+        userLabel.className = "svm-info-label";
+        userLabel.textContent = "Tài khoản:";
+        const userVal = document.createElement("span");
+        userVal.className = "svm-info-val";
+        userVal.title = userName;
+        userVal.textContent = userName;
+        userRow.appendChild(userLabel);
+        userRow.appendChild(userVal);
+        infoBox.appendChild(userRow);
       }
 
       // Lấy danh sách Vaults khả dụng
@@ -660,75 +800,97 @@ export function promptPasskeyConsent(params: PasskeyModalParams): Promise<Passke
         }
       }
 
-      let vaultSelectorHtml = "";
+      let vaultSelectEl: HTMLSelectElement | null = null;
       if (isCreate && availableVaults.length >= 2) {
-        vaultSelectorHtml = `
-          <div class="svm-info-row" style="align-items: center;">
-            <span class="svm-info-label">Lưu vào kho:</span>
-            <select class="svm-vault-select" id="svm-vault-select">
-              ${availableVaults
-                .map(
-                  (v) =>
-                    `<option value="${escapeHtml(v.id)}" ${v.isDefault ? "selected" : ""}>${escapeHtml(v.name)}</option>`,
-                )
-                .join("")}
-            </select>
-          </div>
-        `;
+        const vRow = document.createElement("div");
+        vRow.className = "svm-info-row";
+        vRow.style.alignItems = "center";
+        const vLabel = document.createElement("span");
+        vLabel.className = "svm-info-label";
+        vLabel.textContent = "Lưu vào kho:";
+        vaultSelectEl = document.createElement("select");
+        vaultSelectEl.className = "svm-vault-select";
+        vaultSelectEl.id = "svm-vault-select";
+        for (const v of availableVaults) {
+          const opt = document.createElement("option");
+          opt.value = v.id;
+          opt.textContent = v.name;
+          if (v.isDefault) opt.selected = true;
+          vaultSelectEl.appendChild(opt);
+        }
+        vRow.appendChild(vLabel);
+        vRow.appendChild(vaultSelectEl);
+        infoBox.appendChild(vRow);
       } else if (isCreate && availableVaults.length === 1) {
-        vaultSelectorHtml = `
-          <div class="svm-info-row">
-            <span class="svm-info-label">Kho lưu trữ:</span>
-            <span class="svm-info-val">${escapeHtml(availableVaults[0].name)}</span>
-          </div>
-        `;
+        const vRow = document.createElement("div");
+        vRow.className = "svm-info-row";
+        const vLabel = document.createElement("span");
+        vLabel.className = "svm-info-label";
+        vLabel.textContent = "Kho lưu trữ:";
+        const vVal = document.createElement("span");
+        vVal.className = "svm-info-val";
+        vVal.textContent = availableVaults[0].name;
+        vRow.appendChild(vLabel);
+        vRow.appendChild(vVal);
+        infoBox.appendChild(vRow);
       }
 
-      body.innerHTML = `
-        <div class="svm-title-row">
-          <div class="svm-icon-badge">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="8.5" cy="8.5" r="4.5"/>
-              <line x1="12" y1="12" x2="21" y2="21"/>
-              <line x1="16" y1="16" x2="16" y2="18"/>
-              <line x1="19" y1="19" x2="19" y2="21"/>
-            </svg>
-          </div>
-          <div>
-            <div class="svm-title">${title}</div>
-            <div class="svm-rp-text">${subtitle}</div>
-          </div>
-        </div>
-        <div class="svm-info-box">
-          <div class="svm-info-row">
-            <span class="svm-info-label">Trang web:</span>
-            <span class="svm-info-val" title="${safeRpId}">${safeRpId}</span>
-          </div>
-          ${
-            safeUser && matched.length <= 1
-              ? `<div class="svm-info-row">
-                  <span class="svm-info-label">Tài khoản:</span>
-                  <span class="svm-info-val" title="${safeUser}">${safeUser}</span>
-                </div>`
-              : ""
-          }
-          ${vaultSelectorHtml}
-        </div>
-        ${accountsHtml}
-        <div class="svm-actions">
-          <button class="svm-btn svm-btn-secondary" id="svm-btn-cancel">Phương thức khác</button>
-          <button class="svm-btn svm-btn-primary" id="svm-btn-confirm">
-            ${isCreate ? "Lưu Passkey" : "Đăng nhập"}
-          </button>
-        </div>
-      `;
+      body.appendChild(infoBox);
 
-      container.appendChild(body);
+      // Danh sách tài khoản nếu có nhiều passkey
+      if (!isCreate && matched.length > 1) {
+        const accList = document.createElement("div");
+        accList.className = "svm-accounts-list";
+        const accHeading = document.createElement("div");
+        accHeading.className = "svm-accounts-heading";
+        accHeading.textContent = "Chọn tài khoản để đăng nhập:";
+        accList.appendChild(accHeading);
 
-      body
-        .querySelector("#svm-btn-cancel")
-        ?.addEventListener("click", () => cleanup(false, undefined, true));
-      body.querySelector("#svm-btn-confirm")?.addEventListener("click", () => {
+        matched.forEach((pk, idx) => {
+          const label = document.createElement("label");
+          label.className = "svm-account-option";
+
+          const radio = document.createElement("input");
+          radio.type = "radio";
+          radio.name = "svm-selected-pk";
+          radio.value = pk.credentialId;
+          if (idx === 0) radio.checked = true;
+
+          const textWrap = document.createElement("div");
+          const userDiv = document.createElement("div");
+          userDiv.className = "svm-account-user";
+          userDiv.textContent = pk.username || pk.title || "Tài khoản Passkey";
+          const titleDiv = document.createElement("div");
+          titleDiv.className = "svm-account-title";
+          titleDiv.textContent = pk.title || rpId;
+
+          textWrap.appendChild(userDiv);
+          textWrap.appendChild(titleDiv);
+          label.appendChild(radio);
+          label.appendChild(textWrap);
+          accList.appendChild(label);
+        });
+
+        body.appendChild(accList);
+      }
+
+      // Actions
+      const actions = document.createElement("div");
+      actions.className = "svm-actions";
+      const btnCancel = document.createElement("button");
+      btnCancel.type = "button";
+      btnCancel.className = "svm-btn svm-btn-secondary";
+      btnCancel.id = "svm-btn-cancel";
+      btnCancel.textContent = "Phương thức khác";
+      btnCancel.addEventListener("click", () => cleanup(false, undefined, true));
+
+      const btnConfirm = document.createElement("button");
+      btnConfirm.type = "button";
+      btnConfirm.className = "svm-btn svm-btn-primary";
+      btnConfirm.id = "svm-btn-confirm";
+      btnConfirm.textContent = isCreate ? "Lưu Passkey" : "Đăng nhập";
+
+      btnConfirm.addEventListener("click", () => {
         let selectedCredId = primaryPasskey?.credentialId;
         let selectedItemId = primaryPasskey?.id;
         if (!isCreate && matched.length > 1) {
@@ -744,14 +906,16 @@ export function promptPasskeyConsent(params: PasskeyModalParams): Promise<Passke
           }
         }
         let selectedVaultId: string | undefined;
-        if (isCreate) {
-          const selectEl = body.querySelector<HTMLSelectElement>("#svm-vault-select");
-          if (selectEl?.value) {
-            selectedVaultId = selectEl.value;
-          }
+        if (isCreate && vaultSelectEl) {
+          selectedVaultId = vaultSelectEl.value;
         }
         cleanup(true, selectedCredId, false, selectedVaultId, selectedItemId);
       });
+
+      actions.appendChild(btnCancel);
+      actions.appendChild(btnConfirm);
+      body.appendChild(actions);
+      container.appendChild(body);
     }
 
     shadow.appendChild(style);

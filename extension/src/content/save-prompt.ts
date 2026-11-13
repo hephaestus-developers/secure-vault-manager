@@ -243,15 +243,35 @@ export async function showSaveCredentialPrompt(data: SavePromptOptions): Promise
 
   const header = document.createElement("div");
   header.className = "svm-header";
-  header.innerHTML = `
-    <div class="svm-header-brand">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-      </svg>
-      <span>${data.isUpdate ? "Cập nhật Mật khẩu" : "Lưu vào Secure Vault?"}</span>
-    </div>
-    <button class="svm-close-btn" title="Đóng">✕</button>
-  `;
+
+  const brand = document.createElement("div");
+  brand.className = "svm-header-brand";
+
+  const shieldSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  shieldSvg.setAttribute("width", "18");
+  shieldSvg.setAttribute("height", "18");
+  shieldSvg.setAttribute("viewBox", "0 0 24 24");
+  shieldSvg.setAttribute("fill", "none");
+  shieldSvg.setAttribute("stroke", "currentColor");
+  shieldSvg.setAttribute("stroke-width", "2.5");
+  const shieldPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  shieldPath.setAttribute("d", "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z");
+  shieldSvg.appendChild(shieldPath);
+
+  const titleSpan = document.createElement("span");
+  titleSpan.textContent = data.isUpdate ? "Cập nhật Mật khẩu" : "Lưu vào Secure Vault?";
+
+  brand.appendChild(shieldSvg);
+  brand.appendChild(titleSpan);
+
+  const closeBtn = document.createElement("button");
+  closeBtn.type = "button";
+  closeBtn.className = "svm-close-btn";
+  closeBtn.title = "Đóng";
+  closeBtn.textContent = "✕";
+
+  header.appendChild(brand);
+  header.appendChild(closeBtn);
 
   const formRows = document.createElement("div");
   formRows.className = "svm-form-rows";
@@ -259,60 +279,115 @@ export async function showSaveCredentialPrompt(data: SavePromptOptions): Promise
   // Dòng Tiêu đề (cho phép sửa)
   const titleRow = document.createElement("div");
   titleRow.className = "svm-row";
-  titleRow.innerHTML = `
-    <label class="svm-label">Tiêu đề</label>
-    <div class="svm-input-wrapper">
-      <input type="text" class="svm-input" id="svm-save-title" value="${escapeHtml(data.title)}" />
-    </div>
-  `;
+  const titleLabel = document.createElement("label");
+  titleLabel.className = "svm-label";
+  titleLabel.textContent = "Tiêu đề";
+  const titleWrapper = document.createElement("div");
+  titleWrapper.className = "svm-input-wrapper";
+  const titleInput = document.createElement("input");
+  titleInput.type = "text";
+  titleInput.className = "svm-input";
+  titleInput.id = "svm-save-title";
+  titleInput.value = data.title;
+  titleWrapper.appendChild(titleInput);
+  titleRow.appendChild(titleLabel);
+  titleRow.appendChild(titleWrapper);
   formRows.appendChild(titleRow);
 
   // Dòng Tên đăng nhập (cho phép sửa)
   const userRow = document.createElement("div");
   userRow.className = "svm-row";
-  userRow.innerHTML = `
-    <label class="svm-label">Tên đăng nhập / Email</label>
-    <div class="svm-input-wrapper">
-      <input type="text" class="svm-input" id="svm-save-username" value="${escapeHtml(data.username)}" />
-    </div>
-  `;
+  const userLabel = document.createElement("label");
+  userLabel.className = "svm-label";
+  userLabel.textContent = "Tên đăng nhập / Email";
+  const userWrapper = document.createElement("div");
+  userWrapper.className = "svm-input-wrapper";
+  const userInput = document.createElement("input");
+  userInput.type = "text";
+  userInput.className = "svm-input";
+  userInput.id = "svm-save-username";
+  userInput.value = data.username;
+  userWrapper.appendChild(userInput);
+  userRow.appendChild(userLabel);
+  userRow.appendChild(userWrapper);
   formRows.appendChild(userRow);
 
   // Dòng Mật khẩu (có nút con mắt toggle)
   const pwdRow = document.createElement("div");
   pwdRow.className = "svm-row";
-  pwdRow.innerHTML = `
-    <label class="svm-label">Mật khẩu</label>
-    <div class="svm-input-wrapper">
-      <input type="password" class="svm-input svm-pwd-input" id="svm-save-password" value="${escapeHtml(data.password)}" />
-      <button type="button" class="svm-toggle-eye" id="svm-toggle-eye" title="Xem mật khẩu">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-          <circle cx="12" cy="12" r="3"/>
-        </svg>
-      </button>
-    </div>
-    <div class="svm-sub" title="${escapeHtml(data.websiteUrl)}">${escapeHtml(data.title)}</div>
-  `;
+  const pwdLabel = document.createElement("label");
+  pwdLabel.className = "svm-label";
+  pwdLabel.textContent = "Mật khẩu";
+  const pwdWrapper = document.createElement("div");
+  pwdWrapper.className = "svm-input-wrapper";
+  const pwdInput = document.createElement("input");
+  pwdInput.type = "password";
+  pwdInput.className = "svm-input svm-pwd-input";
+  pwdInput.id = "svm-save-password";
+  pwdInput.value = data.password;
+
+  const toggleEyeBtn = document.createElement("button");
+  toggleEyeBtn.type = "button";
+  toggleEyeBtn.className = "svm-toggle-eye";
+  toggleEyeBtn.id = "svm-toggle-eye";
+  toggleEyeBtn.title = "Xem mật khẩu";
+  const eyeSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  eyeSvg.setAttribute("width", "16");
+  eyeSvg.setAttribute("height", "16");
+  eyeSvg.setAttribute("viewBox", "0 0 24 24");
+  eyeSvg.setAttribute("fill", "none");
+  eyeSvg.setAttribute("stroke", "currentColor");
+  eyeSvg.setAttribute("stroke-width", "2");
+  const eyePath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  eyePath.setAttribute("d", "M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z");
+  const eyeCircle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+  eyeCircle.setAttribute("cx", "12");
+  eyeCircle.setAttribute("cy", "12");
+  eyeCircle.setAttribute("r", "3");
+  eyeSvg.appendChild(eyePath);
+  eyeSvg.appendChild(eyeCircle);
+  toggleEyeBtn.appendChild(eyeSvg);
+
+  pwdWrapper.appendChild(pwdInput);
+  pwdWrapper.appendChild(toggleEyeBtn);
+
+  const subInfo = document.createElement("div");
+  subInfo.className = "svm-sub";
+  subInfo.title = data.websiteUrl;
+  subInfo.textContent = data.title;
+
+  pwdRow.appendChild(pwdLabel);
+  pwdRow.appendChild(pwdWrapper);
+  pwdRow.appendChild(subInfo);
   formRows.appendChild(pwdRow);
 
   // Dòng Chọn Kho nếu có từ 2 Vault trở lên
   if (availableVaults.length >= 2) {
     const vaultRow = document.createElement("div");
     vaultRow.className = "svm-row";
-    vaultRow.innerHTML = `
-      <label class="svm-label">Lưu vào kho</label>
-      <div class="svm-input-wrapper">
-        <select class="svm-input" id="svm-save-vault" style="cursor: pointer;">
-          ${availableVaults
-            .map(
-              (v) =>
-                `<option value="${escapeHtml(v.id)}" ${v.isDefault ? "selected" : ""}>${escapeHtml(v.name)}</option>`,
-            )
-            .join("")}
-        </select>
-      </div>
-    `;
+    const vaultLabel = document.createElement("label");
+    vaultLabel.className = "svm-label";
+    vaultLabel.textContent = "Lưu vào kho";
+    const vaultWrapper = document.createElement("div");
+    vaultWrapper.className = "svm-input-wrapper";
+    const vaultSelect = document.createElement("select");
+    vaultSelect.className = "svm-input";
+    vaultSelect.id = "svm-save-vault";
+    vaultSelect.style.cursor = "pointer";
+
+    for (const v of availableVaults) {
+      const option = document.createElement("option");
+      option.value = v.id;
+      option.textContent = v.name;
+      if (v.isDefault) {
+        option.selected = true;
+      }
+      vaultSelect.appendChild(option);
+    }
+
+    vaultWrapper.appendChild(vaultSelect);
+    vaultRow.appendChild(vaultLabel);
+    vaultRow.appendChild(vaultWrapper);
     formRows.appendChild(vaultRow);
   }
 
@@ -411,13 +486,4 @@ export async function showSaveCredentialPrompt(data: SavePromptOptions): Promise
   });
   container.addEventListener("mouseleave", scheduleAutoDismiss);
   scheduleAutoDismiss();
-}
-
-function escapeHtml(raw: string): string {
-  return raw
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
 }

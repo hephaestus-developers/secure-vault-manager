@@ -14,6 +14,158 @@ export interface LockViewProps {
   onRefresh?: () => void;
 }
 
+function createSvg(
+  viewBox: string,
+  width: number,
+  height: number,
+  strokeWidth: number,
+  children: SVGElement[],
+  extraAttrs: Record<string, string> = {},
+): SVGSVGElement {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", viewBox);
+  svg.setAttribute("width", String(width));
+  svg.setAttribute("height", String(height));
+  svg.setAttribute("fill", "none");
+  svg.setAttribute("stroke", "currentColor");
+  svg.setAttribute("stroke-width", String(strokeWidth));
+  svg.setAttribute("stroke-linecap", "round");
+  svg.setAttribute("stroke-linejoin", "round");
+  for (const [k, v] of Object.entries(extraAttrs)) {
+    svg.setAttribute(k, v);
+  }
+  for (const child of children) {
+    svg.appendChild(child);
+  }
+  return svg;
+}
+
+function createSvgPath(d: string, extraAttrs: Record<string, string> = {}): SVGPathElement {
+  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  path.setAttribute("d", d);
+  for (const [k, v] of Object.entries(extraAttrs)) {
+    path.setAttribute(k, v);
+  }
+  return path;
+}
+
+function createSvgRect(
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  rx: number,
+  ry: number,
+): SVGRectElement {
+  const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+  rect.setAttribute("x", String(x));
+  rect.setAttribute("y", String(y));
+  rect.setAttribute("width", String(w));
+  rect.setAttribute("height", String(h));
+  rect.setAttribute("rx", String(rx));
+  rect.setAttribute("ry", String(ry));
+  return rect;
+}
+
+function createSvgLine(x1: number, y1: number, x2: number, y2: number): SVGLineElement {
+  const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+  line.setAttribute("x1", String(x1));
+  line.setAttribute("y1", String(y1));
+  line.setAttribute("x2", String(x2));
+  line.setAttribute("y2", String(y2));
+  return line;
+}
+
+function createSvgCircle(
+  cx: number,
+  cy: number,
+  r: number,
+  extraAttrs: Record<string, string> = {},
+): SVGCircleElement {
+  const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+  circle.setAttribute("cx", String(cx));
+  circle.setAttribute("cy", String(cy));
+  circle.setAttribute("r", String(r));
+  for (const [k, v] of Object.entries(extraAttrs)) {
+    circle.setAttribute(k, v);
+  }
+  return circle;
+}
+
+function createDesktopSvg(size = 28): SVGSVGElement {
+  return createSvg("0 0 24 24", size, size, 1.8, [
+    createSvgRect(2, 3, 20, 14, 2, 2),
+    createSvgLine(8, 21, 16, 21),
+    createSvgLine(12, 17, 12, 21),
+  ]);
+}
+
+function createRefreshSvg(size = 13): SVGSVGElement {
+  return createSvg("0 0 24 24", size, size, 2, [
+    createSvgPath("M23 4v6h-6"),
+    createSvgPath("M1 20v-6h6"),
+    createSvgPath("M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"),
+  ]);
+}
+
+function createShieldAlertSvg(size = 28): SVGSVGElement {
+  return createSvg("0 0 24 24", size, size, 1.8, [
+    createSvgPath("M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"),
+    createSvgPath("M12 8v4"),
+    createSvgPath("M12 16h.01"),
+  ]);
+}
+
+function createLockSvg(size = 26): SVGSVGElement {
+  return createSvg("0 0 24 24", size, size, 2, [
+    createSvgRect(3, 11, 18, 11, 2, 2),
+    createSvgPath("M7 11V7a5 5 0 0 1 10 0v4"),
+  ]);
+}
+
+function createEyeSvg(size = 16): SVGSVGElement {
+  return createSvg("0 0 24 24", size, size, 2, [
+    createSvgPath("M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"),
+    createSvgCircle(12, 12, 3),
+  ]);
+}
+
+function createFingerprintSvg(size = 16): SVGSVGElement {
+  return createSvg("0 0 24 24", size, size, 2, [
+    createSvgPath("M12 11c0 2-1 3-2 4s-1 2-1 4"),
+    createSvgPath("M14 18a8.3 8.3 0 0 0 1-4c0-2-1-3-2-4"),
+    createSvgPath("M16 11c0-3.3-2.7-6-6-6s-6 2.7-6 6a10 10 0 0 0 1 4.5"),
+    createSvgPath("M19 11a9 9 0 0 0-1-4"),
+    createSvgPath("M8 11a4 4 0 0 1 4-4 4 4 0 0 1 4 4"),
+  ]);
+}
+
+function createSpinnerSvg(size = 14): SVGSVGElement {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("width", String(size));
+  svg.setAttribute("height", String(size));
+  svg.setAttribute("fill", "none");
+  svg.setAttribute("stroke", "currentColor");
+  svg.setAttribute("stroke-width", "2");
+  svg.style.animation = "spin 0.8s linear infinite";
+
+  const circle = createSvgCircle(12, 12, 10, { "stroke-opacity": "0.25" });
+  const path = createSvgPath("M12 2a10 10 0 0 1 10 10");
+
+  svg.appendChild(circle);
+  svg.appendChild(path);
+  return svg;
+}
+
+function setButtonLabel(btn: HTMLButtonElement, icon: SVGElement, text: string): void {
+  btn.replaceChildren();
+  btn.appendChild(icon);
+  const span = document.createElement("span");
+  span.textContent = text;
+  btn.appendChild(span);
+}
+
 export function createLockView(props: LockViewProps): HTMLElement {
   const wrap = document.createElement("div");
   wrap.className = "stateCard";
@@ -30,13 +182,7 @@ export function createLockView(props: LockViewProps): HTMLElement {
     const iconWrap = document.createElement("div");
     iconWrap.style.cssText =
       "width: 60px; height: 60px; border-radius: 50%; background-color: var(--bg-surface0); display: flex; align-items: center; justify-content: center; color: var(--accent-primary); border: 1px solid var(--border-subtle); margin-bottom: 4px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);";
-    iconWrap.innerHTML = `
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-        <line x1="8" y1="21" x2="16" y2="21"></line>
-        <line x1="12" y1="17" x2="12" y2="21"></line>
-      </svg>
-    `;
+    iconWrap.appendChild(createDesktopSvg(28));
 
     const heading = document.createElement("div");
     heading.className = "stateTitle";
@@ -60,24 +206,11 @@ export function createLockView(props: LockViewProps): HTMLElement {
     launchBtn.className = "primaryBtn";
     launchBtn.style.cssText =
       "width: 100%; height: 38px; font-size: 13px; font-weight: 700; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;";
-    launchBtn.innerHTML = `
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-        <line x1="8" y1="21" x2="16" y2="21"></line>
-        <line x1="12" y1="17" x2="12" y2="21"></line>
-      </svg>
-      <span>Mở Secure Vault Manager</span>
-    `;
+    setButtonLabel(launchBtn, createDesktopSvg(15), "Mở Secure Vault Manager");
+
     launchBtn.addEventListener("click", async () => {
       launchBtn.disabled = true;
-      const originalHtml = launchBtn.innerHTML;
-      launchBtn.innerHTML = `
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 0.8s linear infinite;">
-          <circle cx="12" cy="12" r="10" stroke-opacity="0.25"></circle>
-          <path d="M12 2a10 10 0 0 1 10 10"></path>
-        </svg>
-        <span>Đang khởi chạy...</span>
-      `;
+      setButtonLabel(launchBtn, createSpinnerSvg(14), "Đang khởi chạy...");
       try {
         await sendExtensionBridgeMessage("launch_desktop");
       } catch {
@@ -88,7 +221,7 @@ export function createLockView(props: LockViewProps): HTMLElement {
           props.onRefresh();
         }
         launchBtn.disabled = false;
-        launchBtn.innerHTML = originalHtml;
+        setButtonLabel(launchBtn, createDesktopSvg(15), "Mở Secure Vault Manager");
       }, 1500);
     });
 
@@ -97,30 +230,17 @@ export function createLockView(props: LockViewProps): HTMLElement {
     refreshBtn.className = "secondaryBtn";
     refreshBtn.style.cssText =
       "width: 100%; height: 34px; font-size: 12px; font-weight: 600; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; background: var(--bg-surface1, rgba(255, 255, 255, 0.06)); border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.12)); color: var(--text-primary);";
-    refreshBtn.innerHTML = `
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M23 4v6h-6"></path>
-        <path d="M1 20v-6h6"></path>
-        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
-      </svg>
-      <span>Kiểm tra lại kết nối</span>
-    `;
+    setButtonLabel(refreshBtn, createRefreshSvg(13), "Kiểm tra lại kết nối");
+
     refreshBtn.addEventListener("click", () => {
       refreshBtn.disabled = true;
-      const originalHtml = refreshBtn.innerHTML;
-      refreshBtn.innerHTML = `
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 0.8s linear infinite;">
-          <circle cx="12" cy="12" r="10" stroke-opacity="0.25"></circle>
-          <path d="M12 2a10 10 0 0 1 10 10"></path>
-        </svg>
-        <span>Đang kiểm tra...</span>
-      `;
+      setButtonLabel(refreshBtn, createSpinnerSvg(13), "Đang kiểm tra...");
       if (props.onRefresh) {
         props.onRefresh();
       }
       setTimeout(() => {
         refreshBtn.disabled = false;
-        refreshBtn.innerHTML = originalHtml;
+        setButtonLabel(refreshBtn, createRefreshSvg(13), "Kiểm tra lại kết nối");
       }, 900);
     });
 
@@ -147,13 +267,7 @@ export function createLockView(props: LockViewProps): HTMLElement {
     const iconWrap = document.createElement("div");
     iconWrap.style.cssText =
       "width: 60px; height: 60px; border-radius: 50%; background-color: var(--bg-surface0); display: flex; align-items: center; justify-content: center; color: var(--accent-primary); border: 1px solid var(--border-subtle); margin-bottom: 4px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);";
-    iconWrap.innerHTML = `
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-        <path d="M12 8v4"></path>
-        <path d="M12 16h.01"></path>
-      </svg>
-    `;
+    iconWrap.appendChild(createShieldAlertSvg(28));
 
     const heading = document.createElement("div");
     heading.className = "stateTitle";
@@ -177,14 +291,8 @@ export function createLockView(props: LockViewProps): HTMLElement {
     refreshBtn.className = "primaryBtn";
     refreshBtn.style.cssText =
       "width: 100%; height: 40px; font-size: 13px; font-weight: 700; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;";
-    refreshBtn.innerHTML = `
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M23 4v6h-6"></path>
-        <path d="M1 20v-6h6"></path>
-        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
-      </svg>
-      <span>Kiểm tra lại trạng thái</span>
-    `;
+    setButtonLabel(refreshBtn, createRefreshSvg(15), "Kiểm tra lại trạng thái");
+
     refreshBtn.addEventListener("click", () => {
       if (props.onRefresh) {
         props.onRefresh();
@@ -213,12 +321,7 @@ export function createLockView(props: LockViewProps): HTMLElement {
   const iconWrap = document.createElement("div");
   iconWrap.style.cssText =
     "width: 56px; height: 56px; border-radius: 50%; background-color: var(--bg-surface0); display: flex; align-items: center; justify-content: center; color: var(--accent-primary); border: 1px solid var(--border-subtle); margin-bottom: 2px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);";
-  iconWrap.innerHTML = `
-    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-      <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-    </svg>
-  `;
+  iconWrap.appendChild(createLockSvg(26));
 
   const heading = document.createElement("div");
   heading.className = "stateTitle";
@@ -260,12 +363,8 @@ export function createLockView(props: LockViewProps): HTMLElement {
   toggleBtn.type = "button";
   toggleBtn.style.cssText =
     "position: absolute; right: 8px; background: none; border: none; cursor: pointer; color: var(--text-muted); display: flex; align-items: center; justify-content: center; padding: 4px;";
-  toggleBtn.innerHTML = `
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-      <circle cx="12" cy="12" r="3"></circle>
-    </svg>
-  `;
+  toggleBtn.appendChild(createEyeSvg(16));
+
   toggleBtn.addEventListener("click", () => {
     if (input.type === "password") {
       input.type = "text";
@@ -336,16 +435,8 @@ export function createLockView(props: LockViewProps): HTMLElement {
     bioBtn.className = "iconBtn";
     bioBtn.style.cssText =
       "width: 100%; height: 36px; padding: 0 12px; gap: 8px; justify-content: center; font-size: 12px; font-weight: 600; border-radius: 8px; cursor: pointer;";
-    bioBtn.innerHTML = `
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M12 11c0 2-1 3-2 4s-1 2-1 4"></path>
-        <path d="M14 18a8.3 8.3 0 0 0 1-4c0-2-1-3-2-4"></path>
-        <path d="M16 11c0-3.3-2.7-6-6-6s-6 2.7-6 6a10 10 0 0 0 1 4.5"></path>
-        <path d="M19 11a9 9 0 0 0-1-4"></path>
-        <path d="M8 11a4 4 0 0 1 4-4 4 4 0 0 1 4 4"></path>
-      </svg>
-      <span>Mở khóa bằng Sinh trắc học</span>
-    `;
+    setButtonLabel(bioBtn, createFingerprintSvg(16), "Mở khóa bằng Sinh trắc học");
+
     bioBtn.addEventListener("click", async () => {
       bioBtn.disabled = true;
       const ok = await props.onUnlockBiometric();
