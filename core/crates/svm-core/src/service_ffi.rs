@@ -651,19 +651,15 @@ fn dispatch_bridge_request(ctx_raw: usize, req_json: &str) -> String {
                         continue;
                     }
                     let matches_domain = if domain.is_empty() {
+                        false
+                    } else if svm_webauthn::is_matching_login_domain(&item.website_url, &domain) {
                         true
-                    } else if let Some(item_host) =
-                        svm_webauthn::extract_normalized_host(&item.website_url)
-                    {
-                        let norm_item = item_host.trim_start_matches("www.");
-                        let norm_dom = domain.trim_start_matches("www.");
-                        norm_item == norm_dom
-                            || norm_item.ends_with(&format!(".{norm_dom}"))
-                            || norm_dom.ends_with(&format!(".{norm_item}"))
-                    } else {
-                        // Nếu item chưa lưu URL, chỉ kiểm tra title nếu domain có ít nhất 4 ký tự và khớp chính xác hoặc bắt đầu
+                    } else if item.website_url.trim().is_empty() {
                         let title_low = item.title.to_lowercase();
-                        domain.len() >= 4 && title_low.contains(&domain)
+                        domain.len() >= 4
+                            && (title_low == domain || title_low.ends_with(&format!(".{domain}")))
+                    } else {
+                        false
                     };
                     if matches_domain {
                         let mut cred = JsonValue::new_object();
@@ -672,6 +668,15 @@ fn dispatch_bridge_request(ctx_raw: usize, req_json: &str) -> String {
                         cred.insert("username", JsonValue::String(item.username.clone()));
                         cred.insert("websiteUrl", JsonValue::String(item.website_url.clone()));
                         cred.insert("hasTotp", JsonValue::Bool(!item.totp_secret.is_empty()));
+                        cred.insert("vaultId", JsonValue::String(item.vault_id.clone()));
+                        if let Some(v) = rt
+                            .vault_service
+                            .vaults()
+                            .iter()
+                            .find(|v| v.id == item.vault_id)
+                        {
+                            cred.insert("vaultName", JsonValue::String(v.name.clone()));
+                        }
                         matches.push(cred);
                     }
                 }
@@ -733,7 +738,6 @@ fn dispatch_bridge_request(ctx_raw: usize, req_json: &str) -> String {
                         .find(|it| !it.trashed && it.id == item_id)
                         .cloned()
                 } else if is_update {
-                    let url_low = url.trim().to_ascii_lowercase();
                     rt.vault_service
                         .items()
                         .iter()
@@ -741,9 +745,8 @@ fn dispatch_bridge_request(ctx_raw: usize, req_json: &str) -> String {
                             !it.trashed
                                 && it.category == Category::Login
                                 && it.username.eq_ignore_ascii_case(username)
-                                && (!url_low.is_empty()
-                                    && (it.website_url.to_ascii_lowercase().contains(&url_low)
-                                        || url_low.contains(&it.website_url.to_ascii_lowercase())))
+                                && (!url.trim().is_empty()
+                                    && svm_webauthn::is_matching_login_domain(&it.website_url, url))
                         })
                         .cloned()
                 } else {

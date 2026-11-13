@@ -111,6 +111,15 @@ export function createCredentialList(props: CredentialListProps): HTMLElement {
     title.title = item.title;
     titleRow.appendChild(title);
 
+    const vName = item.vaultName?.trim();
+    if (vName && !vName.toLowerCase().startsWith("vault_")) {
+      const vBadge = document.createElement("span");
+      vBadge.style.cssText =
+        "margin-left: 6px; padding: 1px 6px; border-radius: 4px; background: rgba(137, 180, 250, 0.15); color: #89b4fa; font-size: 10px; font-weight: 600; flex-shrink: 0;";
+      vBadge.textContent = vName;
+      titleRow.appendChild(vBadge);
+    }
+
     const itemUrl = item.websiteUrl || (item as any).url || "";
     const subtitle = document.createElement("div");
     subtitle.className = "credSubtitle";

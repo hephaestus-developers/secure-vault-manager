@@ -127,6 +127,17 @@ function renderInlinePopover(
       font-weight: 700;
       font-family: monospace;
     }
+    .svm-vault-badge {
+      display: inline-block;
+      margin-left: 6px;
+      padding: 1px 5px;
+      border-radius: 4px;
+      background: rgba(137, 180, 250, 0.15);
+      color: #89b4fa;
+      font-size: 9.5px;
+      font-weight: 600;
+      vertical-align: middle;
+    }
     @media (prefers-color-scheme: light) {
       .svm-menu {
         background: #ffffff;
@@ -207,6 +218,14 @@ function renderInlinePopover(
     const titleSpan = document.createElement("span");
     titleSpan.className = "svm-title";
     titleSpan.textContent = cred.title;
+
+    const vName = cred.vaultName?.trim();
+    if (vName && !vName.toLowerCase().startsWith("vault_")) {
+      const vBadge = document.createElement("span");
+      vBadge.className = "svm-vault-badge";
+      vBadge.textContent = vName;
+      titleSpan.appendChild(vBadge);
+    }
 
     const userSpan = document.createElement("span");
     userSpan.className = "svm-user";

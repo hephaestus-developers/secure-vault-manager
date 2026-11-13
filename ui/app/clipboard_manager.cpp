@@ -11,6 +11,7 @@
 #include <QApplication>
 #include <QClipboard>
 #include <QCryptographicHash>
+#include <QMimeData>
 
 namespace svm::app {
 
@@ -44,7 +45,21 @@ void ClipboardManager::copySensitive(const QString &text, const QString &label,
     return;
   }
 
-  clipboard->setText(text, QClipboard::Clipboard);
+  auto *mimeData = new QMimeData();
+  mimeData->setText(text);
+  // Cờ ẩn mật khẩu khỏi ứng dụng lịch sử Clipboard trên Linux/KDE (Klipper,
+  // GPaste)
+  mimeData->setData(QStringLiteral("x-kde-passwordManagerHint"),
+                    QByteArrayLiteral("secret"));
+  // Cờ ẩn mật khẩu khỏi Windows 10/11 Clipboard History (Win + V)
+  mimeData->setData(
+      QStringLiteral("ExcludeClipboardContentFromMonitorProcessing"),
+      QByteArrayLiteral("1"));
+  // Cờ ẩn mật khẩu khỏi macOS Pasteboard History
+  mimeData->setData(QStringLiteral("org.nspasteboard.ConcealedType"),
+                    QByteArrayLiteral("1"));
+
+  clipboard->setMimeData(mimeData, QClipboard::Clipboard);
 
   // Tính hash để phát hiện nếu người dùng chép nội dung khác đè lên
   m_copiedHash = QString::fromUtf8(

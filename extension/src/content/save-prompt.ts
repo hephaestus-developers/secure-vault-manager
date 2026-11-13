@@ -16,6 +16,11 @@ export interface SavePromptOptions {
 }
 
 export async function showSaveCredentialPrompt(data: SavePromptOptions): Promise<void> {
+  // Chỉ hiển thị Save Prompt ở cửa sổ cấp cao nhất (window.top) để tránh vỡ giao diện trong iFrame nhỏ/quảng cáo
+  if (typeof window !== "undefined" && window.self !== window.top) {
+    return;
+  }
+
   const existing = document.getElementById("svm-save-prompt-host");
   if (existing) {
     // Đã hiển thị popup trên màn hình, không gỡ bỏ để tránh nhấp nháy / lặp lại animation

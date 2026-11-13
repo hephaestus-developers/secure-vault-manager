@@ -3,6 +3,8 @@
  * @brief Màn hình khi Desktop App chưa chạy (Offline) hoặc Kho Mật khẩu đang khóa (Locked).
  */
 
+import { sendExtensionBridgeMessage } from "../../services/protocol";
+
 export interface LockViewProps {
   desktopRunning?: boolean;
   configured?: boolean;
@@ -51,15 +53,52 @@ export function createLockView(props: LockViewProps): HTMLElement {
 
     const actions = document.createElement("div");
     actions.style.cssText =
-      "display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; max-width: 260px; margin-top: 4px;";
+      "display: flex; flex-direction: column; align-items: center; gap: 8px; width: 100%; max-width: 260px; margin-top: 4px;";
+
+    const launchBtn = document.createElement("button");
+    launchBtn.type = "button";
+    launchBtn.className = "primaryBtn";
+    launchBtn.style.cssText =
+      "width: 100%; height: 38px; font-size: 13px; font-weight: 700; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;";
+    launchBtn.innerHTML = `
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+        <line x1="8" y1="21" x2="16" y2="21"></line>
+        <line x1="12" y1="17" x2="12" y2="21"></line>
+      </svg>
+      <span>Mở Secure Vault Manager</span>
+    `;
+    launchBtn.addEventListener("click", async () => {
+      launchBtn.disabled = true;
+      const originalHtml = launchBtn.innerHTML;
+      launchBtn.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 0.8s linear infinite;">
+          <circle cx="12" cy="12" r="10" stroke-opacity="0.25"></circle>
+          <path d="M12 2a10 10 0 0 1 10 10"></path>
+        </svg>
+        <span>Đang khởi chạy...</span>
+      `;
+      try {
+        await sendExtensionBridgeMessage("launch_desktop");
+      } catch {
+        // bỏ qua
+      }
+      setTimeout(() => {
+        if (props.onRefresh) {
+          props.onRefresh();
+        }
+        launchBtn.disabled = false;
+        launchBtn.innerHTML = originalHtml;
+      }, 1500);
+    });
 
     const refreshBtn = document.createElement("button");
     refreshBtn.type = "button";
-    refreshBtn.className = "primaryBtn";
+    refreshBtn.className = "secondaryBtn";
     refreshBtn.style.cssText =
-      "width: 100%; height: 40px; font-size: 13px; font-weight: 700; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;";
+      "width: 100%; height: 34px; font-size: 12px; font-weight: 600; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; background: var(--bg-surface1, rgba(255, 255, 255, 0.06)); border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.12)); color: var(--text-primary);";
     refreshBtn.innerHTML = `
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M23 4v6h-6"></path>
         <path d="M1 20v-6h6"></path>
         <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
@@ -70,11 +109,11 @@ export function createLockView(props: LockViewProps): HTMLElement {
       refreshBtn.disabled = true;
       const originalHtml = refreshBtn.innerHTML;
       refreshBtn.innerHTML = `
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 0.8s linear infinite;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 0.8s linear infinite;">
           <circle cx="12" cy="12" r="10" stroke-opacity="0.25"></circle>
           <path d="M12 2a10 10 0 0 1 10 10"></path>
         </svg>
-        <span>Đang kiểm tra kết nối...</span>
+        <span>Đang kiểm tra...</span>
       `;
       if (props.onRefresh) {
         props.onRefresh();
@@ -90,6 +129,7 @@ export function createLockView(props: LockViewProps): HTMLElement {
       "font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 2px;";
     hint.textContent = "Tiện ích sẽ tự động đồng bộ khi ứng dụng khởi động";
 
+    actions.appendChild(launchBtn);
     actions.appendChild(refreshBtn);
     actions.appendChild(hint);
 

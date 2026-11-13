@@ -37,7 +37,8 @@ Source: "..\..\build\release\core\svm-native-host.exe"; DestDir: "{app}"; Flags:
 Source: "..\..\core\target\release\svm_core.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "svm.ico"; DestDir: "{app}"; Flags: ignoreversion
 ; Native messaging manifest
-Source: "..\native-messaging\chrome.json.in"; DestDir: "{app}"; DestName: "io.hephaestus.svm.json"; Flags: ignoreversion
+Source: "..\native-messaging\chrome.json.in"; DestDir: "{app}"; DestName: "io.hephaestus.secure_vault_manager.json"; Flags: ignoreversion
+Source: "..\native-messaging\firefox.json.in"; DestDir: "{app}"; DestName: "io.hephaestus.secure_vault_manager.firefox.json"; Flags: ignoreversion
 
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\svm.ico"
@@ -45,9 +46,12 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilen
 
 [Registry]
 ; Chromium & Chrome Native Messaging Host
-Root: HKCU; Subkey: "Software\Google\Chrome\NativeMessagingHosts\io.hephaestus.svm"; ValueType: string; ValueData: "{app}\io.hephaestus.svm.json"; Flags: uninsdeletekey
-Root: HKCU; Subkey: "Software\Microsoft\Edge\NativeMessagingHosts\io.hephaestus.svm"; ValueType: string; ValueData: "{app}\io.hephaestus.svm.json"; Flags: uninsdeletekey
-Root: HKCU; Subkey: "Software\BraveSoftware\Brave-Browser\NativeMessagingHosts\io.hephaestus.svm"; ValueType: string; ValueData: "{app}\io.hephaestus.svm.json"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Google\Chrome\NativeMessagingHosts\io.hephaestus.secure_vault_manager"; ValueType: string; ValueData: "{app}\io.hephaestus.secure_vault_manager.json"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Microsoft\Edge\NativeMessagingHosts\io.hephaestus.secure_vault_manager"; ValueType: string; ValueData: "{app}\io.hephaestus.secure_vault_manager.json"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\BraveSoftware\Brave-Browser\NativeMessagingHosts\io.hephaestus.secure_vault_manager"; ValueType: string; ValueData: "{app}\io.hephaestus.secure_vault_manager.json"; Flags: uninsdeletekey
+
+; Mozilla Firefox Native Messaging Host
+Root: HKCU; Subkey: "Software\Mozilla\NativeMessagingHosts\io.hephaestus.secure_vault_manager"; ValueType: string; ValueData: "{app}\io.hephaestus.secure_vault_manager.firefox.json"; Flags: uninsdeletekey
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent

@@ -148,6 +148,46 @@ pub fn matches_passkey_rp_id(item: &VaultItem, rp_id: &str) -> bool {
     false
 }
 
+/// Kiểm tra xem một URL hoặc Host đã lưu có khớp an toàn với tên miền yêu cầu của trang web hay không.
+/// Chống tấn công giả mạo tên miền (ví dụ: `evil-google.com` chứa `google.com` hoặc `com`).
+pub fn is_matching_login_domain(saved_url_or_host: &str, target_domain: &str) -> bool {
+    let target = target_domain.trim();
+    let saved = saved_url_or_host.trim();
+    if target.is_empty() || saved.is_empty() {
+        return false;
+    }
+
+    let target_host =
+        extract_normalized_host(target).unwrap_or_else(|| target.to_ascii_lowercase());
+    let saved_host = extract_normalized_host(saved).unwrap_or_else(|| saved.to_ascii_lowercase());
+
+    let target_host = target_host.trim_end_matches('.');
+    let saved_host = saved_host.trim_end_matches('.');
+
+    if target_host.is_empty() || saved_host.is_empty() {
+        return false;
+    }
+
+    let th = target_host.strip_prefix("www.").unwrap_or(target_host);
+    let sh = saved_host.strip_prefix("www.").unwrap_or(saved_host);
+
+    if th == sh {
+        return true;
+    }
+
+    // Kiểm tra subdomain hợp lệ: ví dụ accounts.google.com khớp với google.com
+    // Yêu cầu: host làm gốc (base) phải có ít nhất 1 dấu chấm (không được là TLD đơn lẻ như "com" hay "local")
+    if sh.contains('.') && !sh.starts_with('.') && th.ends_with(&format!(".{sh}")) {
+        return true;
+    }
+
+    if th.contains('.') && !th.starts_with('.') && sh.ends_with(&format!(".{th}")) {
+        return true;
+    }
+
+    false
+}
+
 /// Trích xuất `passkey_credential_id` (Base64URL) của một mục Passkey.
 pub fn extract_passkey_credential_id(item: &VaultItem) -> String {
     item.passkey_credential_id.clone()
@@ -321,5 +361,56 @@ mod tests {
         assert!(item.custom_fields.is_empty());
         assert_eq!(bump_passkey_sign_count(&mut item), 1);
         assert_eq!(item.passkey_sign_count, 1);
+    }
+
+    #[test]
+    fn test_is_matching_login_domain() {
+        // Khớp chính xác
+        assert!(is_matching_login_domain("https://google.com", "google.com"));
+        assert!(is_matching_login_domain(
+            "https://www.google.com",
+            "google.com"
+        ));
+        assert!(is_matching_login_domain(
+            "google.com",
+            "https://www.google.com/login"
+        ));
+
+        // Khớp subdomain hợp lệ
+        assert!(is_matching_login_domain(
+            "https://google.com",
+            "accounts.google.com"
+        ));
+        assert!(is_matching_login_domain(
+            "https://accounts.google.com",
+            "google.com"
+        ));
+        assert!(is_matching_login_domain(
+            "https://sub.domain.example.com",
+            "example.com"
+        ));
+
+        // Chặn tấn công giả mạo / chứa chuỗi substring
+        assert!(!is_matching_login_domain(
+            "https://google.com",
+            "evil-google.com"
+        ));
+        assert!(!is_matching_login_domain(
+            "https://facebook.com",
+            "evil-facebook.com"
+        ));
+        assert!(!is_matching_login_domain(
+            "https://facebook.com",
+            "facebook.com.evil.com"
+        ));
+        assert!(!is_matching_login_domain(
+            "https://google.com",
+            "notgoogle.com"
+        ));
+
+        // Chặn TLD đơn lẻ / chuỗi rỗng
+        assert!(!is_matching_login_domain("https://google.com", "com"));
+        assert!(!is_matching_login_domain("", "google.com"));
+        assert!(!is_matching_login_domain("https://google.com", ""));
     }
 }

@@ -1,9 +1,8 @@
 //! Quản lý vùng nhớ mật mã, xóa bộ nhớ an toàn (`zeroize`), khóa RAM (`mlock`/`VirtualLock`) và bộ tạo số ngẫu nhiên CSPRNG.
 
 use std::sync::atomic::{compiler_fence, AtomicU64, Ordering};
-#[cfg(not(target_arch = "wasm32"))]
-use std::time::{SystemTime, UNIX_EPOCH};
 
+#[cfg(target_arch = "wasm32")]
 use crate::hash::sha256;
 
 static FALLBACK_COUNTER: AtomicU64 = AtomicU64::new(0x9E37_79B9_7F4A_7C15);
@@ -96,14 +95,6 @@ pub fn seed_entropy(seed: u64) {
     );
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-fn current_time_nanos() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_nanos() as u64)
-        .unwrap_or(0x1234_5678_9ABC_DEF0)
-}
-
 #[cfg(target_arch = "wasm32")]
 fn current_time_nanos() -> u64 {
     0x1234_5678_9ABC_DEF0
@@ -121,20 +112,24 @@ pub fn random_bytes(out: &mut [u8]) {
         if rng.fill(out).is_ok() {
             return;
         }
+        panic!("CRITICAL: OS CSPRNG failure. Cannot securely generate cryptographic keys.");
     }
-    // Dự phòng PRNG trộn thời gian hệ thống + bộ đếm qua SHA-256 chỉ dùng cho môi trường WASM / không có CSPRNG
-    let ts = current_time_nanos();
-    let mut offset = 0;
-    while offset < out.len() {
-        let ctr = FALLBACK_COUNTER.fetch_add(1, Ordering::SeqCst);
-        let mut seed = [0u8; 24];
-        seed[0..8].copy_from_slice(&ts.to_le_bytes());
-        seed[8..16].copy_from_slice(&ctr.to_le_bytes());
-        seed[16..24].copy_from_slice(&(offset as u64).to_le_bytes());
-        let block = sha256(&seed);
-        let take = (out.len() - offset).min(32);
-        out[offset..offset + take].copy_from_slice(&block[..take]);
-        offset += take;
+    #[cfg(target_arch = "wasm32")]
+    {
+        // Dự phòng PRNG trộn thời gian hệ thống + bộ đếm qua SHA-256 chỉ dùng cho môi trường WASM / mô phỏng
+        let ts = current_time_nanos();
+        let mut offset = 0;
+        while offset < out.len() {
+            let ctr = FALLBACK_COUNTER.fetch_add(1, Ordering::SeqCst);
+            let mut seed = [0u8; 24];
+            seed[0..8].copy_from_slice(&ts.to_le_bytes());
+            seed[8..16].copy_from_slice(&ctr.to_le_bytes());
+            seed[16..24].copy_from_slice(&(offset as u64).to_le_bytes());
+            let block = sha256(&seed);
+            let take = (out.len() - offset).min(32);
+            out[offset..offset + take].copy_from_slice(&block[..take]);
+            offset += take;
+        }
     }
 }
 

@@ -67,17 +67,39 @@ pub fn ensure_secure_dir(dir: &Path) -> Result<(), DomainError> {
     Ok(())
 }
 
-/// Ghi nguyên tử (Atomic Write) dữ liệu ra tệp thông qua tệp tạm `.tmp` với quyền `0o600`.
+/// Ghi nguyên tử (Atomic Write) dữ liệu ra tệp thông qua tệp tạm ngẫu nhiên duy nhất với quyền `0o600`
+/// và xả dữ liệu xuống đĩa vật lý (sync_all) trước khi đổi tên.
 pub fn atomic_write_file(path: &Path, bytes: &[u8]) -> Result<(), DomainError> {
-    if let Some(parent) = path.parent() {
-        ensure_secure_dir(parent)?;
-    }
-    let tmp_path = path.with_extension("tmp");
-    fs::write(&tmp_path, bytes).map_err(|e| DomainError::Io(e.to_string()))?;
-    #[cfg(unix)]
+    use std::io::Write;
+
+    let parent = path.parent().unwrap_or_else(|| Path::new("."));
+    ensure_secure_dir(parent)?;
+
+    let pid = std::process::id();
+    let mut rand_buf = [0u8; 8];
+    svm_crypto::random_bytes(&mut rand_buf);
+    let rand_suffix = svm_crypto::hex_encode(&rand_buf);
+    let filename = path.file_name().and_then(|f| f.to_str()).unwrap_or("vault");
+    let tmp_path = parent.join(format!(".{filename}.tmp.{pid}.{rand_suffix}"));
+
     {
-        let _ = fs::set_permissions(&tmp_path, fs::Permissions::from_mode(0o600));
+        let mut file = fs::File::create(&tmp_path).map_err(|e| DomainError::Io(e.to_string()))?;
+        #[cfg(unix)]
+        {
+            let _ = fs::set_permissions(&tmp_path, fs::Permissions::from_mode(0o600));
+        }
+        file.write_all(bytes)
+            .map_err(|e| DomainError::Io(e.to_string()))?;
+        file.sync_all()
+            .map_err(|e| DomainError::Io(e.to_string()))?;
     }
-    fs::rename(&tmp_path, path).map_err(|e| DomainError::Io(e.to_string()))?;
+
+    if let Err(e) = fs::rename(&tmp_path, path) {
+        let _ = fs::remove_file(&tmp_path);
+        return Err(DomainError::Io(format!(
+            "Không thể đổi tên tệp tạm {tmp_path:?} sang {path:?}: {e}"
+        )));
+    }
+
     Ok(())
 }

@@ -85,6 +85,8 @@ export interface CredentialSummary {
   hasTotp: boolean;
   totpCode?: string;
   totpRemaining?: number;
+  vaultId?: string;
+  vaultName?: string;
 }
 
 export interface CredentialsListPayload {
