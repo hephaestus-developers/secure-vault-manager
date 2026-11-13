@@ -33,7 +33,7 @@ flowchart TD
     end
 
     subgraph FFI_Boundary ["Ranh Giới C-ABI FFI"]
-        FFI_Header["ui/include/svm_core.h (67 C-ABI Functions)"]
+        FFI_Header["core/include/svm_core.h (67 C-ABI Functions)"]
     end
 
     subgraph Core_Layer ["Lõi Dịch Vụ & Mật Mã Rust (core/)"]
@@ -100,10 +100,10 @@ secure-vault-manager/
 ├── STYLE_GUIDELINE.md       # Quy chuẩn thiết kế giao diện (Catppuccin Mocha/Latte & QSS)
 ├── core/                    # Rust Core Workspace (Cargo.toml + 14 crates)
 │   ├── Cargo.toml
+│   ├── include/             # Header files (chứa core/include/svm_core.h)
 │   └── crates/              # svm-crypto, svm-domain, svm-storage, svm-vault...
 ├── ui/                      # Ứng dụng Desktop Qt6 Widgets C++17 (binary: svm)
 │   ├── CMakeLists.txt
-│   ├── include/             # Header files (chứa ui/include/svm_core.h)
 │   ├── src/                 # Triển khai MainWindow, Presenter, Views, Dialogs
 │   └── resources/           # SVG icons, Catppuccin QSS stylesheets, i18n
 ├── extension/               # Browser Extension Manifest V3 (TypeScript)
@@ -344,7 +344,7 @@ pnpm lint
 
 Giao tiếp giữa Desktop UI (C++) và Lõi Rust hoàn toàn thông qua C-ABI:
 
-- **Tệp Header:** [`ui/include/svm_core.h`](ui/include/svm_core.h).
+- **Tệp Header:** [`core/include/svm_core.h`](core/include/svm_core.h).
 - **Crate C-ABI:** [`core/crates/svm-core/src/lib.rs`](core/crates/svm-core/src/lib.rs).
 
 ### Quy Tắc Bất Biến Khi Viết FFI

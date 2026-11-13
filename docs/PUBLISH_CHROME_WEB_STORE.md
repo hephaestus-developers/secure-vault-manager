@@ -80,7 +80,7 @@ Truy cập: [https://chrome.google.com/webstore/devconsole](https://chrome.googl
 
   KEY FEATURES:
 
-  - Zero-Knowledge Security: Your master credentials and vault data are encrypted end-to-end using state-of-the-art cryptography (Argon2id and ChaCha20-Poly1305). Secrets never leave your device unencrypted.
+  - Zero-Knowledge Security: Your master credentials and vault data are encrypted end-to-end using state-of-the-art cryptography (PBKDF2-HMAC-SHA256 and ChaCha20-Poly1305). Secrets never leave your device unencrypted.
   - Smart Autofill: Instantly identifies login forms to auto-fill usernames and passwords securely with a single click or keyboard shortcut (Ctrl+Shift+L).
   - Integrated 2FA / TOTP: Automatically generates and fills one-time verification codes in real time without needing an external authenticator app.
   - Native WebAuthn Passkeys: Create and authenticate passkeys directly inside your secure vault with biometric or master authorization.

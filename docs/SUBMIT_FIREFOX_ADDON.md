@@ -149,7 +149,7 @@ Hỗ trợ định dạng Markdown. Hãy sao chép toàn bộ đoạn văn bản
 
 ### ✨ Key Features
 
-- 🔐 **Zero-Knowledge Security**: Your credentials and keys are encrypted end-to-end using state-of-the-art cryptography (Argon2id, ChaCha20-Poly1305). Nothing is ever sent to third-party cloud servers.
+- 🔐 **Zero-Knowledge Security**: Your credentials and keys are encrypted end-to-end using state-of-the-art cryptography (PBKDF2-HMAC-SHA256, ChaCha20-Poly1305). Nothing is ever sent to third-party cloud servers.
 - ⚡ **Smart Autofill**: Seamlessly detects login and registration forms, filling usernames and passwords with a single click.
 - 🔑 **FIDO2 / WebAuthn Passkeys**: Native passkey integration allows you to create and authenticate passkeys directly within your secure vault.
 - ⏱️ **Integrated 2FA / TOTP**: Generates and autofills two-factor authentication codes in real time without needing your phone.
