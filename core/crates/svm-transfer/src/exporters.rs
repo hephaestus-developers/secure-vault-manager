@@ -1,7 +1,5 @@
 //! Bộ kết xuất dữ liệu kho (`VaultItem`) ra các định dạng tệp sao lưu mã hóa SVM, JSON và CSV.
 
-use std::fs;
-
 use svm_crypto::{chacha20_poly1305_encrypt, derive_kek, random_bytes};
 use svm_domain::{DomainError, JsonValue, VaultItem};
 
@@ -15,12 +13,7 @@ pub fn export_items_to_file(
     password: &str,
 ) -> Result<(), DomainError> {
     let bytes = export_items_to_bytes(format, items, password)?;
-    if let Some(parent) = std::path::Path::new(dst_path).parent() {
-        if !parent.as_os_str().is_empty() {
-            let _ = fs::create_dir_all(parent);
-        }
-    }
-    fs::write(dst_path, bytes).map_err(|e| DomainError::Io(e.to_string()))
+    svm_storage::atomic_write_file(std::path::Path::new(dst_path), &bytes)
 }
 
 /// Xuất danh sách `VaultItem` thành mảng byte theo định dạng `TransferFormat`.

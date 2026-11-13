@@ -548,16 +548,16 @@ impl VaultService {
 
     /// Kích hoạt sinh trắc học cho kho.
     pub fn enable_biometric(&mut self, password: &str) -> Result<(), DomainError> {
+        if self.unlocked && self.dek != [0u8; 32] {
+            self.storage.save_biometric_envelope(&self.dek)?;
+            return Ok(());
+        }
         if self.storage.vault_exists() && !password.is_empty() {
             let (_, mut dek, mut json_str) = self.storage.unlock_with_password(password)?;
             zeroize_string(&mut json_str);
             let res = self.storage.save_biometric_envelope(&dek);
             zeroize_slice(&mut dek);
             res?;
-            return Ok(());
-        }
-        if self.unlocked && self.dek != [0u8; 32] {
-            self.storage.save_biometric_envelope(&self.dek)?;
             return Ok(());
         }
         Err(DomainError::Locked)
@@ -622,8 +622,15 @@ impl VaultService {
                     "Cannot delete the default vault".to_string(),
                 ));
             }
+            let removed_item_ids: Vec<String> = self
+                .items
+                .iter()
+                .filter(|it| it.vault_id == vault_id)
+                .map(|it| it.id.clone())
+                .collect();
             self.vaults.remove(pos);
             self.items.retain(|it| it.vault_id != vault_id);
+            self.cleanup_item_artifacts(&removed_item_ids);
             self.persist()?;
             Ok(())
         } else {

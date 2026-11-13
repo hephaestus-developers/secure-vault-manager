@@ -5,8 +5,8 @@ use std::ffi::c_char;
 use svm_domain::status::SvmStatusCode;
 
 use crate::context::{
-    alloc_c_string, c_str_to_string, ffi_guard, handle_domain_err, sync_ssh_agent, SvmBuffer,
-    SvmContext, EVENT_ITEMS_CHANGED,
+    alloc_c_string, c_str_to_string, ffi_guard, handle_domain_err, sync_ssh_agent, SvmContext,
+    EVENT_ITEMS_CHANGED,
 };
 
 /// Lấy danh sách các mục trong Vault theo bộ lọc `filter_json`.
@@ -187,18 +187,6 @@ pub unsafe extern "C" fn svm_item_purge(
     })
 }
 
-/// Xóa nhanh một mục khỏi Vault (tương đương đưa vào thùng rác).
-///
-/// # Safety
-/// Mọi tham số con trỏ không được là NULL.
-#[no_mangle]
-pub unsafe extern "C" fn svm_item_delete(
-    ctx: *mut SvmContext,
-    item_id: *const c_char,
-) -> SvmStatusCode {
-    svm_item_trash(ctx, item_id)
-}
-
 /// Trích xuất plaintext của một trường bí mật theo `field_id`.
 ///
 /// # Safety
@@ -336,41 +324,6 @@ pub unsafe extern "C" fn svm_attachment_export(
             Ok(()) => SvmStatusCode::Ok,
             Err(e) => handle_domain_err(e),
         }
-    })
-}
-
-/// Đọc toàn bộ nội dung tệp đính kèm vào RAM (dùng cho việc xem trước tệp nhỏ).
-///
-/// # Safety
-/// Mọi tham số con trỏ không được là NULL.
-#[no_mangle]
-pub unsafe extern "C" fn svm_attachment_read(
-    ctx: *mut SvmContext,
-    attachment_id: *const c_char,
-    out: *mut SvmBuffer,
-) -> SvmStatusCode {
-    ffi_guard(|| {
-        if ctx.is_null() || attachment_id.is_null() || out.is_null() {
-            return SvmStatusCode::InvalidArg;
-        }
-        let aid = c_str_to_string(attachment_id).unwrap_or_default();
-        let Ok(rt) = (*ctx).runtime.lock() else {
-            return SvmStatusCode::Panic;
-        };
-        let bytes = match rt.vault_service.read_attachment(&aid) {
-            Ok(b) => b,
-            Err(e) => return handle_domain_err(e),
-        };
-        if bytes.is_empty() {
-            (*out).ptr = std::ptr::null_mut();
-            (*out).len = 0;
-        } else {
-            let mut boxed = bytes.into_boxed_slice();
-            (*out).ptr = boxed.as_mut_ptr();
-            (*out).len = boxed.len();
-            std::mem::forget(boxed);
-        }
-        SvmStatusCode::Ok
     })
 }
 

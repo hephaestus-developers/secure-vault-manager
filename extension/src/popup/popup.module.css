@@ -450,3 +450,148 @@
   background-color: var(--bg-surface1);
   border-color: var(--border-hover);
 }
+
+.iconBtnActive {
+  background-color: rgba(137, 180, 250, 0.16);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+.searchBarWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.searchBarInput {
+  width: 100%;
+  height: 34px;
+  padding: 6px 30px 6px 32px;
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle);
+  background-color: var(--bg-mantle);
+  color: var(--text-primary);
+  outline: none;
+  font-size: 12.5px;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.searchBarInput:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px rgba(137, 180, 250, 0.2);
+}
+
+.searchBarIcon {
+  position: absolute;
+  left: 10px;
+  color: var(--text-muted);
+  display: inline-flex;
+  pointer-events: none;
+}
+
+.searchClearBtn {
+  position: absolute;
+  right: 6px;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.searchClearBtn:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-surface1);
+}
+
+.genCard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background-color: var(--bg-mantle);
+  border: 1px solid var(--accent-primary);
+}
+
+.genHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent-primary);
+}
+
+.genPwdBox {
+  padding: 8px 10px;
+  border-radius: 6px;
+  background-color: var(--bg-base);
+  border: 1px solid var(--border-subtle);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12.5px;
+  word-break: break-all;
+  color: var(--text-primary);
+  user-select: all;
+}
+
+.genMetaRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.genStrengthBar {
+  flex: 1;
+  height: 5px;
+  border-radius: 999px;
+  background-color: var(--bg-surface0);
+  overflow: hidden;
+}
+
+.genStrengthFill {
+  height: 100%;
+  border-radius: 999px;
+  background-color: var(--status-success);
+  transition: width 0.2s ease;
+}
+
+.genControlsRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+
+.genControlsRow input[type="range"] {
+  flex: 1;
+}
+
+.genCheckboxGrid {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.genCheckLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}

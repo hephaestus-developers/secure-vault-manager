@@ -65,6 +65,10 @@ protected:
   void changeEvent(QEvent *event) override;
   void closeEvent(QCloseEvent *event) override;
   bool eventFilter(QObject *obj, QEvent *event) override;
+#if defined(Q_OS_WIN)
+  bool nativeEvent(const QByteArray &eventType, void *message,
+                   qintptr *result) override;
+#endif
 
 private slots:
   void toggleSidebar();
@@ -138,6 +142,12 @@ private:
   // Inactivity Auto-Lock Timer & Sleep Monitor
   QTimer m_inactivityTimer;
   QProcess *m_sleepMonitorProcess{nullptr};
+#if defined(Q_OS_MAC)
+  QTimer *m_macSleepTimer{nullptr};
+#endif
+#if defined(Q_OS_WIN)
+  bool m_wtsRegistered{false};
+#endif
 
   // Phím tắt toàn cục
   QShortcut *m_toggleSidebarShortcut{nullptr};

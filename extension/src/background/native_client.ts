@@ -6,6 +6,12 @@
 import { BridgeRequest, BridgeResponse } from "../services/protocol";
 
 const NATIVE_HOST_NAME = "io.hephaestus.secure_vault_manager";
+const INTERACTIVE_NATIVE_ACTIONS = new Set([
+  "unlock_vault",
+  "unlock_vault_biometric",
+  "passkey_create",
+  "passkey_get",
+]);
 
 export class NativeMessagingClient {
   private port: any = null;
@@ -60,17 +66,19 @@ export class NativeMessagingClient {
 
   public async send<TPayload = Record<string, unknown>>(
     request: BridgeRequest<any>,
-    timeoutMs = 4000,
+    timeoutMs?: number,
   ): Promise<BridgeResponse<TPayload> | null> {
     if (!this.connect() || !this.port) {
       return null;
     }
+    const effectiveTimeout =
+      timeoutMs ?? (INTERACTIVE_NATIVE_ACTIONS.has(request.action) ? 60000 : 8000);
 
     return new Promise((resolve) => {
       const timer = setTimeout(() => {
         this.pending.delete(request.requestId);
         resolve(null);
-      }, timeoutMs);
+      }, effectiveTimeout);
 
       this.pending.set(request.requestId, { resolve, timer });
       try {

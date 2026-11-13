@@ -208,24 +208,52 @@ impl VaultService {
         }
     }
 
+    /// Xóa tệp đính kèm vật lý và metadata phụ trợ (`attachments`, `trash`, `revisions`) của danh sách mục.
+    pub(crate) fn cleanup_item_artifacts(&mut self, item_ids: &[String]) {
+        if item_ids.is_empty() {
+            return;
+        }
+        let att_ids: Vec<String> = self
+            .attachments
+            .iter()
+            .filter(|a| item_ids.iter().any(|id| id == &a.item_id))
+            .map(|a| a.id.clone())
+            .collect();
+        for att_id in &att_ids {
+            let _ = self.storage.delete_attachment_file(att_id);
+        }
+        self.attachments
+            .retain(|a| !item_ids.iter().any(|id| id == &a.item_id));
+        self.trash
+            .retain(|t| !item_ids.iter().any(|id| id == &t.item_id));
+        self.revisions
+            .retain(|(id, _)| !item_ids.iter().any(|eid| eid == id));
+    }
+
     /// Xóa vĩnh viễn một mục (hoặc toàn bộ thùng rác nếu truyền `"__all_trash__"`).
     pub fn purge_item(&mut self, item_id: &str) -> Result<(), DomainError> {
         if !self.unlocked {
             return Err(DomainError::Locked);
         }
         if item_id == "__all_trash__" {
+            let trashed_ids: Vec<String> = self
+                .items
+                .iter()
+                .filter(|it| it.trashed)
+                .map(|it| it.id.clone())
+                .collect();
             self.items.retain(|it| !it.trashed);
+            self.cleanup_item_artifacts(&trashed_ids);
             self.trash.clear();
             self.persist()?;
             return Ok(());
         }
         let prev_len = self.items.len();
         self.items.retain(|it| it.id != item_id);
-        self.trash.retain(|t| t.item_id != item_id);
-        self.revisions.retain(|(id, _)| id != item_id);
         if self.items.len() == prev_len {
             return Err(DomainError::NotFound(format!("Item {item_id} not found")));
         }
+        self.cleanup_item_artifacts(&[item_id.to_string()]);
         self.persist()?;
         Ok(())
     }
@@ -254,10 +282,7 @@ impl VaultService {
         self.items
             .retain(|it| !(it.trashed && expired_ids.iter().any(|id| id == &it.id)));
         let removed = before.saturating_sub(self.items.len());
-        self.trash
-            .retain(|t| !expired_ids.iter().any(|id| id == &t.item_id));
-        self.revisions
-            .retain(|(id, _)| !expired_ids.iter().any(|eid| eid == id));
+        self.cleanup_item_artifacts(&expired_ids);
         if removed > 0 {
             self.persist()?;
         }

@@ -63,7 +63,6 @@ if [[ -x "${PRETTIER_BIN}" ]]; then
         "extension/popup.html"
         "extension/package.json"
         "extension/tsconfig.json"
-        "extension/vite.config.ts"
     )
     if [[ "${CHECK_ONLY}" == true ]]; then
         "${PRETTIER_BIN}" --check "${PRETTIER_TARGETS[@]}"

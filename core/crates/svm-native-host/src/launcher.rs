@@ -18,7 +18,6 @@ use svm_ipc::IpcEndpoint;
 use svm_storage::VaultStorage;
 use svm_totp::generate_totp;
 use svm_vault::VaultService;
-use svm_webauthn::WebAuthnAuthenticator;
 
 /// Danh sách các đường dẫn Unix Domain Socket ứng viên của tiến trình Desktop chính.
 pub fn candidate_bridge_socket_paths() -> Vec<PathBuf> {
@@ -144,10 +143,9 @@ pub fn launch_desktop_app() -> bool {
 
     #[cfg(not(windows))]
     {
-        candidates.push("/usr/bin/svm_ui".to_string());
-        candidates.push("/usr/bin/secure-vault-manager".to_string());
-        candidates.push("/usr/local/bin/svm_ui".to_string());
-        candidates.push("/usr/local/bin/secure-vault-manager".to_string());
+        candidates.push("/usr/bin/svm".to_string());
+        candidates.push("/usr/local/bin/svm".to_string());
+        candidates.push("/opt/secure-vault-manager/bin/svm".to_string());
     }
     #[cfg(target_os = "macos")]
     {
@@ -241,8 +239,6 @@ pub fn launch_desktop_app() -> bool {
 /// Bộ điều phối yêu cầu từ Browser Extension theo đặc tả `docs/06. Extension Bridge Protocol.md`.
 pub struct NativeHostRouter {
     vault: VaultService,
-    #[allow(dead_code)]
-    webauthn: WebAuthnAuthenticator,
 }
 
 impl NativeHostRouter {
@@ -253,10 +249,7 @@ impl NativeHostRouter {
             .or_else(|| env::var("SVM_DATA_DIR").ok())
             .unwrap_or_default();
         let vault = VaultService::with_storage(VaultStorage::new(dir));
-        Self {
-            vault,
-            webauthn: WebAuthnAuthenticator::new(),
-        }
+        Self { vault }
     }
 
     /// Xử lý một bản tin JSON nhận từ Extension và trả về bản tin JSON phản hồi.
@@ -336,13 +329,19 @@ impl NativeHostRouter {
                         payload.get_str_or("origin", payload.get_str_or("url", "")),
                     )
                     .to_lowercase();
+                let from_popup = payload.get_bool_or("fromPopup", false);
+                let query = payload.get_str_or("query", "").trim().to_lowercase();
 
                 let mut matches = JsonValue::new_array();
                 for item in self.vault.items() {
                     if item.trashed || item.category != Category::Login {
                         continue;
                     }
-                    let matches_domain = if domain.is_empty() {
+                    let matches_entry = if from_popup && !query.is_empty() {
+                        item.title.to_lowercase().contains(&query)
+                            || item.username.to_lowercase().contains(&query)
+                            || item.website_url.to_lowercase().contains(&query)
+                    } else if domain.is_empty() {
                         false
                     } else if svm_webauthn::is_matching_login_domain(&item.website_url, &domain) {
                         true
@@ -353,13 +352,20 @@ impl NativeHostRouter {
                     } else {
                         false
                     };
-                    if matches_domain {
+                    if matches_entry {
                         let mut cred = JsonValue::new_object();
                         cred.insert("id", JsonValue::String(item.id.clone()));
                         cred.insert("title", JsonValue::String(item.title.clone()));
                         cred.insert("username", JsonValue::String(item.username.clone()));
                         cred.insert("websiteUrl", JsonValue::String(item.website_url.clone()));
                         cred.insert("hasTotp", JsonValue::Bool(!item.totp_secret.is_empty()));
+                        if !item.totp_secret.is_empty() {
+                            let (code, remaining) = generate_totp(&item.totp_secret, 0);
+                            if !code.is_empty() {
+                                cred.insert("totpCode", JsonValue::String(code));
+                                cred.insert("totpRemaining", JsonValue::Number(remaining as f64));
+                            }
+                        }
                         cred.insert("vaultId", JsonValue::String(item.vault_id.clone()));
                         if let Some(v) = self.vault.vaults().iter().find(|v| v.id == item.vault_id)
                         {
@@ -384,9 +390,27 @@ impl NativeHostRouter {
                     "itemId",
                     payload.get_str_or("item_id", payload.get_str_or("id", "")),
                 );
-                let Some(item) = self.vault.items().iter().find(|it| it.id == item_id) else {
+                let caller_domain = payload.get_str_or("callerDomain", "");
+                let from_popup = payload.get_bool_or("fromPopup", false);
+                let Some(item) = self
+                    .vault
+                    .items()
+                    .iter()
+                    .find(|it| !it.trashed && it.id == item_id)
+                else {
                     return Self::error_envelope(request_id, "NOT_FOUND", "Credential not found");
                 };
+                if !from_popup
+                    && !caller_domain.is_empty()
+                    && !item.website_url.trim().is_empty()
+                    && !svm_webauthn::is_matching_login_domain(&item.website_url, caller_domain)
+                {
+                    return Self::error_envelope(
+                        request_id,
+                        "DOMAIN_MISMATCH",
+                        "Credential does not match the current website domain",
+                    );
+                }
                 let mut data = JsonValue::new_object();
                 data.insert("id", JsonValue::String(item.id.clone()));
                 data.insert("title", JsonValue::String(item.title.clone()));
@@ -487,13 +511,33 @@ impl NativeHostRouter {
                     );
                 }
                 let item_id = payload.get_str_or("itemId", "");
+                let caller_domain = payload.get_str_or("callerDomain", "");
+                let from_popup = payload.get_bool_or("fromPopup", false);
                 let secret = if !item_id.is_empty() {
-                    self.vault
+                    let found = self
+                        .vault
                         .items()
                         .iter()
-                        .find(|it| it.id == item_id)
-                        .map(|it| it.totp_secret.clone())
-                        .unwrap_or_default()
+                        .find(|it| !it.trashed && it.id == item_id);
+                    if let Some(it) = found {
+                        if !from_popup
+                            && !caller_domain.is_empty()
+                            && !it.website_url.trim().is_empty()
+                            && !svm_webauthn::is_matching_login_domain(
+                                &it.website_url,
+                                caller_domain,
+                            )
+                        {
+                            return Self::error_envelope(
+                                request_id,
+                                "DOMAIN_MISMATCH",
+                                "TOTP item does not match the current website domain",
+                            );
+                        }
+                        it.totp_secret.clone()
+                    } else {
+                        String::new()
+                    }
                 } else {
                     payload.get_str_or("secret", "").to_string()
                 };
@@ -636,6 +680,8 @@ impl NativeHostRouter {
                 let challenge = payload.get_str_or("challenge", "");
                 let default_origin = format!("https://{rp_id}");
                 let origin = payload.get_str_or("origin", &default_origin);
+                let selected_item_id =
+                    payload.get_str_or("selectedItemId", payload.get_str_or("itemId", ""));
                 let allow_creds = payload
                     .get("allowCredentials")
                     .and_then(|v| v.as_array())
@@ -649,6 +695,7 @@ impl NativeHostRouter {
                     .find(|it| {
                         !it.trashed
                             && it.category == Category::Passkey
+                            && (selected_item_id.is_empty() || it.id == selected_item_id)
                             && svm_webauthn::matches_passkey_rp_id(it, rp_id)
                             && (allow_creds.is_empty()
                                 || svm_webauthn::passkey_matches_credential_list(it, &allow_creds))

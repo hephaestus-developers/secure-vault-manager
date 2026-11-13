@@ -388,10 +388,12 @@ pub unsafe extern "C" fn svm_vault_reset(ctx: *mut SvmContext) -> SvmStatusCode 
     if ctx.is_null() {
         return SvmStatusCode::InvalidArg;
     }
-    let Ok(mut rt) = (*ctx).runtime.lock() else {
+    let reset_res = if let Ok(mut rt) = (*ctx).runtime.lock() {
+        rt.vault_service.reset_vault()
+    } else {
         return SvmStatusCode::Panic;
     };
-    match rt.vault_service.reset_vault() {
+    match reset_res {
         Ok(_) => {
             (*ctx).unlocked.store(false, Ordering::SeqCst);
             sync_ssh_agent(ctx);

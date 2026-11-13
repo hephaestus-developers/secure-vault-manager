@@ -12,10 +12,15 @@ import {
 import { autofillCredentialsOnPage, setNativeInputValue } from "./autofill";
 import { classifyDocumentFields } from "./classifier";
 
+let suppressedInput: HTMLInputElement | null = null;
+
 export function setupInlineAutofillOverlay(): void {
   const handleInteraction = async (event: Event) => {
     const target = event.target;
     if (!(target instanceof HTMLInputElement)) return;
+    if (event.type === "click" && target === suppressedInput) {
+      return;
+    }
 
     const fields = classifyDocumentFields(document);
     const isTotp = target === fields.totpInput;
@@ -32,11 +37,24 @@ export function setupInlineAutofillOverlay(): void {
       return;
     }
 
+    if (document.activeElement !== target) {
+      return;
+    }
+
     renderInlinePopover(target, resp.payload.credentials, isTotp);
   };
 
   document.addEventListener("focusin", handleInteraction, true);
   document.addEventListener("click", handleInteraction, true);
+  document.addEventListener(
+    "focusout",
+    (event) => {
+      if (event.target === suppressedInput) {
+        suppressedInput = null;
+      }
+    },
+    true,
+  );
 }
 
 function renderInlinePopover(
@@ -173,7 +191,7 @@ function renderInlinePopover(
 
   const visibleItems = credentials.slice(0, 4);
   const rows: HTMLButtonElement[] = [];
-  let activeIndex = 0;
+  let activeIndex = -1;
 
   const triggerFill = (cred: CredentialSummary) => {
     cleanup();
@@ -201,7 +219,7 @@ function renderInlinePopover(
 
   const updateActiveRow = () => {
     rows.forEach((r, idx) => {
-      r.setAttribute("data-active", idx === activeIndex ? "true" : "false");
+      r.setAttribute("data-active", activeIndex >= 0 && idx === activeIndex ? "true" : "false");
     });
   };
 
@@ -210,7 +228,7 @@ function renderInlinePopover(
     const row = document.createElement("button");
     row.type = "button";
     row.className = "svm-row";
-    row.setAttribute("data-active", i === 0 ? "true" : "false");
+    row.setAttribute("data-active", "false");
 
     const info = document.createElement("div");
     info.className = "svm-info";
@@ -254,28 +272,66 @@ function renderInlinePopover(
   shadow.appendChild(menu);
   document.documentElement.appendChild(host);
 
+  const updatePosition = () => {
+    if (!anchor.isConnected) {
+      cleanup();
+      return;
+    }
+    const r = anchor.getBoundingClientRect();
+    const menuWidth = Math.max(260, Math.round(r.width));
+    const menuHeight = menu.offsetHeight || 180;
+    const clampedLeft = Math.min(
+      Math.max(8, Math.round(r.left)),
+      Math.max(8, window.innerWidth - menuWidth - 8),
+    );
+    const shouldFlipUp =
+      r.bottom + menuHeight + 8 > window.innerHeight && r.top - menuHeight - 6 >= 8;
+    const topPos = shouldFlipUp ? Math.round(r.top - menuHeight - 6) : Math.round(r.bottom + 6);
+    menu.style.top = `${topPos}px`;
+    menu.style.left = `${clampedLeft}px`;
+    menu.style.width = `${menuWidth}px`;
+  };
+
+  updatePosition();
+
+  const onInput = () => {
+    suppressedInput = anchor;
+    cleanup();
+  };
+
   const onKeyDown = (e: KeyboardEvent) => {
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      activeIndex = (activeIndex + 1) % visibleItems.length;
+      activeIndex = activeIndex < 0 ? 0 : (activeIndex + 1) % visibleItems.length;
       updateActiveRow();
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      activeIndex = (activeIndex - 1 + visibleItems.length) % visibleItems.length;
+      activeIndex = activeIndex <= 0 ? visibleItems.length - 1 : activeIndex - 1;
       updateActiveRow();
-    } else if (e.key === "Enter" && visibleItems[activeIndex]) {
-      e.preventDefault();
-      triggerFill(visibleItems[activeIndex]);
+    } else if (e.key === "Enter") {
+      if (activeIndex >= 0 && visibleItems[activeIndex]) {
+        e.preventDefault();
+        triggerFill(visibleItems[activeIndex]);
+      } else {
+        cleanup();
+      }
     } else if (e.key === "Escape") {
+      suppressedInput = anchor;
       cleanup();
     }
   };
 
-  const cleanup = () => {
+  function cleanup() {
     host.remove();
     anchor.removeEventListener("blur", cleanup);
     anchor.removeEventListener("keydown", onKeyDown);
-  };
+    anchor.removeEventListener("input", onInput);
+    window.removeEventListener("scroll", updatePosition, true);
+    window.removeEventListener("resize", updatePosition);
+  }
   anchor.addEventListener("blur", cleanup);
   anchor.addEventListener("keydown", onKeyDown);
+  anchor.addEventListener("input", onInput);
+  window.addEventListener("scroll", updatePosition, true);
+  window.addEventListener("resize", updatePosition);
 }

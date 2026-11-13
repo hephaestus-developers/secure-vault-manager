@@ -335,14 +335,11 @@ public:
   bool startBridge();
   bool stopBridge();
   [[nodiscard]] QJsonArray listBridgeClients();
-  bool revokeBridgeClient(const QString &clientId);
   bool installNativeHostManifests();
 
   [[nodiscard]] QJsonObject getCoreSettings();
   bool saveCoreSettings(const QJsonObject &settings);
 
-  [[nodiscard]] QJsonArray listPasskeys(const QString &rpId = QString());
-  bool deletePasskey(const QString &itemId);
   bool respondPrompt(const QString &requestId, bool approved);
 
   /**

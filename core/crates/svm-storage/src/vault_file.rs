@@ -14,6 +14,14 @@ fn build_chunk_aad(chunk_idx: u64) -> Vec<u8> {
     aad
 }
 
+fn build_chunk_aad_with_id(attachment_id: &str, chunk_idx: u64) -> Vec<u8> {
+    let mut aad = Vec::with_capacity(AAD_ATTACHMENT.len() + attachment_id.len() + 8);
+    aad.extend_from_slice(AAD_ATTACHMENT);
+    aad.extend_from_slice(attachment_id.as_bytes());
+    aad.extend_from_slice(&chunk_idx.to_le_bytes());
+    aad
+}
+
 use svm_crypto::{
     chacha20_poly1305_decrypt, chacha20_poly1305_encrypt, derive_kek, hex_decode, hex_encode,
     normalize_recovery_key, random_bytes, sha256, zeroize_slice, zeroize_string,
@@ -377,6 +385,19 @@ impl VaultStorage {
         Ok((header, dek, json_str))
     }
 
+    /// Kiểm tra định danh tệp đính kèm chỉ chứa ký tự an toàn `[a-zA-Z0-9_-]` để chống Path Traversal.
+    fn validate_attachment_id(attachment_id: &str) -> Result<(), DomainError> {
+        if attachment_id.is_empty()
+            || attachment_id.len() > 128
+            || !attachment_id
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
+        {
+            return Err(DomainError::InvalidArg("Invalid attachment_id".to_string()));
+        }
+        Ok(())
+    }
+
     /// Mã hóa streaming theo từng chunk 64KB từ luồng đọc nguồn xuống tệp đính kèm.
     pub fn store_attachment_stream<R: Read>(
         &self,
@@ -384,6 +405,7 @@ impl VaultStorage {
         attachment_id: &str,
         mut reader: R,
     ) -> Result<u64, DomainError> {
+        Self::validate_attachment_id(attachment_id)?;
         self.ensure_dirs()?;
         let final_path = Path::new(&self.base_path)
             .join("attachments")
@@ -430,7 +452,7 @@ impl VaultStorage {
                 total_bytes += filled as u64;
                 let mut nonce = [0u8; 12];
                 random_bytes(&mut nonce);
-                let aad = build_chunk_aad(chunk_idx);
+                let aad = build_chunk_aad_with_id(attachment_id, chunk_idx);
                 let ct = chacha20_poly1305_encrypt(dek, &nonce, &aad, &buf[..filled]);
                 zeroize_slice(&mut buf[..filled]);
 
@@ -452,6 +474,12 @@ impl VaultStorage {
                 .write_all(&0u32.to_le_bytes())
                 .map_err(|e| DomainError::Io(e.to_string()))?;
             writer.flush().map_err(|e| DomainError::Io(e.to_string()))?;
+            let inner_file = writer
+                .into_inner()
+                .map_err(|e| DomainError::Io(e.to_string()))?;
+            inner_file
+                .sync_all()
+                .map_err(|e| DomainError::Io(e.to_string()))?;
             Ok(total_bytes)
         })();
 
@@ -498,6 +526,7 @@ impl VaultStorage {
         attachment_id: &str,
         mut writer: W,
     ) -> Result<(), DomainError> {
+        Self::validate_attachment_id(attachment_id)?;
         let path = Path::new(&self.base_path)
             .join("attachments")
             .join(format!("{attachment_id}.bin"));
@@ -548,8 +577,14 @@ impl VaultStorage {
                     .read_exact(&mut ct)
                     .map_err(|_| DomainError::Crypto("Truncated attachment chunk".to_string()))?;
 
-                let aad = build_chunk_aad(chunk_idx);
-                let mut plain = chacha20_poly1305_decrypt(dek, &nonce, &aad, &ct)?;
+                let aad_with_id = build_chunk_aad_with_id(attachment_id, chunk_idx);
+                let mut plain = match chacha20_poly1305_decrypt(dek, &nonce, &aad_with_id, &ct) {
+                    Ok(p) => p,
+                    Err(_) => {
+                        let legacy_aad = build_chunk_aad(chunk_idx);
+                        chacha20_poly1305_decrypt(dek, &nonce, &legacy_aad, &ct)?
+                    }
+                };
                 writer
                     .write_all(&plain)
                     .map_err(|e| DomainError::Io(e.to_string()))?;
@@ -601,6 +636,7 @@ impl VaultStorage {
 
     /// Xóa tệp đính kèm trên đĩa.
     pub fn delete_attachment_file(&self, attachment_id: &str) -> Result<(), DomainError> {
+        Self::validate_attachment_id(attachment_id)?;
         let path = Path::new(&self.base_path)
             .join("attachments")
             .join(format!("{attachment_id}.bin"));
@@ -687,5 +723,42 @@ impl VaultStorage {
         let _ = JsonValue::parse(json).map_err(DomainError::Parse)?;
         self.ensure_dirs()?;
         Self::atomic_write(&self.settings_file_path(), json.as_bytes())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_attachment_path_traversal_rejected_and_aad_roundtrip() {
+        let dir = std::env::temp_dir().join(format!(
+            "svm_vault_file_test_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let storage = VaultStorage::new(dir.to_string_lossy().to_string());
+        let dek = [0x42u8; 32];
+
+        assert!(storage.store_attachment(&dek, "../evil", b"abc").is_err());
+        assert!(storage.store_attachment(&dek, "sub/file", b"abc").is_err());
+        assert!(storage.load_attachment(&dek, "../evil").is_err());
+        assert!(storage.delete_attachment_file("../evil").is_err());
+
+        storage
+            .store_attachment(&dek, "att_123-ok", b"hello-aad-bound")
+            .unwrap();
+        let loaded = storage.load_attachment(&dek, "att_123-ok").unwrap();
+        assert_eq!(loaded, b"hello-aad-bound");
+
+        // Nếu đổi tên file đính kèm sang ID khác để đánh tráo (file swap), giải mã phải thất bại do AAD gắn attachment_id
+        let src = dir.join("attachments").join("att_123-ok.bin");
+        let swapped = dir.join("attachments").join("att_other.bin");
+        fs::copy(&src, &swapped).unwrap();
+        assert!(storage.load_attachment(&dek, "att_other").is_err());
+
+        let _ = fs::remove_dir_all(&dir);
     }
 }

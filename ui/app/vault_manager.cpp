@@ -278,9 +278,6 @@ bool VaultManager::changeMasterPassword(const QString &oldPassword,
   if (!m_isConfigured || newPassword.trimmed().length() < 8) {
     return false;
   }
-  if (!validateMasterPassword(oldPassword)) {
-    return false;
-  }
 
   auto &bridge = core::CoreBridge::instance();
   if (bridge.isInitialized()) {
@@ -434,9 +431,6 @@ QString VaultManager::rotateRecoveryKey(const QString &masterPassword) {
   if (!m_isConfigured || !isUnlocked()) {
     return QString();
   }
-  if (!validateMasterPassword(masterPassword)) {
-    return QString();
-  }
 
   auto &bridge = core::CoreBridge::instance();
   QString newKey;
@@ -444,7 +438,7 @@ QString VaultManager::rotateRecoveryKey(const QString &masterPassword) {
     newKey = bridge.rotateRecoveryKey(masterPassword);
   }
   if (newKey.isEmpty()) {
-    newKey = generateRecoveryKey();
+    return QString();
   }
   m_recoveryKey = newKey.trimmed().toUpper();
   saveSettings();
@@ -515,9 +509,9 @@ void VaultManager::loadSettings() {
   if (bridge.isInitialized()) {
     bool coreConfigured = false;
     const auto coreVaults = bridge.fetchVaults(&coreConfigured);
-    if (coreConfigured && !m_isConfigured) {
-      m_isConfigured = true;
-      settingsMgr.setConfigured(true);
+    m_isConfigured = coreConfigured;
+    if (settingsMgr.isConfigured() != coreConfigured) {
+      settingsMgr.setConfigured(coreConfigured);
     }
     if (!coreVaults.isEmpty()) {
       m_vaults = coreVaults;

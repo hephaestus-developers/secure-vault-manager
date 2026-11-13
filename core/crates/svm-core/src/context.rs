@@ -12,7 +12,6 @@ use svm_domain::status::SvmStatusCode;
 use svm_domain::{DomainError, JsonValue, VaultItem};
 use svm_ssh_agent::SshAgentServer;
 use svm_vault::VaultService;
-use svm_webauthn::WebAuthnAuthenticator;
 
 pub(crate) const EVENT_VAULT_LOCKED: i32 = 1;
 pub(crate) const EVENT_VAULT_UNLOCKED: i32 = 2;
@@ -21,13 +20,10 @@ pub(crate) const EVENT_PROMPT: i32 = 4;
 pub(crate) const EVENT_PROMPT_CANCELLED: i32 = 5;
 pub(crate) const EVENT_BRIDGE_STATUS: i32 = 7;
 pub(crate) const EVENT_SSH_STATUS: i32 = 8;
-#[allow(dead_code)]
-pub(crate) const EVENT_SHOW_WINDOW: i32 = 9;
 pub(crate) const EVENT_BRIDGE_CLIENTS_CHANGED: i32 = 10;
 pub(crate) const EVENT_SETTINGS_CHANGED: i32 = 11;
 
 pub(crate) struct PendingPromptEntry {
-    pub(crate) info: JsonValue,
     pub(crate) waiter: Arc<(Mutex<Option<bool>>, Condvar)>,
 }
 
@@ -50,7 +46,6 @@ pub(crate) struct CoreRuntime {
     pub(crate) vault_service: VaultService,
     pub(crate) ssh_agent: SshAgentServer,
     pub(crate) bridge: BridgeServer,
-    pub(crate) webauthn: WebAuthnAuthenticator,
     pub(crate) import_previews: Vec<(String, Vec<VaultItem>)>,
     pub(crate) pending_prompts: Vec<(String, PendingPromptEntry)>,
 }
@@ -95,7 +90,6 @@ pub(crate) fn request_ssh_approval(ctx_raw: usize, key_comment: &str, fingerprin
         rt.pending_prompts.push((
             req_id.clone(),
             PendingPromptEntry {
-                info,
                 waiter: Arc::clone(&waiter),
             },
         ));

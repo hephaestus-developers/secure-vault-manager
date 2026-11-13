@@ -3,12 +3,14 @@
  * @brief Thanh tiêu đề của Extension Popup chứa logo, trạng thái mở khóa và nút khóa nhanh.
  */
 
-import { createQrCodeIconSvg } from "./icons";
+import { createQrCodeIconSvg, createSvgPathIcon } from "./icons";
 
 export interface HeaderBarProps {
   unlocked: boolean;
   configured?: boolean;
   desktopRunning?: boolean;
+  showGenerator?: boolean;
+  onToggleGenerator?: () => void;
   onScanQr?: () => void;
   onLockVault?: () => void;
 }
@@ -59,9 +61,24 @@ export function createHeaderBar(props: HeaderBarProps): HTMLElement {
 
   header.appendChild(brand);
 
-  if (props.unlocked && (props.onLockVault || props.onScanQr)) {
+  if (props.unlocked && (props.onToggleGenerator || props.onLockVault || props.onScanQr)) {
     const actions = document.createElement("div");
     actions.className = "headerActions";
+
+    if (props.onToggleGenerator) {
+      const genBtn = document.createElement("button");
+      genBtn.type = "button";
+      genBtn.className = props.showGenerator ? "iconBtn iconBtnActive" : "iconBtn";
+      genBtn.title = "Trình tạo mật khẩu (Password Generator)";
+      genBtn.appendChild(
+        createSvgPathIcon(
+          "M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4",
+          14,
+        ),
+      );
+      genBtn.addEventListener("click", props.onToggleGenerator);
+      actions.appendChild(genBtn);
+    }
 
     if (props.onScanQr) {
       const qrBtn = document.createElement("button");

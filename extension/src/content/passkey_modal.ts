@@ -23,6 +23,7 @@ export interface PasskeyModalParams {
 export interface PasskeyConsentResult {
   consented: boolean;
   selectedCredentialId?: string;
+  selectedItemId?: string;
   useFallbackNative?: boolean;
   selectedVaultId?: string;
 }
@@ -407,19 +408,43 @@ export function promptPasskeyConsent(params: PasskeyModalParams): Promise<Passke
     backdrop.appendChild(container);
 
     let isUnlocked = false;
+    let lockPollTimer: ReturnType<typeof setInterval> | null = null;
+
+    function stopLockPolling() {
+      if (lockPollTimer) {
+        clearInterval(lockPollTimer);
+        lockPollTimer = null;
+      }
+    }
+
+    function onModalKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        cleanup(false, undefined, false);
+      }
+    }
 
     function cleanup(
       consented: boolean,
       selectedCredentialId?: string,
       useFallbackNative = false,
       selectedVaultId?: string,
+      selectedItemId?: string,
     ) {
+      stopLockPolling();
+      window.removeEventListener("keydown", onModalKeyDown, true);
       activeModalCleanup = null;
       host.remove();
-      resolve({ consented, selectedCredentialId, useFallbackNative, selectedVaultId });
+      resolve({
+        consented,
+        selectedCredentialId,
+        selectedItemId,
+        useFallbackNative,
+        selectedVaultId,
+      });
     }
 
     activeModalCleanup = () => cleanup(false, undefined, false);
+    window.addEventListener("keydown", onModalKeyDown, true);
 
     backdrop.addEventListener("click", (e) => {
       if (e.target === backdrop) {
@@ -502,7 +527,7 @@ export function promptPasskeyConsent(params: PasskeyModalParams): Promise<Passke
 
       // TRƯỜNG HỢP 2: Desktop đang chạy nhưng Kho bị khóa
       if (!isUnlocked) {
-        // Giao diện Yêu cầu Mở khóa kho
+        const bioAvailable = Boolean(statusResp.ok && statusResp.payload?.biometricAvailable);
         body.innerHTML = `
           <div class="svm-title-row">
             <div class="svm-icon-badge">
@@ -513,80 +538,72 @@ export function promptPasskeyConsent(params: PasskeyModalParams): Promise<Passke
             </div>
             <div>
               <div class="svm-title">Kho mật khẩu đang khóa</div>
-              <div class="svm-rp-text">Mở khóa để tiếp tục với Passkey</div>
+              <div class="svm-rp-text">Mở khóa an toàn để tiếp tục với Passkey</div>
             </div>
           </div>
-          <div class="svm-unlock-pane">
-            <div class="svm-input-wrapper">
-              <input type="password" class="svm-input" id="svm-pwd-input" placeholder="Nhập Mật khẩu chính..." autofocus />
-              <button class="svm-toggle-eye" id="svm-toggle-eye" type="button" title="Hiện mật khẩu">👁</button>
+          <div class="svm-info-box" style="margin-bottom: 10px;">
+            <div class="svm-offline-desc">
+              Vì lý do bảo mật, không nhập Mật khẩu chính trực tiếp trên trang web. Vui lòng mở khóa bằng Sinh trắc học hoặc qua biểu tượng Secure Vault trên thanh công cụ trình duyệt / ứng dụng Desktop.
             </div>
-            <div class="svm-error-text" id="svm-error-msg"></div>
-            <div class="svm-actions">
-              <button class="svm-btn svm-btn-secondary" id="svm-btn-cancel">Hủy</button>
-              <button class="svm-btn svm-btn-primary" id="svm-btn-unlock">Mở khóa</button>
-            </div>
+          </div>
+          <div class="svm-error-text" id="svm-error-msg"></div>
+          <div class="svm-actions">
+            <button class="svm-btn svm-btn-secondary" id="svm-btn-cancel">Phương thức khác</button>
+            ${
+              bioAvailable
+                ? `<button class="svm-btn svm-btn-primary" id="svm-btn-bio">Mở khóa Sinh trắc học</button>`
+                : `<button class="svm-btn svm-btn-primary" id="svm-btn-retry">Kiểm tra lại</button>`
+            }
           </div>
         `;
 
         container.appendChild(body);
 
-        const pwdInput = body.querySelector<HTMLInputElement>("#svm-pwd-input");
-        const toggleEye = body.querySelector<HTMLButtonElement>("#svm-toggle-eye");
         const errorMsg = body.querySelector<HTMLDivElement>("#svm-error-msg");
         const btnCancel = body.querySelector<HTMLButtonElement>("#svm-btn-cancel");
-        const btnUnlock = body.querySelector<HTMLButtonElement>("#svm-btn-unlock");
+        const btnBio = body.querySelector<HTMLButtonElement>("#svm-btn-bio");
+        const btnRetry = body.querySelector<HTMLButtonElement>("#svm-btn-retry");
 
-        toggleEye?.addEventListener("click", () => {
-          if (pwdInput) {
-            pwdInput.type = pwdInput.type === "password" ? "text" : "password";
-          }
+        btnCancel?.addEventListener("click", () => cleanup(false, undefined, true));
+
+        btnRetry?.addEventListener("click", () => {
+          void checkStatusAndRender();
         });
 
-        btnCancel?.addEventListener("click", () => cleanup(false));
-
-        async function doUnlock() {
-          const pwd = pwdInput?.value || "";
-          if (!pwd) {
-            if (errorMsg) errorMsg.textContent = "Vui lòng nhập Mật khẩu chính";
-            return;
-          }
-          if (btnUnlock) {
-            btnUnlock.disabled = true;
-            btnUnlock.textContent = "Đang mở...";
-          }
+        btnBio?.addEventListener("click", async () => {
+          btnBio.disabled = true;
+          btnBio.textContent = "Đang xác thực...";
           if (errorMsg) errorMsg.textContent = "";
-
-          const unlockResp = await sendExtensionBridgeMessage<any>("unlock_vault", {
-            password: pwd,
-          });
-          if (unlockResp.ok && unlockResp.payload?.unlocked) {
+          const bioResp = await sendExtensionBridgeMessage<any>("unlock_vault_biometric");
+          if (bioResp.ok && bioResp.payload?.unlocked) {
+            stopLockPolling();
             isUnlocked = true;
-            checkStatusAndRender();
+            void checkStatusAndRender();
           } else {
-            if (btnUnlock) {
-              btnUnlock.disabled = false;
-              btnUnlock.textContent = "Mở khóa";
-            }
+            btnBio.disabled = false;
+            btnBio.textContent = "Mở khóa Sinh trắc học";
             if (errorMsg) {
-              if (unlockResp.error?.code === "DESKTOP_NOT_RUNNING") {
-                errorMsg.textContent = "Ứng dụng Desktop chưa khởi động.";
-              } else {
-                errorMsg.textContent = unlockResp.error?.message || "Mật khẩu không đúng";
-              }
+              errorMsg.textContent =
+                bioResp.error?.message || "Xác thực sinh trắc học không thành công.";
             }
-          }
-        }
-
-        btnUnlock?.addEventListener("click", () => void doUnlock());
-        pwdInput?.addEventListener("keydown", (e) => {
-          if (e.key === "Enter") {
-            void doUnlock();
           }
         });
-        pwdInput?.focus();
+
+        if (!lockPollTimer) {
+          lockPollTimer = setInterval(() => {
+            void (async () => {
+              const pollResp = await sendExtensionBridgeMessage<any>("get_vault_status");
+              if (pollResp.ok && pollResp.payload?.unlocked) {
+                stopLockPolling();
+                void checkStatusAndRender();
+              }
+            })();
+          }, 1500);
+        }
         return;
       }
+
+      stopLockPolling();
 
       // Khi kho đã mở: Hiển thị xác nhận Passkey Tạo / Đăng nhập
       const escapeHtml = (raw: string): string =>
@@ -713,12 +730,17 @@ export function promptPasskeyConsent(params: PasskeyModalParams): Promise<Passke
         ?.addEventListener("click", () => cleanup(false, undefined, true));
       body.querySelector("#svm-btn-confirm")?.addEventListener("click", () => {
         let selectedCredId = primaryPasskey?.credentialId;
+        let selectedItemId = primaryPasskey?.id;
         if (!isCreate && matched.length > 1) {
           const checked = body.querySelector<HTMLInputElement>(
             "input[name='svm-selected-pk']:checked",
           );
           if (checked?.value) {
             selectedCredId = checked.value;
+            const found = matched.find((pk) => pk.credentialId === selectedCredId);
+            if (found) {
+              selectedItemId = found.id;
+            }
           }
         }
         let selectedVaultId: string | undefined;
@@ -728,7 +750,7 @@ export function promptPasskeyConsent(params: PasskeyModalParams): Promise<Passke
             selectedVaultId = selectEl.value;
           }
         }
-        cleanup(true, selectedCredId, false, selectedVaultId);
+        cleanup(true, selectedCredId, false, selectedVaultId, selectedItemId);
       });
     }
 

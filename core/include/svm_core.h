@@ -91,12 +91,9 @@ typedef enum {
       4, /**< Có yêu cầu phê duyệt mới cần người dùng tương tác. */
   SVM_EVENT_PROMPT_CANCELLED =
       5, /**< Một yêu cầu phê duyệt vừa bị hủy bỏ hoặc timeout. */
-  SVM_EVENT_IMPORT_PROGRESS = 6, /**< Báo cáo tiến độ nhập dữ liệu. */
   SVM_EVENT_BRIDGE_STATUS =
       7, /**< Trạng thái kết nối Browser Extension thay đổi. */
   SVM_EVENT_SSH_STATUS = 8, /**< Trạng thái OpenSSH Agent daemon thay đổi. */
-  SVM_EVENT_SHOW_WINDOW =
-      9, /**< Yêu cầu đưa cửa sổ ứng dụng lên trên cùng màn hình. */
   SVM_EVENT_BRIDGE_CLIENTS_CHANGED =
       10, /**< Danh sách Extension đã kết nối có sự thay đổi. */
   SVM_EVENT_SETTINGS_CHANGED =
@@ -220,15 +217,6 @@ void svm_free_buffer(SvmBuffer buf);
  */
 SvmStatus svm_prompt_respond(SvmContext *ctx, const char *request_id,
                              const char *decision_json);
-
-/**
- * @brief Lấy danh sách toàn bộ các yêu cầu phê duyệt đang chờ người dùng xử lý.
- * @param[in] ctx Con trỏ ngữ cảnh ứng dụng.
- * @param[out] out_json Con trỏ nhận chuỗi JSON danh sách prompt. Giải phóng
- * bằng @ref svm_free_string.
- * @return Mã trạng thái @ref SvmStatus.
- */
-SvmStatus svm_prompt_list_pending(SvmContext *ctx, char **out_json);
 
 /* ========================================================================= */
 /* 3.3. Quản Trị Vault (Vault Registry & Lifecycle)                          */
@@ -380,6 +368,14 @@ SvmStatus svm_vault_rotate_recovery_key(SvmContext *ctx, const char *master_pw,
                                         char **out_key);
 
 /**
+ * @brief Đặt lại toàn bộ dữ liệu kho (xóa toàn bộ kho và cài đặt lưu trữ cục
+ * bộ).
+ * @param[in] ctx Con trỏ ngữ cảnh ứng dụng.
+ * @return Mã trạng thái @ref SvmStatus.
+ */
+SvmStatus svm_vault_reset(SvmContext *ctx);
+
+/**
  * @brief Báo cáo thời gian nhàn rỗi (idle) của hệ thống phục vụ bộ đếm
  * Auto-Lock.
  * @param[in] ctx Con trỏ ngữ cảnh ứng dụng.
@@ -454,14 +450,6 @@ SvmStatus svm_item_restore(SvmContext *ctx, const char *item_id);
 SvmStatus svm_item_purge(SvmContext *ctx, const char *item_id);
 
 /**
- * @brief Xóa nhanh một mục khỏi kho (tương đương đưa vào thùng rác).
- * @param[in] ctx Con trỏ ngữ cảnh ứng dụng.
- * @param[in] item_id Định danh UUID của mục cần xóa.
- * @return Mã trạng thái @ref SvmStatus.
- */
-SvmStatus svm_item_delete(SvmContext *ctx, const char *item_id);
-
-/**
  * @brief Trích xuất giá trị plaintext nhạy cảm của một trường bí mật cụ thể.
  * @warning Vùng nhớ trả về qua out_secret BẮT BUỘC phải được giải phóng bằng
  * @ref svm_free_secret (tự động zeroize).
@@ -522,17 +510,6 @@ SvmStatus svm_attachment_add(SvmContext *ctx, const char *item_id,
  */
 SvmStatus svm_attachment_export(SvmContext *ctx, const char *attachment_id,
                                 const char *dst_path);
-
-/**
- * @brief Đọc toàn bộ nội dung tệp đính kèm vào RAM (phục vụ xem trước tệp nhỏ).
- * @param[in] ctx Con trỏ ngữ cảnh ứng dụng.
- * @param[in] attachment_id Định danh UUID của tệp đính kèm.
- * @param[out] out Cấu trúc @ref SvmBuffer nhận dữ liệu nhị phân. Giải phóng
- * bằng @ref svm_free_buffer.
- * @return Mã trạng thái @ref SvmStatus.
- */
-SvmStatus svm_attachment_read(SvmContext *ctx, const char *attachment_id,
-                              SvmBuffer *out);
 
 /**
  * @brief Xóa một tệp đính kèm khỏi kho dữ liệu.
@@ -690,35 +667,6 @@ SvmStatus svm_ssh_agent_status(SvmContext *ctx, char **out_json);
 SvmStatus svm_ssh_key_generate(SvmContext *ctx, const char *options_json,
                                char **out_item_id);
 
-/**
- * @brief Xuất khóa công khai SSH ở định dạng chuẩn OpenSSH authorized_keys.
- * @param[in] ctx Con trỏ ngữ cảnh ứng dụng.
- * @param[in] item_id Định danh UUID của mục khóa SSH.
- * @param[out] out_openssh_pub Con trỏ nhận chuỗi public key. Giải phóng bằng
- * @ref svm_free_string.
- * @return Mã trạng thái @ref SvmStatus.
- */
-SvmStatus svm_ssh_key_public(SvmContext *ctx, const char *item_id,
-                             char **out_openssh_pub);
-
-/**
- * @brief Lấy danh sách các Passkey đã lưu trữ thuộc danh mục Category::Passkey.
- * @param[in] ctx Con trỏ ngữ cảnh ứng dụng.
- * @param[in] rp_id Tên miền Relying Party ID để lọc (hoặc NULL để lấy tất cả).
- * @param[out] out_json Con trỏ nhận JSON danh sách Passkey metadata. Giải phóng
- * bằng @ref svm_free_string.
- * @return Mã trạng thái @ref SvmStatus.
- */
-SvmStatus svm_passkey_list(SvmContext *ctx, const char *rp_id, char **out_json);
-
-/**
- * @brief Xóa một Passkey theo định danh mục Passkey tương ứng.
- * @param[in] ctx Con trỏ ngữ cảnh ứng dụng.
- * @param[in] item_id Định danh UUID của mục Passkey cần xóa.
- * @return Mã trạng thái @ref SvmStatus.
- */
-SvmStatus svm_passkey_delete(SvmContext *ctx, const char *item_id);
-
 /* ========================================================================= */
 /* 3.9. Cầu Nối Trình Duyệt & Cài Đặt Hệ Thống (Bridge & Settings)           */
 /* ========================================================================= */
@@ -745,14 +693,6 @@ SvmStatus svm_bridge_stop(SvmContext *ctx);
  * @return Mã trạng thái @ref SvmStatus.
  */
 SvmStatus svm_bridge_clients_list(SvmContext *ctx, char **out_json);
-
-/**
- * @brief Thu hồi quyền truy cập của một Extension / client đã ghép nối.
- * @param[in] ctx Con trỏ ngữ cảnh ứng dụng.
- * @param[in] client_id Định danh UUID của client cần thu hồi.
- * @return Mã trạng thái @ref SvmStatus.
- */
-SvmStatus svm_bridge_client_revoke(SvmContext *ctx, const char *client_id);
 
 /**
  * @brief Đăng ký tệp JSON Native Messaging Host manifest vào cấu hình các trình

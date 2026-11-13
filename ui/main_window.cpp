@@ -39,6 +39,11 @@
 #include <QVBoxLayout>
 #include <QWindow>
 
+#if defined(Q_OS_WIN)
+#include <QLibrary>
+#include <windows.h>
+#endif
+
 namespace svm {
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
@@ -167,11 +172,11 @@ void MainWindow::setupUI() {
           &MainWindow::close);
   connect(m_headerBar, &components::UnifiedHeaderBar::themeToggleRequested,
           this, []() {
-            auto &tm = app::ThemeManager::instance();
-            const auto nextMode = (tm.currentMode() == app::ThemeMode::Dark)
+            auto &sm = app::SettingsManager::instance();
+            const auto nextMode = (sm.themeMode() == app::ThemeMode::Dark)
                                       ? app::ThemeMode::Light
                                       : app::ThemeMode::Dark;
-            tm.applyTheme(nextMode);
+            sm.setThemeMode(nextMode);
           });
 
   // 5. Kết nối tín hiệu giữa các Cột
@@ -288,11 +293,11 @@ void MainWindow::setupShortcuts() {
   m_toggleThemeShortcut =
       new QShortcut(QKeySequence(QStringLiteral("Ctrl+T")), this);
   connect(m_toggleThemeShortcut, &QShortcut::activated, this, []() {
-    auto &tm = app::ThemeManager::instance();
-    const auto nextMode = (tm.currentMode() == app::ThemeMode::Dark)
+    auto &sm = app::SettingsManager::instance();
+    const auto nextMode = (sm.themeMode() == app::ThemeMode::Dark)
                               ? app::ThemeMode::Light
                               : app::ThemeMode::Dark;
-    tm.applyTheme(nextMode);
+    sm.setThemeMode(nextMode);
   });
 
   m_searchShortcut =
@@ -730,8 +735,8 @@ void MainWindow::populateViewMenu(QMenu &menu) {
                                          : tr("Switch to Dark Theme"));
   setMenuShortcutHint(themeAct, QStringLiteral("Ctrl+T"));
   connect(themeAct, &QAction::triggered, this, [isDark]() {
-    app::ThemeManager::instance().applyTheme(isDark ? app::ThemeMode::Light
-                                                    : app::ThemeMode::Dark);
+    app::SettingsManager::instance().setThemeMode(
+        isDark ? app::ThemeMode::Light : app::ThemeMode::Dark);
   });
 }
 
@@ -1402,22 +1407,74 @@ void MainWindow::setupSleepMonitor() {
                 m_sleepMonitorProcess->readAllStandardOutput();
             if (data.contains("PrepareForSleep (true") ||
                 data.contains(".Lock ()")) {
-              app::VaultManager::instance().lock();
-              if (m_trayManager) {
-                m_trayManager->setVaultLocked(true);
-              }
+              lockVaultSession();
             }
           });
   m_sleepMonitorProcess->start(
       gdbus,
       {QStringLiteral("monitor"), QStringLiteral("--system"),
        QStringLiteral("--dest"), QStringLiteral("org.freedesktop.login1")});
+#elif defined(Q_OS_MAC)
+  if (!m_macSleepTimer) {
+    m_macSleepTimer = new QTimer(this);
+    m_macSleepTimer->setInterval(5000);
+    connect(m_macSleepTimer, &QTimer::timeout, this, [this]() {
+      if (!app::SettingsManager::instance().lockOnSleep() ||
+          !app::VaultManager::instance().isUnlocked()) {
+        return;
+      }
+      auto *proc = new QProcess(this);
+      connect(proc, qOverload<int, QProcess::ExitStatus>(&QProcess::finished),
+              this, [this, proc](int, QProcess::ExitStatus) {
+                const QByteArray out = proc->readAllStandardOutput();
+                proc->deleteLater();
+                if ((out.contains("CGSSessionScreenIsLocked\" = Yes") ||
+                     out.contains("CGSSessionScreenIsLocked = 1")) &&
+                    app::SettingsManager::instance().lockOnSleep() &&
+                    app::VaultManager::instance().isUnlocked()) {
+                  lockVaultSession();
+                }
+              });
+      proc->start(QStringLiteral("/usr/sbin/ioreg"),
+                  {QStringLiteral("-n"), QStringLiteral("Root"),
+                   QStringLiteral("-d1"), QStringLiteral("-k"),
+                   QStringLiteral("CGSSessionScreenIsLocked")});
+    });
+    m_macSleepTimer->start();
+  }
+#elif defined(Q_OS_WIN)
+  if (!m_wtsRegistered) {
+    using RegisterSessionFn = BOOL(WINAPI *)(HWND, DWORD);
+    QLibrary wtsLib(QStringLiteral("wtsapi32"));
+    if (auto fn = reinterpret_cast<RegisterSessionFn>(
+            wtsLib.resolve("WTSRegisterSessionNotification"))) {
+      constexpr DWORD kNotifyForThisSession = 0;
+      m_wtsRegistered =
+          fn(reinterpret_cast<HWND>(winId()), kNotifyForThisSession) != FALSE;
+    }
+  }
 #endif
 }
 
 MainWindow::~MainWindow() { stopSleepMonitor(); }
 
 void MainWindow::stopSleepMonitor() {
+#if defined(Q_OS_MAC)
+  if (m_macSleepTimer) {
+    m_macSleepTimer->stop();
+  }
+#endif
+#if defined(Q_OS_WIN)
+  if (m_wtsRegistered) {
+    using UnregisterSessionFn = BOOL(WINAPI *)(HWND);
+    QLibrary wtsLib(QStringLiteral("wtsapi32"));
+    if (auto fn = reinterpret_cast<UnregisterSessionFn>(
+            wtsLib.resolve("WTSUnRegisterSessionNotification"))) {
+      fn(reinterpret_cast<HWND>(winId()));
+    }
+    m_wtsRegistered = false;
+  }
+#endif
   if (!m_sleepMonitorProcess) {
     return;
   }
@@ -1430,6 +1487,30 @@ void MainWindow::stopSleepMonitor() {
     }
   }
 }
+
+#if defined(Q_OS_WIN)
+bool MainWindow::nativeEvent(const QByteArray &eventType, void *message,
+                             qintptr *result) {
+  Q_UNUSED(eventType);
+  Q_UNUSED(result);
+  if (message) {
+    const MSG *msg = static_cast<const MSG *>(message);
+    constexpr UINT kWmPowerBroadcast = 0x0218;
+    constexpr WPARAM kPbtApmSuspend = 0x0004;
+    constexpr UINT kWmWtsSessionChange = 0x02B1;
+    constexpr WPARAM kWtsSessionLock = 0x7;
+    if ((msg->message == kWmPowerBroadcast && msg->wParam == kPbtApmSuspend) ||
+        (msg->message == kWmWtsSessionChange &&
+         msg->wParam == kWtsSessionLock)) {
+      if (app::SettingsManager::instance().lockOnSleep() &&
+          app::VaultManager::instance().isUnlocked()) {
+        lockVaultSession();
+      }
+    }
+  }
+  return QMainWindow::nativeEvent(eventType, message, result);
+}
+#endif
 
 void MainWindow::closeEvent(QCloseEvent *event) {
   if (app::SettingsManager::instance().closeToTray() && m_trayManager &&

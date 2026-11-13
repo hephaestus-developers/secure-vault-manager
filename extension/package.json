@@ -7,9 +7,9 @@
   "scripts": {
     "build": "node scripts/build.mjs && node scripts/post-build.js",
     "typecheck": "tsc --noEmit",
-    "lint": "oxlint --deny-warnings src scripts vite.config.ts",
-    "format": "prettier --write \"src/**/*.{ts,tsx,js,mjs,css,html}\" \"scripts/**/*.{js,mjs,ts}\" \"public/*.json\" popup.html package.json tsconfig.json vite.config.ts",
-    "format:check": "prettier --check \"src/**/*.{ts,tsx,js,mjs,css,html}\" \"scripts/**/*.{js,mjs,ts}\" \"public/*.json\" popup.html package.json tsconfig.json vite.config.ts"
+    "lint": "oxlint --deny-warnings src scripts",
+    "format": "prettier --write \"src/**/*.{ts,tsx,js,mjs,css,html}\" \"scripts/**/*.{js,mjs,ts}\" \"public/*.json\" popup.html package.json tsconfig.json",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,js,mjs,css,html}\" \"scripts/**/*.{js,mjs,ts}\" \"public/*.json\" popup.html package.json tsconfig.json"
   },
   "license": "Proprietary",
   "devDependencies": {

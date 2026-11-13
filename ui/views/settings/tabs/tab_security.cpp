@@ -301,8 +301,8 @@ void TabSecurity::openChangePasswordDialog() {
     const QString p1 = newEdit->text();
     const QString p2 = confirmEdit->text();
 
-    if (!app::VaultManager::instance().validateMasterPassword(cur)) {
-      errorLabel->setText(tr("Current master password is incorrect."));
+    if (cur.isEmpty()) {
+      errorLabel->setText(tr("Please enter your current Master Password."));
       return;
     }
     if (p1.length() < 8) {
@@ -315,7 +315,7 @@ void TabSecurity::openChangePasswordDialog() {
     }
 
     if (!app::VaultManager::instance().changeMasterPassword(cur, p1)) {
-      errorLabel->setText(tr("Failed to update master password."));
+      errorLabel->setText(tr("Current master password is incorrect."));
       return;
     }
     components::NotificationDialog::success(
@@ -440,14 +440,10 @@ void TabSecurity::openRotateRecoveryKeyDialog() {
         errorLabel->setText(tr("Please enter your Master Password."));
         return;
       }
-      if (!app::VaultManager::instance().validateMasterPassword(pwd)) {
-        errorLabel->setText(tr("Incorrect master password."));
-        return;
-      }
 
       newKey = app::VaultManager::instance().rotateRecoveryKey(pwd);
       if (newKey.isEmpty()) {
-        errorLabel->setText(tr("Failed to regenerate recovery key."));
+        errorLabel->setText(tr("Incorrect master password."));
         return;
       }
 

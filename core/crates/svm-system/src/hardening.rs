@@ -163,44 +163,62 @@ pub fn authenticate_os_user(reason: &str) -> bool {
     }
     #[cfg(target_os = "macos")]
     {
-        let safe_reason = reason.replace(['\\', '"', '\n', '\r'], " ");
-        // Thử LocalAuthentication (Touch ID / Apple Watch / macOS user password) qua swift
-        if std::path::Path::new("/usr/bin/swift").is_file() {
-            let script = format!(
-                "import LocalAuthentication\n\
-                 import Foundation\n\
-                 let ctx = LAContext()\n\
-                 let sema = DispatchSemaphore(value: 0)\n\
-                 var ok = false\n\
-                 var err: NSError?\n\
-                 if ctx.canEvaluatePolicy(.deviceOwnerAuthentication, error: &err) {{\n\
-                     ctx.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: \"{safe_reason}\") {{ res, _ in\n\
-                         ok = res\n\
-                         sema.signal()\n\
-                     }}\n\
-                     sema.wait()\n\
-                 }}\n\
-                 exit(ok ? 0 : 1)"
-            );
-            if let Ok(status) = Command::new("/usr/bin/swift")
-                .arg("-e")
-                .arg(script)
-                .stdin(Stdio::null())
-                .stdout(Stdio::null())
-                .stderr(Stdio::null())
-                .status()
-            {
-                return status.success();
-            }
+        let reason_text = if reason.trim().is_empty() {
+            "Authenticate to unlock Secure Vault Manager"
+        } else {
+            reason
+        };
+        // Thử LocalAuthentication (Touch ID / Apple Watch / macOS user password) qua JXA (osascript)
+        // Không đòi hỏi cài đặt Xcode Command Line Tools như /usr/bin/swift
+        let jxa_script = r#"
+ObjC.import('LocalAuthentication');
+ObjC.import('Foundation');
+var ctx = $.LAContext.alloc.init;
+var err = Ref();
+var policy = 2; // LAPolicyDeviceOwnerAuthentication
+if (!ctx.canEvaluatePolicyError(policy, err)) {
+    $.exit(1);
+}
+var args = $.NSProcessInfo.processInfo.arguments;
+var reasonStr = args.count > 4 ? ObjC.unwrap(args.objectAtIndex(4)) : 'Authenticate to unlock Secure Vault Manager';
+var done = false;
+var ok = false;
+ctx.evaluatePolicyLocalizedReasonReply(policy, $(reasonStr), function(success, error) {
+    ok = success;
+    done = true;
+});
+var runLoop = $.NSRunLoop.currentRunLoop;
+while (!done) {
+    runLoop.runModeBeforeDate($.NSDefaultRunLoopMode, $.NSDate.dateWithTimeIntervalSinceNow(0.05));
+}
+$.exit(ok ? 0 : 1);
+"#;
+        if let Ok(status) = Command::new("/usr/bin/osascript")
+            .arg("-l")
+            .arg("JavaScript")
+            .arg("-e")
+            .arg(jxa_script)
+            .arg(reason_text)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+        {
+            return status.success();
         }
         false
     }
     #[cfg(target_os = "windows")]
     {
-        use windows_sys::Win32::Foundation::ERROR_SUCCESS;
+        use windows_sys::Win32::Foundation::{CloseHandle, ERROR_SUCCESS, HANDLE};
         use windows_sys::Win32::Security::Credentials::{
-            CredUIPromptForWindowsCredentialsW, CREDUIWIN_GENERIC, CREDUI_INFOW,
+            CredUIPromptForWindowsCredentialsW, CredUnPackAuthenticationBufferW, CREDUIWIN_GENERIC,
+            CREDUI_INFOW,
         };
+        use windows_sys::Win32::Security::{
+            LogonUserW, LOGON32_LOGON_INTERACTIVE, LOGON32_PROVIDER_DEFAULT,
+        };
+        use windows_sys::Win32::System::Com::CoTaskMemFree;
 
         let mut caption: Vec<u16> = "Secure Vault Manager"
             .encode_utf16()
@@ -236,12 +254,72 @@ pub fn authenticate_os_user(reason: &str) -> bool {
                 CREDUIWIN_GENERIC,
             )
         };
-        if !out_buf.is_null() && out_size > 0 {
+
+        let mut authenticated = false;
+        if rc == ERROR_SUCCESS && !out_buf.is_null() && out_size > 0 {
+            let mut user_buf = [0u16; 256];
+            let mut domain_buf = [0u16; 256];
+            let mut pass_buf = [0u16; 256];
+            let mut user_len = user_buf.len() as u32;
+            let mut domain_len = domain_buf.len() as u32;
+            let mut pass_len = pass_buf.len() as u32;
+
+            let unpacked = unsafe {
+                CredUnPackAuthenticationBufferW(
+                    0,
+                    out_buf,
+                    out_size,
+                    user_buf.as_mut_ptr(),
+                    &mut user_len,
+                    domain_buf.as_mut_ptr(),
+                    &mut domain_len,
+                    pass_buf.as_mut_ptr(),
+                    &mut pass_len,
+                )
+            };
+
+            if unpacked != 0 {
+                let domain_ptr = if domain_buf[0] == 0 {
+                    core::ptr::null()
+                } else {
+                    domain_buf.as_ptr()
+                };
+                let mut token: HANDLE = core::ptr::null_mut();
+                let logon_ok = unsafe {
+                    LogonUserW(
+                        user_buf.as_ptr(),
+                        domain_ptr,
+                        pass_buf.as_ptr(),
+                        LOGON32_LOGON_INTERACTIVE,
+                        LOGON32_PROVIDER_DEFAULT,
+                        &mut token,
+                    )
+                };
+                if logon_ok != 0 && !token.is_null() {
+                    authenticated = true;
+                    unsafe {
+                        CloseHandle(token);
+                    }
+                }
+            }
+
             unsafe {
+                core::ptr::write_bytes(user_buf.as_mut_ptr(), 0, user_buf.len());
+                core::ptr::write_bytes(domain_buf.as_mut_ptr(), 0, domain_buf.len());
+                core::ptr::write_bytes(pass_buf.as_mut_ptr(), 0, pass_buf.len());
                 core::ptr::write_bytes(out_buf as *mut u8, 0, out_size as usize);
+                CoTaskMemFree(out_buf);
+            }
+        } else if !out_buf.is_null() {
+            unsafe {
+                if out_size > 0 {
+                    core::ptr::write_bytes(out_buf as *mut u8, 0, out_size as usize);
+                }
+                CoTaskMemFree(out_buf);
             }
         }
-        rc == ERROR_SUCCESS
+
+        authenticated
     }
     #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
     {

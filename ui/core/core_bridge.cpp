@@ -227,52 +227,15 @@ bool CoreBridge::initialize(const QString &dataDir) {
 
 bool CoreBridge::resetStorage() {
   SVM_ACTION_SCOPE("CoreBridge", "resetStorage");
-  const bool wasBridgeStarted = m_bridgeStarted;
-  if (m_context) {
-    stopBridge();
-    svm_vault_lock(m_context);
-    svm_context_free(m_context);
-    m_context = nullptr;
-  }
-
-  QStringList candidateDirs;
-  const QString envDir = qEnvironmentVariable("SVM_DATA_DIR");
-  if (!envDir.isEmpty()) {
-    candidateDirs << envDir;
-  }
-  candidateDirs << QDir::homePath() +
-                       QStringLiteral(
-                           "/.local/share/hephaestus/secure-vault-manager");
-  candidateDirs << QStringLiteral("/tmp/hephaestus-svm-data");
-
-  // Safety Net Backup: Tự động sao lưu vault.svm cũ sang thư mục an toàn phòng
-  // khi người dùng nhớ lại mật khẩu
-  const QString backupDir =
-      QDir::homePath() +
-      QStringLiteral("/.local/share/hephaestus/secure-vault-manager-backups");
-  QDir().mkpath(backupDir);
-  const qint64 ts = QDateTime::currentDateTimeUtc().toSecsSinceEpoch();
-
-  for (const QString &dPath : candidateDirs) {
-    const QString vaultFile = dPath + QStringLiteral("/vault.svm");
-    if (QFile::exists(vaultFile)) {
-      const QString backupTarget =
-          QStringLiteral("%1/vault_%2.svm.abandoned").arg(backupDir).arg(ts);
-      QFile::copy(vaultFile, backupTarget);
-    }
-    QDir dir(dPath);
-    if (dir.exists()) {
-      dir.removeRecursively();
-    }
-  }
-
-  if (!initialize()) {
+  if (!m_context && !initialize()) {
     return false;
   }
-  if (wasBridgeStarted) {
-    startBridge();
-    installNativeHostManifests();
+  const SvmStatus st = svm_vault_reset(m_context);
+  if (st != SVM_OK) {
+    emit errorOccurred(lastError());
+    return false;
   }
+  app::SettingsManager::instance().resetSecurityAndVaults();
   return true;
 }
 
@@ -1250,14 +1213,6 @@ QJsonArray CoreBridge::listBridgeClients() {
   return doc.object().value(QStringLiteral("clients")).toArray();
 }
 
-bool CoreBridge::revokeBridgeClient(const QString &clientId) {
-  if (!m_context || clientId.isEmpty()) {
-    return false;
-  }
-  const QByteArray cidUtf8 = clientId.toUtf8();
-  return svm_bridge_client_revoke(m_context, cidUtf8.constData()) == SVM_OK;
-}
-
 bool CoreBridge::installNativeHostManifests() {
   if (!m_context) {
     return false;
@@ -1297,29 +1252,6 @@ bool CoreBridge::saveCoreSettings(const QJsonObject &settings) {
     emit faviconUpdated(QString());
   }
   return ok;
-}
-
-QJsonArray CoreBridge::listPasskeys(const QString &rpId) {
-  if (!m_context) {
-    return {};
-  }
-  const QByteArray rpUtf8 = rpId.toUtf8();
-  const char *cRp = rpId.isEmpty() ? nullptr : rpUtf8.constData();
-  char *outJson = nullptr;
-  if (svm_passkey_list(m_context, cRp, &outJson) != SVM_OK || !outJson) {
-    return {};
-  }
-  const QByteArray raw(outJson);
-  svm_free_string(outJson);
-  return QJsonDocument::fromJson(raw).array();
-}
-
-bool CoreBridge::deletePasskey(const QString &itemId) {
-  if (!m_context || itemId.isEmpty()) {
-    return false;
-  }
-  const QByteArray iid = itemId.toUtf8();
-  return svm_passkey_delete(m_context, iid.constData()) == SVM_OK;
 }
 
 bool CoreBridge::respondPrompt(const QString &requestId, bool approved) {

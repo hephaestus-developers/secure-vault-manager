@@ -6,15 +6,19 @@
 import {
   CredentialSecretPayload,
   CredentialsListPayload,
-  getChromeApi,
   sendExtensionBridgeMessage,
 } from "../services/protocol";
 import { isRecentlyAutofilled } from "./autofill";
-import { classifyDocumentFields, isSubmitElement } from "./classifier";
+import {
+  classifyDocumentFields,
+  isElementVisible,
+  isSearchOrFilterInput,
+  isSubmitElement,
+} from "./classifier";
 import { showSaveCredentialPrompt } from "./save-prompt";
 
-const PENDING_LOGIN_KEY = "svm_pending_login";
 const PENDING_LOGIN_TTL_MS = 60000; // 60 giây
+const LAST_TYPED_TTL_MS = 60000; // 60 giây
 
 export interface PendingLoginData {
   domain: string;
@@ -28,9 +32,21 @@ export interface PendingLoginData {
 // Bộ nhớ cache tạm thời trong biến JavaScript
 let memoryPendingLogin: PendingLoginData | null = null;
 
-// Ghi nhớ giá trị username / password gần nhất khi người dùng gõ
+// Ghi nhớ giá trị username / password gần nhất khi người dùng gõ kèm mốc thời gian (TTL)
 let lastTypedUsername = "";
 let lastTypedPassword = "";
+let lastTypedUsernameAt = 0;
+let lastTypedPasswordAt = 0;
+
+/**
+ * Xóa sạch dữ liệu gõ phím tạm thời khỏi bộ nhớ phiên.
+ */
+function resetTypedCredentials(): void {
+  lastTypedUsername = "";
+  lastTypedPassword = "";
+  lastTypedUsernameAt = 0;
+  lastTypedPasswordAt = 0;
+}
 
 // Cờ khóa chống hiển thị Save Prompt trùng lặp gây nháy màn hình
 let isPromptProcessing = false;
@@ -89,6 +105,7 @@ async function retrievePendingLogin(): Promise<PendingLoginData | null> {
  */
 async function clearPendingLogin(): Promise<void> {
   memoryPendingLogin = null;
+  resetTypedCredentials();
 
   try {
     await sendExtensionBridgeMessage("clear_pending_login");
@@ -130,33 +147,46 @@ function extractCurrentCredentials(searchRoot: Document | Element = document): {
   password: string;
   passwordInput: HTMLInputElement | null;
 } {
-  const { usernameInput, passwordInput } = classifyDocumentFields(searchRoot);
+  let { usernameInput, passwordInput, newPasswordInput } = classifyDocumentFields(searchRoot);
+  if (newPasswordInput && newPasswordInput.value) {
+    passwordInput = newPasswordInput;
+  }
 
   let username = usernameInput?.value?.trim() || "";
   let password = passwordInput?.value || "";
 
-  // Nếu không thấy qua classifyDocumentFields, dùng giá trị đã ghi nhớ lúc user gõ
-  if (!username && lastTypedUsername) {
-    username = lastTypedUsername;
-  }
-  if (!password && lastTypedPassword) {
-    password = lastTypedPassword;
-  }
-
-  // Dự phòng cuối: Quét trực tiếp ô input type="password" bất kỳ
-  if (!password) {
-    const anyPwd = searchRoot.querySelector<HTMLInputElement>("input[type='password']");
-    if (anyPwd && anyPwd.value) {
-      password = anyPwd.value;
+  // Dự phòng: Quét trực tiếp ô input type="password" đang hiển thị
+  if (!passwordInput) {
+    const anyPwd = Array.from(
+      searchRoot.querySelectorAll<HTMLInputElement>("input[type='password']"),
+    ).find((el) => !el.disabled && !el.readOnly && isElementVisible(el));
+    if (anyPwd) {
+      passwordInput = anyPwd;
+      if (!password && anyPwd.value) {
+        password = anyPwd.value;
+      }
     }
   }
 
-  // Dự phòng cuối cho username: ô text đứng trước ô password
+  const now = Date.now();
+
+  // Nếu không thấy qua classifyDocumentFields, dùng giá trị đã ghi nhớ lúc user gõ (còn hiệu lực TTL)
+  if (!username && lastTypedUsername && now - lastTypedUsernameAt < LAST_TYPED_TTL_MS) {
+    username = lastTypedUsername;
+  }
+  if (!password && lastTypedPassword && now - lastTypedPasswordAt < LAST_TYPED_TTL_MS) {
+    password = lastTypedPassword;
+  }
+
+  // Dự phòng cuối cho username: ô text đang hiển thị (không phải ô tìm kiếm/bộ lọc)
   if (!username) {
     const textInputs = Array.from(
       searchRoot.querySelectorAll<HTMLInputElement>("input[type='text'], input[type='email']"),
     );
     for (const ti of textInputs) {
+      if (ti.disabled || ti.readOnly || !isElementVisible(ti) || isSearchOrFilterInput(ti)) {
+        continue;
+      }
       if (ti.value?.trim()) {
         username = ti.value.trim();
         break;
@@ -171,10 +201,17 @@ function extractCurrentCredentials(searchRoot: Document | Element = document): {
  * Xử lý khi bắt được thao tác submit/click đăng nhập từ phía người dùng.
  */
 async function recordPotentialLoginAttempt(targetElement?: Element | null): Promise<void> {
+  if (targetElement instanceof HTMLInputElement && isSearchOrFilterInput(targetElement)) {
+    return;
+  }
+  if (targetElement instanceof HTMLFormElement && targetElement.getAttribute("role") === "search") {
+    return;
+  }
+
   const searchRoot = targetElement?.closest("form") || document;
   const { username, password, passwordInput } = extractCurrentCredentials(searchRoot);
 
-  if (!username || !password) {
+  if (!passwordInput || !username || !password) {
     return;
   }
 
@@ -209,14 +246,16 @@ async function recordPotentialLoginAttempt(targetElement?: Element | null): Prom
   }
 
   // Quan sát DOM hiện tại nếu form đăng nhập bị biến mất (SPA)
-  if (passwordInput) {
-    observeSpaFormRemoval(passwordInput, pending);
-  }
+  observeSpaFormRemoval(passwordInput, pending);
 
-  // Đặt thêm hẹn giờ dự phòng: nếu sau 1.5 giây URL thay đổi hoặc form đã submit mà không có lỗi
+  // Đặt thêm hẹn giờ dự phòng: nếu sau 1.5 giây URL thay đổi hoặc ô password bị gỡ/ẩn mà không có lỗi
   activeFallbackTimer = setTimeout(() => {
     activeFallbackTimer = null;
-    if (window.location.href !== pending.submittedUrl || !document.contains(passwordInput)) {
+    if (
+      window.location.href !== pending.submittedUrl ||
+      !document.contains(passwordInput) ||
+      !isElementVisible(passwordInput)
+    ) {
       void verifyAndPrompt(pending);
     }
   }, 1500);
@@ -395,7 +434,11 @@ export function attachFormSubmitCapture(): void {
       if (target instanceof HTMLInputElement) {
         if (target.type === "password") {
           lastTypedPassword = target.value;
+          lastTypedPasswordAt = Date.now();
         } else if (target.type === "text" || target.type === "email") {
+          if (isSearchOrFilterInput(target)) {
+            return;
+          }
           // Bỏ qua nếu ô này là mã xác thực 2FA/TOTP (tránh ghi đè username bằng mã số OTP 6 số)
           const signature =
             `${target.name} ${target.id} ${target.placeholder} ${target.className} ${target.getAttribute("aria-label") || ""}`.toLowerCase();
@@ -404,7 +447,11 @@ export function attachFormSubmitCapture(): void {
             target.maxLength === 6 ||
             /totp|otp|2fa|code|mfa|auth|token|checkpoint/i.test(signature);
           if (!isOtpInput) {
-            lastTypedUsername = target.value.trim();
+            const { usernameInput, passwordInput } = classifyDocumentFields(document);
+            if (usernameInput === target || passwordInput !== null) {
+              lastTypedUsername = target.value.trim();
+              lastTypedUsernameAt = Date.now();
+            }
           }
         }
       }

@@ -1,4 +1,4 @@
-//! Trình xác thực ảo FIDO2 / WebAuthn (`WebAuthnAuthenticator`).
+//! Bộ hỗ trợ xác thực WebAuthn / FIDO2 cho Passkey.
 
 use svm_domain::{Category, JsonValue, VaultItem};
 
@@ -118,15 +118,21 @@ pub fn extract_normalized_host(raw: &str) -> Option<String> {
 pub fn matches_passkey_rp_id(item: &VaultItem, rp_id: &str) -> bool {
     let rp = rp_id.trim().to_ascii_lowercase();
     let rp = rp.trim_end_matches('.');
-    if rp.is_empty() || !rp.contains('.') || rp.starts_with('.') {
+    if rp.is_empty() || (rp != "localhost" && !rp.contains('.')) || rp.starts_with('.') {
         return false;
     }
 
     if !item.passkey_rp_id.trim().is_empty() {
         let item_rp = item.passkey_rp_id.trim().to_ascii_lowercase();
         let item_rp = item_rp.trim_end_matches('.');
-        if item_rp.is_empty() || !item_rp.contains('.') || item_rp.starts_with('.') {
+        if item_rp.is_empty()
+            || (item_rp != "localhost" && !item_rp.contains('.'))
+            || item_rp.starts_with('.')
+        {
             return false;
+        }
+        if rp == "localhost" || item_rp == "localhost" {
+            return item_rp == rp;
         }
         return item_rp == rp
             || rp.ends_with(&format!(".{item_rp}"))
@@ -136,8 +142,12 @@ pub fn matches_passkey_rp_id(item: &VaultItem, rp_id: &str) -> bool {
 
     if let Some(host) = extract_normalized_host(&item.website_url) {
         let host = host.trim_end_matches('.');
-        if host.is_empty() || !host.contains('.') || host.starts_with('.') {
+        if host.is_empty() || (host != "localhost" && !host.contains('.')) || host.starts_with('.')
+        {
             return false;
+        }
+        if rp == "localhost" || host == "localhost" {
+            return host == rp;
         }
         return host == rp
             || host.ends_with(&format!(".{rp}"))
@@ -219,37 +229,6 @@ pub fn bump_passkey_sign_count(item: &mut VaultItem) -> u32 {
     item.passkey_sign_count
 }
 
-/// Bộ xử lý trình xác thực ảo FIDO2 / WebAuthn.
-pub struct WebAuthnAuthenticator;
-
-impl WebAuthnAuthenticator {
-    /// Khởi tạo một thực thể `WebAuthnAuthenticator` mới.
-    pub fn new() -> Self {
-        Self
-    }
-
-    /// Lọc danh sách các mục thuộc danh mục `Category::Passkey` theo tên miền `rp_id`.
-    pub fn list_passkeys_json(&self, items: &[VaultItem], rp_id: Option<&str>) -> String {
-        let filter_rp = rp_id
-            .map(|s| s.trim().to_lowercase())
-            .filter(|s| !s.is_empty());
-
-        let mut arr = JsonValue::new_array();
-        for item in items {
-            if item.trashed || item.category != Category::Passkey {
-                continue;
-            }
-            if let Some(ref rp) = filter_rp {
-                if !matches_passkey_rp_id(item, rp) {
-                    continue;
-                }
-            }
-            arr.push(item.to_json());
-        }
-        arr.to_json_string()
-    }
-}
-
 /// Truy vấn danh sách Passkey khớp `rpId` và `allowCredentials` cho Bridge/Extension `passkey_query`.
 pub fn query_passkeys_payload(
     unlocked: bool,
@@ -294,12 +273,6 @@ pub fn query_passkeys_payload(
     data.insert("unlocked", JsonValue::Bool(true));
     data.insert("passkeys", JsonValue::Array(matched));
     data
-}
-
-impl Default for WebAuthnAuthenticator {
-    fn default() -> Self {
-        Self::new()
-    }
 }
 
 #[cfg(test)]

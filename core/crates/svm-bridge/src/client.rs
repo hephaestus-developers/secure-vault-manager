@@ -13,8 +13,6 @@ pub struct PairedClient {
     pub version: String,
     /// Chuỗi mô tả lần hoạt động gần nhất.
     pub last_used: String,
-    /// Mã token phiên làm việc bảo mật đã cấp cho client.
-    pub session_token: String,
 }
 
 impl PairedClient {
@@ -25,10 +23,6 @@ impl PairedClient {
         obj.insert("browser", JsonValue::String(self.browser.clone()));
         obj.insert("version", JsonValue::String(self.version.clone()));
         obj.insert("lastUsed", JsonValue::String(self.last_used.clone()));
-        obj.insert(
-            "sessionToken",
-            JsonValue::String(self.session_token.clone()),
-        );
         obj
     }
 
@@ -39,7 +33,6 @@ impl PairedClient {
             browser: val.get_string("browser").unwrap_or_default(),
             version: val.get_string("version").unwrap_or_default(),
             last_used: val.get_string("lastUsed").unwrap_or_default(),
-            session_token: val.get_string("sessionToken").unwrap_or_default(),
         })
     }
 }

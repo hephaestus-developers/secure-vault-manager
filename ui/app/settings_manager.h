@@ -98,7 +98,6 @@ public:
 signals:
   void settingsChanged();
   void autoLockTimeoutChanged(int minutes);
-  void clipboardTimeoutChanged(int seconds);
   void listDensityChanged(ListDensity density);
 
 private slots:

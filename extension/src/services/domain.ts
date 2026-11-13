@@ -102,3 +102,115 @@ export interface TotpSnapshot {
   issuer?: string;
   account?: string;
 }
+
+export interface ScannedOtpAuth {
+  uri: string;
+  issuer: string;
+  account: string;
+}
+
+/**
+ * Phân tích nhanh thông tin hiển thị từ chuỗi `otpauth://`.
+ */
+export function parseOtpAuthSummary(uri: string): ScannedOtpAuth | null {
+  if (!uri.startsWith("otpauth://")) {
+    return null;
+  }
+  try {
+    const url = new URL(uri);
+    const label = decodeURIComponent(url.pathname.replace(/^\/+/, ""));
+    const parts = label.split(":");
+    const issuer =
+      url.searchParams.get("issuer") || (parts.length > 1 ? parts[0].trim() : "Account");
+    const account = parts.length > 1 ? parts.slice(1).join(":").trim() : label;
+    return { uri, issuer, account };
+  } catch {
+    return null;
+  }
+}
+
+const MULTI_LABEL_PUBLIC_SUFFIXES = new Set([
+  "co.uk",
+  "org.uk",
+  "ac.uk",
+  "gov.uk",
+  "com.vn",
+  "net.vn",
+  "org.vn",
+  "edu.vn",
+  "gov.vn",
+  "com.au",
+  "net.au",
+  "org.au",
+  "co.jp",
+  "ne.jp",
+  "or.jp",
+  "com.br",
+  "com.cn",
+  "com.sg",
+  "com.tw",
+  "com.hk",
+  "co.kr",
+  "co.in",
+  "co.nz",
+  "co.za",
+  "github.io",
+  "gitlab.io",
+  "pages.dev",
+  "vercel.app",
+  "netlify.app",
+  "web.app",
+  "firebaseapp.com",
+]);
+
+/**
+ * Trích xuất hostname đã chuẩn hóa (chữ thường, bỏ cổng/đường dẫn và dấu chấm cuối) từ URL hoặc host.
+ */
+export function extractNormalizedHostname(urlOrHost: string): string {
+  const raw = urlOrHost.trim().toLowerCase();
+  if (!raw) return "";
+  try {
+    const withScheme = raw.includes("://") ? raw : `https://${raw}`;
+    return new URL(withScheme).hostname.toLowerCase().replace(/\.+$/, "");
+  } catch {
+    const noScheme = raw.split("://").pop() || raw;
+    const hostPort = noScheme.split(/[/?#]/)[0] || "";
+    return (hostPort.split(":")[0] || "").replace(/\.+$/, "");
+  }
+}
+
+/**
+ * Kiểm tra xem URL/host lưu trong Vault có khớp an toàn với hostname hiện tại hay không.
+ */
+export function isDomainMatch(savedUrlOrHost: string, currentHost: string): boolean {
+  const sh = extractNormalizedHostname(savedUrlOrHost).replace(/^www\./, "");
+  const th = extractNormalizedHostname(currentHost).replace(/^www\./, "");
+  if (!sh || !th) return false;
+  if (sh === th) return true;
+  if (sh.includes(".") && !sh.startsWith(".") && th.endsWith(`.${sh}`)) {
+    return true;
+  }
+  if (th.includes(".") && !th.startsWith(".") && sh.endsWith(`.${th}`)) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Xác thực Relying Party ID WebAuthn hợp lệ cho hostname hiện tại (hỗ trợ localhost và chặn Public Suffix).
+ */
+export function isValidWebAuthnRpId(currentHostname: string, requestedRpId: string): boolean {
+  const host = extractNormalizedHostname(currentHostname);
+  const rp = extractNormalizedHostname(requestedRpId);
+  if (!host || !rp) return false;
+  if (rp === "localhost") {
+    return host === "localhost";
+  }
+  if (!rp.includes(".") || rp.startsWith(".")) {
+    return false;
+  }
+  if (host !== rp && MULTI_LABEL_PUBLIC_SUFFIXES.has(rp)) {
+    return false;
+  }
+  return host === rp || host.endsWith(`.${rp}`);
+}

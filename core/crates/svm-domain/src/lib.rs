@@ -11,7 +11,6 @@ pub mod custom_field;
 pub mod error;
 pub mod item;
 pub mod json;
-pub mod prompt;
 pub mod status;
 pub mod trash;
 
@@ -20,6 +19,5 @@ pub use custom_field::{CustomField, FieldKind};
 pub use error::DomainError;
 pub use item::{ItemRevision, VaultItem, VaultProfile};
 pub use json::JsonValue;
-pub use prompt::PromptKind;
 pub use status::SvmStatusCode;
 pub use trash::TrashItem;

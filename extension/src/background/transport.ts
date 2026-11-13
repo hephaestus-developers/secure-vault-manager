@@ -4,7 +4,6 @@
  */
 
 import { BridgeRequest, BridgeResponse, CredentialSummary } from "../services/protocol";
-import { generatePasswordLocal } from "../services/crypto-local";
 import { NativeMessagingClient } from "./native_client";
 
 export class BridgeTransport {
@@ -29,7 +28,6 @@ export class BridgeTransport {
   private async handleOfflineFallback(request: BridgeRequest<any>): Promise<BridgeResponse<any>> {
     this.unlocked = false;
     this.cachedItems = [];
-    const payload = request.payload || {};
 
     switch (request.action) {
       case "ping":
@@ -60,27 +58,6 @@ export class BridgeTransport {
             message: "Kho dữ liệu đang bị khóa hoặc chưa kết nối ứng dụng Desktop.",
           },
         };
-
-      case "generate_password": {
-        const generated = await generatePasswordLocal({
-          length: Number(payload.length || 20),
-          uppercase: payload.uppercase !== false,
-          lowercase: payload.lowercase !== false,
-          digits: payload.digits !== false,
-          symbols: payload.symbols !== false,
-        });
-        return {
-          requestId: request.requestId,
-          type: "generated_password",
-          ok: true,
-          payload: {
-            password: generated.password,
-            score: generated.strength.score,
-            percent: generated.strength.percent,
-            feedback: generated.strength.feedback,
-          },
-        };
-      }
 
       default:
         return {

@@ -3,6 +3,7 @@
  * @brief Cầu nối sự kiện giữa `passkey_injected.ts` (Main World) và Background Service Worker (Isolated World).
  */
 
+import { isValidWebAuthnRpId } from "../services/domain";
 import { sendExtensionBridgeMessage } from "../services/protocol";
 import { dismissPasskeyConsent, promptPasskeyConsent } from "./passkey_modal";
 
@@ -31,16 +32,8 @@ export function setupPasskeyBridge(): void {
       .toLowerCase();
 
     // 2. Chống giả mạo RP ID (W3C WebAuthn Level 3 Spec §5.1.4):
-    // rpId phải bằng currentHost hoặc là registrable domain suffix của currentHost
-    const isDomainSuffix =
-      currentHost === rpId ||
-      currentHost.endsWith("." + rpId) ||
-      currentHost.replace(/^www\./, "") === rpId.replace(/^www\./, "");
-
-    // Cấm rpId là TLD hoặc Public Suffix đơn lẻ (.com, .io, .net, ...)
-    const isTldOnly = !rpId.includes(".") || rpId.startsWith(".");
-
-    if (!isDomainSuffix || isTldOnly) {
+    // rpId phải bằng currentHost hoặc là registrable domain suffix hợp lệ (hỗ trợ localhost, chặn Public Suffix)
+    if (!isValidWebAuthnRpId(currentHost, rpId)) {
       window.postMessage(
         {
           source: "svm-passkey-content",
@@ -137,6 +130,11 @@ export function setupPasskeyBridge(): void {
     const getPayload = { ...payload, rpId, origin };
     if (consentResult.selectedCredentialId) {
       getPayload.allowCredentials = [consentResult.selectedCredentialId];
+    }
+    if (consentResult.selectedItemId) {
+      getPayload.selectedItemId = consentResult.selectedItemId;
+    } else if (matchedPasskeys.length === 1) {
+      getPayload.selectedItemId = matchedPasskeys[0].id;
     }
     if (consentResult.selectedVaultId) {
       getPayload.vaultId = consentResult.selectedVaultId;

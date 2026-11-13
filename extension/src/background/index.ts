@@ -3,6 +3,7 @@
  * @brief Điểm nhập Background Service Worker (Manifest V3) điều phối Autofill, TOTP và Passkey.
  */
 
+import { isDomainMatch, isValidWebAuthnRpId } from "../services/domain";
 import {
   BridgeRequest,
   createBridgeRequest,
@@ -29,6 +30,58 @@ interface PendingLoginEntry {
   tabId?: number;
 }
 const pendingLogins = new Map<number, PendingLoginEntry>();
+const PENDING_LOGINS_STORAGE_KEY = "svm_pending_logins";
+const PENDING_LOGIN_TTL_MS = 60_000;
+
+async function persistPendingLoginMap(): Promise<void> {
+  if (!chromeApi?.storage?.session) return;
+  try {
+    const now = Date.now();
+    const obj: Record<string, PendingLoginEntry> = {};
+    for (const [tabId, entry] of pendingLogins.entries()) {
+      if (now - entry.timestamp < PENDING_LOGIN_TTL_MS) {
+        obj[String(tabId)] = entry;
+      } else {
+        pendingLogins.delete(tabId);
+      }
+    }
+    await chromeApi.storage.session.set({ [PENDING_LOGINS_STORAGE_KEY]: obj });
+  } catch {
+    // Bỏ qua nếu browser không hỗ trợ storage.session
+  }
+}
+
+async function getPendingLoginForTab(tabId: number): Promise<PendingLoginEntry | null> {
+  const now = Date.now();
+  const mem = pendingLogins.get(tabId);
+  if (mem) {
+    if (now - mem.timestamp < PENDING_LOGIN_TTL_MS) {
+      return mem;
+    }
+    pendingLogins.delete(tabId);
+    void persistPendingLoginMap();
+    return null;
+  }
+  if (!chromeApi?.storage?.session) return null;
+  try {
+    const res = await chromeApi.storage.session.get(PENDING_LOGINS_STORAGE_KEY);
+    const mapObj = res?.[PENDING_LOGINS_STORAGE_KEY] as
+      Record<string, PendingLoginEntry> | undefined;
+    const entry = mapObj?.[String(tabId)];
+    if (entry && now - entry.timestamp < PENDING_LOGIN_TTL_MS) {
+      pendingLogins.set(tabId, entry);
+      return entry;
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+async function clearPendingLoginForTab(tabId: number): Promise<void> {
+  pendingLogins.delete(tabId);
+  await persistPendingLoginMap();
+}
 
 // Danh sách các itemId đã được truy vấn và cấp phép cho từng tab cụ thể
 // Ngăn chặn việc một trang web gọi fill_credential với itemId của trang web khác
@@ -43,14 +96,15 @@ if (chromeApi?.tabs?.onUpdated) {
         authorizedTabItems.delete(tabId);
       }
       if (changeInfo.status === "complete") {
-        const entry = pendingLogins.get(tabId);
-        if (entry && Date.now() - entry.timestamp < 60000) {
-          chromeApi.tabs.sendMessage(tabId, { type: "SVM_CHECK_PENDING_LOGIN" }, () => {
-            if (chromeApi.runtime.lastError) {
-              // Tab chưa sẵn sàng nhận message
-            }
-          });
-        }
+        void getPendingLoginForTab(tabId).then((entry) => {
+          if (entry && Date.now() - entry.timestamp < PENDING_LOGIN_TTL_MS) {
+            chromeApi.tabs.sendMessage(tabId, { type: "SVM_CHECK_PENDING_LOGIN" }, () => {
+              if (chromeApi.runtime.lastError) {
+                // Tab chưa sẵn sàng nhận message
+              }
+            });
+          }
+        });
       }
     },
   );
@@ -59,7 +113,7 @@ if (chromeApi?.tabs?.onUpdated) {
 // Xóa pending login và cấp phép khi đóng tab
 if (chromeApi?.tabs?.onRemoved) {
   chromeApi.tabs.onRemoved.addListener((tabId: number) => {
-    pendingLogins.delete(tabId);
+    void clearPendingLoginForTab(tabId);
     authorizedTabItems.delete(tabId);
   });
 }
@@ -110,14 +164,15 @@ if (chromeApi?.runtime?.onMessage) {
           };
           if (senderTabId) {
             pendingLogins.set(senderTabId, entry);
+            await persistPendingLoginMap();
           }
           sendResponse({ ok: true, type: "pending_login_recorded" });
           return;
         }
 
         if (message.action === "get_pending_login") {
-          const entry = senderTabId ? pendingLogins.get(senderTabId) : null;
-          if (entry && Date.now() - entry.timestamp < 60000) {
+          const entry = senderTabId ? await getPendingLoginForTab(senderTabId) : null;
+          if (entry && Date.now() - entry.timestamp < PENDING_LOGIN_TTL_MS) {
             sendResponse({ ok: true, type: "pending_login_data", payload: entry });
           } else {
             sendResponse({ ok: false, type: "pending_login_data", payload: null });
@@ -127,7 +182,7 @@ if (chromeApi?.runtime?.onMessage) {
 
         if (message.action === "clear_pending_login") {
           if (senderTabId) {
-            pendingLogins.delete(senderTabId);
+            await clearPendingLoginForTab(senderTabId);
           }
           sendResponse({ ok: true, type: "pending_login_cleared" });
           return;
@@ -197,8 +252,9 @@ if (chromeApi?.runtime?.onMessage) {
             queryDomain = senderHostname;
           }
           const req = createBridgeRequest("get_credentials", {
-            ...(message.payload || {}),
+            ...message.payload,
             domain: queryDomain,
+            fromPopup: !isContentScript,
           });
           const resp = await transport.dispatch<{ credentials?: Array<{ id: string }> }>(req);
           if (resp.ok && Array.isArray(resp.payload?.credentials) && senderTabId) {
@@ -215,9 +271,9 @@ if (chromeApi?.runtime?.onMessage) {
           return;
         }
 
-        if (message.action === "fill_credential") {
+        if (message.action === "fill_credential" || message.action === "get_totp") {
           const reqItemId = String(message.payload?.itemId || message.payload?.id || "");
-          if (isContentScript && senderTabId) {
+          if (message.action === "fill_credential" && isContentScript && senderTabId) {
             const allowed = authorizedTabItems.get(senderTabId);
             if (!allowed || !allowed.has(reqItemId)) {
               sendResponse({
@@ -232,15 +288,33 @@ if (chromeApi?.runtime?.onMessage) {
               return;
             }
           }
+          message.payload = {
+            ...message.payload,
+            callerDomain: isContentScript ? senderHostname : "",
+            fromPopup: !isContentScript,
+          };
           const resp = await transport.dispatch(message);
           sendResponse(resp);
           return;
         }
 
-        if (message.action === "save_credential") {
-          if (isContentScript && senderTabUrl) {
-            if (!message.payload?.websiteUrl) {
-              message.payload = { ...(message.payload || {}), websiteUrl: senderTabUrl };
+        if (message.action === "save_credential" || message.action === "update_totp") {
+          if (isContentScript && senderHostname) {
+            const targetUrl = String(
+              message.payload?.websiteUrl || message.payload?.url || message.payload?.domain || "",
+            ).trim();
+            if (targetUrl && !isDomainMatch(targetUrl, senderHostname)) {
+              sendResponse({
+                ok: false,
+                error: {
+                  code: "SECURITY_ERROR",
+                  message: `Target domain "${targetUrl}" does not match sender host "${senderHostname}"`,
+                },
+              });
+              return;
+            }
+            if (!message.payload?.websiteUrl && senderTabUrl) {
+              message.payload = { ...message.payload, websiteUrl: senderTabUrl };
             }
           }
           const resp = await transport.dispatch(message);
@@ -250,7 +324,7 @@ if (chromeApi?.runtime?.onMessage) {
 
         if (message.action === "passkey_query") {
           if (isContentScript && senderHostname) {
-            message.payload = { ...(message.payload || {}), rpId: senderHostname };
+            message.payload = { ...message.payload, rpId: senderHostname };
           }
           const resp = await passkeyRouter.handleQuery(message.payload);
           sendResponse(resp);
@@ -262,11 +336,7 @@ if (chromeApi?.runtime?.onMessage) {
             const requestedRpId = String(message.payload?.rpId || senderHostname)
               .trim()
               .toLowerCase();
-            const isSuffix =
-              requestedRpId === senderHostname ||
-              senderHostname.endsWith("." + requestedRpId) ||
-              senderHostname.replace(/^www\./, "") === requestedRpId.replace(/^www\./, "");
-            if (!isSuffix || !requestedRpId.includes(".")) {
+            if (!isValidWebAuthnRpId(senderHostname, requestedRpId)) {
               sendResponse({
                 ok: false,
                 error: {
@@ -288,11 +358,7 @@ if (chromeApi?.runtime?.onMessage) {
             const requestedRpId = String(message.payload?.rpId || senderHostname)
               .trim()
               .toLowerCase();
-            const isSuffix =
-              requestedRpId === senderHostname ||
-              senderHostname.endsWith("." + requestedRpId) ||
-              senderHostname.replace(/^www\./, "") === requestedRpId.replace(/^www\./, "");
-            if (!isSuffix || !requestedRpId.includes(".")) {
+            if (!isValidWebAuthnRpId(senderHostname, requestedRpId)) {
               sendResponse({
                 ok: false,
                 error: {

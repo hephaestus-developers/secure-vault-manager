@@ -15,7 +15,6 @@ use crate::context::{
     SvmBuffer, SvmContext, EVENT_BRIDGE_CLIENTS_CHANGED, EVENT_BRIDGE_STATUS, EVENT_ITEMS_CHANGED,
     EVENT_SETTINGS_CHANGED, EVENT_SSH_STATUS, EVENT_VAULT_LOCKED, EVENT_VAULT_UNLOCKED,
 };
-use crate::item_ffi::svm_item_trash;
 
 /// Tính toán mã số xác thực hai lớp TOTP hiện tại dựa trên mục lưu trữ hoặc secret key.
 ///
@@ -388,76 +387,6 @@ pub unsafe extern "C" fn svm_ssh_key_generate(
     SvmStatusCode::Ok
 }
 
-/// Xuất khóa công khai SSH dạng chuẩn OpenSSH authorized_keys.
-///
-/// # Safety
-/// Mọi tham số con trỏ không được là NULL.
-#[no_mangle]
-pub unsafe extern "C" fn svm_ssh_key_public(
-    ctx: *mut SvmContext,
-    item_id: *const c_char,
-    out_openssh_pub: *mut *mut c_char,
-) -> SvmStatusCode {
-    if ctx.is_null() || item_id.is_null() || out_openssh_pub.is_null() {
-        return SvmStatusCode::InvalidArg;
-    }
-    let iid = c_str_to_string(item_id).unwrap_or_default();
-    let pub_opt = if let Ok(rt) = (*ctx).runtime.lock() {
-        if !rt.vault_service.is_unlocked() {
-            return SvmStatusCode::Locked;
-        }
-        rt.vault_service
-            .items()
-            .iter()
-            .find(|it| it.id == iid && !it.trashed)
-            .map(|it| it.ssh_public_key.clone())
-            .filter(|s| !s.trim().is_empty())
-    } else {
-        return SvmStatusCode::Panic;
-    };
-    let Some(pub_key) = pub_opt else {
-        return SvmStatusCode::NotFound;
-    };
-    *out_openssh_pub = alloc_c_string(&pub_key);
-    SvmStatusCode::Ok
-}
-
-/// Lấy danh sách Passkey đã lưu trữ theo tên miền `rp_id` (lọc theo Category::Passkey).
-///
-/// # Safety
-/// `ctx` và `out_json` không được là NULL.
-#[no_mangle]
-pub unsafe extern "C" fn svm_passkey_list(
-    ctx: *mut SvmContext,
-    rp_id: *const c_char,
-    out_json: *mut *mut c_char,
-) -> SvmStatusCode {
-    if ctx.is_null() || out_json.is_null() {
-        return SvmStatusCode::InvalidArg;
-    }
-    let rp_opt = c_str_to_string(rp_id);
-    let json = if let Ok(rt) = (*ctx).runtime.lock() {
-        rt.webauthn
-            .list_passkeys_json(rt.vault_service.items(), rp_opt.as_deref())
-    } else {
-        "[]".to_string()
-    };
-    *out_json = alloc_c_string(&json);
-    SvmStatusCode::Ok
-}
-
-/// Xóa một Passkey theo `item_id` của mục Passkey tương ứng.
-///
-/// # Safety
-/// Mọi tham số con trỏ không được là NULL.
-#[no_mangle]
-pub unsafe extern "C" fn svm_passkey_delete(
-    ctx: *mut SvmContext,
-    item_id: *const c_char,
-) -> SvmStatusCode {
-    svm_item_trash(ctx, item_id)
-}
-
 /// Khởi chạy kênh giao tiếp Bridge (Native Messaging IPC listener).
 fn make_ok_envelope(request_id: &str, msg_type: &str, payload: JsonValue) -> String {
     let mut obj = JsonValue::new_object();
@@ -502,18 +431,12 @@ fn dispatch_bridge_request(ctx_raw: usize, req_json: &str) -> String {
 
     let browser_name = payload.get_str_or("browser", req.get_str_or("browser", "Google Chrome"));
     let version_str = payload.get_str_or("version", req.get_str_or("version", "v1.0.0"));
-    let is_explicit_unlock = action == "unlock_vault" || action == "unlock_vault_biometric";
 
     if let Ok(mut rt) = unsafe { (*ctx).runtime.lock() } {
-        if is_explicit_unlock {
-            rt.bridge.clear_browser_revocation(browser_name);
-        }
-        if !rt.bridge.is_browser_revoked(browser_name) {
-            let (_client, is_new) = rt.bridge.record_active_session(browser_name, version_str);
-            if is_new {
-                unsafe {
-                    (*ctx).emit_event(EVENT_BRIDGE_CLIENTS_CHANGED, "{}");
-                }
+        let (_client, is_new) = rt.bridge.record_active_session(browser_name, version_str);
+        if is_new {
+            unsafe {
+                (*ctx).emit_event(EVENT_BRIDGE_CLIENTS_CHANGED, "{}");
             }
         }
     }
@@ -564,6 +487,7 @@ fn dispatch_bridge_request(ctx_raw: usize, req_json: &str) -> String {
                 Ok(()) => {
                     unsafe {
                         (*ctx).unlocked.store(true, Ordering::SeqCst);
+                        sync_ssh_agent(ctx);
                         (*ctx).emit_event(EVENT_VAULT_UNLOCKED, "{\"unlocked\":true}");
                     }
                     if let Ok(mut rt) = unsafe { (*ctx).runtime.lock() } {
@@ -574,7 +498,6 @@ fn dispatch_bridge_request(ctx_raw: usize, req_json: &str) -> String {
                         let mut data = JsonValue::new_object();
                         data.insert("unlocked", JsonValue::Bool(true));
                         data.insert("clientId", JsonValue::String(client.id));
-                        data.insert("sessionToken", JsonValue::String(client.session_token));
                         make_ok_envelope(request_id, "vault_unlocked", data)
                     } else {
                         let mut data = JsonValue::new_object();
@@ -597,6 +520,7 @@ fn dispatch_bridge_request(ctx_raw: usize, req_json: &str) -> String {
                 Ok(()) => {
                     unsafe {
                         (*ctx).unlocked.store(true, Ordering::SeqCst);
+                        sync_ssh_agent(ctx);
                         (*ctx).emit_event(EVENT_VAULT_UNLOCKED, "{\"unlocked\":true}");
                     }
                     if let Ok(mut rt) = unsafe { (*ctx).runtime.lock() } {
@@ -607,7 +531,6 @@ fn dispatch_bridge_request(ctx_raw: usize, req_json: &str) -> String {
                         let mut data = JsonValue::new_object();
                         data.insert("unlocked", JsonValue::Bool(true));
                         data.insert("clientId", JsonValue::String(client.id));
-                        data.insert("sessionToken", JsonValue::String(client.session_token));
                         make_ok_envelope(request_id, "vault_unlocked", data)
                     } else {
                         let mut data = JsonValue::new_object();
@@ -624,6 +547,7 @@ fn dispatch_bridge_request(ctx_raw: usize, req_json: &str) -> String {
             }
             unsafe {
                 (*ctx).unlocked.store(false, Ordering::SeqCst);
+                sync_ssh_agent(ctx);
                 (*ctx).emit_event(EVENT_VAULT_LOCKED, "{\"unlocked\":false}");
             }
             let mut data = JsonValue::new_object();
@@ -644,13 +568,19 @@ fn dispatch_bridge_request(ctx_raw: usize, req_json: &str) -> String {
                     payload.get_str_or("origin", payload.get_str_or("url", "")),
                 )
                 .to_lowercase();
+            let from_popup = payload.get_bool_or("fromPopup", false);
+            let query = payload.get_str_or("query", "").trim().to_lowercase();
             let mut matches = JsonValue::new_array();
             if let Ok(rt) = unsafe { (*ctx).runtime.lock() } {
                 for item in rt.vault_service.items() {
                     if item.trashed || item.category != Category::Login {
                         continue;
                     }
-                    let matches_domain = if domain.is_empty() {
+                    let matches_entry = if from_popup && !query.is_empty() {
+                        item.title.to_lowercase().contains(&query)
+                            || item.username.to_lowercase().contains(&query)
+                            || item.website_url.to_lowercase().contains(&query)
+                    } else if domain.is_empty() {
                         false
                     } else if svm_webauthn::is_matching_login_domain(&item.website_url, &domain) {
                         true
@@ -661,13 +591,20 @@ fn dispatch_bridge_request(ctx_raw: usize, req_json: &str) -> String {
                     } else {
                         false
                     };
-                    if matches_domain {
+                    if matches_entry {
                         let mut cred = JsonValue::new_object();
                         cred.insert("id", JsonValue::String(item.id.clone()));
                         cred.insert("title", JsonValue::String(item.title.clone()));
                         cred.insert("username", JsonValue::String(item.username.clone()));
                         cred.insert("websiteUrl", JsonValue::String(item.website_url.clone()));
                         cred.insert("hasTotp", JsonValue::Bool(!item.totp_secret.is_empty()));
+                        if !item.totp_secret.is_empty() {
+                            let (code, remaining) = generate_totp(&item.totp_secret, 0);
+                            if !code.is_empty() {
+                                cred.insert("totpCode", JsonValue::String(code));
+                                cred.insert("totpRemaining", JsonValue::Number(remaining as f64));
+                            }
+                        }
                         cred.insert("vaultId", JsonValue::String(item.vault_id.clone()));
                         if let Some(v) = rt
                             .vault_service
@@ -697,8 +634,26 @@ fn dispatch_bridge_request(ctx_raw: usize, req_json: &str) -> String {
                 "itemId",
                 payload.get_str_or("item_id", payload.get_str_or("id", "")),
             );
+            let caller_domain = payload.get_str_or("callerDomain", "");
+            let from_popup = payload.get_bool_or("fromPopup", false);
             if let Ok(rt) = unsafe { (*ctx).runtime.lock() } {
-                if let Some(item) = rt.vault_service.items().iter().find(|it| it.id == item_id) {
+                if let Some(item) = rt
+                    .vault_service
+                    .items()
+                    .iter()
+                    .find(|it| !it.trashed && it.id == item_id)
+                {
+                    if !from_popup
+                        && !caller_domain.is_empty()
+                        && !item.website_url.trim().is_empty()
+                        && !svm_webauthn::is_matching_login_domain(&item.website_url, caller_domain)
+                    {
+                        return make_err_envelope(
+                            request_id,
+                            "DOMAIN_MISMATCH",
+                            "Mục đăng nhập không khớp với tên miền trang web hiện tại",
+                        );
+                    }
                     let mut data = JsonValue::new_object();
                     data.insert("id", JsonValue::String(item.id.clone()));
                     data.insert("title", JsonValue::String(item.title.clone()));
@@ -724,6 +679,7 @@ fn dispatch_bridge_request(ctx_raw: usize, req_json: &str) -> String {
             }
             let item_id = payload.get_str_or("itemId", payload.get_str_or("id", ""));
             let is_update = payload.get_bool_or("isUpdate", false);
+            let chosen_vault_id = payload.get_str_or("vaultId", "");
             let title = payload.get_str_or("title", payload.get_str_or("domain", "Saved Login"));
             let username = payload.get_str_or("username", "");
             let password = payload.get_str_or("password", "");
@@ -755,6 +711,9 @@ fn dispatch_bridge_request(ctx_raw: usize, req_json: &str) -> String {
 
                 let item = if let Some(mut old) = existing {
                     old.password = password.to_string();
+                    if !chosen_vault_id.is_empty() {
+                        old.vault_id = chosen_vault_id.to_string();
+                    }
                     if !totp_secret.is_empty() {
                         old.totp_secret = totp_secret.to_string();
                         old.has_totp = true;
@@ -764,9 +723,13 @@ fn dispatch_bridge_request(ctx_raw: usize, req_json: &str) -> String {
                     }
                     old
                 } else {
-                    let default_vid = rt.vault_service.default_vault_id();
+                    let target_vid = if !chosen_vault_id.is_empty() {
+                        chosen_vault_id.to_string()
+                    } else {
+                        rt.vault_service.default_vault_id()
+                    };
                     VaultItem {
-                        vault_id: default_vid,
+                        vault_id: target_vid,
                         title: title.to_string(),
                         category: Category::Login,
                         username: username.to_string(),
@@ -812,17 +775,40 @@ fn dispatch_bridge_request(ctx_raw: usize, req_json: &str) -> String {
                 );
             }
             let item_id = payload.get_str_or("itemId", payload.get_str_or("item_id", ""));
+            let caller_domain = payload.get_str_or("callerDomain", "");
+            let from_popup = payload.get_bool_or("fromPopup", false);
             let secret = if !item_id.is_empty() {
+                let mut found_secret = String::new();
+                let mut domain_mismatch = false;
                 if let Ok(rt) = unsafe { (*ctx).runtime.lock() } {
-                    rt.vault_service
+                    if let Some(it) = rt
+                        .vault_service
                         .items()
                         .iter()
-                        .find(|it| it.id == item_id)
-                        .map(|it| it.totp_secret.clone())
-                        .unwrap_or_default()
-                } else {
-                    String::new()
+                        .find(|it| !it.trashed && it.id == item_id)
+                    {
+                        if !from_popup
+                            && !caller_domain.is_empty()
+                            && !it.website_url.trim().is_empty()
+                            && !svm_webauthn::is_matching_login_domain(
+                                &it.website_url,
+                                caller_domain,
+                            )
+                        {
+                            domain_mismatch = true;
+                        } else {
+                            found_secret = it.totp_secret.clone();
+                        }
+                    }
                 }
+                if domain_mismatch {
+                    return make_err_envelope(
+                        request_id,
+                        "DOMAIN_MISMATCH",
+                        "Mục TOTP không khớp với tên miền trang web hiện tại",
+                    );
+                }
+                found_secret
             } else {
                 payload.get_str_or("secret", "").to_string()
             };
@@ -971,6 +957,8 @@ fn dispatch_bridge_request(ctx_raw: usize, req_json: &str) -> String {
             let challenge = payload.get_str_or("challenge", "");
             let default_origin = format!("https://{rp_id}");
             let origin = payload.get_str_or("origin", &default_origin);
+            let selected_item_id =
+                payload.get_str_or("selectedItemId", payload.get_str_or("itemId", ""));
             let allow_creds = payload
                 .get("allowCredentials")
                 .and_then(|v| v.as_array())
@@ -981,6 +969,9 @@ fn dispatch_bridge_request(ctx_raw: usize, req_json: &str) -> String {
             if let Ok(rt) = unsafe { (*ctx).runtime.lock() } {
                 for it in rt.vault_service.items() {
                     if it.trashed || it.category != Category::Passkey {
+                        continue;
+                    }
+                    if !selected_item_id.is_empty() && it.id != selected_item_id {
                         continue;
                     }
                     if !svm_webauthn::matches_passkey_rp_id(it, rp_id) {
@@ -1118,26 +1109,6 @@ pub unsafe extern "C" fn svm_bridge_clients_list(
         "[]".to_string()
     };
     *out_json = alloc_c_string(&json);
-    SvmStatusCode::Ok
-}
-
-/// Thu hồi quyền kết nối của một Extension / Client theo `client_id`.
-///
-/// # Safety
-/// Mọi tham số con trỏ không được là NULL.
-#[no_mangle]
-pub unsafe extern "C" fn svm_bridge_client_revoke(
-    ctx: *mut SvmContext,
-    client_id: *const c_char,
-) -> SvmStatusCode {
-    if ctx.is_null() || client_id.is_null() {
-        return SvmStatusCode::InvalidArg;
-    }
-    let cid = c_str_to_string(client_id).unwrap_or_default();
-    if let Ok(mut rt) = (*ctx).runtime.lock() {
-        rt.bridge.revoke_client(&cid);
-    }
-    (*ctx).emit_event(EVENT_BRIDGE_CLIENTS_CHANGED, "{}");
     SvmStatusCode::Ok
 }
 

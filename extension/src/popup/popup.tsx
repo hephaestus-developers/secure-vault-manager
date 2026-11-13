@@ -3,11 +3,13 @@
  * @brief Điểm nhập điều khiển giao diện Popup của Browser Extension (Logins theo domain).
  */
 
+import { isDomainMatch } from "../services/domain";
 import {
   CredentialSecretPayload,
   CredentialSummary,
   CredentialsListPayload,
   detectCurrentBrowserName,
+  GeneratedPasswordPayload,
   PasskeyQueryResponsePayload,
   PasskeySummaryItem,
   PENDING_TOTP_STORAGE_KEY,
@@ -19,6 +21,7 @@ import {
 } from "../services/protocol";
 import { createCredentialList } from "./components/CredentialList";
 import { createHeaderBar } from "./components/HeaderBar";
+import { createSvgPathIcon } from "./components/icons";
 import { createLockView } from "./components/LockView";
 
 function getSystemTheme(): "dark" | "light" {
@@ -38,6 +41,16 @@ interface PopupState {
   activeWindowId?: number;
   activeOrigin: string;
   activeDomain: string;
+  searchQuery: string;
+  showGenerator: boolean;
+  genLength: number;
+  genUpper: boolean;
+  genLower: boolean;
+  genDigits: boolean;
+  genSymbols: boolean;
+  generatedPassword: string;
+  generatedPercent: number;
+  generatedFeedback: string;
   credentials: CredentialSummary[];
   passkeys: PasskeySummaryItem[];
   pendingTotp: PendingTotpSetup | null;
@@ -55,6 +68,16 @@ const state: PopupState = {
   activeWindowId: undefined,
   activeOrigin: "",
   activeDomain: "",
+  searchQuery: "",
+  showGenerator: false,
+  genLength: 16,
+  genUpper: true,
+  genLower: true,
+  genDigits: true,
+  genSymbols: true,
+  generatedPassword: "",
+  generatedPercent: 0,
+  generatedFeedback: "",
   credentials: [],
   passkeys: [],
   pendingTotp: null,
@@ -62,13 +85,37 @@ const state: PopupState = {
   toastMessage: "",
 };
 
+let toastClearTimer: ReturnType<typeof setTimeout> | null = null;
+let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+let lastTotpEpochStep = Math.floor(Date.now() / 1000 / 30);
+
+function updateToastDom(): void {
+  const shell = document.getElementById("svm-popup-shell");
+  if (!shell) return;
+  let toast = document.getElementById("svm-popup-toast");
+  if (!state.toastMessage) {
+    toast?.remove();
+    return;
+  }
+  if (!toast) {
+    toast = document.createElement("div");
+    toast.id = "svm-popup-toast";
+    toast.className = "toastBanner";
+    shell.appendChild(toast);
+  }
+  toast.textContent = state.toastMessage;
+}
+
 function showToast(msg: string): void {
   state.toastMessage = msg;
-  renderPopup();
-  setTimeout(() => {
+  updateToastDom();
+  if (toastClearTimer) {
+    clearTimeout(toastClearTimer);
+  }
+  toastClearTimer = setTimeout(() => {
     if (state.toastMessage === msg) {
       state.toastMessage = "";
-      renderPopup();
+      updateToastDom();
     }
   }, 2200);
 }
@@ -170,32 +217,77 @@ async function clearPendingTotpSetup(): Promise<void> {
 
 function matchesDomain(item: CredentialSummary, domain: string): boolean {
   if (!domain) return false;
-  const rawUrl = (item.websiteUrl || (item as any).url || "").trim().toLowerCase();
-  if (rawUrl) {
-    try {
-      const parsed = new URL(rawUrl.includes("://") ? rawUrl : `https://${rawUrl}`);
-      const itemHost = parsed.hostname.replace(/^www\./, "").toLowerCase();
-      if (
-        itemHost === domain ||
-        domain.endsWith(`.${itemHost}`) ||
-        itemHost.endsWith(`.${domain}`)
-      ) {
-        return true;
-      }
-    } catch {
-      if (rawUrl.includes(domain) || domain.includes(rawUrl)) {
-        return true;
-      }
-    }
-  }
-
-  const titleLow = item.title.trim().toLowerCase();
-  const domainParts = domain.split(".");
-  const domainBase = domainParts[0];
-  if (domainBase && domainBase.length >= 3 && titleLow.includes(domainBase)) {
+  const rawUrl = (item.websiteUrl || (item as any).url || "").trim();
+  if (rawUrl && isDomainMatch(rawUrl, domain)) {
     return true;
   }
+
+  if (!rawUrl) {
+    const titleLow = item.title.trim().toLowerCase();
+    const normDomain = domain.replace(/^www\./, "").toLowerCase();
+    return (
+      normDomain.length >= 4 && (titleLow === normDomain || titleLow.endsWith(`.${normDomain}`))
+    );
+  }
   return false;
+}
+
+async function fetchCredentialsForState(): Promise<void> {
+  if (!state.unlocked || !state.configured) {
+    state.credentials = [];
+    state.passkeys = [];
+    return;
+  }
+
+  const trimmedQuery = state.searchQuery.trim();
+  const [credsResp, passkeysResp] = await Promise.all([
+    sendExtensionBridgeMessage<CredentialsListPayload>("get_credentials", {
+      domain: state.activeDomain,
+      query: trimmedQuery,
+    }),
+    state.activeDomain && !trimmedQuery
+      ? sendExtensionBridgeMessage<PasskeyQueryResponsePayload>("passkey_query", {
+          rpId: state.activeDomain,
+          allowCredentials: [],
+        })
+      : Promise.resolve(null),
+  ]);
+
+  if (credsResp.ok && credsResp.payload?.credentials) {
+    let items = credsResp.payload.credentials;
+    if (!trimmedQuery) {
+      items = state.activeDomain
+        ? items.filter((item) => matchesDomain(item, state.activeDomain))
+        : [];
+    }
+    state.credentials = items;
+  } else {
+    state.credentials = [];
+  }
+
+  if (passkeysResp?.ok && passkeysResp.payload?.passkeys) {
+    state.passkeys = passkeysResp.payload.passkeys;
+  } else {
+    state.passkeys = [];
+  }
+}
+
+async function generateNewPassword(): Promise<void> {
+  const resp = await sendExtensionBridgeMessage<GeneratedPasswordPayload>("generate_password", {
+    length: state.genLength,
+    uppercase: state.genUpper,
+    lowercase: state.genLower,
+    digits: state.genDigits,
+    symbols: state.genSymbols,
+  });
+  if (resp.ok && resp.payload?.password) {
+    state.generatedPassword = resp.payload.password;
+    state.generatedPercent = resp.payload.percent || 0;
+    state.generatedFeedback = resp.payload.feedback || "";
+    updateGeneratorCardDom();
+  } else {
+    showToast(resp.error?.message || "Không thể tạo mật khẩu");
+  }
 }
 
 async function loadInitialData(): Promise<void> {
@@ -219,39 +311,7 @@ async function loadInitialData(): Promise<void> {
     state.biometricAvailable = false;
   }
 
-  if (state.unlocked && state.configured) {
-    const [credsResp, passkeysResp] = await Promise.all([
-      sendExtensionBridgeMessage<CredentialsListPayload>("get_credentials", {
-        domain: state.activeDomain,
-      }),
-      state.activeDomain
-        ? sendExtensionBridgeMessage<PasskeyQueryResponsePayload>("passkey_query", {
-            rpId: state.activeDomain,
-            allowCredentials: [],
-          })
-        : Promise.resolve(null),
-    ]);
-    if (credsResp.ok && credsResp.payload?.credentials) {
-      let items = credsResp.payload.credentials;
-      if (state.activeDomain) {
-        items = items.filter((item) => matchesDomain(item, state.activeDomain));
-      } else {
-        items = [];
-      }
-      state.credentials = items;
-    } else {
-      state.credentials = [];
-    }
-    if (passkeysResp?.ok && passkeysResp.payload?.passkeys) {
-      state.passkeys = passkeysResp.payload.passkeys;
-    } else {
-      state.passkeys = [];
-    }
-  } else {
-    state.credentials = [];
-    state.passkeys = [];
-  }
-
+  await fetchCredentialsForState();
   renderPopup();
 }
 
@@ -474,11 +534,13 @@ function handleFillPasskeyUsername(pk: PasskeySummaryItem): void {
 }
 
 function renderCredentialList(): HTMLElement {
+  const trimmedQuery = state.searchQuery.trim();
+  const displayScope = trimmedQuery ? `Tìm kiếm: "${trimmedQuery}"` : state.activeDomain;
   return createCredentialList({
     items: state.credentials,
     passkeys: state.passkeys,
     activeOrigin: state.activeOrigin,
-    activeDomain: state.activeDomain,
+    activeDomain: displayScope,
     hasPendingTotp: Boolean(state.pendingTotp),
     onFill: (item) => void handleFillCredential(item),
     onAttachTotpQr: (item) => handleAttachTotpButtonClick(item),
@@ -525,6 +587,155 @@ function renderCredentialList(): HTMLElement {
   });
 }
 
+function updateCredentialListMount(): void {
+  const mount = document.getElementById("svm-cred-list-mount");
+  if (!mount) return;
+  mount.replaceChildren(renderCredentialList());
+}
+
+function buildGeneratorCardElement(): HTMLElement {
+  const card = document.createElement("div");
+  card.className = "genCard";
+
+  const header = document.createElement("div");
+  header.className = "genHeader";
+  const titleSpan = document.createElement("span");
+  titleSpan.textContent = "Trình tạo mật khẩu an toàn";
+  const closeBtn = document.createElement("button");
+  closeBtn.type = "button";
+  closeBtn.className = "secondaryBtn";
+  closeBtn.textContent = "Đóng";
+  closeBtn.addEventListener("click", () => {
+    state.showGenerator = false;
+    renderPopup();
+  });
+  header.appendChild(titleSpan);
+  header.appendChild(closeBtn);
+  card.appendChild(header);
+
+  const pwdBox = document.createElement("div");
+  pwdBox.className = "genPwdBox";
+  pwdBox.textContent = state.generatedPassword || "Đang khởi tạo mật khẩu...";
+  card.appendChild(pwdBox);
+
+  const metaRow = document.createElement("div");
+  metaRow.className = "genMetaRow";
+  const bar = document.createElement("div");
+  bar.className = "genStrengthBar";
+  const fill = document.createElement("div");
+  fill.className = "genStrengthFill";
+  fill.style.width = `${Math.min(100, Math.max(0, state.generatedPercent))}%`;
+  bar.appendChild(fill);
+  const feedback = document.createElement("span");
+  feedback.textContent = state.generatedFeedback || `${state.genLength} ký tự`;
+  metaRow.appendChild(bar);
+  metaRow.appendChild(feedback);
+  card.appendChild(metaRow);
+
+  const lenRow = document.createElement("div");
+  lenRow.className = "genControlsRow";
+  const lenLabel = document.createElement("span");
+  lenLabel.textContent = `Độ dài: ${state.genLength}`;
+  const lenSlider = document.createElement("input");
+  lenSlider.type = "range";
+  lenSlider.min = "8";
+  lenSlider.max = "64";
+  lenSlider.value = String(state.genLength);
+  lenSlider.addEventListener("input", () => {
+    state.genLength = Number.parseInt(lenSlider.value, 10) || 16;
+    lenLabel.textContent = `Độ dài: ${state.genLength}`;
+  });
+  lenSlider.addEventListener("change", () => {
+    void generateNewPassword();
+  });
+  lenRow.appendChild(lenLabel);
+  lenRow.appendChild(lenSlider);
+  card.appendChild(lenRow);
+
+  const checksRow = document.createElement("div");
+  checksRow.className = "genCheckboxGrid";
+  const opts: Array<{ key: "genUpper" | "genLower" | "genDigits" | "genSymbols"; label: string }> =
+    [
+      { key: "genUpper", label: "A-Z" },
+      { key: "genLower", label: "a-z" },
+      { key: "genDigits", label: "0-9" },
+      { key: "genSymbols", label: "!@#$" },
+    ];
+  for (const opt of opts) {
+    const lbl = document.createElement("label");
+    lbl.className = "genCheckLabel";
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.checked = state[opt.key];
+    cb.addEventListener("change", () => {
+      state[opt.key] = cb.checked;
+      void generateNewPassword();
+    });
+    lbl.appendChild(cb);
+    lbl.appendChild(document.createTextNode(opt.label));
+    checksRow.appendChild(lbl);
+  }
+  card.appendChild(checksRow);
+
+  const actions = document.createElement("div");
+  actions.className = "bannerActions";
+
+  const regenBtn = document.createElement("button");
+  regenBtn.type = "button";
+  regenBtn.className = "secondaryBtn";
+  regenBtn.textContent = "Tạo lại";
+  regenBtn.addEventListener("click", () => void generateNewPassword());
+
+  const copyBtn = document.createElement("button");
+  copyBtn.type = "button";
+  copyBtn.className = "secondaryBtn";
+  copyBtn.textContent = "Sao chép";
+  copyBtn.addEventListener("click", () => {
+    void copyText(state.generatedPassword, "Mật khẩu vừa tạo");
+  });
+
+  const fillBtn = document.createElement("button");
+  fillBtn.type = "button";
+  fillBtn.className = "primaryBtn";
+  fillBtn.textContent = "Điền vào trang";
+  fillBtn.addEventListener("click", () => {
+    if (!state.generatedPassword) return;
+    const chromeApi = (globalThis as Record<string, any>).chrome;
+    if (chromeApi?.tabs?.query && chromeApi?.tabs?.sendMessage) {
+      chromeApi.tabs.query(
+        { active: true, currentWindow: true },
+        (tabs: Array<{ id?: number }>) => {
+          const tabId = tabs?.[0]?.id;
+          if (tabId !== undefined) {
+            chromeApi.tabs.sendMessage(tabId, {
+              type: "SVM_FILL_ACTIVE_TAB",
+              password: state.generatedPassword,
+            });
+          }
+        },
+      );
+    }
+    showToast("Đã điền mật khẩu mới lên trang");
+  });
+
+  actions.appendChild(regenBtn);
+  actions.appendChild(copyBtn);
+  actions.appendChild(fillBtn);
+  card.appendChild(actions);
+
+  return card;
+}
+
+function updateGeneratorCardDom(): void {
+  const mount = document.getElementById("svm-generator-mount");
+  if (!mount) return;
+  if (!state.showGenerator) {
+    mount.replaceChildren();
+    return;
+  }
+  mount.replaceChildren(buildGeneratorCardElement());
+}
+
 export function renderPopup(): void {
   const root = document.getElementById("svm-popup-root");
   if (!root) return;
@@ -534,6 +745,7 @@ export function renderPopup(): void {
   root.replaceChildren();
 
   const shell = document.createElement("div");
+  shell.id = "svm-popup-shell";
   shell.className = "popupShell";
 
   shell.appendChild(
@@ -541,10 +753,20 @@ export function renderPopup(): void {
       unlocked: state.unlocked,
       configured: state.configured,
       desktopRunning: state.desktopRunning,
+      showGenerator: state.showGenerator,
+      onToggleGenerator: () => {
+        state.showGenerator = !state.showGenerator;
+        renderPopup();
+        if (state.showGenerator && !state.generatedPassword) {
+          void generateNewPassword();
+        }
+      },
       onScanQr: () => void launchQrCropForTab(),
       onLockVault: async () => {
         await sendExtensionBridgeMessage("lock_vault");
         state.unlocked = false;
+        state.showGenerator = false;
+        state.searchQuery = "";
         showToast("Kho mật khẩu đã bị khóa");
         renderPopup();
       },
@@ -594,19 +816,66 @@ export function renderPopup(): void {
       }),
     );
     shell.appendChild(content);
-
-    if (state.toastMessage) {
-      const toast = document.createElement("div");
-      toast.className = "toastBanner";
-      toast.textContent = state.toastMessage;
-      shell.appendChild(toast);
-    }
-
     root.appendChild(shell);
+    updateToastDom();
     return;
   }
 
-  // Khi Vault ĐÃ MỞ KHÓA: Hiển thị danh sách Logins trực tiếp theo domain đang mở
+  // Khi Vault ĐÃ MỞ KHÓA
+  const genMount = document.createElement("div");
+  genMount.id = "svm-generator-mount";
+  if (state.showGenerator) {
+    genMount.appendChild(buildGeneratorCardElement());
+  }
+  content.appendChild(genMount);
+
+  const searchWrap = document.createElement("div");
+  searchWrap.className = "searchBarWrap";
+  const searchIcon = document.createElement("span");
+  searchIcon.className = "searchBarIcon";
+  searchIcon.appendChild(
+    createSvgPathIcon("M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z", 14),
+  );
+  const searchInput = document.createElement("input");
+  searchInput.type = "text";
+  searchInput.className = "searchBarInput";
+  searchInput.placeholder = "Tìm tài khoản trong kho...";
+  searchInput.value = state.searchQuery;
+
+  const clearBtn = document.createElement("button");
+  clearBtn.type = "button";
+  clearBtn.className = "searchClearBtn";
+  clearBtn.textContent = "✕";
+  clearBtn.title = "Xóa tìm kiếm";
+  clearBtn.style.display = state.searchQuery ? "inline-flex" : "none";
+
+  const triggerSearchRefresh = () => {
+    if (searchDebounceTimer) {
+      clearTimeout(searchDebounceTimer);
+    }
+    searchDebounceTimer = setTimeout(() => {
+      void fetchCredentialsForState().then(() => updateCredentialListMount());
+    }, 150);
+  };
+
+  searchInput.addEventListener("input", () => {
+    state.searchQuery = searchInput.value;
+    clearBtn.style.display = state.searchQuery ? "inline-flex" : "none";
+    triggerSearchRefresh();
+  });
+  clearBtn.addEventListener("click", () => {
+    state.searchQuery = "";
+    searchInput.value = "";
+    clearBtn.style.display = "none";
+    searchInput.focus();
+    triggerSearchRefresh();
+  });
+
+  searchWrap.appendChild(searchIcon);
+  searchWrap.appendChild(searchInput);
+  searchWrap.appendChild(clearBtn);
+  content.appendChild(searchWrap);
+
   const overwriteBanner = renderOverwriteBanner();
   if (overwriteBanner) {
     content.appendChild(overwriteBanner);
@@ -615,17 +884,15 @@ export function renderPopup(): void {
   if (pendingBanner) {
     content.appendChild(pendingBanner);
   }
-  content.appendChild(renderCredentialList());
+
+  const credMount = document.createElement("div");
+  credMount.id = "svm-cred-list-mount";
+  credMount.appendChild(renderCredentialList());
+  content.appendChild(credMount);
+
   shell.appendChild(content);
-
-  if (state.toastMessage) {
-    const toast = document.createElement("div");
-    toast.className = "toastBanner";
-    toast.textContent = state.toastMessage;
-    shell.appendChild(toast);
-  }
-
   root.appendChild(shell);
+  updateToastDom();
 }
 
 async function syncStatusSilently(): Promise<void> {
@@ -676,5 +943,14 @@ if (typeof document !== "undefined") {
     setInterval(() => {
       void syncStatusSilently();
     }, 1500);
+    setInterval(() => {
+      const currentStep = Math.floor(Date.now() / 1000 / 30);
+      if (currentStep !== lastTotpEpochStep) {
+        lastTotpEpochStep = currentStep;
+        if (state.unlocked && state.credentials.some((c) => c.hasTotp)) {
+          void fetchCredentialsForState().then(() => updateCredentialListMount());
+        }
+      }
+    }, 1000);
   });
 }

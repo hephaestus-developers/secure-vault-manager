@@ -1296,6 +1296,7 @@ version = "0.1.0"
 dependencies = [
  "svm-crypto",
  "svm-domain",
+ "svm-storage",
  "zip",
 ]
 

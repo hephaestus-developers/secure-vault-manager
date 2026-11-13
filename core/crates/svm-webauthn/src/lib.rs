@@ -13,7 +13,7 @@ pub use authenticator::{
     build_passkey_item, bump_passkey_sign_count, decode_base64url, encode_base64url,
     execute_passkey_assertion, extract_normalized_host, extract_passkey_credential_id,
     is_matching_login_domain, matches_passkey_rp_id, passkey_matches_credential_list,
-    query_passkeys_payload, PasskeyItemParams, WebAuthnAuthenticator,
+    query_passkeys_payload, PasskeyItemParams,
 };
 pub use fido2::{
     authenticate_passkey_assertion, create_passkey_credential, PasskeyAssertion,

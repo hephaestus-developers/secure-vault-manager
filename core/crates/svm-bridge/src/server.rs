@@ -136,7 +136,6 @@ pub struct BridgeServer {
     listening: bool,
     data_dir: String,
     clients: Vec<PairedClient>,
-    revoked_browsers: Vec<String>,
     bound_socket_path: Option<PathBuf>,
     shutdown_signal: Arc<AtomicBool>,
     listener_thread: Option<std::thread::JoinHandle<()>>,
@@ -150,7 +149,6 @@ impl BridgeServer {
             listening: false,
             data_dir: dir,
             clients: Vec::new(),
-            revoked_browsers: Vec::new(),
             bound_socket_path: None,
             shutdown_signal: Arc::new(AtomicBool::new(false)),
             listener_thread: None,
@@ -375,7 +373,6 @@ impl BridgeServer {
             browser: b.to_string(),
             version: v.to_string(),
             last_used: "Vừa mới xong".to_string(),
-            session_token: format!("svm-sess-{}", generate_uuid_v4()),
         };
         self.clients.push(client.clone());
         self.save_clients();
@@ -385,7 +382,7 @@ impl BridgeServer {
     /// Đường dẫn tệp lưu trữ danh sách client `bridge_clients.json`.
     fn clients_file_path(&self) -> PathBuf {
         let base = if self.data_dir.trim().is_empty() {
-            "/tmp/hephaestus-svm-data".to_string()
+            svm_storage::resolve_default_data_dir()
         } else {
             self.data_dir.clone()
         };
@@ -424,7 +421,7 @@ impl BridgeServer {
         for c in &self.clients {
             arr.push(c.to_json());
         }
-        let _ = fs::write(path, arr.to_json_string().as_bytes());
+        let _ = svm_storage::atomic_write_file(&path, arr.to_json_string().as_bytes());
     }
 
     /// Trả về danh sách client dưới dạng chuỗi JSON `[]`.
@@ -434,29 +431,6 @@ impl BridgeServer {
             arr.push(c.to_json());
         }
         arr.to_json_string()
-    }
-
-    /// Thu hồi quyền kết nối của một client theo `client_id`.
-    pub fn revoke_client(&mut self, client_id: &str) {
-        for c in &self.clients {
-            if c.id == client_id && !self.revoked_browsers.contains(&c.browser) {
-                self.revoked_browsers.push(c.browser.clone());
-            }
-        }
-        self.clients.retain(|c| c.id != client_id);
-        self.save_clients();
-    }
-
-    /// Kiểm tra trình duyệt đã bị người dùng thu hồi quyền trong phiên hiện tại hay chưa.
-    pub fn is_browser_revoked(&self, browser: &str) -> bool {
-        let b = browser.trim();
-        !b.is_empty() && self.revoked_browsers.iter().any(|r| r == b)
-    }
-
-    /// Cho phép trình duyệt kết nối lại sau khi mở khóa chủ động.
-    pub fn clear_browser_revocation(&mut self, browser: &str) {
-        let b = browser.trim();
-        self.revoked_browsers.retain(|r| r != b);
     }
 
     /// Trả về tham chiếu danh sách các trình duyệt đã kết nối.
@@ -583,6 +557,9 @@ impl BridgeServer {
         firefox_manifest.insert("path", JsonValue::String(host_bin_str));
         firefox_manifest.insert("type", JsonValue::String("stdio".to_string()));
         let mut extensions = JsonValue::new_array();
+        extensions.push(JsonValue::String(
+            "secure-vault-manager@hephaestus.dev".to_string(),
+        ));
         extensions.push(JsonValue::String(
             "extension@secure-vault.hephaestus.io".to_string(),
         ));

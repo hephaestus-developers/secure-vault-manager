@@ -252,10 +252,20 @@ export async function showSaveCredentialPrompt(data: SavePromptOptions): Promise
     </div>
     <button class="svm-close-btn" title="Đóng">✕</button>
   `;
-  header.querySelector(".svm-close-btn")?.addEventListener("click", () => host.remove());
 
   const formRows = document.createElement("div");
   formRows.className = "svm-form-rows";
+
+  // Dòng Tiêu đề (cho phép sửa)
+  const titleRow = document.createElement("div");
+  titleRow.className = "svm-row";
+  titleRow.innerHTML = `
+    <label class="svm-label">Tiêu đề</label>
+    <div class="svm-input-wrapper">
+      <input type="text" class="svm-input" id="svm-save-title" value="${escapeHtml(data.title)}" />
+    </div>
+  `;
+  formRows.appendChild(titleRow);
 
   // Dòng Tên đăng nhập (cho phép sửa)
   const userRow = document.createElement("div");
@@ -306,6 +316,33 @@ export async function showSaveCredentialPrompt(data: SavePromptOptions): Promise
     formRows.appendChild(vaultRow);
   }
 
+  let autoDismissTimer: ReturnType<typeof setTimeout> | null = null;
+  const cleanupPrompt = () => {
+    if (autoDismissTimer) {
+      clearTimeout(autoDismissTimer);
+      autoDismissTimer = null;
+    }
+    window.removeEventListener("keydown", onPromptKeyDown, true);
+    host.remove();
+  };
+
+  const scheduleAutoDismiss = () => {
+    if (autoDismissTimer) {
+      clearTimeout(autoDismissTimer);
+    }
+    autoDismissTimer = setTimeout(() => {
+      cleanupPrompt();
+    }, 25000);
+  };
+
+  function onPromptKeyDown(e: KeyboardEvent) {
+    if (e.key === "Escape") {
+      cleanupPrompt();
+    }
+  }
+
+  header.querySelector(".svm-close-btn")?.addEventListener("click", cleanupPrompt);
+
   const actions = document.createElement("div");
   actions.className = "svm-actions";
 
@@ -313,7 +350,7 @@ export async function showSaveCredentialPrompt(data: SavePromptOptions): Promise
   dismissBtn.type = "button";
   dismissBtn.className = "svm-btn svm-dismiss";
   dismissBtn.textContent = "Để sau";
-  dismissBtn.addEventListener("click", () => host.remove());
+  dismissBtn.addEventListener("click", cleanupPrompt);
 
   const saveBtn = document.createElement("button");
   saveBtn.type = "button";
@@ -323,6 +360,8 @@ export async function showSaveCredentialPrompt(data: SavePromptOptions): Promise
     saveBtn.disabled = true;
     saveBtn.textContent = data.isUpdate ? "Đang cập nhật..." : "Đang lưu...";
 
+    const finalTitle =
+      formRows.querySelector<HTMLInputElement>("#svm-save-title")?.value.trim() || data.title;
     const finalUsername =
       formRows.querySelector<HTMLInputElement>("#svm-save-username")?.value.trim() || data.username;
     const finalPassword =
@@ -332,11 +371,12 @@ export async function showSaveCredentialPrompt(data: SavePromptOptions): Promise
 
     await sendExtensionBridgeMessage("save_credential", {
       ...data,
+      title: finalTitle,
       username: finalUsername,
       password: finalPassword,
       vaultId: chosenVaultId,
     });
-    host.remove();
+    cleanupPrompt();
   });
 
   // Toggle xem mật khẩu
@@ -355,6 +395,22 @@ export async function showSaveCredentialPrompt(data: SavePromptOptions): Promise
   container.appendChild(actions);
   shadow.appendChild(container);
   document.documentElement.appendChild(host);
+
+  window.addEventListener("keydown", onPromptKeyDown, true);
+  container.addEventListener("mouseenter", () => {
+    if (autoDismissTimer) {
+      clearTimeout(autoDismissTimer);
+      autoDismissTimer = null;
+    }
+  });
+  container.addEventListener("focusin", () => {
+    if (autoDismissTimer) {
+      clearTimeout(autoDismissTimer);
+      autoDismissTimer = null;
+    }
+  });
+  container.addEventListener("mouseleave", scheduleAutoDismiss);
+  scheduleAutoDismiss();
 }
 
 function escapeHtml(raw: string): string {

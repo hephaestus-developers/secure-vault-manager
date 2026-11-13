@@ -57,8 +57,6 @@ void SettingsManager::loadDefaults() {
 
   QJsonObject sec;
   sec.insert(QStringLiteral("configured"), false);
-  sec.insert(QStringLiteral("password_hash"), QString());
-  sec.insert(QStringLiteral("password_salt"), QString());
   m_cachedSettings.insert(QStringLiteral("security"), sec);
   m_cachedSettings.insert(QStringLiteral("vaults"), QJsonArray());
 }
@@ -286,20 +284,6 @@ void SettingsManager::migrateLegacyIniIfNeeded() {
     sec.insert(QStringLiteral("configured"), confVal.toBool());
     changed = true;
   }
-  const QVariant hashVal =
-      findIniVal({QStringLiteral("Security/PasswordHash"),
-                  QStringLiteral("security/password_hash")});
-  if (hashVal.isValid()) {
-    sec.insert(QStringLiteral("password_hash"), hashVal.toString());
-    changed = true;
-  }
-  const QVariant saltVal =
-      findIniVal({QStringLiteral("Security/PasswordSalt"),
-                  QStringLiteral("security/password_salt")});
-  if (saltVal.isValid()) {
-    sec.insert(QStringLiteral("password_salt"), saltVal.toString());
-    changed = true;
-  }
   m_cachedSettings.insert(QStringLiteral("security"), sec);
 
   // 18. Vaults List JSON
@@ -358,7 +342,6 @@ void SettingsManager::onCoreSettingsUpdated(const QJsonObject &settings) {
 
   emit settingsChanged();
   emit autoLockTimeoutChanged(autoLockMinutes());
-  emit clipboardTimeoutChanged(clipboardClearSeconds());
   emit listDensityChanged(listDensity());
 }
 
@@ -556,7 +539,6 @@ void SettingsManager::setClipboardClearSeconds(int seconds) {
   if (clipboardClearSeconds() != seconds) {
     m_cachedSettings.insert(QStringLiteral("clipboard_clear_seconds"), seconds);
     saveToCore();
-    emit clipboardTimeoutChanged(seconds);
     emit settingsChanged();
   }
 }

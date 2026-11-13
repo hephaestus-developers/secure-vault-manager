@@ -11,11 +11,9 @@ use svm_domain::JsonValue;
 use svm_ssh_agent::SshAgentServer;
 use svm_storage::VaultStorage;
 use svm_vault::VaultService;
-use svm_webauthn::WebAuthnAuthenticator;
 
 use crate::context::{
-    alloc_c_string, c_str_to_string, CoreRuntime, SvmBuffer, SvmContext, SvmEventCallback,
-    LAST_ERROR,
+    c_str_to_string, CoreRuntime, SvmBuffer, SvmContext, SvmEventCallback, LAST_ERROR,
 };
 
 /// Lấy mã số phiên bản nhị phân ABI (dùng để UI xác thực tính tương thích).
@@ -48,7 +46,6 @@ pub unsafe extern "C" fn svm_context_new(data_dir: *const c_char) -> *mut SvmCon
         vault_service: VaultService::with_storage(storage),
         ssh_agent: SshAgentServer::new(),
         bridge: BridgeServer::new(effective_dir),
-        webauthn: WebAuthnAuthenticator::new(),
         import_previews: Vec::new(),
         pending_prompts: Vec::new(),
     };
@@ -179,27 +176,5 @@ pub unsafe extern "C" fn svm_prompt_respond(
         *guard = Some(approved);
         cvar.notify_all();
     }
-    SvmStatusCode::Ok
-}
-
-/// Lấy danh sách toàn bộ các yêu cầu phê duyệt đang chờ xử lý dưới dạng JSON.
-///
-/// # Safety
-/// `ctx` và `out_json` không được phép là NULL.
-#[no_mangle]
-pub unsafe extern "C" fn svm_prompt_list_pending(
-    ctx: *mut SvmContext,
-    out_json: *mut *mut c_char,
-) -> SvmStatusCode {
-    if ctx.is_null() || out_json.is_null() {
-        return SvmStatusCode::InvalidArg;
-    }
-    let mut arr = JsonValue::new_array();
-    if let Ok(rt) = (*ctx).runtime.lock() {
-        for (_, entry) in &rt.pending_prompts {
-            arr.push(entry.info.clone());
-        }
-    }
-    *out_json = alloc_c_string(&arr.to_json_string());
     SvmStatusCode::Ok
 }

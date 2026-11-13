@@ -12,7 +12,7 @@ import {
   PendingTotpSetup,
   UpdateTotpResponsePayload,
 } from "../services/protocol";
-import { parseOtpAuthSummary } from "../services/qr-scanner";
+import { parseOtpAuthSummary } from "../services/domain";
 import { BridgeTransport } from "./transport";
 
 export interface QrCropRect {

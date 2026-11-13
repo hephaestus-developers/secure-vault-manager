@@ -38,7 +38,6 @@ export interface VaultProfileSummary {
 export interface BridgeRequest<TPayload = Record<string, unknown>> {
   requestId: string;
   action: BridgeAction;
-  sessionToken?: string;
   payload?: TPayload;
 }
 
@@ -73,7 +72,6 @@ export interface UnlockVaultPayload {
 export interface UnlockVaultResponsePayload {
   unlocked: boolean;
   clientId?: string;
-  sessionToken?: string;
 }
 
 export interface CredentialSummary {
@@ -201,7 +199,6 @@ export function detectCurrentBrowserName(): string {
 export function createBridgeRequest<TPayload = Record<string, unknown>>(
   action: BridgeAction,
   payload?: TPayload,
-  sessionToken?: string,
 ): BridgeRequest<TPayload> {
   requestSequence = (requestSequence + 1) % 1_000_000;
   const currentBrowser = detectCurrentBrowserName();
@@ -213,7 +210,6 @@ export function createBridgeRequest<TPayload = Record<string, unknown>>(
   return {
     requestId: `req-${Date.now()}-${requestSequence}`,
     action,
-    sessionToken,
     payload: basePayload,
   };
 }
