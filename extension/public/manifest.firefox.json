@@ -5,7 +5,7 @@
   "description": "Autofill logins, verification codes, and passkeys securely from Secure Vault Manager.",
   "browser_specific_settings": {
     "gecko": {
-      "id": "secure-vault-manager@hephaestus.dev",
+      "id": "secure-vault-manager-extension@hephaestus.dev",
       "strict_min_version": "140.0",
       "data_collection_permissions": {
         "required": ["none"]

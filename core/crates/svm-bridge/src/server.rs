@@ -558,6 +558,9 @@ impl BridgeServer {
         firefox_manifest.insert("type", JsonValue::String("stdio".to_string()));
         let mut extensions = JsonValue::new_array();
         extensions.push(JsonValue::String(
+            "secure-vault-manager-extension@hephaestus.dev".to_string(),
+        ));
+        extensions.push(JsonValue::String(
             "secure-vault-manager@hephaestus.dev".to_string(),
         ));
         extensions.push(JsonValue::String(

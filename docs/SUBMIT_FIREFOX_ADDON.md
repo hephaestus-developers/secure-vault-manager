@@ -10,25 +10,17 @@ Mozilla yêu cầu tệp nộp phải ở định dạng `.zip` (hoặc `.xpi`),
 
 ### Lệnh đóng gói tự động
 
-Mở terminal tại thư mục gốc của dự án và chạy:
+Mở terminal tại thư mục gốc của dự án và chạy script đóng gói chuẩn:
 
 ```bash
-# 1. Biên dịch extension sang dist/firefox
-pnpm --dir extension run build
-
-# 2. Đóng gói thư mục dist/firefox thành file ZIP cài đặt
-cd extension/dist/firefox
-zip -FSr ../secure-vault-manager-0.1.0.zip .
-cd ../../
-
-# 3. Đóng gói mã nguồn gốc TypeScript phục vụ đối chiếu (Source Code)
-zip -r extension-source-code.zip extension/ -x "extension/dist/*" -x "extension/node_modules/*"
+# Đóng gói tự động cả bản Chromium, Firefox và Source Code ZIP
+./scripts/build-extension.sh
 ```
 
-> Các tệp sẵn sàng tải lên:
+> **Các tệp đầu ra tại `extension/dist/` sẵn sàng tải lên:**
 >
-> 1. Tệp cài đặt: `extension/dist/secure-vault-manager-0.1.0.zip` (~60 KB).
-> 2. Tệp mã nguồn: `extension-source-code.zip` (~70 KB).
+> 1. Tệp cài đặt Firefox: `extension/dist/secure-vault-manager-firefox.zip` (~128 KB).
+> 2. Tệp mã nguồn đối chiếu: `extension/dist/extension-source-code.zip` (~165 KB).
 
 ---
 
@@ -48,19 +40,17 @@ zip -r extension-source-code.zip extension/ -x "extension/dist/*" -x "extension/
 2. Chọn tệp:
 
    ```text
-   /mnt/storage/hephaestus-studio/secure-vault-manager/extension/dist/secure-vault-manager-0.1.0.zip
+   extension/dist/secure-vault-manager-firefox.zip
    ```
 
 3. Hệ thống kiểm tra tự động của Mozilla sẽ phân tích tệp (chạy bộ xác thực linter).
-   - Bản dựng đã được cấu hình chuẩn ID `secure-vault-manager@hephaestus.dev`, manifest V3, `strict_min_version: 140.0` (Android `142.0`), `data_collection_permissions: { required: ["none"] }` và loại bỏ hoàn toàn `innerHTML`.
+   - Bản dựng đã được cấu hình chuẩn ID `secure-vault-manager-extension@hephaestus.dev`, manifest V3, `strict_min_version: 140.0` (Android `142.0`), `data_collection_permissions: { required: ["none"] }` và loại bỏ hoàn toàn `innerHTML`.
    - Bài kiểm tra sẽ báo xanh hoàn toàn (**0 errors, 0 warnings**).
 4. Nhấn **Continue**.
 
 ---
 
 ### Bước 3: Xác nhận và nộp mã nguồn gốc (Do You Need to Submit Source Code?)
-
-Trên màn hình này (như ảnh bạn chụp):
 
 Mozilla đặt câu hỏi để kiểm tra tính minh bạch của mã nguồn:
 > *"Do you use any of the following in your extension?*
@@ -75,26 +65,20 @@ Mozilla đặt câu hỏi để kiểm tra tính minh bạch của mã nguồn:
 - ✅ **Chọn: `Yes`**
 - > [!IMPORTANT]
   > **Tại sao phải chọn `Yes`?**
-  > Extension của chúng ta được viết bằng **TypeScript** và sử dụng trình đóng gói (**Vite / esbuild**) để bundle các module thành `popup.js`, `content.js`, `background.js`.
-  > Nếu chọn `No`, đội ngũ reviewer của Mozilla khi mở tệp kiểm tra thấy mã đã qua transpiler/bundler mà không có mã nguồn đối chiếu sẽ **từ chối duyệt (Reject)** tiện ích ngay lập tức theo chính sách Add-on Policy của Mozilla.
+  > Extension của chúng ta được viết bằng **TypeScript** và sử dụng trình đóng gói bundler Node.js tích hợp để bundle các module thành `popup.js`, `content.js`, `background.js`.
+  > Nếu chọn `No`, đội ngũ reviewer của Mozilla khi mở tệp kiểm tra thấy mã đã qua xử lý đóng gói mà không có mã nguồn đối chiếu sẽ **từ chối duyệt (Reject)** tiện ích ngay lập tức theo chính sách Add-on Policy của Mozilla.
 
 #### 2. Tải tệp mã nguồn gốc (Upload Source Code)
 
 Sau khi bạn tích chọn **`Yes`**, giao diện sẽ mở rộng ra thêm mục đính kèm tệp:
 
-- Lệnh tạo tệp ZIP mã nguồn (chạy từ thư mục gốc dự án):
-
-  ```bash
-  zip -r extension-source-code.zip extension/ -x "extension/dist/*" -x "extension/node_modules/*"
-  ```
-
-- Nhấn nút tải tệp và chọn tệp nén mã nguồn đã được tạo tại:
+- Nhấn nút tải tệp và chọn tệp nén mã nguồn đã được tạo sẵn tại:
 
   ```text
-  /mnt/storage/hephaestus-studio/secure-vault-manager/extension-source-code.zip
+  extension/dist/extension-source-code.zip
   ```
 
-  *(Tệp này chứa toàn bộ thư mục `extension/` gồm TypeScript source, cấu hình `package.json`, scripts build mà không kèm thư mục build `dist/` hay `node_modules/`).*
+  *(Tệp này chứa toàn bộ mã nguồn TypeScript, cấu hình `package.json`, scripts build mà không kèm thư mục build `dist/` hay `node_modules/`).*
 
 #### 3. Nhập hướng dẫn biên dịch (Build Instructions)
 
@@ -104,16 +88,16 @@ Tại ô văn bản hướng dẫn build dành cho reviewer, hãy sao chép và 
 Build Environment:
 - Operating System: Linux / macOS / Windows
 - Node.js: >= 20.x
-- Package Manager: pnpm (or npm)
+- Package Manager: npm (or pnpm)
 
 Build Steps:
-1. Extract the source code and navigate into the directory:
+1. Extract the source code and navigate into the project root:
    cd extension
-2. Install dependencies:
-   pnpm install
-3. Run the production build:
-   pnpm run build
-   (or: node scripts/build.mjs && node scripts/post-build.js)
+2. Install dependencies (optional, build uses Node.js standard modules):
+   npm install
+3. Run the production build and packaging:
+   npm run build
+   (or execute: node scripts/build.mjs && node scripts/post-build.js)
 
 Output Verification:
 The exact compiled files for Firefox will be produced in:
@@ -169,7 +153,7 @@ Hỗ trợ định dạng Markdown. Hãy sao chép toàn bộ đoạn văn bản
 - ⚡ **Smart Autofill**: Seamlessly detects login and registration forms, filling usernames and passwords with a single click.
 - 🔑 **FIDO2 / WebAuthn Passkeys**: Native passkey integration allows you to create and authenticate passkeys directly within your secure vault.
 - ⏱️ **Integrated 2FA / TOTP**: Generates and autofills two-factor authentication codes in real time without needing your phone.
-- 🖥️ **Companion Desktop Architecture**: Communicates locally with the Secure Vault Manager desktop app via secure Native Messaging (`dev.hephaestus.secure_vault_manager`).
+- 🖥️ **Companion Desktop Architecture**: Communicates locally with the Secure Vault Manager desktop app via secure Native Messaging (`io.hephaestus.secure_vault_manager`).
 - 🛡️ **Biometric & Master Key Unlock**: Unlock your vault securely using system biometrics or your Master Password.
 
 ### 📋 Prerequisites
@@ -238,9 +222,9 @@ Secure Vault Manager operates on a strict Local Zero-Knowledge model:
 ---
 
 #### 11. Notes to Reviewer (Ghi chú dành cho Đội ngũ Kiểm duyệt Mozilla)
->
+
 > [!IMPORTANT]
-> Đây là phần **rất quan trọng**. Do extension sử dụng quyền `nativeMessaging` để kết nối với Desktop App, nếu không giải thích rõ, reviewer có thể từ chối vì họ mở extension lên chỉ thấy trạng thái "Ứng dụng Desktop chưa khởi chạy" (Offline).
+> Đây là phần **rất quan trọng**. Do extension sử dụng quyền `nativeMessaging` để kết nối với Desktop App, nếu không giải thích rõ, reviewer có thể từ chối vì họ mở extension lên chỉ thấy trạng thái "Ứng dụng Desktop chưa khởi chạy" (Desktop App Offline).
 
 Hãy sao chép và dán toàn bộ đoạn sau vào ô **Notes to Reviewer**:
 
@@ -250,12 +234,12 @@ Dear AMO Reviewers,
 This extension is an open-source companion extension for the desktop password manager "Secure Vault Manager".
 
 1. Architecture & Native Messaging:
-- The extension communicates exclusively with the local companion desktop host via Native Messaging under the host name "dev.hephaestus.secure_vault_manager".
+- The extension communicates exclusively with the local companion desktop host via Native Messaging under the host name "io.hephaestus.secure_vault_manager".
 - All cryptographic keys, passwords, and passkeys are managed locally by the companion core.
 - No network telemetry or analytics are collected or sent to external servers.
 
 2. Testing the Extension:
-- When the companion desktop app is not running, opening the popup displays the expected and safe "Desktop App Offline" state with a "Mở Secure Vault Manager" (Launch) and "Kiểm tra lại kết nối" (Refresh) button.
+- When the companion desktop app is not running, opening the popup displays the expected and safe "Desktop App Offline" state with "Open Secure Vault Manager" and "Check Connection" buttons.
 - When on web pages with login forms, the content script identifies input fields to offer autofill capabilities once connected to the local host.
 - The WebAuthn passkey bridge intercepts credential creation/assertion calls and falls back cleanly to browser native prompts when cancelled.
 
@@ -273,3 +257,13 @@ Thank you for your time and review!
 1. Kiểm tra lại toàn bộ các trường đã điền ở Bước 4.
 2. Nhấn nút **Submit Version** (hoặc nút **Save Changes / Submit** ở cuối trang).
 3. Sau khi gửi, tiện ích sẽ được chuyển vào hàng đợi kiểm duyệt (**Awaiting Review**). Thời gian kiểm duyệt thông thường từ **vài giờ đến 24-48 giờ**. Khi được duyệt, extension sẽ có trạng thái **Approved** và xuất hiện công khai trên kho AMO.
+
+---
+
+## 3. Xử lý lỗi thường gặp (Troubleshooting)
+
+### Lỗi: `Duplicate add-on ID found.`
+
+- **Nguyên nhân**:
+  1. Bạn đang nộp phiên bản mới (Update) nhưng lại chọn nhầm nút *"Submit a New Add-on"*: Hãy vào trang **My Add-ons** (`/developers/addons`), bấm vào tiện ích đã có và chọn **"Upload a New Version"**.
+  2. ID tiện ích đã có người khác đăng ký hoặc từng bị xóa khỏi AMO trước đây: Đảm bảo sử dụng file zip mới với ID chuẩn đã được cập nhật `secure-vault-manager-extension@hephaestus.dev`.

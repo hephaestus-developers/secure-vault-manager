@@ -103,6 +103,7 @@ MANIFEST_FIREFOX=$(cat <<EOF
   "path": "${HOST_BIN}",
   "type": "stdio",
   "allowed_extensions": [
+    "secure-vault-manager-extension@hephaestus.dev",
     "secure-vault-manager@hephaestus.dev",
     "extension@secure-vault.hephaestus.io",
     "secure-vault-manager@hephaestus.io"

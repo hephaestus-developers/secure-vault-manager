@@ -155,7 +155,7 @@ function bundleEntry(entryRelPath) {
       .replace(/\bexport\s+(async\s+function|function|class|const|let|var)\b/g, "$1");
 
     orderedModules.push(
-      `// --- Module: ${path.relative(REPO_ROOT, fileAbs)} ---\n${cleaned.trim()}`,
+      `// --- Module: ${path.relative(EXT_ROOT, fileAbs)} ---\n${cleaned.trim()}`,
     );
   }
 

@@ -11,7 +11,7 @@
     "format": "prettier --write \"src/**/*.{ts,tsx,js,mjs,css,html}\" \"scripts/**/*.{js,mjs,ts}\" \"public/*.json\" popup.html package.json tsconfig.json",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,js,mjs,css,html}\" \"scripts/**/*.{js,mjs,ts}\" \"public/*.json\" popup.html package.json tsconfig.json"
   },
-  "license": "Proprietary",
+  "license": "MIT OR Apache-2.0",
   "devDependencies": {
     "oxlint": "^1.93.0",
     "prettier": "^3.9.6"

@@ -51,7 +51,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
   setWindowFlags(Qt::Window | Qt::FramelessWindowHint);
   setAttribute(Qt::WA_TranslucentBackground, false);
   setMinimumSize(900, 560);
-  resize(1120, 680);
+  resize(1280, 800);
   setWindowTitle(QStringLiteral("Secure Vault Manager"));
 
   setupUI();
@@ -92,9 +92,9 @@ void MainWindow::setupUI() {
   m_mainSplitter->addWidget(m_itemListView);
   m_mainSplitter->addWidget(m_detailView);
 
-  // Thiết lập tỷ lệ kích thước khởi tạo: Sidebar (240px) | ItemList (300px) |
-  // Detail (phần còn lại)
-  m_mainSplitter->setSizes({240, 300, 580});
+  // Thiết lập tỷ lệ kích thước khởi tạo: Sidebar (240px) | ItemList (320px) |
+  // Detail (phần còn lại: 720px)
+  m_mainSplitter->setSizes({240, 320, 720});
   m_mainSplitter->setChildrenCollapsible(false);
   m_mainSplitter->setCollapsible(0, false);
   m_mainSplitter->setCollapsible(1, false);

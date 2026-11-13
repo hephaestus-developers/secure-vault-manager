@@ -4,6 +4,7 @@
   "path": "@SVM_NATIVE_HOST_PATH@",
   "type": "stdio",
   "allowed_extensions": [
+    "secure-vault-manager-extension@hephaestus.dev",
     "secure-vault-manager@hephaestus.dev",
     "extension@secure-vault.hephaestus.io",
     "secure-vault-manager@hephaestus.io"
