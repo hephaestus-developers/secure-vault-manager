@@ -205,7 +205,7 @@ if (chromeApi?.runtime?.onMessage) {
               ? undefined
               : resp.error || {
                   code: "DESKTOP_NOT_RUNNING",
-                  message: "Ứng dụng Desktop chưa khởi động hoặc mật khẩu không chính xác.",
+                  message: "Desktop app is not running or incorrect password.",
                 },
           });
           return;
@@ -227,7 +227,7 @@ if (chromeApi?.runtime?.onMessage) {
               ? undefined
               : resp.error || {
                   code: "BIOMETRIC_FAILED",
-                  message: "Xác thực sinh trắc học không thành công hoặc Desktop chưa khởi động.",
+                  message: "Biometric authentication failed or Desktop app is not running.",
                 },
           });
           return;
@@ -282,7 +282,7 @@ if (chromeApi?.runtime?.onMessage) {
                 error: {
                   code: "UNAUTHORIZED_ITEM_ACCESS",
                   message:
-                    "Yêu cầu truy cập mật khẩu bị từ chối do không thuộc phạm vi của trang web hiện tại.",
+                    "Password access denied because item is not authorized for current website.",
                 },
               });
               return;

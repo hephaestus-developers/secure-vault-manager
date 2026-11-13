@@ -55,7 +55,7 @@ export class BridgeTransport {
           ok: false,
           error: {
             code: "VAULT_LOCKED",
-            message: "Kho dữ liệu đang bị khóa hoặc chưa kết nối ứng dụng Desktop.",
+            message: "Vault is locked or Desktop App is not connected.",
           },
         };
 
@@ -66,7 +66,7 @@ export class BridgeTransport {
           ok: false,
           error: {
             code: "DESKTOP_DISCONNECTED",
-            message: "Ứng dụng Desktop đang tắt hoặc không phản hồi.",
+            message: "Desktop App is not running or not responding.",
           },
         };
     }

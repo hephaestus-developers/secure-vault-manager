@@ -135,12 +135,14 @@ function uint8ToBase64(bytes: Uint8ClampedArray | Uint8Array): string {
 async function captureVisibleTabPng(windowId: number): Promise<string> {
   const extChrome = getBgChrome();
   if (!extChrome?.tabs?.captureVisibleTab) {
-    throw new Error("Trình duyệt không hỗ trợ captureVisibleTab");
+    throw new Error("Browser does not support captureVisibleTab");
   }
   return new Promise((resolve, reject) => {
     extChrome.tabs.captureVisibleTab(windowId, { format: "png" }, (dataUrl: string) => {
       if (extChrome.runtime?.lastError || !dataUrl) {
-        reject(new Error(extChrome.runtime?.lastError?.message || "Không thể chụp màn hình tab"));
+        reject(
+          new Error(extChrome.runtime?.lastError?.message || "Could not capture tab screenshot"),
+        );
       } else {
         resolve(dataUrl);
       }
@@ -154,7 +156,7 @@ async function cropPngToCanvas(
   dpr: number,
 ): Promise<OffscreenCanvas> {
   if (typeof OffscreenCanvas === "undefined" || typeof createImageBitmap !== "function") {
-    throw new Error("Trình duyệt không hỗ trợ OffscreenCanvas/createImageBitmap");
+    throw new Error("Browser does not support OffscreenCanvas/createImageBitmap");
   }
   const blob = dataUrlToBlob(dataUrl);
   const bmp = await createImageBitmap(blob);
@@ -174,7 +176,7 @@ async function cropPngToCanvas(
     const canvas = new OffscreenCanvas(dstW + quietPad * 2, dstH + quietPad * 2);
     const ctx = canvas.getContext("2d");
     if (!ctx) {
-      throw new Error("Không thể khởi tạo 2D context");
+      throw new Error("Could not initialize 2D context");
     }
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -237,7 +239,7 @@ export async function handleStartQrCrop(message: BridgeRequest<any>): Promise<Br
       requestId: message.requestId,
       type: "error",
       ok: false,
-      error: { code: "NO_ACTIVE_TAB", message: "Không xác định được tab trình duyệt hiện tại." },
+      error: { code: "NO_ACTIVE_TAB", message: "Could not identify current browser tab." },
     };
   }
 
@@ -248,7 +250,7 @@ export async function handleStartQrCrop(message: BridgeRequest<any>): Promise<Br
       ok: false,
       error: {
         code: "UNSUPPORTED_TAB",
-        message: "Chỉ hỗ trợ quét mã QR trên các trang web http:// hoặc https://.",
+        message: "QR code scanning is only supported on http:// or https:// websites.",
       },
     };
   }
@@ -292,7 +294,7 @@ export async function handleStartQrCrop(message: BridgeRequest<any>): Promise<Br
       ok: false,
       error: {
         code: "CONTENT_UNAVAILABLE",
-        message: "Không thể bật khung quét trên trang này. Hãy tải lại trang rồi thử lại.",
+        message: "Cannot activate scanner on this page. Please refresh the page and try again.",
       },
     };
   }
@@ -330,8 +332,8 @@ export async function handleQrCropSelected(
   if (typeof windowId !== "number" || !rect || rect.width < 12 || rect.height < 12) {
     await showTabQrToast(tabId, {
       ok: false,
-      title: "Vùng chọn không hợp lệ",
-      message: "Vui lòng kéo khung bao quanh toàn bộ mã QR.",
+      title: "Invalid Selection",
+      message: "Please drag a selection box around the entire QR code.",
     });
     return {
       requestId: message.requestId,
@@ -352,7 +354,7 @@ export async function handleQrCropSelected(
     if (!qrText) {
       const ctx = canvas.getContext("2d");
       if (!ctx) {
-        throw new Error("Không thể đọc pixel từ OffscreenCanvas");
+        throw new Error("Could not read pixels from OffscreenCanvas");
       }
       const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const rgba = imgData.data;
@@ -375,10 +377,10 @@ export async function handleQrCropSelected(
       if (!decResp.ok || !decResp.payload?.text) {
         await showTabQrToast(tabId, {
           ok: false,
-          title: "Không thấy mã QR",
+          title: "QR Code Not Found",
           message:
             decResp.error?.message ||
-            "Không nhận diện được mã QR. Hãy kéo rộng hơn một chút bao quanh viền trắng mã QR.",
+            "Could not detect a QR code. Try selecting a slightly larger area around the QR border.",
         });
         return {
           requestId: message.requestId,
@@ -397,9 +399,8 @@ export async function handleQrCropSelected(
     if (lower.startsWith("fido:/")) {
       await showTabQrToast(tabId, {
         ok: false,
-        title: "Không phải mã QR TOTP",
-        message:
-          "Đây là mã QR Passkey (FIDO) của trình duyệt, không phải mã thiết lập 2FA otpauth://.",
+        title: "Not a 2FA TOTP QR Code",
+        message: "This is a browser Passkey (FIDO) QR code, not an otpauth:// 2FA setup QR code.",
       });
       return {
         requestId: message.requestId,
@@ -412,8 +413,8 @@ export async function handleQrCropSelected(
     if (!lower.startsWith("otpauth://")) {
       await showTabQrToast(tabId, {
         ok: false,
-        title: "Định dạng QR không hỗ trợ",
-        message: "Chỉ hỗ trợ mã QR thiết lập 2FA chuẩn otpauth://.",
+        title: "Unsupported QR Code Format",
+        message: "Only standard otpauth:// 2FA setup QR codes are supported.",
       });
       return {
         requestId: message.requestId,
@@ -437,23 +438,23 @@ export async function handleQrCropSelected(
       if (!updResp.ok || !updResp.payload) {
         await showTabQrToast(tabId, {
           ok: false,
-          title: "Lưu mã 2FA thất bại",
-          message: updResp.error?.message || "Không thể lưu bí mật TOTP vào Desktop Vault.",
+          title: "Failed to Save 2FA Secret",
+          message: updResp.error?.message || "Could not save TOTP secret into Desktop Vault.",
         });
         return updResp;
       }
 
-      const targetName = session.itemTitle || updResp.payload.issuer || "tài khoản";
+      const targetName = session.itemTitle || updResp.payload.issuer || "account";
       await showTabQrToast(tabId, {
         ok: true,
-        title: `Đã thêm 2FA cho ${targetName}`,
-        message: "Mã 6 số hiện tại đã được sao chép vào Clipboard.",
+        title: `Added 2FA for ${targetName}`,
+        message: "Current 6-digit code has been copied to Clipboard.",
         code: updResp.payload.code,
       });
       return updResp;
     }
 
-    // Chế độ quét chung (chưa chọn item): lưu tạm vào chrome.storage.local để Popup gắn sau
+    // General scan mode (no item preselected): save temporarily to storage for Popup
     const extChrome = getBgChrome();
     let domain = session?.domain || "";
     const origin = session?.origin || senderTab?.url || "";
@@ -482,8 +483,8 @@ export async function handleQrCropSelected(
     await showTabQrToast(tabId, {
       ok: false,
       isInfo: true,
-      title: "Đã quét mã QR 2FA",
-      message: `Đã nhận diện ${labelText}. Hãy bấm mở lại tiện ích Secure Vault để chọn hoặc tạo tài khoản lưu vào.`,
+      title: "2FA QR Code Scanned",
+      message: `Detected ${labelText}. Open Secure Vault extension to attach it to an account.`,
     });
 
     return {
@@ -493,10 +494,10 @@ export async function handleQrCropSelected(
       payload: { pending: true, issuer, account },
     };
   } catch (err) {
-    const errMsg = err instanceof Error ? err.message : "Lỗi xử lý ảnh QR";
+    const errMsg = err instanceof Error ? err.message : "QR image processing error";
     await showTabQrToast(tabId, {
       ok: false,
-      title: "Quét QR 2FA thất bại",
+      title: "2FA QR Scan Failed",
       message: errMsg,
     });
     return {

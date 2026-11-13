@@ -356,12 +356,13 @@
   transition: background-color 0.15s ease;
 }
 
-.primaryBtn:hover {
+.primaryBtn:hover:not(:disabled) {
   background-color: var(--accent-hover);
 }
 
 .primaryBtn:disabled {
-  opacity: 0.6;
+  opacity: 0.45;
+  filter: grayscale(0.5);
   cursor: not-allowed;
 }
 

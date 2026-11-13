@@ -3,7 +3,7 @@
  * @brief Thanh tiêu đề của Extension Popup chứa logo, trạng thái mở khóa và nút khóa nhanh.
  */
 
-import { createQrCodeIconSvg, createSvgPathIcon } from "./icons";
+import { createGeneratorIcon, createLockIcon, createQrCodeIconSvg } from "./icons";
 
 export interface HeaderBarProps {
   unlocked: boolean;
@@ -13,6 +13,13 @@ export interface HeaderBarProps {
   onToggleGenerator?: () => void;
   onScanQr?: () => void;
   onLockVault?: () => void;
+}
+
+export function updateHeaderGeneratorActive(active: boolean): void {
+  const genBtn = document.getElementById("svm-header-gen-btn");
+  if (genBtn) {
+    genBtn.className = active ? "iconBtn iconBtnActive" : "iconBtn";
+  }
 }
 
 export function createHeaderBar(props: HeaderBarProps): HTMLElement {
@@ -67,15 +74,11 @@ export function createHeaderBar(props: HeaderBarProps): HTMLElement {
 
     if (props.onToggleGenerator) {
       const genBtn = document.createElement("button");
+      genBtn.id = "svm-header-gen-btn";
       genBtn.type = "button";
       genBtn.className = props.showGenerator ? "iconBtn iconBtnActive" : "iconBtn";
-      genBtn.title = "Trình tạo mật khẩu (Password Generator)";
-      genBtn.appendChild(
-        createSvgPathIcon(
-          "M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4",
-          14,
-        ),
-      );
+      genBtn.title = "Password Generator";
+      genBtn.appendChild(createGeneratorIcon(14));
       genBtn.addEventListener("click", props.onToggleGenerator);
       actions.appendChild(genBtn);
     }
@@ -84,7 +87,7 @@ export function createHeaderBar(props: HeaderBarProps): HTMLElement {
       const qrBtn = document.createElement("button");
       qrBtn.type = "button";
       qrBtn.className = "iconBtn";
-      qrBtn.title = "Quét / Crop mã QR 2FA trên trang";
+      qrBtn.title = "Scan / Crop 2FA QR Code";
       qrBtn.appendChild(createQrCodeIconSvg(14));
       qrBtn.addEventListener("click", props.onScanQr);
       actions.appendChild(qrBtn);
@@ -94,8 +97,8 @@ export function createHeaderBar(props: HeaderBarProps): HTMLElement {
       const lockBtn = document.createElement("button");
       lockBtn.type = "button";
       lockBtn.className = "iconBtn";
-      lockBtn.title = "Khóa kho mật khẩu (Lock Vault)";
-      lockBtn.appendChild(createLockIconSvg());
+      lockBtn.title = "Lock Vault";
+      lockBtn.appendChild(createLockIcon(14));
       lockBtn.addEventListener("click", props.onLockVault);
       actions.appendChild(lockBtn);
     }
@@ -104,26 +107,4 @@ export function createHeaderBar(props: HeaderBarProps): HTMLElement {
   }
 
   return header;
-}
-
-function createLockIconSvg(): SVGSVGElement {
-  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  svg.setAttribute("width", "14");
-  svg.setAttribute("height", "14");
-  svg.setAttribute("viewBox", "0 0 24 24");
-  svg.setAttribute("fill", "none");
-  svg.setAttribute("stroke", "currentColor");
-  svg.setAttribute("stroke-width", "2");
-  const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-  rect.setAttribute("x", "3");
-  rect.setAttribute("y", "11");
-  rect.setAttribute("width", "18");
-  rect.setAttribute("height", "11");
-  rect.setAttribute("rx", "2");
-  rect.setAttribute("ry", "2");
-  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  path.setAttribute("d", "M7 11V7a5 5 0 0110 0v4");
-  svg.appendChild(rect);
-  svg.appendChild(path);
-  return svg;
 }

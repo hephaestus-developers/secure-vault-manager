@@ -5,6 +5,7 @@
 
 export type BridgeAction =
   | "ping"
+  | "launch_desktop"
   | "get_vault_status"
   | "unlock_vault"
   | "unlock_vault_biometric"
@@ -35,7 +36,7 @@ export interface VaultProfileSummary {
   isDefault?: boolean;
 }
 
-export interface BridgeRequest<TPayload = Record<string, unknown>> {
+export interface BridgeRequest<TPayload = any> {
   requestId: string;
   action: BridgeAction;
   payload?: TPayload;
@@ -46,7 +47,7 @@ export interface BridgeErrorDetail {
   message: string;
 }
 
-export interface BridgeResponse<TPayload = Record<string, unknown>> {
+export interface BridgeResponse<TPayload = any> {
   requestId: string;
   type: string;
   ok: boolean;
@@ -134,6 +135,7 @@ export interface DecodeQrResponsePayload {
 }
 
 export interface UpdateTotpResponsePayload {
+  [key: string]: unknown;
   itemId: string;
   code: string;
   remaining: number;
@@ -230,7 +232,7 @@ export function getChromeApi(): any {
 /**
  * Gửi yêu cầu từ Popup hoặc Content Script tới Background Service Worker.
  */
-export async function sendExtensionBridgeMessage<TPayload = Record<string, unknown>>(
+export async function sendExtensionBridgeMessage<TPayload = any>(
   action: BridgeAction,
   payload?: Record<string, unknown>,
 ): Promise<BridgeResponse<TPayload>> {

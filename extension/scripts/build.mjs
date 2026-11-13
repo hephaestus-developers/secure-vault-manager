@@ -163,7 +163,7 @@ function bundleEntry(entryRelPath) {
   return `(() => {\n"use strict";\n${orderedModules.join("\n\n")}\n})();\n`;
 }
 
-// 1. Đồng bộ app_logo.svg từ Desktop App và cập nhật biểu tượng PNG trong public/
+// 1. Đồng bộ app_logo.svg và toàn bộ thư mục icons từ Desktop App sang public/
 fs.mkdirSync(PUBLIC_DIR, { recursive: true });
 const publicLogoSvg = path.join(PUBLIC_DIR, "app_logo.svg");
 const hasBrandSvg = fs.existsSync(BRAND_LOGO_SVG);
@@ -171,6 +171,13 @@ if (hasBrandSvg) {
   fs.copyFileSync(BRAND_LOGO_SVG, publicLogoSvg);
 }
 const brandMtime = hasBrandSvg ? fs.statSync(BRAND_LOGO_SVG).mtimeMs : 0;
+
+const UI_ICONS_DIR = path.join(REPO_ROOT, "ui", "resources", "icons");
+const PUBLIC_ICONS_DIR = path.join(PUBLIC_DIR, "icons");
+if (fs.existsSync(UI_ICONS_DIR)) {
+  fs.mkdirSync(PUBLIC_ICONS_DIR, { recursive: true });
+  fs.cpSync(UI_ICONS_DIR, PUBLIC_ICONS_DIR, { recursive: true });
+}
 
 for (const size of [16, 32, 48, 128]) {
   const iconPath = path.join(PUBLIC_DIR, `icon-${size}.png`);
@@ -205,7 +212,7 @@ const entries = [
   { name: "background.js", src: "src/background/index.ts" },
   { name: "content.js", src: "src/content/index.ts" },
   { name: "passkey_injected.js", src: "src/injected/passkey_injected.ts" },
-  { name: "popup.js", src: "src/popup/popup.tsx" },
+  { name: "popup.js", src: "src/popup/index.ts" },
 ];
 
 for (const entry of entries) {
@@ -220,9 +227,15 @@ fs.copyFileSync(
   path.join(EXT_ROOT, "src", "popup", "popup.module.css"),
   path.join(DIST_CHROME, "popup.css"),
 );
-fs.copyFileSync(path.join(PUBLIC_DIR, "manifest.json"), path.join(DIST_CHROME, "manifest.json"));
+const chromeManifest = fs.existsSync(path.join(PUBLIC_DIR, "manifest.chrome.json"))
+  ? path.join(PUBLIC_DIR, "manifest.chrome.json")
+  : path.join(PUBLIC_DIR, "manifest.json");
+fs.copyFileSync(chromeManifest, path.join(DIST_CHROME, "manifest.json"));
 if (fs.existsSync(publicLogoSvg)) {
   fs.copyFileSync(publicLogoSvg, path.join(DIST_CHROME, "app_logo.svg"));
+}
+if (fs.existsSync(PUBLIC_ICONS_DIR)) {
+  fs.cpSync(PUBLIC_ICONS_DIR, path.join(DIST_CHROME, "icons"), { recursive: true });
 }
 
 for (const size of [16, 32, 48, 128]) {

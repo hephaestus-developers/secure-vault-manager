@@ -4,10 +4,10 @@
  */
 
 import { autofillCredentialsOnPage } from "./autofill";
-import { QrCropResultToastParams, showQrResultToast, startQrCropOverlay } from "./crop-overlay";
 import { attachFormSubmitCapture, checkPendingLoginAfterNavigation } from "./form-capture";
-import { setupInlineAutofillOverlay } from "./overlay";
 import { setupPasskeyBridge } from "./passkey_bridge";
+import { setupInlineAutofillOverlay } from "./ui/autofill-overlay";
+import { QrCropResultToastParams, showQrResultToast, startQrCropOverlay } from "./ui/crop-overlay";
 import { getChromeApi } from "../services/protocol";
 
 setupInlineAutofillOverlay();

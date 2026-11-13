@@ -4,7 +4,14 @@
  */
 
 import { CredentialSummary, PasskeySummaryItem } from "../../services/protocol";
-import { createQrCodeIconSvg, createSvgPathIcon } from "./icons";
+import {
+  createCopyIcon,
+  createPasskeyIcon,
+  createQrCodeIconSvg,
+  createSvgPathIcon,
+  createTotpClockIcon,
+  createUserIcon,
+} from "./icons";
 
 export interface CredentialListProps {
   items: CredentialSummary[];
@@ -32,21 +39,19 @@ export function createCredentialList(props: CredentialListProps): HTMLElement {
     empty.className = "stateCard";
     const emptyTitle = document.createElement("div");
     emptyTitle.className = "stateTitle";
-    emptyTitle.textContent = props.activeDomain
-      ? "Không có thông tin đăng nhập"
-      : "Chưa mở trang web nào";
+    emptyTitle.textContent = props.activeDomain ? "No logins found" : "No website open";
     const emptyDesc = document.createElement("div");
     emptyDesc.className = "stateDesc";
     emptyDesc.textContent = props.activeDomain
-      ? `Không tìm thấy thông tin đăng nhập nào cho trang web ${props.activeDomain}.`
-      : "Hãy mở một trang web trên trình duyệt để xem các tài khoản tương ứng.";
+      ? `No logins found for ${props.activeDomain}.`
+      : "Open a website in your browser to view matching credentials.";
     empty.appendChild(emptyTitle);
     empty.appendChild(emptyDesc);
     if (props.activeDomain && props.onScanQrEmpty) {
       const scanEmptyBtn = document.createElement("button");
       scanEmptyBtn.type = "button";
       scanEmptyBtn.className = "primaryBtn";
-      scanEmptyBtn.textContent = "Quét QR 2FA trên trang";
+      scanEmptyBtn.textContent = "Scan 2FA QR Code";
       scanEmptyBtn.addEventListener("click", props.onScanQrEmpty);
       empty.appendChild(scanEmptyBtn);
     }
@@ -74,10 +79,10 @@ export function createCredentialList(props: CredentialListProps): HTMLElement {
     domainCount.className = "activeDomainCount";
     const countParts: string[] = [];
     if (props.items.length > 0) {
-      countParts.push(`${props.items.length} tài khoản`);
+      countParts.push(`${props.items.length} login${props.items.length > 1 ? "s" : ""}`);
     }
     if (passkeys.length > 0) {
-      countParts.push(`${passkeys.length} passkey`);
+      countParts.push(`${passkeys.length} passkey${passkeys.length > 1 ? "s" : ""}`);
     }
     domainCount.textContent = countParts.join(" • ");
 
@@ -123,7 +128,7 @@ export function createCredentialList(props: CredentialListProps): HTMLElement {
     const itemUrl = item.websiteUrl || (item as any).url || "";
     const subtitle = document.createElement("div");
     subtitle.className = "credSubtitle";
-    subtitle.textContent = item.username || itemUrl || "Tài khoản đã lưu";
+    subtitle.textContent = item.username || itemUrl || "Saved login";
     subtitle.title = item.username;
 
     info.appendChild(titleRow);
@@ -138,12 +143,12 @@ export function createCredentialList(props: CredentialListProps): HTMLElement {
       qrBtn.className = props.hasPendingTotp ? "iconBtn credTopQrPending" : "iconBtn credTopQrBtn";
       qrBtn.appendChild(createQrCodeIconSvg(13));
       if (props.hasPendingTotp) {
-        qrBtn.title = "Gắn mã QR 2FA vừa quét vào tài khoản này";
-        qrBtn.appendChild(createBtnLabel("Gắn 2FA"));
+        qrBtn.title = "Attach scanned 2FA QR code to this login";
+        qrBtn.appendChild(createBtnLabel("Attach 2FA"));
       } else {
         qrBtn.title = item.hasTotp
-          ? "Quét lại mã QR để đổi TOTP hiện tại"
-          : "Crop mã QR trên trang để thêm 2FA (TOTP)";
+          ? "Rescan QR code to replace current 2FA"
+          : "Crop QR code on page to add 2FA (TOTP)";
       }
       qrBtn.addEventListener("click", () => props.onAttachTotpQr!(item));
       topRow.appendChild(qrBtn);
@@ -156,7 +161,7 @@ export function createCredentialList(props: CredentialListProps): HTMLElement {
     fillBtn.type = "button";
     fillBtn.className = "primaryBtn credFillBtn";
     fillBtn.textContent = "Autofill";
-    fillBtn.title = "Tự động điền trên trang web hiện tại";
+    fillBtn.title = "Autofill credentials on this page";
     fillBtn.addEventListener("click", () => props.onFill(item));
     actions.appendChild(fillBtn);
 
@@ -166,13 +171,8 @@ export function createCredentialList(props: CredentialListProps): HTMLElement {
     const copyUserBtn = document.createElement("button");
     copyUserBtn.type = "button";
     copyUserBtn.className = "iconBtn credCompactBtn";
-    copyUserBtn.title = "Sao chép tên đăng nhập";
-    copyUserBtn.appendChild(
-      createSvgPathIcon(
-        "M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z",
-        13,
-      ),
-    );
+    copyUserBtn.title = "Copy username";
+    copyUserBtn.appendChild(createUserIcon(13));
     copyUserBtn.appendChild(createBtnLabel("User"));
     copyUserBtn.addEventListener("click", () => props.onCopyUsername(item));
     quickGroup.appendChild(copyUserBtn);
@@ -180,10 +180,8 @@ export function createCredentialList(props: CredentialListProps): HTMLElement {
     const copyPassBtn = document.createElement("button");
     copyPassBtn.type = "button";
     copyPassBtn.className = "iconBtn credCompactBtn";
-    copyPassBtn.title = "Sao chép mật khẩu";
-    copyPassBtn.appendChild(
-      createSvgPathIcon("M9 9h10v10H9zM5 15H4a1 1 0 01-1-1V4a1 1 0 011-1h10a1 1 0 011 1v1", 13),
-    );
+    copyPassBtn.title = "Copy password";
+    copyPassBtn.appendChild(createCopyIcon(13));
     copyPassBtn.appendChild(createBtnLabel("Pass"));
     copyPassBtn.addEventListener("click", () => props.onCopyPassword(item));
     quickGroup.appendChild(copyPassBtn);
@@ -195,8 +193,8 @@ export function createCredentialList(props: CredentialListProps): HTMLElement {
       const copyTotpBtn = document.createElement("button");
       copyTotpBtn.type = "button";
       copyTotpBtn.className = "iconBtn credCompactBtn credTotpBtn";
-      copyTotpBtn.title = `Sao chép mã 2FA (${formattedCode})`;
-      copyTotpBtn.appendChild(createSvgPathIcon("M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z", 13));
+      copyTotpBtn.title = `Copy 2FA code (${formattedCode})`;
+      copyTotpBtn.appendChild(createTotpClockIcon(13));
       copyTotpBtn.appendChild(createBtnLabel(formattedCode));
       copyTotpBtn.addEventListener("click", () => props.onCopyTotp(item));
       quickGroup.appendChild(copyTotpBtn);
@@ -218,12 +216,7 @@ export function createCredentialList(props: CredentialListProps): HTMLElement {
 
     const avatar = document.createElement("div");
     avatar.className = "credAvatar";
-    avatar.appendChild(
-      createSvgPathIcon(
-        "M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4",
-        16,
-      ),
-    );
+    avatar.appendChild(createPasskeyIcon(16));
 
     const info = document.createElement("div");
     info.className = "credInfo";
@@ -257,7 +250,7 @@ export function createCredentialList(props: CredentialListProps): HTMLElement {
 
     const hint = document.createElement("span");
     hint.className = "passkeyHint";
-    hint.textContent = "Khóa FIDO2 / Passkey";
+    hint.textContent = "FIDO2 / Passkey";
     actions.appendChild(hint);
 
     if (pk.username) {
@@ -268,8 +261,8 @@ export function createCredentialList(props: CredentialListProps): HTMLElement {
         const fillUserBtn = document.createElement("button");
         fillUserBtn.type = "button";
         fillUserBtn.className = "primaryBtn credFillBtn";
-        fillUserBtn.textContent = "Điền User";
-        fillUserBtn.title = "Điền tên tài khoản Passkey lên trang hiện tại";
+        fillUserBtn.textContent = "Fill User";
+        fillUserBtn.title = "Fill passkey username on this page";
         fillUserBtn.addEventListener("click", () => props.onFillPasskeyUsername!(pk));
         quickGroup.appendChild(fillUserBtn);
       }
@@ -278,13 +271,8 @@ export function createCredentialList(props: CredentialListProps): HTMLElement {
         const copyUserBtn = document.createElement("button");
         copyUserBtn.type = "button";
         copyUserBtn.className = "iconBtn credCompactBtn";
-        copyUserBtn.title = "Sao chép tên tài khoản Passkey";
-        copyUserBtn.appendChild(
-          createSvgPathIcon(
-            "M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z",
-            13,
-          ),
-        );
+        copyUserBtn.title = "Copy passkey username";
+        copyUserBtn.appendChild(createUserIcon(13));
         copyUserBtn.appendChild(createBtnLabel("User"));
         copyUserBtn.addEventListener("click", () => props.onCopyPasskeyUsername!(pk));
         quickGroup.appendChild(copyUserBtn);

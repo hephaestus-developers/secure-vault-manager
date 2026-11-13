@@ -5,7 +5,7 @@
 
 import { isValidWebAuthnRpId } from "../services/domain";
 import { sendExtensionBridgeMessage } from "../services/protocol";
-import { dismissPasskeyConsent, promptPasskeyConsent } from "./passkey_modal";
+import { dismissPasskeyConsent, promptPasskeyConsent } from "./ui/passkey-modal";
 
 export function setupPasskeyBridge(): void {
   window.addEventListener("message", async (event) => {
