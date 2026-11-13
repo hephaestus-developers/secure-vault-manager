@@ -24,7 +24,22 @@ export function setupInlineAutofillOverlay(): void {
 
     const fields = classifyDocumentFields(document);
     const isTotp = target === fields.totpInput;
-    const isUserOrPass = target === fields.usernameInput || target === fields.passwordInput;
+    let isUserOrPass = target === fields.usernameInput || target === fields.passwordInput;
+
+    // Dự phòng bổ sung: nếu target là ô text/email hiển thị đứng trước passwordInput trong form
+    if (!isUserOrPass && !isTotp && fields.passwordInput) {
+      const p = target.compareDocumentPosition(fields.passwordInput);
+      const isBeforePassword = (p & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
+      const targetType = (target.type || "text").toLowerCase();
+      if (
+        isBeforePassword &&
+        (targetType === "text" || targetType === "email" || targetType === "") &&
+        !target.disabled &&
+        !target.readOnly
+      ) {
+        isUserOrPass = true;
+      }
+    }
 
     if (!isUserOrPass && !isTotp) {
       return;

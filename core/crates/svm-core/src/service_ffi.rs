@@ -693,7 +693,7 @@ fn dispatch_bridge_request(ctx_raw: usize, req_json: &str) -> String {
                         .iter()
                         .find(|it| !it.trashed && it.id == item_id)
                         .cloned()
-                } else if is_update {
+                } else if is_update || (!username.trim().is_empty() && !url.trim().is_empty()) {
                     rt.vault_service
                         .items()
                         .iter()

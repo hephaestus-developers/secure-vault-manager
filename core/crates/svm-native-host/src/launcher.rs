@@ -446,7 +446,7 @@ impl NativeHostRouter {
                         .iter()
                         .find(|it| !it.trashed && it.id == item_id)
                         .cloned()
-                } else if is_update {
+                } else if is_update || (!username.trim().is_empty() && !url.trim().is_empty()) {
                     self.vault
                         .items()
                         .iter()

@@ -11,7 +11,7 @@ export interface ClassifiedFormFields {
 }
 
 const USERNAME_PATTERNS =
-  /\b(user(name)?|e[-_]?mail|login([-_]?id)?|account([-_ ]?(name|id))?|identifier|user[-_ ]?id|member[-_ ]?id)\b/i;
+  /(?:^|[^a-zA-Z0-9])(?:j[-_]?|os[-_]?|txt[-_]?|form[-_]?)?(user(name)?|e[-_]?mail|login([-_]?id)?|account([-_ ]?(name|id))?|identifier|user[-_ ]?id|member[-_ ]?id)(?:$|[^a-zA-Z0-9])/i;
 const NEW_PASSWORD_PATTERNS =
   /\b(new[-_ ]?pass(word)?|create[-_ ]?pass(word)?)\b|mật[-_ ]?khẩu[-_ ]?mới/i;
 const CONFIRM_PASSWORD_PATTERNS =
@@ -145,6 +145,37 @@ export function classifyDocumentFields(root: Document | Element = document): Cla
       if (!usernameInput) {
         usernameInput = input;
       }
+    }
+  }
+
+  // Heuristic vị trí (Positional Form Heuristic):
+  // Nếu đã tìm thấy passwordInput mà chưa nhận diện được usernameInput (ví dụ Jenkins j_username, Jira os_username, v.v.),
+  // quét các ô input hiển thị khả dĩ nằm trong cùng <form> (hoặc toàn tài liệu) đứng ngay trước passwordInput.
+  if (passwordInput && !usernameInput) {
+    const scope = passwordInput.closest("form") || root;
+    const candidates = Array.from(scope.querySelectorAll("input")).filter(
+      (inp): inp is HTMLInputElement =>
+        inp !== passwordInput &&
+        !inp.disabled &&
+        !inp.readOnly &&
+        inp.type !== "hidden" &&
+        inp.type !== "password" &&
+        inp.type !== "submit" &&
+        inp.type !== "button" &&
+        inp.type !== "checkbox" &&
+        inp.type !== "radio" &&
+        !isSearchOrFilterInput(inp) &&
+        isElementVisible(inp),
+    );
+
+    // Lấy candidate xuất hiện trước passwordInput trong DOM
+    const priorCandidates = candidates.filter((inp) => {
+      const position = inp.compareDocumentPosition(passwordInput!);
+      return (position & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
+    });
+
+    if (priorCandidates.length > 0) {
+      usernameInput = priorCandidates[priorCandidates.length - 1];
     }
   }
 

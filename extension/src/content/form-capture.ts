@@ -27,6 +27,110 @@ export interface PendingLoginData {
   password: string;
   timestamp: number;
   submittedUrl: string;
+  title?: string;
+}
+
+/**
+ * Trích xuất Tên Dịch vụ / Thương hiệu từ trang web hiện tại (metadata, heading, document.title).
+ */
+export function extractBrandOrServiceName(formElement?: Element | null): string {
+  // 1. Thẻ metadata chuẩn
+  const ogSite = document
+    .querySelector('meta[property="og:site_name"], meta[name="og:site_name"]')
+    ?.getAttribute("content")
+    ?.trim();
+  if (ogSite && ogSite.length >= 2 && ogSite.length <= 40) {
+    return ogSite;
+  }
+
+  const appName = document
+    .querySelector('meta[name="application-name"], meta[name="apple-mobile-web-app-title"]')
+    ?.getAttribute("content")
+    ?.trim();
+  if (appName && appName.length >= 2 && appName.length <= 40) {
+    return appName;
+  }
+
+  const cleanActionWords = (raw: string): string => {
+    return raw
+      .replace(
+        /\b(sign[-_ ]?in|log[-_ ]?in|đăng[-_ ]?nhập|welcome|authentication|xác[-_ ]?thực|login)\b(?:\s+(?:to|into|on|vào))?/gi,
+        "",
+      )
+      .replace(/[\[\]()|•·–—:_-]+/g, " ")
+      .trim();
+  };
+
+  // 2. Thẻ tiêu đề Heading của Form đăng nhập (ví dụ: "Sign in to Jenkins", "Đăng nhập Shopee")
+  if (formElement) {
+    const headingEl = formElement.querySelector(
+      "h1, h2, h3, legend, .brand, .title, [role='heading']",
+    );
+    const headingText = (headingEl?.textContent || "").trim();
+    if (headingText) {
+      const match =
+        /(?:sign[-_ ]?in|log[-_ ]?in|welcome|đăng[-_ ]?nhập)(?:\s+(?:to|into|on|vào))?\s+([^.!?\n\r]+)/i.exec(
+          headingText,
+        );
+      if (match?.[1]) {
+        const candidate = cleanActionWords(match[1]);
+        if (candidate.length >= 2 && candidate.length <= 40) {
+          return candidate;
+        }
+      }
+    }
+  }
+
+  // 3. Toàn trang Heading <h1> / <h2>
+  const pageHeading = document.querySelector("h1, h2");
+  if (pageHeading) {
+    const hText = (pageHeading.textContent || "").trim();
+    const match =
+      /(?:sign[-_ ]?in|log[-_ ]?in|welcome|đăng[-_ ]?nhập)(?:\s+(?:to|into|on|vào))?\s+([^.!?\n\r]+)/i.exec(
+        hText,
+      );
+    if (match?.[1]) {
+      const candidate = cleanActionWords(match[1]);
+      if (candidate.length >= 2 && candidate.length <= 40) {
+        return candidate;
+      }
+    }
+  }
+
+  // 4. Phân tích document.title
+  const docTitle = document.title || "";
+  if (docTitle) {
+    const parts = docTitle.split(/[-|•·–—\[\]()]+/);
+    for (const part of parts) {
+      const cleaned = cleanActionWords(part);
+      if (
+        cleaned.length >= 2 &&
+        cleaned.length <= 35 &&
+        !/^(home|index|dashboard|portal|app|welcome|login|sign in|auth)$/i.test(cleaned)
+      ) {
+        return cleaned;
+      }
+    }
+  }
+
+  // 5. Dự phòng theo hostname (cắt www.)
+  const host = window.location.hostname.replace(/^www\./, "").toLowerCase();
+  return host || "Website";
+}
+
+/**
+ * Tạo tiêu đề định danh thông minh cho mục đăng nhập: "<Brand>: <username>".
+ */
+export function generateSmartCredentialTitle(
+  username?: string,
+  formElement?: Element | null,
+): string {
+  const brand = extractBrandOrServiceName(formElement);
+  const cleanUser = (username || "").trim();
+  if (cleanUser) {
+    return `${brand}: ${cleanUser}`;
+  }
+  return brand;
 }
 
 // Bộ nhớ cache tạm thời trong biến JavaScript
@@ -227,6 +331,7 @@ async function recordPotentialLoginAttempt(targetElement?: Element | null): Prom
     password,
     timestamp: Date.now(),
     submittedUrl: window.location.href,
+    title: generateSmartCredentialTitle(username, searchRoot),
   };
 
   await storePendingLogin(pending);
@@ -358,7 +463,7 @@ async function verifyAndPrompt(pending: PendingLoginData): Promise<void> {
         // Người dùng đổi mật khẩu mới -> Hỏi cập nhật
         await showSaveCredentialPrompt({
           itemId: match.id,
-          title: pending.domain || "Website Login",
+          title: match.title || pending.title || generateSmartCredentialTitle(pending.username),
           username: pending.username,
           password: pending.password,
           websiteUrl: pending.origin,
@@ -370,7 +475,7 @@ async function verifyAndPrompt(pending: PendingLoginData): Promise<void> {
 
     // Tài khoản mới hoàn toàn -> Hỏi lưu mới
     await showSaveCredentialPrompt({
-      title: pending.domain || "Website Login",
+      title: pending.title || generateSmartCredentialTitle(pending.username),
       username: pending.username,
       password: pending.password,
       websiteUrl: pending.origin,
@@ -379,7 +484,7 @@ async function verifyAndPrompt(pending: PendingLoginData): Promise<void> {
   } catch {
     // Nếu có lỗi kết nối backend, vẫn hiển thị Save Prompt để người dùng không bị lỡ
     await showSaveCredentialPrompt({
-      title: pending.domain || "Website Login",
+      title: pending.title || generateSmartCredentialTitle(pending.username),
       username: pending.username,
       password: pending.password,
       websiteUrl: pending.origin,
