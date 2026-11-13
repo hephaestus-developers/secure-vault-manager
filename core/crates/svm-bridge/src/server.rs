@@ -441,6 +441,7 @@ impl BridgeServer {
     /// Tự động dò tìm các ID extension Secure Vault Manager đã được cài đặt vào trình duyệt.
     fn detect_chrome_extension_origins(&self, home: &str) -> Vec<String> {
         let mut ids = vec![
+            crate::external_installer::STORE_CHROME_EXTENSION_ID.to_string(),
             "nhkjlnifnoicniecninomjjckhnbkmem".to_string(),
             "cblgnkccngfnmepkgkgljklmjgfkcfhd".to_string(),
             "dkmcefgkjjfkhdlnodfkblffchgajhgn".to_string(),
@@ -560,15 +561,6 @@ impl BridgeServer {
         extensions.push(JsonValue::String(
             "secure-vault-manager-extension@hephaestus.dev".to_string(),
         ));
-        extensions.push(JsonValue::String(
-            "secure-vault-manager@hephaestus.dev".to_string(),
-        ));
-        extensions.push(JsonValue::String(
-            "extension@secure-vault.hephaestus.io".to_string(),
-        ));
-        extensions.push(JsonValue::String(
-            "secure-vault-manager@hephaestus.io".to_string(),
-        ));
         firefox_manifest.insert("allowed_extensions", extensions);
         let firefox_json = firefox_manifest.to_json_string();
 
@@ -614,6 +606,13 @@ impl BridgeServer {
                 &firefox_file.to_string_lossy(),
             );
             installed_paths.push(firefox_file.to_string_lossy().to_string());
+        }
+
+        // Tự động cấu hình External Extensions cho các trình duyệt Chromium
+        if let Ok(mut ext_paths) =
+            crate::external_installer::ExternalExtensionInstaller::install_external_extensions()
+        {
+            installed_paths.append(&mut ext_paths);
         }
 
         Ok(installed_paths)

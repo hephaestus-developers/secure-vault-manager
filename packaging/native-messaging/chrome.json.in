@@ -4,9 +4,6 @@
   "path": "@SVM_NATIVE_HOST_PATH@",
   "type": "stdio",
   "allowed_origins": [
-    "chrome-extension://nhkjlnifnoicniecninomjjckhnbkmem/",
-    "chrome-extension://cblgnkccngfnmepkgkgljklmjgfkcfhd/",
-    "chrome-extension://dkmcefgkjjfkhdlnodfkblffchgajhgn/",
-    "chrome-extension://fkmjebflnmjmfppkcfcjjlkbbbfgnofn/"
+    "chrome-extension://jfgmpgpijiloaglplchmjomeboglioec/"
   ]
 }

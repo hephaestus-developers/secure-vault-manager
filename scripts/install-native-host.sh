@@ -61,10 +61,7 @@ fi
 
 # Danh sách origins cho Chrome/Chromium/Brave/Edge
 ORIGINS=(
-    "chrome-extension://nhkjlnifnoicniecninomjjckhnbkmem/"
-    "chrome-extension://cblgnkccngfnmepkgkgljklmjgfkcfhd/"
-    "chrome-extension://dkmcefgkjjfkhdlnodfkblffchgajhgn/"
-    "chrome-extension://fkmjebflnmjmfppkcfcjjlkbbbfgnofn/"
+    "chrome-extension://jfgmpgpijiloaglplchmjomeboglioec/"
 )
 
 if [[ -n "${CUSTOM_CHROME_ID}" ]]; then
@@ -103,14 +100,28 @@ MANIFEST_FIREFOX=$(cat <<EOF
   "path": "${HOST_BIN}",
   "type": "stdio",
   "allowed_extensions": [
-    "secure-vault-manager-extension@hephaestus.dev",
-    "secure-vault-manager@hephaestus.dev",
-    "extension@secure-vault.hephaestus.io",
-    "secure-vault-manager@hephaestus.io"
+    "secure-vault-manager-extension@hephaestus.dev"
   ]
 }
 EOF
 )
+
+STORE_EXTENSION_ID="jfgmpgpijiloaglplchmjomeboglioec"
+EXTERNAL_EXT_JSON=$(cat <<EOF
+{
+  "external_update_url": "https://clients2.google.com/service/update2/crx"
+}
+EOF
+)
+
+install_external_ext() {
+    local target_dir="$1"
+    if [[ -d "$(dirname "${target_dir}")" ]] || [[ -d "${target_dir}" ]]; then
+        mkdir -p "${target_dir}"
+        echo "${EXTERNAL_EXT_JSON}" > "${target_dir}/${STORE_EXTENSION_ID}.json"
+        echo "  ✓ Đã cấu hình External Extension tại: ${target_dir}/${STORE_EXTENSION_ID}.json"
+    fi
+}
 
 install_manifest() {
     local target_dir="$1"
@@ -127,5 +138,18 @@ install_manifest "${CHROMIUM_DIR}" "${MANIFEST_CHROME}"
 install_manifest "${BRAVE_DIR}" "${MANIFEST_CHROME}"
 install_manifest "${EDGE_DIR}" "${MANIFEST_CHROME}"
 install_manifest "${FIREFOX_DIR}" "${MANIFEST_FIREFOX}"
+
+# Cài đặt External Extensions cho các trình duyệt Chromium
+if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+    install_external_ext "${HOME}/.config/google-chrome/External Extensions"
+    install_external_ext "${HOME}/.config/chromium/External Extensions"
+    install_external_ext "${HOME}/.config/BraveSoftware/Brave-Browser/External Extensions"
+    install_external_ext "${HOME}/.config/microsoft-edge/External Extensions"
+elif [[ "$OSTYPE" == "darwin"* ]]; then
+    install_external_ext "${HOME}/Library/Application Support/Google/Chrome/External Extensions"
+    install_external_ext "${HOME}/Library/Application Support/Chromium/External Extensions"
+    install_external_ext "${HOME}/Library/Application Support/BraveSoftware/Brave-Browser/External Extensions"
+    install_external_ext "${HOME}/Library/Application Support/Microsoft Edge/External Extensions"
+fi
 
 echo "==> [SVM Native Host] Hoàn tất cài đặt Native Host!"
