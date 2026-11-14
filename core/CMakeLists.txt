@@ -45,10 +45,19 @@ add_custom_target(svm_core_cargo
 
 add_library(svm_core SHARED IMPORTED GLOBAL)
 add_dependencies(svm_core svm_core_cargo)
-set_target_properties(svm_core PROPERTIES
-    IMPORTED_LOCATION "${SVM_CORE_LIB_PATH}"
-    INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include"
-)
+if(WIN32)
+    set_target_properties(svm_core PROPERTIES
+        IMPORTED_LOCATION "${SVM_CORE_LIB_PATH}"
+        IMPORTED_IMPLIB "${CMAKE_CURRENT_SOURCE_DIR}/target/${CARGO_TARGET_DIR}/${LIB_PREFIX}svm_core${LIB_IMPORT_SUFFIX}"
+        INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    )
+else()
+    set_target_properties(svm_core PROPERTIES
+        IMPORTED_LOCATION "${SVM_CORE_LIB_PATH}"
+        IMPORTED_SONAME "${SVM_CORE_LIB_NAME}"
+        INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    )
+endif()
 
 install(FILES "${SVM_CORE_LIB_PATH}"
     DESTINATION ${CMAKE_INSTALL_LIBDIR}
