@@ -70,22 +70,30 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+PRESET_NAME="$(echo "${BUILD_TYPE}" | tr '[:upper:]' '[:lower:]')"
+BUILD_DIR="build/${PRESET_NAME}"
+
 echo "==> [SVM Build] Bắt đầu biên dịch dự án ở chế độ [${BUILD_TYPE}]..."
 
 cd "${ROOT_DIR}"
 
-BUILD_DIR="build/$(echo "${BUILD_TYPE}" | tr '[:upper:]' '[:lower:]')"
-
-if [[ ! -d "${BUILD_DIR}" ]]; then
-    echo "==> [CMake] Cấu hình dự án tại ${BUILD_DIR}..."
-    cmake -B "${BUILD_DIR}" -G Ninja -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
+# 1. Cấu hình dự án bằng CMake Presets
+if [[ ! -f "${BUILD_DIR}/build.ninja" ]]; then
+    echo "==> [CMake] Cấu hình dự án bằng preset [${PRESET_NAME}]..."
+    cmake --preset "${PRESET_NAME}"
 fi
 
-echo "==> [CMake] Tiến hành build target [${TARGET}]..."
+# 2. Biên dịch bằng CMake Presets
+echo "==> [CMake] Tiến hành build target [${TARGET}] với $(nproc 2>/dev/null || echo 4) luồng..."
 if [[ "${TARGET}" == "all" ]]; then
-    cmake --build "${BUILD_DIR}"
+    cmake --build --preset "build-${PRESET_NAME}" -j"$(nproc 2>/dev/null || echo 4)"
 else
-    cmake --build "${BUILD_DIR}" --target "${TARGET}"
+    cmake --build "${BUILD_DIR}" --target "${TARGET}" -j"$(nproc 2>/dev/null || echo 4)"
 fi
 
-echo "==> [SVM Build] Hoàn tất thành công!"
+# 3. Tự động cập nhật symlink compile_commands.json cho IDE/clangd
+if [[ -f "${BUILD_DIR}/compile_commands.json" ]]; then
+    ln -sf "${BUILD_DIR}/compile_commands.json" "${ROOT_DIR}/compile_commands.json"
+fi
+
+echo "==> [SVM Build] Hoàn tất thành công! Binaries nằm tại: ${BUILD_DIR}/"

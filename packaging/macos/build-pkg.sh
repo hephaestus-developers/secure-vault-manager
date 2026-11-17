@@ -76,7 +76,7 @@ if command -v pkgbuild >/dev/null 2>&1; then
     echo "==> [macOS PKG] Đang đóng gói installer .pkg..."
     pkgbuild --install-location "/Applications/${APP_BUNDLE_NAME}" \
              --component "${APP_BUNDLE}" \
-             --identifier "io.hephaestus.svm" \
+             --identifier "io.github.hephaestus.svm" \
              --version "${PKG_VERSION}" \
              "${PKG_OUTPUT}"
     echo "  ✓ PKG đã được tạo thành công tại: ${PKG_OUTPUT}"

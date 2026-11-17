@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+# ==============================================================================
+# Standalone Relocatable Launcher for Secure Vault Manager
+# Tự động nạp toàn bộ thư viện Qt6, ICU và Core C-ABI nội bộ,
+# hỗ trợ kiểm tra tương thích GLIBC và tự động fallback Wayland -> XCB.
+# ==============================================================================
+set -e
+
+# Resolve symlinks to find real installation directory (e.g. /opt/secure-vault-manager/bin/svm)
+TARGET="${BASH_SOURCE[0]}"
+while [ -L "$TARGET" ]; do
+    DIR="$(cd -P "$(dirname "$TARGET")" >/dev/null 2>&1 && pwd)"
+    TARGET="$(readlink "$TARGET")"
+    [[ $TARGET != /* ]] && TARGET="$DIR/$TARGET"
+done
+BIN_DIR="$(cd -P "$(dirname "$TARGET")" >/dev/null 2>&1 && pwd)"
+APP_ROOT="$(cd -P "$BIN_DIR/.." >/dev/null 2>&1 && pwd)"
+
+LIB_DIR="$APP_ROOT/lib"
+PLUGINS_DIR="$APP_ROOT/plugins"
+
+# Configure dynamic linker and Qt plugin paths with GLIBC compatibility check
+USE_BUNDLED_QT=true
+if [ -d "$LIB_DIR" ]; then
+    TEST_OUTPUT=$(LD_LIBRARY_PATH="$LIB_DIR" ldd "$BIN_DIR/svm-bin" 2>&1 || true)
+    if echo "$TEST_OUTPUT" | grep -qE "version .* not found|GLIBC_.* not found"; then
+        # Bundled Qt was compiled against a newer glibc than host system.
+        # Fallback to system Qt while preserving libsvm_core.so
+        USE_BUNDLED_QT=false
+    fi
+fi
+
+if [ "$USE_BUNDLED_QT" = true ]; then
+    # Prevent older bundled Wayland client libraries from shadowing newer host Mesa drivers
+    for sys_wl in /usr/lib/x86_64-linux-gnu/libwayland-client.so.0 /usr/lib64/libwayland-client.so.0 /lib/x86_64-linux-gnu/libwayland-client.so.0; do
+        if [ -f "$sys_wl" ]; then
+            export LD_PRELOAD="$sys_wl${LD_PRELOAD:+:$LD_PRELOAD}"
+            break
+        fi
+    done
+    export LD_LIBRARY_PATH="$LIB_DIR:${LD_LIBRARY_PATH:-}"
+    if [ -d "$PLUGINS_DIR" ]; then
+        export QT_PLUGIN_PATH="$PLUGINS_DIR:${QT_PLUGIN_PATH:-}"
+    fi
+    unset QT_QPA_PLATFORM_PLUGIN_PATH
+else
+    CORE_LIB_DIR="$LIB_DIR/core"
+    mkdir -p "$CORE_LIB_DIR"
+    if [ -f "$LIB_DIR/libsvm_core.so" ] && [ ! -f "$CORE_LIB_DIR/libsvm_core.so" ]; then
+        ln -sf "$LIB_DIR/libsvm_core.so" "$CORE_LIB_DIR/" 2>/dev/null || cp -p "$LIB_DIR/libsvm_core.so" "$CORE_LIB_DIR/"
+    fi
+    export LD_LIBRARY_PATH="$CORE_LIB_DIR:${LD_LIBRARY_PATH:-}"
+    unset QT_PLUGIN_PATH
+fi
+
+# Wayland / X11 platform selection
+if [ -z "$QT_QPA_PLATFORM" ]; then
+    if [ -n "$WAYLAND_DISPLAY" ]; then
+        export QT_QPA_PLATFORM="wayland;xcb"
+    else
+        export QT_QPA_PLATFORM="xcb"
+    fi
+fi
+
+# Try launching application; if wayland shell error occurs, gracefully fallback to xcb
+set +e
+if [ -x "$BIN_DIR/svm-bin" ]; then
+    "$BIN_DIR/svm-bin" "$@"
+elif [ -x "$BIN_DIR/svm" ]; then
+    "$BIN_DIR/svm" "$@"
+else
+    echo "Lỗi: Không tìm thấy file thực thi svm-bin tại $BIN_DIR" >&2
+    exit 1
+fi
+EXIT_CODE=$?
+
+if [ $EXIT_CODE -ne 0 ] && [ "$QT_QPA_PLATFORM" != "xcb" ]; then
+    echo "Notice: Wayland failed or aborted with exit code $EXIT_CODE. Retrying with XCB platform..."
+    export QT_QPA_PLATFORM="xcb"
+    if [ -x "$BIN_DIR/svm-bin" ]; then
+        exec "$BIN_DIR/svm-bin" "$@"
+    else
+        exec "$BIN_DIR/svm" "$@"
+    fi
+fi
+
+exit $EXIT_CODE

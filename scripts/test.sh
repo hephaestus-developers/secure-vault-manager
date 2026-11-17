@@ -16,15 +16,18 @@ echo "==> [SVM Test] Bắt đầu chạy bộ kiểm thử toàn dự án..."
 cd "${ROOT_DIR}"
 
 echo "==> [Cargo Test] Chạy Unit Tests và Doc Tests trong Rust Workspace..."
-cargo test --workspace --all-targets
+cargo test --workspace --all-targets "$@"
 
 echo "==> [Doc Test] Kiểm tra tính hợp lệ của tài liệu Rustdoc..."
-cargo test --workspace --doc
+cargo test --workspace --doc "$@"
 
 # Chạy CTest nếu thư mục build CMake đã được cấu hình
 if [[ -d "build/debug" ]] && command -v ctest >/dev/null 2>&1; then
     echo "==> [CTest] Thực thi kiểm thử C++ / CTest..."
-    ctest --test-dir build/debug --output-on-failure || true
+    ctest --preset test-debug || ctest --test-dir build/debug --output-on-failure || true
+elif [[ -d "build/release" ]] && command -v ctest >/dev/null 2>&1; then
+    echo "==> [CTest] Thực thi kiểm thử C++ / CTest..."
+    ctest --preset test-release || ctest --test-dir build/release --output-on-failure || true
 fi
 
 echo "==> [SVM Test] Toàn bộ bài kiểm thử đã hoàn thành thành công!"

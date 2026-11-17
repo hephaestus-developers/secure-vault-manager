@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
-  <id>io.hephaestus.svm</id>
+  <id>io.github.hephaestus.svm</id>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>MIT</project_license>
   <name>Secure Vault Manager</name>
@@ -20,7 +20,7 @@
       <li>Multi-vault segmentation (Personal, Work, Finance, Team).</li>
     </ul>
   </description>
-  <launchable type="desktop-id">io.hephaestus.svm.desktop</launchable>
+  <launchable type="desktop-id">io.github.hephaestus.svm.desktop</launchable>
   <provides>
     <binary>svm</binary>
     <binary>svm-cli</binary>

@@ -24,10 +24,13 @@ Mở PowerShell với quyền Administrator hoặc Developer PowerShell for VS:
 
 ```powershell
 # Đóng gói bản Release chuẩn (nhỏ gọn nhất, khuyến nghị):
-.\packaging\windows\build-windows.ps1 -Configuration Release
+.\packaging\windows\package_windows.ps1
 
-# Đóng gói bản Debug (kèm PDB debug info cho WinDbg/Visual Studio):
-.\packaging\windows\build-windows.ps1 -Configuration Debug
+# Đóng gói bản Debug:
+.\packaging\windows\package_windows.ps1 -Configuration Debug
+
+# Chỉ tạo bộ cài Inno Setup EXE:
+.\packaging\windows\package_windows.ps1 -Target Inno
 ```
 
 ---
@@ -35,19 +38,30 @@ Mở PowerShell với quyền Administrator hoặc Developer PowerShell for VS:
 ### 2.2. Sử dụng Command Prompt (CMD)
 
 ```cmd
-:: Đóng gói bản Release:
-packaging\windows\build-windows.bat
-rem Hoặc: packaging\windows\build-windows.bat --release
+:: Đóng gói toàn bộ các định dạng (Setup.exe, .msi, .zip):
+packaging\windows\package_windows.bat
+
+:: Chỉ tạo bộ cài Inno Setup EXE:
+packaging\windows\package_windows.bat /INNO
+
+:: Chỉ tạo bộ cài WiX MSI:
+packaging\windows\package_windows.bat /MSI
 
 :: Đóng gói bản Debug:
-packaging\windows\build-windows.bat --debug
+packaging\windows\package_windows.bat /DEBUG
 ```
 
 ---
 
 ## 3. Tệp cài đặt đầu ra
 
-Các bộ cài đặt sẽ được tạo tại thư mục `build\packages\`:
+Toàn bộ sản phẩm phân phối xuất xưởng sẽ được tập trung tại thư mục `dist\`:
+
+- `dist\SecureVaultManager-0.1.0-Setup.exe` (Inno Setup Installer cho End User)
+- `dist\SecureVaultManager-0.1.0-windows-x64.msi` (WiX Toolset Installer cho Enterprise IT / GPO)
+- `dist\SecureVaultManager-0.1.0-windows-x64-portable.zip` (Portable Archive)
+- `dist\SHA256SUMS` (Bảng mã băm tính toàn vẹn)
+- `dist\release-manifest.json` (Metadata phiên bản phát hành)
 
 - **Bản Release**:
   - `SecureVaultManager-0.1.0-Setup.exe` (Inno Setup)

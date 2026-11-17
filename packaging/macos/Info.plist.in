@@ -7,7 +7,7 @@
     <key>CFBundleIconFile</key>
     <string>svm.icns</string>
     <key>CFBundleIdentifier</key>
-    <string>io.hephaestus.svm</string>
+    <string>io.github.hephaestus.svm</string>
     <key>CFBundleName</key>
     <string>Secure Vault Manager</string>
     <key>CFBundleDisplayName</key>
@@ -30,7 +30,7 @@
     <array>
         <dict>
             <key>CFBundleURLName</key>
-            <string>io.hephaestus.svm</string>
+            <string>io.github.hephaestus.svm</string>
             <key>CFBundleURLSchemes</key>
             <array>
                 <string>svm</string>

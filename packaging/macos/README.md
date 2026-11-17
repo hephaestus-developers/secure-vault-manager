@@ -20,19 +20,25 @@ brew install qt@6
 
 Tất cả các script đều hỗ trợ cờ `-r, --release` (mặc định) và `-d, --debug`.
 
-### 2.1. Dựng `.app` Bundle
+### 2.1. Đóng gói Tổng hợp (Khuyến nghị)
 
 ```bash
-# Dựng bản Release (tối ưu hóa kích thước, strip symbols):
-./packaging/macos/build-macos.sh
-# File đầu ra: build/packages/Secure Vault Manager.app
+# Đóng gói toàn bộ (.app, .dmg, .pkg, .zip):
+./packaging/macos/package_macos.sh
 
-# Dựng bản Debug:
-./packaging/macos/build-macos.sh --debug
-# File đầu ra: build/packages/Secure Vault Manager (Debug).app
+# Chỉ tạo Apple Disk Image (.dmg):
+./packaging/macos/package_macos.sh --dmg
+
+# Chỉ tạo Installer Package (.pkg):
+./packaging/macos/package_macos.sh --pkg
+
+# Đóng gói bản Debug:
+./packaging/macos/package_macos.sh --debug
 ```
 
 - Tự động gọi `macdeployqt` để copy Qt6 frameworks và plugins vào trong bundle.
+- Tự động sửa `@rpath` bằng `install_name_tool`.
+- Toàn bộ sản phẩm xuất xưởng được đưa vào thư mục `dist/` kèm file `SHA256SUMS` và `release-manifest.json`.
 
 ---
 

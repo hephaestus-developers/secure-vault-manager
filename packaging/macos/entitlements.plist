@@ -10,7 +10,7 @@
     <true/>
     <key>keychain-access-groups</key>
     <array>
-        <string>$(AppIdentifierPrefix)io.hephaestus.svm</string>
+        <string>$(AppIdentifierPrefix)io.github.hephaestus.svm</string>
     </array>
 </dict>
 </plist>

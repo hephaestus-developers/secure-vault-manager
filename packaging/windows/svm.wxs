@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <?ifndef SourceDir?>
+    <?define SourceDir = "..\..\dist\secure-vault-manager-0.1.0-windows-x64"?>
+  <?endif?>
+
   <Product Id="*" 
            Name="Secure Vault Manager" 
            Language="1033" 
@@ -54,24 +58,22 @@
   <Fragment>
     <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
       <Component Id="svm.exe" Guid="08C1BD82-BF20-410A-8A46-BF38EBE96734" Win64="yes">
-        <File Id="svm.exe" Source="..\..\build\release\ui\svm.exe" KeyPath="yes" />
+        <File Id="svm.exe" Source="$(var.SourceDir)\svm.exe" KeyPath="yes" />
       </Component>
       <Component Id="svm_cli.exe" Guid="C6B2BD91-8AF2-498A-824A-735914C2361B" Win64="yes">
-        <File Id="svm_cli.exe" Source="..\..\build\release\core\svm-cli.exe" KeyPath="yes" />
+        <File Id="svm_cli.exe" Source="$(var.SourceDir)\svm-cli.exe" KeyPath="yes" />
       </Component>
       <Component Id="svm_native_host.exe" Guid="84E1DE8F-5F84-48FE-98B2-9F1B2B3C4D5E" Win64="yes">
-        <File Id="svm_native_host.exe" Source="..\..\build\release\core\svm-native-host.exe" KeyPath="yes" />
-      </Component>
-      <Component Id="svm_native_manifests" Guid="A7D2C9E4-1B3F-4E8A-9D2C-5F6B7A8C9E0D" Win64="yes">
-        <File Id="chrome_manifest" Name="io.hephaestus.secure_vault_manager.json" Source="..\native-messaging\chrome.json.in" KeyPath="yes" />
-        <File Id="firefox_manifest" Name="io.hephaestus.secure_vault_manager.firefox.json" Source="..\native-messaging\firefox.json.in" />
-        <RegistryValue Root="HKCU" Key="Software\Google\Chrome\NativeMessagingHosts\io.hephaestus.secure_vault_manager" Type="string" Value="[#chrome_manifest]" Action="write" />
-        <RegistryValue Root="HKCU" Key="Software\Microsoft\Edge\NativeMessagingHosts\io.hephaestus.secure_vault_manager" Type="string" Value="[#chrome_manifest]" Action="write" />
-        <RegistryValue Root="HKCU" Key="Software\BraveSoftware\Brave-Browser\NativeMessagingHosts\io.hephaestus.secure_vault_manager" Type="string" Value="[#chrome_manifest]" Action="write" />
-        <RegistryValue Root="HKCU" Key="Software\Mozilla\NativeMessagingHosts\io.hephaestus.secure_vault_manager" Type="string" Value="[#firefox_manifest]" Action="write" />
+        <File Id="svm_native_host.exe" Source="$(var.SourceDir)\svm-native-host.exe" KeyPath="yes" />
       </Component>
       <Component Id="svm_core.dll" Guid="B4C12E3F-7A9B-4D8E-BC1F-2A3B4C5D6E7F" Win64="yes">
-        <File Id="svm_core.dll" Source="..\..\core\target\release\svm_core.dll" KeyPath="yes" />
+        <File Id="svm_core.dll" Source="$(var.SourceDir)\svm_core.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="svm_native_manifests" Guid="A7D2C9E4-1B3F-4E8A-9D2C-5F6B7A8C9E0D" Win64="yes">
+        <RegistryValue Root="HKLM" Key="Software\Google\Chrome\NativeMessagingHosts\io.hephaestus.secure_vault_manager" Type="string" Value="[INSTALLFOLDER]native-messaging\chrome.json" Action="write" KeyPath="yes" />
+        <RegistryValue Root="HKLM" Key="Software\Microsoft\Edge\NativeMessagingHosts\io.hephaestus.secure_vault_manager" Type="string" Value="[INSTALLFOLDER]native-messaging\chrome.json" Action="write" />
+        <RegistryValue Root="HKLM" Key="Software\BraveSoftware\Brave-Browser\NativeMessagingHosts\io.hephaestus.secure_vault_manager" Type="string" Value="[INSTALLFOLDER]native-messaging\chrome.json" Action="write" />
+        <RegistryValue Root="HKLM" Key="Software\Mozilla\NativeMessagingHosts\io.hephaestus.secure_vault_manager" Type="string" Value="[INSTALLFOLDER]native-messaging\firefox.json" Action="write" />
       </Component>
     </ComponentGroup>
   </Fragment>

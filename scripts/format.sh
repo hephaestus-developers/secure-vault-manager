@@ -37,7 +37,7 @@ fi
 
 echo "==> [SVM Format] Định dạng mã nguồn C++ (clang-format)..."
 if command -v clang-format >/dev/null 2>&1; then
-    CLANG_FILES=$(find src -type f \( -name "*.hpp" -o -name "*.cpp" \) 2>/dev/null || true)
+    CLANG_FILES=$(find src tests -type f \( -name "*.hpp" -o -name "*.cpp" -o -name "*.h" \) ! -path "*/corrosion/*" 2>/dev/null || true)
     if [[ -n "${CLANG_FILES}" ]]; then
         if [[ "${CHECK_ONLY}" == true ]]; then
             clang-format --dry-run --Werror ${CLANG_FILES}

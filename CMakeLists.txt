@@ -234,7 +234,7 @@ if(APPLE)
         MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/packaging/macos/Info.plist"
         MACOSX_BUNDLE_ICON_FILE "svm.icns"
         MACOSX_BUNDLE_BUNDLE_NAME "Secure Vault Manager"
-        MACOSX_BUNDLE_GUI_IDENTIFIER "io.hephaestus.svm"
+        MACOSX_BUNDLE_GUI_IDENTIFIER "io.github.hephaestus.svm"
         MACOSX_BUNDLE_BUNDLE_VERSION "0.1.0"
         MACOSX_BUNDLE_SHORT_VERSION_STRING "0.1.0"
         BUILD_WITH_INSTALL_RPATH TRUE

@@ -15,7 +15,6 @@ PKG_BASE_NAME="secure-vault-manager"
 PKG_VERSION="0.1.0"
 PKG_ARCH="amd64"
 BUILD_MODE="release"
-BUNDLE_QT=true
 
 usage() {
     cat << EOF
@@ -24,13 +23,10 @@ Sử dụng: $(basename "$0") [TÙY CHỌN]
 Tùy chọn đóng gói:
   -r, --release      Đóng gói bản xuất xưởng Release (Mặc định: tối ưu kích thước, tự động strip symbols)
   -d, --debug        Đóng gói bản kiểm thử Debug (giữ nguyên debug symbols cho gdb/valgrind)
-  --bundle-qt        Nhúng sẵn thư viện Qt6, ICU và Plugins (Mặc định: độc lập, chạy mọi bản phân phối Linux)
-  --system-qt        Không nhúng Qt6, sử dụng Qt6 của hệ điều hành (gói .deb siêu nhẹ ~3MB)
   -h, --help         Hiển thị hướng dẫn này
 
 Ví dụ:
-  ./packaging/linux/build-deb.sh              # Đóng gói Standalone Release (nhúng Qt, tương thích mọi distro)
-  ./packaging/linux/build-deb.sh --system-qt  # Đóng gói Release siêu nhẹ sử dụng Qt hệ thống
+  ./packaging/linux/build-deb.sh              # Đóng gói Native Release (dùng Qt hệ thống)
   ./packaging/linux/build-deb.sh --debug      # Đóng gói bản Debug
 EOF
     exit 0
@@ -44,14 +40,6 @@ while [[ $# -gt 0 ]]; do
             ;;
         -d|--debug)
             BUILD_MODE="debug"
-            shift
-            ;;
-        --bundle-qt)
-            BUNDLE_QT=true
-            shift
-            ;;
-        --system-qt|--no-bundle-qt)
-            BUNDLE_QT=false
             shift
             ;;
         -h|--help)
@@ -84,11 +72,11 @@ echo "==> [Build DEB] Tên gói: ${DEB_NAME}"
 echo "======================================================================"
 
 # Kiểm tra xem binary đã được biên dịch chưa, nếu chưa thì tự động biên dịch
-if [[ ! -f "${BUILD_DIR}/ui/svm" || ! -f "${BUILD_DIR}/core/libsvm_core.so" ]]; then
+if [[ ! -f "${BUILD_DIR}/svm" && ! -f "${BUILD_DIR}/ui/svm" ]]; then
     echo "==> [Build DEB] Chưa tìm thấy binaries tại: ${BUILD_DIR}"
-    echo "==> [Build DEB] Đang tiến hành biên dịch [${CMAKE_BUILD_TYPE}]..."
-    cmake -B "${BUILD_DIR}" -G Ninja -DCMAKE_BUILD_TYPE="${CMAKE_BUILD_TYPE}" "${ROOT_DIR}"
-    ninja -C "${BUILD_DIR}"
+    echo "==> [Build DEB] Đang tiến hành biên dịch [${CMAKE_BUILD_TYPE}] bằng CMake presets..."
+    cmake --preset "${BUILD_MODE}"
+    cmake --build --preset "build-${BUILD_MODE}" -j"$(nproc 2>/dev/null || echo 4)"
 fi
 
 STAGING_DIR="${ROOT_DIR}/build/packages/deb-staging"
@@ -144,16 +132,7 @@ if [[ ! -f "${OPT_DIR}/lib/libsvm_core.so" ]]; then
     fi
 fi
 
-# 2. Tùy chọn nhúng Qt6 & Plugins (Standalone)
-if [[ "${BUNDLE_QT}" == "true" ]]; then
-    STRIP_QT="false"
-    if [[ "${BUILD_MODE}" == "release" ]]; then
-        STRIP_QT="true"
-    fi
-    "${ROOT_DIR}/packaging/linux/bundle-qt.sh" "${OPT_DIR}" "${STRIP_QT}"
-fi
-
-# 3. Tối ưu hóa kích thước (Strip Symbols) nếu là bản RELEASE
+# 2. Tối ưu hóa kích thước (Strip Symbols) nếu là bản RELEASE
 if [[ "${BUILD_MODE}" == "release" ]]; then
     echo "==> [Build DEB] Đang tối ưu hóa kích thước: loại bỏ debug symbols (strip)..."
     strip --strip-unneeded "${OPT_DIR}/bin/svm" 2>/dev/null || true
@@ -164,35 +143,8 @@ else
     echo "==> [Build DEB] Chế độ DEBUG: Giữ nguyên debug symbols cho gdb/valgrind."
 fi
 
-# 4. Tạo Launcher Wrapper để đảm bảo nạp đúng LD_LIBRARY_PATH khi nhúng Qt
-if [[ "${BUNDLE_QT}" == "true" ]]; then
-    echo "==> [Build DEB] Khởi tạo Launcher Wrapper /opt/secure-vault-manager/bin/svm..."
-    mv "${OPT_DIR}/bin/svm" "${OPT_DIR}/bin/svm-bin"
-    cat << 'EOF' > "${OPT_DIR}/bin/svm"
-#!/usr/bin/env bash
-# Secure Vault Manager Launcher Wrapper
-# Tự động nạp toàn bộ thư viện Qt6, ICU và Core C-ABI nội bộ
-set -e
-
-SELF="$(readlink -f "$0" 2>/dev/null || realpath "$0" 2>/dev/null || echo "$0")"
-BIN_DIR="$(dirname "$SELF")"
-OPT_DIR="$(dirname "$BIN_DIR")"
-LIB_DIR="${OPT_DIR}/lib"
-PLUGINS_DIR="${OPT_DIR}/plugins"
-
-if [[ -d "${LIB_DIR}" ]]; then
-    export LD_LIBRARY_PATH="${LIB_DIR}:${LD_LIBRARY_PATH:-}"
-fi
-
-if [[ -d "${PLUGINS_DIR}" ]]; then
-    export QT_PLUGIN_PATH="${PLUGINS_DIR}:${QT_PLUGIN_PATH:-}"
-fi
-
-exec "${BIN_DIR}/svm-bin" "$@"
-EOF
-    chmod 755 "${OPT_DIR}/bin/svm"
-    chmod 755 "${OPT_DIR}/bin/svm-bin"
-fi
+# 3. Cài đặt Launcher Wrapper để hỗ trợ chạy mượt mà trên các môi trường Wayland/X11
+cp -p "${ROOT_DIR}/packaging/linux/svm" "${OPT_DIR}/bin/svm.sh" 2>/dev/null || true
 
 # 4. Tạo symlinks trong /usr/bin/ trỏ vào /opt/secure-vault-manager/bin/
 echo "==> [Build DEB] Tạo symlinks trong /usr/bin/..."
@@ -201,8 +153,8 @@ ln -sf "/opt/secure-vault-manager/bin/svm-cli" "${STAGING_DIR}/usr/bin/svm-cli"
 ln -sf "/opt/secure-vault-manager/bin/svm-native-host" "${STAGING_DIR}/usr/bin/svm-native-host"
 
 # 5. Cài đặt Desktop Entry & AppStream Metadata
-install -m 644 "${ROOT_DIR}/packaging/linux/io.hephaestus.svm.desktop" "${STAGING_DIR}/usr/share/applications/io.hephaestus.svm.desktop"
-install -m 644 "${ROOT_DIR}/packaging/linux/io.hephaestus.svm.metainfo.xml" "${STAGING_DIR}/usr/share/metainfo/io.hephaestus.svm.metainfo.xml"
+install -m 644 "${ROOT_DIR}/packaging/linux/io.github.hephaestus.svm.desktop" "${STAGING_DIR}/usr/share/applications/io.github.hephaestus.svm.desktop"
+install -m 644 "${ROOT_DIR}/packaging/linux/io.github.hephaestus.svm.metainfo.xml" "${STAGING_DIR}/usr/share/metainfo/io.github.hephaestus.svm.metainfo.xml"
 
 # 6. Cài đặt bộ Icons hicolor
 echo "==> [Build DEB] Cài đặt hicolor icons..."
@@ -214,13 +166,13 @@ fi
 # 7. Cài đặt Native Messaging Manifests cấp hệ thống
 sed 's|@SVM_NATIVE_HOST_PATH@|/opt/secure-vault-manager/bin/svm-native-host|g' \
     "${ROOT_DIR}/packaging/native-messaging/chrome.json.in" \
-    > "${STAGING_DIR}/etc/chromium/native-messaging-hosts/io.hephaestus.svm.json"
-cp "${STAGING_DIR}/etc/chromium/native-messaging-hosts/io.hephaestus.svm.json" \
-   "${STAGING_DIR}/etc/opt/chrome/native-messaging-hosts/io.hephaestus.svm.json"
+    > "${STAGING_DIR}/etc/chromium/native-messaging-hosts/io.hephaestus.secure_vault_manager.json"
+cp "${STAGING_DIR}/etc/chromium/native-messaging-hosts/io.hephaestus.secure_vault_manager.json" \
+   "${STAGING_DIR}/etc/opt/chrome/native-messaging-hosts/io.hephaestus.secure_vault_manager.json"
 
 sed 's|@SVM_NATIVE_HOST_PATH@|/opt/secure-vault-manager/bin/svm-native-host|g' \
     "${ROOT_DIR}/packaging/native-messaging/firefox.json.in" \
-    > "${STAGING_DIR}/usr/lib/mozilla/native-messaging-hosts/io.hephaestus.svm.json"
+    > "${STAGING_DIR}/usr/lib/mozilla/native-messaging-hosts/io.hephaestus.secure_vault_manager.json"
 
 # 8. Cài đặt Copyright & License documentation
 cat << 'EOF' > "${STAGING_DIR}/usr/share/doc/${PKG_NAME}/copyright"
@@ -259,10 +211,7 @@ if [[ "${BUILD_MODE}" == "debug" ]]; then
     PROVIDES_LINE="Provides: secure-vault-manager"
 fi
 
-DEPENDS_LIST="libc6 (>= 2.31)"
-if [[ "${BUNDLE_QT}" == "false" ]]; then
-    DEPENDS_LIST="libc6 (>= 2.31), libqt6core6 (>= 6.2.0), libqt6gui6 (>= 6.2.0), libqt6widgets6 (>= 6.2.0), libqt6network6 (>= 6.2.0)"
-fi
+DEPENDS_LIST="libc6 (>= 2.31), libqt6core6 (>= 6.2.0) | libqt6core6t64, libqt6gui6 (>= 6.2.0) | libqt6gui6t64, libqt6widgets6 (>= 6.2.0) | libqt6widgets6t64, libqt6network6 (>= 6.2.0) | libqt6network6t64, libqt6dbus6 (>= 6.2.0) | libqt6dbus6t64"
 
 cat << EOF > "${STAGING_DIR}/DEBIAN/control"
 Package: ${PKG_NAME}

@@ -21,10 +21,16 @@ if command -v cargo >/dev/null 2>&1; then
     cargo clean 2>/dev/null || true
 fi
 
-# Dọn dẹp thư mục build của CMake
+# Dọn dẹp thư mục build của CMake và packages
 if [[ -d "build" ]]; then
     echo "  - Xóa build/..."
     rm -rf build/
+fi
+
+# Dọn dẹp thư mục dist/
+if [[ -d "dist" ]]; then
+    echo "  - Xóa dist/..."
+    rm -rf dist/
 fi
 
 # Xóa target cxxbridge nếu có
@@ -32,6 +38,10 @@ if [[ -d "target" ]]; then
     echo "  - Xóa target/..."
     rm -rf target/
 fi
+
+# Xóa symlink compile_commands.json và các tệp tạm
+rm -f compile_commands.json
+rm -rf packaging/linux/.rpmbuild* packaging/linux/deb-staging* packaging/linux/AppDir*
 
 # Xóa các tệp thư viện động rải rác nếu có
 find . -maxdepth 3 -type f \( -name "*.so" -o -name "*.dylib" -o -name "*.dll" \) -not -path "./.git/*" -delete 2>/dev/null || true

@@ -28,22 +28,14 @@ Tất cả kịch bản đóng gói đều hỗ trợ độc lập hai chế đ�
 
 ### 2.1. Đóng gói Debian / Ubuntu (.deb)
 
-Script `build-deb.sh` hỗ trợ hai chế độ phân phối:
-
-1. **Standalone Bundle (Mặc định)**: Tự động nhúng toàn bộ thư viện Qt6, ICU và Qt platform plugins (`platforms/`, `imageformats/`). Gói `.deb` hoạt động độc lập trên **bất kỳ bản phân phối Linux nào** (Ubuntu 20.04/22.04/24.04, Debian 11/12, Linux Mint, v.v.) mà không yêu cầu hệ điều hành phải có sẵn đúng phiên bản Qt.
-2. **System Qt (Tùy chọn)**: Sử dụng các gói Qt có sẵn trong kho phần mềm của hệ điều hành. Gói siêu nhẹ (~3 MB), phù hợp khi phân phối qua kho PPA hoặc repository chính thức.
+Gói `.deb` được đóng gói chuẩn quy cách Debian/Ubuntu với dependencies của hệ điều hành (`libc6`, `libqt6core6`, `libqt6gui6`, `libqt6widgets6`, `libqt6network6`):
 
 ```bash
-# 1. Đóng gói Release Standalone (Khuyến nghị, nhúng Qt6, tương thích mọi distro Linux):
+# 1. Đóng gói Release Native (.deb dùng dependencies hệ thống):
 ./packaging/linux/build-deb.sh
-# Hoặc: ./packaging/linux/build-deb.sh --release --bundle-qt
-# File đầu ra: build/packages/secure-vault-manager_0.1.0_amd64.deb (~21 MB)
+# File đầu ra: build/packages/secure-vault-manager_0.1.0_amd64.deb
 
-# 2. Đóng gói Release siêu nhẹ dùng Qt hệ thống:
-./packaging/linux/build-deb.sh --system-qt
-# File đầu ra: build/packages/secure-vault-manager_0.1.0_amd64.deb (~3 MB)
-
-# 3. Đóng gói bản Debug (chứa debug info gỡ lỗi):
+# 2. Đóng gói bản Debug (chứa debug info gỡ lỗi):
 ./packaging/linux/build-deb.sh --debug
 # File đầu ra: build/packages/secure-vault-manager-debug_0.1.0_amd64.deb
 ```
@@ -79,11 +71,11 @@ AppImage được tạo ra với đầy đủ Qt6, ICU, Qt platform plugins và 
 
 ### 2.3. Đóng gói Red Hat / Fedora (.rpm)
 
+Gói `.rpm` được đóng gói chuẩn quy cách RPM với dependencies của hệ điều hành (`qt6-qtbase-gui`, `qt6-qtbase`):
+
 ```bash
-# Đóng gói bản Release Standalone (.rpm chứa sẵn Qt6):
+# Đóng gói bản Release Native (.rpm dùng dependencies hệ thống):
 ./packaging/linux/build-rpm.sh
-# Hoặc đóng gói siêu nhẹ dùng Qt hệ thống:
-./packaging/linux/build-rpm.sh --system-qt
 # File đầu ra: build/packages/secure-vault-manager-0.1.0-1.x86_64.rpm
 
 # Đóng gói bản Debug:

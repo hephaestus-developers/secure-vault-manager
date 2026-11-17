@@ -13,6 +13,9 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 cd "${ROOT_DIR}"
 
+echo "==> [SVM Lint] Kiểm tra định dạng mã nguồn (format check)..."
+"${SCRIPT_DIR}/format.sh" --check
+
 echo "==> [SVM Lint] Kiểm tra mã nguồn Rust bằng Clippy..."
 cargo clippy --workspace --all-targets -- -D warnings
 
