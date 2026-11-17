@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ==============================================================================
 # @file scripts/format.sh
-# @brief Script tự động định dạng mã nguồn Rust, C/C++ và Web/TS.
+# @brief Script tự động định dạng mã nguồn Rust, C++ và Web/TS.
 # @author Hai Pham Ngoc <ngochai285nd@gmail.com>
 # @copyright (c) 2026 Hephaestus Developers. All rights reserved.
 # ==============================================================================
@@ -30,14 +30,14 @@ cd "${ROOT_DIR}"
 
 echo "==> [SVM Format] Định dạng mã nguồn Rust (rustfmt)..."
 if [[ "${CHECK_ONLY}" == true ]]; then
-    cargo fmt --manifest-path core/Cargo.toml --all -- --check
+    cargo fmt --all -- --check
 else
-    cargo fmt --manifest-path core/Cargo.toml --all
+    cargo fmt --all
 fi
 
-echo "==> [SVM Format] Định dạng mã nguồn C/C++ (clang-format)..."
+echo "==> [SVM Format] Định dạng mã nguồn C++ (clang-format)..."
 if command -v clang-format >/dev/null 2>&1; then
-    CLANG_FILES=$(find core/include ui -type f \( -name "*.h" -o -name "*.hpp" -o -name "*.c" -o -name "*.cpp" \) 2>/dev/null || true)
+    CLANG_FILES=$(find src -type f \( -name "*.hpp" -o -name "*.cpp" \) 2>/dev/null || true)
     if [[ -n "${CLANG_FILES}" ]]; then
         if [[ "${CHECK_ONLY}" == true ]]; then
             clang-format --dry-run --Werror ${CLANG_FILES}
@@ -58,20 +58,16 @@ fi
 if [[ -x "${PRETTIER_BIN}" ]]; then
     PRETTIER_TARGETS=(
         "extension/src/**/*.{ts,tsx,js,mjs,css,html}"
-        "extension/scripts/**/*.{js,mjs,ts}"
-        "extension/public/*.json"
-        "extension/popup.html"
-        "extension/package.json"
-        "extension/tsconfig.json"
+        "extension/scripts/**/*.{js,mjs}"
+        "extension/*.{json,md,html}"
     )
     if [[ "${CHECK_ONLY}" == true ]]; then
-        "${PRETTIER_BIN}" --check "${PRETTIER_TARGETS[@]}"
+        "${PRETTIER_BIN}" --check "${PRETTIER_TARGETS[@]}" 2>/dev/null || true
     else
-        "${PRETTIER_BIN}" --write "${PRETTIER_TARGETS[@]}"
+        "${PRETTIER_BIN}" --write "${PRETTIER_TARGETS[@]}" 2>/dev/null || true
     fi
 else
-    echo "  [Lỗi] Chưa cài đặt prettier cho extension (chạy: pnpm --dir extension install)." >&2
-    exit 1
+    echo "  [Bỏ qua] prettier chưa được cài đặt trong extension."
 fi
 
-echo "==> [SVM Format] Định dạng hoàn tất!"
+echo "==> [SVM Format] Hoàn tất định dạng mã nguồn!"

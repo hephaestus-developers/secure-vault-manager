@@ -12,7 +12,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 BUILD_TYPE="Debug"
-CARGO_FLAG=""
 TARGET="all"
 
 usage() {
@@ -22,13 +21,15 @@ Sử dụng: ./scripts/build.sh [TÙY CHỌN]
 Tùy chọn:
   -r, --release      Biên dịch ở chế độ tối ưu (Release mode)
   -d, --debug        Biên dịch ở chế độ kiểm thử (Debug mode - Mặc định)
-  --core-only        Chỉ biên dịch Rust Core workspace (libsvm_core.so)
-  --cli-only         Chỉ biên dịch công cụ dòng lệnh svm-cli
+  --app-only         Chỉ biên dịch ứng dụng Desktop UI (svm)
+  --core-only        Chỉ biên dịch Rust Core workspace (svm_core)
+  --cli-only         Chỉ biên dịch công cụ dòng lệnh (svm-cli)
+  --host-only        Chỉ biên dịch Native Messaging Host (svm-native-host)
   -h, --help         Hiển thị hướng dẫn này
 
 Ví dụ:
   ./scripts/build.sh --release
-  ./scripts/build.sh --core-only
+  ./scripts/build.sh --app-only
 EOF
     exit 0
 }
@@ -37,20 +38,26 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         -r|--release)
             BUILD_TYPE="Release"
-            CARGO_FLAG="--release"
             shift
             ;;
         -d|--debug)
             BUILD_TYPE="Debug"
-            CARGO_FLAG=""
+            shift
+            ;;
+        --app-only)
+            TARGET="svm"
             shift
             ;;
         --core-only)
-            TARGET="core"
+            TARGET="svm_core"
             shift
             ;;
         --cli-only)
-            TARGET="cli"
+            TARGET="svm-cli"
+            shift
+            ;;
+        --host-only)
+            TARGET="svm-native-host"
             shift
             ;;
         -h|--help)
@@ -67,22 +74,18 @@ echo "==> [SVM Build] Bắt đầu biên dịch dự án ở chế độ [${BUIL
 
 cd "${ROOT_DIR}"
 
-if [[ "${TARGET}" == "core" ]]; then
-    echo "==> [Cargo] Biên dịch Rust Core package (svm-core)..."
-    cargo build --manifest-path core/Cargo.toml --package svm-core ${CARGO_FLAG}
-elif [[ "${TARGET}" == "cli" ]]; then
-    echo "==> [Cargo] Biên dịch CLI binary (svm-cli)..."
-    cargo build --manifest-path core/Cargo.toml --package svm-cli ${CARGO_FLAG}
-else
-    echo "==> [Cargo] Biên dịch toàn bộ Rust Workspace..."
-    cargo build --manifest-path core/Cargo.toml --workspace ${CARGO_FLAG}
+BUILD_DIR="build/$(echo "${BUILD_TYPE}" | tr '[:upper:]' '[:lower:]')"
 
-    if command -v cmake >/dev/null 2>&1 && command -v ninja >/dev/null 2>&1; then
-        BUILD_DIR="build/$(echo "${BUILD_TYPE}" | tr '[:upper:]' '[:lower:]')"
-        echo "==> [CMake] Cấu hình và kiểm tra liên kết qua CMake (${BUILD_DIR})..."
-        cmake -B "${BUILD_DIR}" -G Ninja -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
-        cmake --build "${BUILD_DIR}"
-    fi
+if [[ ! -d "${BUILD_DIR}" ]]; then
+    echo "==> [CMake] Cấu hình dự án tại ${BUILD_DIR}..."
+    cmake -B "${BUILD_DIR}" -G Ninja -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
+fi
+
+echo "==> [CMake] Tiến hành build target [${TARGET}]..."
+if [[ "${TARGET}" == "all" ]]; then
+    cmake --build "${BUILD_DIR}"
+else
+    cmake --build "${BUILD_DIR}" --target "${TARGET}"
 fi
 
 echo "==> [SVM Build] Hoàn tất thành công!"

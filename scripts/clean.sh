@@ -16,15 +16,21 @@ cd "${ROOT_DIR}"
 echo "==> [SVM Clean] Dọn dẹp các artifact biên dịch..."
 
 # Dọn dẹp thư mục target của Cargo
-if [[ -d "core/target" ]]; then
-    echo "  - Xóa core/target/..."
-    cargo clean --manifest-path core/Cargo.toml
+if command -v cargo >/dev/null 2>&1; then
+    echo "  - Cargo clean..."
+    cargo clean 2>/dev/null || true
 fi
 
 # Dọn dẹp thư mục build của CMake
 if [[ -d "build" ]]; then
     echo "  - Xóa build/..."
     rm -rf build/
+fi
+
+# Xóa target cxxbridge nếu có
+if [[ -d "target" ]]; then
+    echo "  - Xóa target/..."
+    rm -rf target/
 fi
 
 # Xóa các tệp thư viện động rải rác nếu có

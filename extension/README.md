@@ -64,7 +64,7 @@ To reproduce and build an exact copy of the extension from this source package:
    npm install
    ```
 
-   *Note: The build process relies strictly on Node.js built-in modules (`node:module.stripTypeScriptTypes`, `node:fs`, `node:path`, `node:zlib`). No external bundlers or network downloads are required to produce the build output.*
+   _Note: The build process relies strictly on Node.js built-in modules (`node:module.stripTypeScriptTypes`, `node:fs`, `node:path`, `node:zlib`). No external bundlers or network downloads are required to produce the build output._
 
 3. **Execute the build script**:
 
@@ -72,7 +72,7 @@ To reproduce and build an exact copy of the extension from this source package:
    npm run build
    ```
 
-   *(Alternatively, run the build scripts directly:)*
+   _(Alternatively, run the build scripts directly:)_
 
    ```bash
    node scripts/build.mjs && node scripts/post-build.js

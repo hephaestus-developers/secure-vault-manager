@@ -1,0 +1,2410 @@
+/* ==============================================================================
+ * Secure Vault Manager - Light Theme (Catppuccin Latte)
+ * ============================================================================== */
+
+/* Cửa sổ gốc & font hệ thống */
+QMainWindow, QDialog {
+    background-color: #eff1f5;
+    color: #4c4f69;
+    border-radius: 0px;
+}
+
+QDialog {
+    border: 1px solid #bcc0cc;
+    border-radius: 0px;
+}
+
+/* Toàn bộ nhãn văn bản mặc định trong suốt */
+QLabel {
+    background: transparent;
+    color: #4c4f69;
+}
+
+/* Khung cửa sổ chính */
+#CentralWidget {
+    background-color: #eff1f5;
+    border: 1px solid #bcc0cc;
+}
+
+#CentralWidget[maximized="true"] {
+    border: none;
+}
+
+/* ==============================================================================
+ * Thanh Tiêu Đề Tích Hợp (UnifiedHeaderBar)
+ * ============================================================================== */
+#UnifiedHeaderBar {
+    background-color: #e6e9ef;
+    border: none;
+    border-bottom: 1px solid #bcc0cc;
+    border-radius: 0px;
+}
+
+#HeaderLogo {
+    background: transparent;
+}
+
+/* Tiêu đề tài liệu / cửa sổ căn giữa */
+#HeaderTitleLabel {
+    color: #4c4f69;
+    font-size: 13px;
+    font-weight: 500;
+    background: transparent;
+}
+
+/* Menu xổ xuống (QMenu) cho Light Theme */
+QMenu {
+    background-color: #eff1f5;
+    color: #4c4f69;
+    font-size: 12px;
+    font-weight: 400;
+    border: 1px solid #ccd0da;
+    border-radius: 8px;
+    padding: 3px 2px;
+}
+
+QMenu::item {
+    background-color: transparent;
+    font-size: 12px;
+    padding: 3px 18px 3px 25px;
+    border-radius: 4px;
+    margin: 1px 2px;
+}
+
+QMenu::item:selected {
+    background-color: #dce0e8;
+    color: #1e1e2e;
+}
+
+QMenu::item:disabled {
+    color: #7c7f93;
+}
+
+QMenu::separator {
+    height: 1px;
+    background-color: #ccd0da;
+    margin: 3px 6px;
+}
+
+/* Dấu tích checkbox/radio tùy biến cho QMenu */
+QMenu::indicator {
+    width: 12px;
+    height: 12px;
+    left: 6px;
+}
+
+QMenu::indicator:checked {
+    image: url(:/icons/controls/menu_check_light.svg);
+}
+
+QMenu::indicator:unchecked {
+    image: none;
+}
+
+QMenu::icon {
+    left: 6px;
+}
+
+QMenu::right-arrow {
+    image: url(:/icons/controls/chevron_right_light.svg);
+    width: 10px;
+    height: 10px;
+    right: 8px;
+}
+
+#ItemListContextMenu {
+    min-width: 196px;
+}
+
+/* ==============================================================================
+ * Các Nút Điều Khiển Cửa Sổ (Window Controls)
+ * ============================================================================== */
+#WinMinBtn, #WinMaxBtn {
+    background: transparent;
+    border: none;
+    border-radius: 0px;
+}
+
+#WinMinBtn:hover, #WinMaxBtn:hover {
+    background-color: #ccd0da;
+}
+
+#WinMinBtn:pressed, #WinMaxBtn:pressed {
+    background-color: #bcc0cc;
+}
+
+/* Nút Close: Màu đỏ chuẩn với icon dấu X trắng nổi bật khi hover/pressed */
+#WinCloseBtn, #DialogCloseBtn, #AboutCloseIconBtn {
+    background: transparent;
+    border: none;
+    border-radius: 0px;
+}
+
+#WinCloseBtn:hover, #DialogCloseBtn:hover, #AboutCloseIconBtn:hover {
+    background-color: #e81123;
+    qproperty-icon: url(:/icons/controls/win_close_white.svg);
+}
+
+#WinCloseBtn:pressed, #DialogCloseBtn:pressed, #AboutCloseIconBtn:pressed {
+    background-color: #c40e1d;
+    qproperty-icon: url(:/icons/controls/win_close_white.svg);
+}
+
+/* ==============================================================================
+ * Vùng Chứa Nội Dung (ContentArea) & Khung Thẻ (Cards)
+ * ============================================================================== */
+#ContentArea {
+    background-color: #eff1f5;
+}
+
+#CardWidget {
+    background-color: #ffffff;
+    border: 1px solid #ccd0da;
+    border-radius: 8px;
+    padding: 24px;
+}
+
+#CardWidget QLabel {
+    background: transparent;
+}
+
+#CardTitleLabel {
+    color: #1e1e2e;
+    font-size: 18px;
+    font-weight: bold;
+    background: transparent;
+}
+
+#CardDescLabel {
+    color: #6c6f85;
+    font-size: 13px;
+    background: transparent;
+}
+
+/* ==============================================================================
+ * Các Nút Bấm Thao Tác (Buttons)
+ * ============================================================================== */
+QPushButton {
+    background-color: #e6e9ef;
+    color: #4c4f69;
+    border: 1px solid #bcc0cc;
+    border-radius: 6px;
+    padding: 6px 14px;
+    font-size: 12.5px;
+    font-weight: 500;
+}
+
+QPushButton:hover {
+    background-color: #dce0e8;
+    border-color: #45475a;
+    color: #1e1e2e;
+}
+
+QPushButton:pressed {
+    background-color: #ccd0da;
+    border-color: #45475a;
+    color: #1e1e2e;
+}
+
+QPushButton:disabled {
+    background-color: #eff1f5;
+    border-color: #ccd0da;
+    color: #7c7f93;
+}
+
+QPushButton#PrimaryButton {
+    background-color: #1e1e2e;
+    color: #ffffff;
+    border: 1px solid #1e1e2e;
+    font-weight: 600;
+}
+
+QPushButton#PrimaryButton:hover {
+    background-color: #313244;
+    border-color: #313244;
+    color: #ffffff;
+}
+
+QPushButton#PrimaryButton:pressed {
+    background-color: #11111b;
+    border-color: #11111b;
+    color: #ffffff;
+}
+
+QPushButton#PrimaryButton:disabled {
+    background-color: #e6e9ef;
+    border-color: #ccd0da;
+    color: #7c7f93;
+}
+
+QPushButton#DangerButton {
+    background-color: #fff0f2;
+    color: #d20f39;
+    border: 1px solid #ccd0da;
+    font-weight: 500;
+}
+
+QPushButton#DangerButton:hover {
+    background-color: #ffdce0;
+    border-color: #d20f39;
+    color: #d20f39;
+}
+
+QPushButton#DangerButton:pressed {
+    background-color: #d20f39;
+    border-color: #d20f39;
+    color: #ffffff;
+}
+
+/* ==============================================================================
+ * Ô Nhập Liệu (Input Fields)
+ * ============================================================================== */
+QLineEdit, QTextEdit, QPlainTextEdit {
+    background-color: #ffffff;
+    color: #4c4f69;
+    border: 1px solid #ccd0da;
+    border-radius: 5px;
+    padding: 6px 10px;
+    font-size: 13px;
+}
+
+QLineEdit:focus, QTextEdit:focus, QPlainTextEdit:focus {
+    border: 1px solid #2f3540;
+    background-color: #ffffff;
+}
+
+/* ==============================================================================
+ * Thanh Cuộn Tối Giản (QScrollBar)
+ * ============================================================================== */
+QScrollBar:vertical {
+    background-color: #eff1f5;
+    width: 8px;
+    margin: 0;
+    border-radius: 4px;
+}
+
+QScrollBar:handle:vertical {
+    background-color: #ccd0da;
+    min-height: 24px;
+    border-radius: 4px;
+}
+
+QScrollBar:handle:vertical:hover {
+    background-color: #bcc0cc;
+}
+
+QScrollBar:add-line:vertical, QScrollBar:sub-line:vertical,
+QScrollBar:add-page:vertical, QScrollBar:sub-page:vertical {
+    background: none;
+    border: none;
+}
+
+QScrollBar:horizontal {
+    background-color: #eff1f5;
+    height: 8px;
+    margin: 0;
+    border-radius: 4px;
+}
+
+QScrollBar:handle:horizontal {
+    background-color: #ccd0da;
+    min-width: 24px;
+    border-radius: 4px;
+}
+
+QScrollBar:handle:horizontal:hover {
+    background-color: #bcc0cc;
+}
+
+QScrollBar:add-line:horizontal, QScrollBar:sub-line:horizontal,
+QScrollBar:add-page:horizontal, QScrollBar:sub-page:horizontal {
+    background: none;
+    border: none;
+}
+
+/* ==============================================================================
+ * Thanh Trạng Thái (StatusBar)
+ * ============================================================================== */
+#StatusBar, QStatusBar {
+    background-color: #e6e9ef;
+    border-top: 1px solid #ccd0da;
+    color: #6c6f85;
+    font-size: 11px;
+    min-height: 24px;
+}
+
+QStatusBar::item {
+    border: none;
+}
+
+#StatusBar QLabel {
+    color: #8c959f;
+    font-size: 11px;
+    padding: 2px 4px;
+    background: transparent;
+}
+
+/* ==============================================================================
+ * Cấu Trúc 3 Cột (MainThreeColumnSplitter)
+ * ============================================================================== */
+#MainThreeColumnSplitter {
+    background-color: #eff1f5;
+}
+
+#MainThreeColumnSplitter::handle {
+    background-color: #ccd0da;
+    width: 1px;
+}
+
+#MainThreeColumnSplitter::handle:hover {
+    background-color: #4c4f69;
+}
+
+/* Header Action Buttons */
+#HeaderSidebarToggleBtn, #HeaderThemeToggleBtn, #HeaderSettingsBtn, #HeaderAboutBtn {
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    padding: 4px;
+}
+
+#HeaderSidebarToggleBtn:hover, #HeaderThemeToggleBtn:hover, #HeaderSettingsBtn:hover, #HeaderAboutBtn:hover {
+    background-color: #ccd0da;
+}
+
+#HeaderSidebarToggleBtn:pressed, #HeaderThemeToggleBtn:pressed, #HeaderSettingsBtn:pressed, #HeaderAboutBtn:pressed {
+    background-color: #bcc0cc;
+}
+
+/* Header Inline Menubar */
+#HeaderMenuBtn {
+    background: transparent;
+    border: none;
+    border-radius: 5px;
+    color: #4c4f69;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 4px 10px;
+}
+
+#HeaderMenuBtn:hover, #HeaderMenuBtn:open {
+    background-color: #ccd0da;
+    color: #1e1e2e;
+}
+
+#HeaderMenuBtn:pressed {
+    background-color: #bcc0cc;
+    color: #1e1e2e;
+}
+
+#HeaderMenuBtn::menu-indicator {
+    image: none;
+    width: 0px;
+}
+
+#HeaderDropDownMenu {
+    min-width: 195px;
+}
+
+#HeaderDropDownMenu::item {
+    font-size: 12px;
+    padding: 3px 18px 3px 25px;
+}
+
+/* 1. Cột 1: SidebarView */
+#SidebarView,
+#SidebarExpandedContainer,
+#SidebarCollapsedContainer {
+    background-color: #e6e9ef;
+    background: #e6e9ef;
+    border-right: 1px solid #ccd0da;
+}
+
+#SidebarToggleBtn, #SidebarNewVaultBtn {
+    background-color: #ffffff;
+    border: 1px solid #ccd0da;
+    border-radius: 6px;
+    padding: 0;
+}
+
+#SidebarToggleBtn:hover, #SidebarNewVaultBtn:hover {
+    background-color: #dce0e8;
+    border-color: #45475a;
+}
+
+#SidebarCompactVaultBtn {
+    background-color: #ffffff;
+    border: 1px solid #ccd0da;
+    border-radius: 6px;
+    padding: 4px;
+}
+
+#SidebarCompactVaultBtn:hover {
+    background-color: #dce0e8;
+    border-color: #45475a;
+}
+
+#SidebarCompactList {
+    background: transparent;
+    border: none;
+    outline: none;
+}
+
+#SidebarCompactList::item {
+    background: transparent;
+    border: none;
+    padding: 0;
+    margin: 0;
+}
+
+#SidebarCompactLockBtn {
+    background-color: #ffffff;
+    border: 1px solid #ccd0da;
+    border-radius: 6px;
+    padding: 6px;
+    color: #d20f39;
+}
+
+#SidebarCompactLockBtn:hover {
+    background-color: #dce0e8;
+    border-color: #d20f39;
+}
+
+#SidebarHeaderWidget {
+    background: transparent;
+    border-bottom: 1px solid #ccd0da;
+}
+
+#VaultProfileComboBox {
+    background-color: #eff1f5;
+    border: 1px solid #ccd0da;
+    border-radius: 6px;
+    padding-left: 8px;
+    padding-right: 24px;
+    color: #4c4f69;
+    font-size: 13px;
+    font-weight: 600;
+    min-height: 32px;
+    max-height: 32px;
+}
+
+#VaultProfileComboBox:hover {
+    background-color: #e6e9ef;
+    border-color: #acb0be;
+}
+
+#VaultProfileComboBox:focus {
+    border-color: #7c7f93;
+}
+
+#VaultProfileComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: center right;
+    width: 20px;
+    border: none;
+    margin-right: 4px;
+}
+
+#VaultProfileComboBox::down-arrow {
+    image: url(:/icons/controls/chevron_down_light.svg);
+    width: 12px;
+    height: 12px;
+}
+
+#LockBtnText {
+    color: #d20f39;
+    font-weight: 600;
+    font-size: 13px;
+    background: transparent;
+}
+
+#VaultSwitchMenu {
+    background-color: #ffffff;
+    border: 1px solid #ccd0da;
+    border-radius: 8px;
+    padding: 4px;
+    color: #4c4f69;
+}
+
+#SidebarNavList {
+    background: transparent;
+    border: none;
+    outline: none;
+    padding: 4px 0;
+}
+
+#SidebarFooterWidget {
+    background: transparent;
+    border-top: 1px solid #ccd0da;
+}
+
+#SidebarLockBtn {
+    background-color: transparent;
+    border: 1px solid rgba(210, 15, 57, 0.25);
+    border-radius: 6px;
+    padding: 0;
+    min-height: 32px;
+    color: #d20f39;
+    font-weight: 600;
+    text-align: left;
+}
+
+#SidebarLockBtn:hover {
+    background-color: rgba(210, 15, 57, 0.12);
+    border-color: #d20f39;
+}
+
+/* 2. Cột 2: ItemListView */
+#ItemListView {
+    background-color: #eff1f5;
+    background: #eff1f5;
+    border-right: 1px solid #ccd0da;
+}
+
+#ItemListSearchEdit {
+    background-color: #ffffff;
+    border: 1px solid #ccd0da;
+    border-radius: 6px;
+    padding: 0 10px;
+    color: #4c4f69;
+    font-size: 13px;
+    min-height: 28px;
+    max-height: 28px;
+}
+
+#ItemListSearchEdit:focus {
+    border-color: #2f3540;
+    background-color: #ffffff;
+}
+
+QComboBox {
+    background-color: #ffffff;
+    border: 1px solid #ccd0da;
+    border-radius: 6px;
+    padding: 0px 24px 0px 10px;
+    color: #4c4f69;
+    font-size: 12px;
+    font-weight: 500;
+    min-height: 32px;
+    max-height: 32px;
+}
+
+QComboBox:hover {
+    border-color: #4c4f69;
+}
+
+QComboBox:focus {
+    border-color: #2f3540;
+}
+
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 18px;
+    border-left: none;
+}
+
+QComboBox::down-arrow {
+    image: url(:/icons/controls/chevron_down_light.svg);
+    width: 10px;
+    height: 10px;
+}
+
+QComboBoxPrivateContainer {
+    background-color: transparent;
+    border: none;
+}
+
+QComboBox QAbstractItemView {
+    background-color: #ffffff;
+    color: #4c4f69;
+    selection-background-color: #eaeff5;
+    selection-color: #1e1e2e;
+    border: 1px solid #ccd0da;
+    border-radius: 8px;
+    padding: 6px;
+    outline: none;
+}
+
+QComboBox QAbstractItemView::item {
+    min-height: 28px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    color: #4c4f69;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+QComboBox QAbstractItemView::item:selected,
+QComboBox QAbstractItemView::item:hover {
+    background-color: #eaeff5;
+    color: #1e1e2e;
+}
+
+/* ==============================================================================
+ * Hộp Chọn (QCheckBox)
+ * ============================================================================== */
+QCheckBox {
+    color: #4c4f69;
+    font-size: 12px;
+    spacing: 8px;
+    background: transparent;
+}
+
+QCheckBox::indicator {
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    border: 1px solid #bcc0cc;
+    background-color: #ffffff;
+}
+
+QCheckBox::indicator:hover {
+    border-color: #1e1e2e;
+}
+
+QCheckBox::indicator:checked {
+    background-color: #1e1e2e;
+    border-color: #1e1e2e;
+    image: url(:/icons/controls/checkbox_check_light.svg);
+}
+
+#ItemListNewBtn {
+    background-color: #ffffff;
+    border: 1px solid #bcc0cc;
+    border-radius: 6px;
+    padding: 0;
+    min-height: 28px;
+    max-height: 28px;
+    min-width: 28px;
+    max-width: 28px;
+}
+
+#ItemListNewBtn:hover {
+    background-color: #e6e9ef;
+    border-color: #1e1e2e;
+}
+
+#ItemListNewBtn:pressed {
+    background-color: #ccd0da;
+    border-color: #1e1e2e;
+}
+
+#ItemCardListView {
+    background: transparent;
+    border: none;
+    outline: none;
+}
+
+#ItemListStack {
+    background: transparent;
+    border: none;
+}
+
+#ItemListEmptyWidget {
+    background: transparent;
+    border: none;
+}
+
+#ItemListEmptyIconContainer {
+    background-color: #ffffff;
+    border: 1px solid #dce0e8;
+    border-radius: 16px;
+}
+
+#ItemListEmptyTitle {
+    color: #4c4f69;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+#ItemListEmptyDesc {
+    color: #6c6f85;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+#ItemListEmptyActionBtn {
+    background-color: #1e1e2e;
+    color: #ffffff;
+    border: 1px solid #1e1e2e;
+    border-radius: 6px;
+    padding: 0 16px;
+    font-size: 12px;
+    font-weight: 700;
+    min-height: 32px;
+    max-height: 32px;
+}
+
+#ItemListEmptyActionBtn:hover {
+    background-color: #313244;
+    border-color: #313244;
+    color: #ffffff;
+}
+
+#ItemListEmptyActionBtn:pressed {
+    background-color: #45475a;
+    border-color: #45475a;
+    color: #ffffff;
+}
+
+/* 3. Cột 3: DetailInspectorView */
+#DetailInspectorView,
+#DetailScrollArea,
+#DetailScrollViewport,
+#DetailContentContainer {
+    background-color: #eff1f5;
+    background: #eff1f5;
+    border: none;
+}
+
+#EmptyStateTitle {
+    color: #313244;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+#EmptyStateDesc {
+    color: #6c6f85;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+#EmptyStateIconContainer {
+    background-color: #ffffff;
+    border: 1px solid #ccd0da;
+    border-radius: 20px;
+}
+
+#EmptyStateCard {
+    background-color: #ffffff;
+    border: 1px solid #ccd0da;
+    border-radius: 12px;
+}
+
+#EmptyStateActionLabel {
+    color: #4c4f69;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+#EmptyStateKeycap {
+    background-color: #e6e9ef;
+    color: #4c4f69;
+    border: 1px solid #ccd0da;
+    border-bottom: 2px solid #acb0be;
+    border-radius: 5px;
+    padding: 2px 7px;
+    font-size: 11px;
+    font-weight: 600;
+    min-width: 22px;
+}
+
+#EmptyStateKeycapPlus {
+    color: #9ca0b0;
+    font-size: 11px;
+    font-weight: bold;
+}
+
+#EmptyStateDivider {
+    background-color: #e6e9ef;
+    max-height: 1px;
+    min-height: 1px;
+    border: none;
+}
+
+#EmptyStateActionBtn {
+    background-color: #1e1e2e;
+    color: #ffffff;
+    border: 1px solid #1e1e2e;
+    border-radius: 8px;
+    padding: 0 24px;
+    font-size: 13px;
+    font-weight: 700;
+    min-height: 38px;
+    max-height: 38px;
+}
+
+#EmptyStateActionBtn:hover {
+    background-color: #313244;
+    border-color: #313244;
+    color: #ffffff;
+}
+
+#EmptyStateActionBtn:pressed {
+    background-color: #11111b;
+    border-color: #11111b;
+    color: #ffffff;
+}
+
+#DetailHeaderCard {
+    background-color: #ffffff;
+    border: 1px solid #ccd0da;
+    border-radius: 8px;
+}
+
+#DetailHeaderIcon {
+    background-color: #e6e9ef;
+    border-radius: 8px;
+}
+
+#DetailHeaderTitle {
+    color: #4c4f69;
+}
+
+#DetailHeaderTitleInput {
+    background-color: #ffffff;
+    border: 1px solid #ccd0da;
+    border-radius: 6px;
+    padding: 4px 10px;
+    color: #1e1e2e;
+    font-size: 15px;
+    font-weight: 600;
+    selection-background-color: #2f3540;
+    selection-color: #ffffff;
+}
+
+#DetailHeaderTitleInput:focus {
+    border-color: #2f3540;
+    background-color: #ffffff;
+}
+
+#DetailCategoryBadge {
+    background-color: #e6e9ef;
+    color: #4c4f69;
+    border: 1px solid #ccd0da;
+    border-radius: 6px;
+    padding: 3px 10px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+#DetailCategoryCombo {
+    background-color: #ffffff;
+    border: 1px solid #ccd0da;
+    border-radius: 6px;
+    padding: 2px 22px 2px 8px;
+    color: #4c4f69;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+#DetailCategoryCombo:hover {
+    border-color: #4c4f69;
+    background-color: #f6f8fa;
+}
+
+#DetailCategoryCombo:focus {
+    border-color: #2f3540;
+}
+
+#DetailCategoryCombo::drop-down {
+    border: none;
+    width: 18px;
+}
+
+#DetailCategoryCombo::down-arrow {
+    image: url(:/icons/controls/chevron_down_light.svg);
+    width: 10px;
+    height: 10px;
+}
+
+#DetailUpdatedLabel {
+    color: #7c7f93;
+    font-size: 11px;
+}
+
+#DetailHeaderFavBtn {
+    background-color: #e6e9ef;
+    border: 1px solid #ccd0da;
+    border-radius: 6px;
+    padding: 0;
+    color: #4c4f69;
+}
+
+#DetailHeaderFavBtn:hover {
+    background-color: #dce0e8;
+    border-color: #45475a;
+}
+
+#DetailHeaderEditBtn {
+    background-color: #e6e9ef;
+    border: 1px solid #bcc0cc;
+    border-radius: 6px;
+    padding: 0 14px;
+    color: #4c4f69;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+#DetailHeaderEditBtn:hover {
+    background-color: #dce0e8;
+    border-color: #45475a;
+    color: #1e1e2e;
+}
+
+#DetailHeaderEditBtn:pressed {
+    background-color: #ccd0da;
+    border-color: #45475a;
+}
+
+#DetailHeaderCancelBtn {
+    background-color: #e6e9ef;
+    color: #4c4f69;
+    border: 1px solid #bcc0cc;
+    border-radius: 6px;
+    padding: 0 16px;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+#DetailHeaderCancelBtn:hover {
+    background-color: #dce0e8;
+    border-color: #45475a;
+    color: #1e1e2e;
+}
+
+#DetailHeaderCancelBtn:pressed {
+    background-color: #ccd0da;
+    border-color: #45475a;
+}
+
+#DetailHeaderSaveBtn {
+    background-color: #1e1e2e;
+    color: #ffffff;
+    border: 1px solid #1e1e2e;
+    border-radius: 6px;
+    padding: 0 18px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+#DetailHeaderSaveBtn:hover {
+    background-color: #313244;
+    border-color: #313244;
+    color: #ffffff;
+}
+
+#DetailHeaderSaveBtn:pressed {
+    background-color: #11111b;
+    border-color: #11111b;
+    color: #ffffff;
+}
+
+#TotpFieldWidget {
+    background: transparent;
+    border: none;
+}
+
+#TotpSectionHeader {
+    color: #6c6f85;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+#TotpTimerLabel {
+    color: #40a02b;
+    font-weight: bold;
+    font-size: 12px;
+}
+
+#TotpCodeDisplay {
+    color: #4c4f69;
+    letter-spacing: 2px;
+}
+
+#TotpCopyBtn {
+    background: transparent;
+    border: 1px solid #dce0e8;
+    border-radius: 6px;
+    padding: 4px;
+}
+
+#TotpCopyBtn:hover {
+    background-color: #dce0e8;
+    border-color: #45475a;
+}
+
+#TotpCopyBtn:pressed {
+    background-color: #ccd0da;
+    border-color: #45475a;
+}
+
+#TotpProgressBar {
+    background-color: #ccd0da;
+    border-radius: 2px;
+}
+
+#TotpProgressBar::chunk {
+    background-color: #40a02b;
+    border-radius: 2px;
+}
+
+#DetailSectionCard {
+    background-color: #ffffff;
+    border: 1px solid #ccd0da;
+    border-radius: 10px;
+}
+
+#DetailSectionHeader {
+    color: #5c5f77;
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 0.8px;
+    padding-bottom: 2px;
+}
+
+#FieldRowDivider {
+    background-color: #e6e9ef;
+    min-height: 1px;
+    max-height: 1px;
+    border: none;
+    margin: 2px 6px;
+}
+
+#FieldRowWidget, #CustomFieldRowWidget, #TotpFieldWidget {
+    background: transparent;
+    border: none;
+}
+
+#FieldRowLabel {
+    color: #6c6f85;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+#FieldRowValue {
+    color: #4c4f69;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+#FieldRowInput {
+    background-color: #f2f3f7;
+    border: 1px solid #ccd0da;
+    border-radius: 6px;
+    padding: 6px 10px;
+    color: #4c4f69;
+    font-size: 13px;
+}
+
+#FieldRowInput:focus {
+    border-color: #2f3540;
+    background-color: #ffffff;
+}
+
+#FieldRowActionBtn {
+    background: transparent;
+    border: 1px solid #ccd0da;
+    border-radius: 6px;
+    padding: 4px;
+}
+
+#FieldRowActionBtn:hover {
+    background-color: #dce0e8;
+    border-color: #45475a;
+}
+
+#FieldRowActionBtn:pressed {
+    background-color: #ccd0da;
+    border-color: #45475a;
+}
+
+#CustomFieldKindCombo {
+    background-color: #f2f3f7;
+    border: 1px solid #ccd0da;
+    border-radius: 6px;
+    padding: 2px 8px;
+    color: #4c4f69;
+    font-size: 12px;
+}
+
+#CustomFieldKindCombo:focus {
+    border-color: #2f3540;
+}
+
+#CustomFieldBoolEdit {
+    color: #2f3540;
+    font-size: 13px;
+    font-weight: 500;
+    spacing: 8px;
+    padding: 2px 4px;
+}
+
+#CustomFieldBoolEdit::indicator {
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    border: 1px solid #ccd0da;
+    background-color: #ffffff;
+}
+
+#CustomFieldBoolEdit::indicator:hover {
+    border-color: #2f3540;
+}
+
+#CustomFieldBoolEdit::indicator:checked {
+    background-color: #1e1e2e;
+    border-color: #1e1e2e;
+    image: url(:/icons/controls/checkbox_check_light.svg);
+}
+
+#CustomFieldDateEdit {
+    background-color: #ffffff;
+    border: 1px solid #ccd0da;
+    border-radius: 6px;
+    padding: 4px 10px;
+    color: #2f3540;
+    font-size: 13px;
+}
+
+#CustomFieldDateEdit:focus {
+    border-color: #2f3540;
+}
+
+#CustomFieldDateEdit::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 24px;
+    border-left: none;
+}
+
+#CustomFieldDateEdit::down-arrow {
+    image: url(:/icons/controls/chevron_down_light.svg);
+    width: 12px;
+    height: 12px;
+}
+
+/* QCalendarWidget Theme (Light Neutral Slate) */
+QCalendarWidget {
+    background-color: #ffffff;
+    border: 1px solid #ccd0da;
+    border-radius: 8px;
+    min-width: 260px;
+}
+
+QCalendarWidget QWidget#qt_calendar_navigationbar {
+    background-color: #ffffff;
+    border-bottom: 1px solid #e6e9ef;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    min-height: 34px;
+    padding: 2px 4px;
+}
+
+QCalendarWidget QToolButton {
+    background-color: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: #2f3540;
+    font-size: 12px;
+    font-weight: 600;
+    margin: 2px;
+    padding: 2px 6px;
+}
+
+QCalendarWidget QToolButton:hover {
+    background-color: #eef1f5;
+    border-color: #ccd0da;
+    color: #1e1e2e;
+}
+
+QCalendarWidget QToolButton:pressed {
+    background-color: #dce0e8;
+}
+
+QCalendarWidget #qt_calendar_prevmonth {
+    qproperty-icon: url(:/icons/controls/chevron_left_light.svg);
+    icon-size: 12px 12px;
+    min-width: 24px;
+    max-width: 24px;
+    min-height: 24px;
+    max-height: 24px;
+}
+
+QCalendarWidget #qt_calendar_nextmonth {
+    qproperty-icon: url(:/icons/controls/chevron_right_light.svg);
+    icon-size: 12px 12px;
+    min-width: 24px;
+    max-width: 24px;
+    min-height: 24px;
+    max-height: 24px;
+}
+
+QCalendarWidget #qt_calendar_monthbutton,
+QCalendarWidget #qt_calendar_yearbutton {
+    color: #2f3540;
+    font-weight: 600;
+    font-size: 12px;
+    padding: 2px 8px;
+}
+
+QCalendarWidget QSpinBox {
+    background-color: #ffffff;
+    color: #2f3540;
+    border: 1px solid #ccd0da;
+    border-radius: 4px;
+    padding: 2px 4px;
+    font-size: 12px;
+    selection-background-color: #1e1e2e;
+    selection-color: #ffffff;
+}
+
+QCalendarWidget QMenu {
+    background-color: #ffffff;
+    border: 1px solid #ccd0da;
+    border-radius: 6px;
+    padding: 4px;
+    color: #2f3540;
+}
+
+QCalendarWidget QMenu::item {
+    padding: 4px 12px;
+    border-radius: 4px;
+}
+
+QCalendarWidget QMenu::item:selected {
+    background-color: #eaeff5;
+    color: #1e1e2e;
+}
+
+QCalendarWidget QTableView {
+    background-color: #ffffff;
+    selection-background-color: #1e1e2e;
+    selection-color: #ffffff;
+    border: none;
+    outline: none;
+    alternate-background-color: #ffffff;
+}
+
+QCalendarWidget QTableView:enabled {
+    color: #2f3540;
+}
+
+QCalendarWidget QTableView:disabled {
+    color: #9ca3af;
+}
+
+QCalendarWidget QTableView::item {
+    border-radius: 4px;
+    padding: 2px;
+}
+
+QCalendarWidget QTableView::item:hover {
+    background-color: #eef1f5;
+    color: #1e1e2e;
+}
+
+QCalendarWidget QTableView::item:selected {
+    background-color: #1e1e2e;
+    color: #ffffff;
+    font-weight: bold;
+}
+
+QCalendarWidget QHeaderView {
+    background-color: #ffffff;
+    border: none;
+}
+
+QCalendarWidget QHeaderView::section {
+    background-color: #ffffff;
+    color: #5c5f77;
+    border: none;
+    padding: 4px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+#CustomFieldDeleteBtn {
+    background: transparent;
+    border: 1px solid #ccd0da;
+    border-radius: 6px;
+    padding: 4px;
+}
+
+#CustomFieldDeleteBtn:hover {
+    background-color: #ffdce0;
+    border-color: #d20f39;
+}
+
+#CustomFieldAddBtn, #AddTotpBtn {
+    background-color: #f2f3f7;
+    border: 1px solid #ccd0da;
+    border-radius: 7px;
+    padding: 0 12px;
+    color: #4c4f69;
+    font-weight: 600;
+    font-size: 12px;
+    outline: none;
+}
+
+#CustomFieldAddBtn:hover, #AddTotpBtn:hover {
+    background-color: #e6e9ef;
+    border-color: #acb0be;
+    color: #1e1e2e;
+}
+
+#CustomFieldAddBtn:pressed, #AddTotpBtn:pressed {
+    background-color: #dce0e8;
+    border-color: #9ca0b0;
+    color: #1e1e2e;
+}
+
+#CustomFieldAddBtn:focus, #AddTotpBtn:focus {
+    border-color: #1e66f5;
+    outline: none;
+}
+
+/* 4. About & Keyboard Shortcuts Dialogs */
+#AboutDialogCard, #KeyboardShortcutsDialogCard {
+    background-color: #ffffff;
+    border: 1px solid #bcc0cc;
+    border-radius: 0px;
+}
+
+#AboutDialogHeader, #KeyboardShortcutsDialogHeader {
+    background-color: #e6e9ef;
+    border: 1px solid #bcc0cc;
+    border-radius: 0px;
+    padding: 8px 12px;
+}
+
+#AboutDialogTitle, #KeyboardShortcutsDialogTitle {
+    color: #1e1e2e;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+#KeyboardShortcutsScrollArea,
+#KeyboardShortcutsScrollContent {
+    background: transparent;
+    border: none;
+}
+
+#ShortcutSectionCard {
+    background-color: #f4f5f8;
+    border: 1px solid #ccd0da;
+    border-radius: 8px;
+}
+
+#ShortcutSectionTitle {
+    color: #1e66f5;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+}
+
+#ShortcutRowDivider {
+    background-color: #dce0e8;
+    border: none;
+}
+
+#ShortcutActionLabel {
+    color: #4c4f69;
+    font-size: 13px;
+}
+
+#ShortcutKeyBadge {
+    background-color: #e6e9ef;
+    border: 1px solid #bcc0cc;
+    border-radius: 5px;
+    color: #1e1e2e;
+    font-family: monospace;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 8px;
+    min-width: 44px;
+}
+
+#ShortcutDialogCloseBtn {
+    background-color: #e6e9ef;
+    color: #4c4f69;
+    border: 1px solid #bcc0cc;
+    border-radius: 6px;
+    padding: 4px 14px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+#ShortcutDialogCloseBtn:hover {
+    background-color: #dce0e8;
+}
+
+#AboutTabWidget::pane {
+    border: 1px solid #ccd0da;
+    border-radius: 8px;
+    background-color: #ffffff;
+    top: -1px;
+}
+
+#AboutTabWidget QTabBar::tab {
+    background-color: #f4f4f6;
+    color: #6c6f85;
+    border: 1px solid #ccd0da;
+    border-bottom: none;
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    padding: 6px 16px;
+    margin-right: 4px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+#AboutTabWidget QTabBar::tab:hover {
+    background-color: #e6e9ef;
+    color: #4c4f69;
+}
+
+#AboutTabWidget QTabBar::tab:selected,
+#AboutTabWidget QTabBar::tab:selected:hover {
+    background-color: #ffffff;
+    color: #1e1e2e;
+    border-color: #ccd0da;
+    font-weight: 600;
+}
+
+#AboutMetaLabelKey {
+    color: #5c5f77;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+#AboutMetaLabelVal {
+    color: #1e1e2e;
+    font-size: 12px;
+}
+
+#AboutLicenseView {
+    background-color: #f8f9fa;
+    border: 1px solid #ccd0da;
+    border-radius: 6px;
+    color: #4c4f69;
+    font-family: monospace;
+    font-size: 11px;
+    padding: 8px;
+}
+
+#AboutBottomCloseBtn {
+    background-color: #e6e9ef;
+    border: 1px solid #bcc0cc;
+    border-radius: 6px;
+    color: #4c4f69;
+    padding: 6px 20px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+#AboutBottomCloseBtn:hover {
+    background-color: #dce0e8;
+    border-color: #45475a;
+    color: #1e1e2e;
+}
+
+#AboutBottomCloseBtn:pressed {
+    background-color: #ccd0da;
+    border-color: #45475a;
+    color: #1e1e2e;
+}
+
+/* 6. Onboarding Wizard & Lock Screen Cards */
+#OnboardingWizardView, #LockScreenView {
+    background-color: #e2e6ed;
+}
+
+#LockScreenCard {
+    background-color: #ffffff;
+    border: 1px solid #acb0be;
+    border-radius: 12px;
+}
+
+#RecoveryDialogCard, #NewVaultCard {
+    background-color: #ffffff;
+    border: 1px solid #bcc0cc;
+    border-radius: 0px;
+}
+
+/* --- Onboarding Wizard (Split Card Design) --- */
+#OnboardingCard {
+    background-color: #ffffff;
+    border: 1px solid #acb0be;
+    border-radius: 16px;
+}
+
+#OnboardingSidebar {
+    background-color: #edf0f6;
+    border-top-left-radius: 15px;
+    border-bottom-left-radius: 15px;
+    border-right: 1px solid #bcc0cc;
+}
+
+#OnboardingContentPanel {
+    background-color: #ffffff;
+    border-top-right-radius: 15px;
+    border-bottom-right-radius: 15px;
+}
+
+#OnboardingDivider {
+    background-color: #ccd0da;
+}
+
+#OnboardingSidebarTitle {
+    color: #4c4f69;
+}
+
+#OnboardingSidebarSub {
+    color: #6c6f85;
+    font-size: 8.5px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+#OnboardingBadge {
+    color: #1e1e2e;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+}
+
+#OnboardingTitle {
+    color: #4c4f69;
+}
+
+#OnboardingDesc {
+    color: #6c6f85;
+}
+
+#OnboardingLabel {
+    color: #4c4f69;
+}
+
+#OnboardingStepItem {
+    border-radius: 8px;
+    padding: 6px 10px;
+    background-color: transparent;
+}
+
+#OnboardingStepItemActive {
+    border-radius: 8px;
+    padding: 6px 10px;
+    background-color: #e6e9ef;
+    border: 1px solid #bcc0cc;
+}
+
+#OnboardingTrustBadge {
+    background-color: #ffffff;
+    border: 1px solid #bcc0cc;
+    border-radius: 8px;
+    padding: 8px 10px;
+}
+
+#OnboardingTrustTitle {
+    color: #4c4f69;
+}
+
+#OnboardingTrustSub {
+    color: #6c6f85;
+}
+
+#OnboardingFeatureCard {
+    background-color: #f4f6fb;
+    border: 1px solid #ccd0da;
+    border-radius: 10px;
+    padding: 10px 14px;
+}
+
+#OnboardingFeatureCard:hover {
+    border-color: #45475a;
+    background-color: #e6e9ef;
+}
+
+#OnboardingFeatureTitle {
+    color: #4c4f69;
+}
+
+#OnboardingFeatureDesc {
+    color: #6c6f85;
+}
+
+#OnboardingInputContainer {
+    background-color: #f8f9fa;
+    border: 1px solid #ccd0da;
+    border-radius: 8px;
+    padding: 0 4px 0 10px;
+}
+
+#OnboardingInputContainer:focus-within {
+    border-color: #1e1e2e;
+    background-color: #ffffff;
+}
+
+#OnboardingInput {
+    background: transparent;
+    border: none;
+    color: #4c4f69;
+    font-size: 13px;
+    selection-background-color: #bcc0cc;
+    selection-color: #4c4f69;
+}
+
+#OnboardingEyeBtn {
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    padding: 4px;
+}
+
+#OnboardingEyeBtn:hover {
+    background-color: #e6e9ef;
+}
+
+#OnboardingWarningBox {
+    background-color: rgba(223, 142, 29, 0.08);
+    border: 1px solid rgba(223, 142, 29, 0.25);
+    border-radius: 8px;
+    padding: 10px 14px;
+}
+
+#OnboardingBiometricCard {
+    background-color: #f8f9fa;
+    border: 1px solid #e6e9ef;
+    border-radius: 10px;
+    padding: 12px 14px;
+}
+
+#OnboardingBiometricCard:hover {
+    border-color: #ccd0da;
+}
+
+#OnboardingSummaryBox {
+    background-color: #f4f6fb;
+    border: 1px solid #bcc0cc;
+    border-radius: 8px;
+    padding: 6px;
+}
+
+#OnboardingSummaryItem {
+    color: #4c4f69;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+#OnboardingSecondaryBtn {
+    background-color: #e6e9ef;
+    border: 1px solid #bcc0cc;
+    border-radius: 6px;
+    color: #4c4f69;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 0 16px;
+}
+
+#OnboardingSecondaryBtn:hover {
+    background-color: #dce0e8;
+    border-color: #45475a;
+    color: #1e1e2e;
+}
+
+#OnboardingSecondaryBtn:pressed {
+    background-color: #ccd0da;
+    border-color: #45475a;
+}
+
+#OnboardingPrimaryBtn {
+    background-color: #1e1e2e;
+    border: 1px solid #1e1e2e;
+    border-radius: 6px;
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 0 20px;
+}
+
+#OnboardingPrimaryBtn:hover {
+    background-color: #313244;
+    border-color: #313244;
+    color: #ffffff;
+}
+
+#OnboardingPrimaryBtn:pressed {
+    background-color: #11111b;
+    border-color: #11111b;
+    color: #ffffff;
+}
+
+#OnboardingPrimaryBtn:disabled {
+    background-color: #e6e9ef;
+    border-color: #ccd0da;
+    color: #7c7f93;
+}
+
+#RecoveryBox {
+    background-color: #f2f3f7;
+    border: 1px solid #ccd0da;
+    border-radius: 8px;
+}
+
+#RecoveryKeyDisplay {
+    font-family: "JetBrains Mono", "Cascadia Code", "Fira Code", monospace;
+    font-size: 15px;
+    font-weight: 700;
+    color: #40a02b;
+    letter-spacing: 1.5px;
+    background: transparent;
+    border: none;
+    padding: 6px 0;
+}
+
+#RecoveryActionBtn {
+    background-color: #e6e9ef;
+    color: #4c4f69;
+    border: 1px solid #bcc0cc;
+    border-radius: 6px;
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+#RecoveryActionBtn:hover {
+    background-color: #dce0e8;
+    border-color: #45475a;
+    color: #1e1e2e;
+}
+
+#RecoveryActionBtn:pressed {
+    background-color: #ccd0da;
+    border-color: #45475a;
+}
+
+#LockPasswordContainer {
+    background-color: #f8f9fa;
+    border: 1px solid #ccd0da;
+    border-radius: 8px;
+}
+
+#LockPasswordContainer:focus-within {
+    border-color: #1e1e2e;
+}
+
+#LockPasswordInput {
+    background: transparent;
+    border: none;
+    color: #2f3540;
+    font-size: 14px;
+    padding-left: 10px;
+}
+
+#LockRevealBtn, #LockBiometricBtn {
+    background-color: #e6e9ef;
+    border: 1px solid #bcc0cc;
+    border-radius: 6px;
+}
+
+#LockRevealBtn:hover, #LockBiometricBtn:hover {
+    background-color: #dce0e8;
+    border-color: #45475a;
+}
+
+#LockRevealBtn:pressed, #LockBiometricBtn:pressed {
+    background-color: #ccd0da;
+    border-color: #45475a;
+}
+
+/* 7. Settings Dialog & Sidebar Footer Buttons */
+#SidebarCollapseBtn {
+    background-color: transparent;
+    border: 1px solid #ccd0da;
+    border-radius: 6px;
+    padding: 0;
+}
+
+#SidebarCollapseBtn:hover {
+    background-color: #e6e9ef;
+    border-color: #bcc0cc;
+}
+
+#SettingsDialogCard {
+    background-color: #ffffff;
+    border: 1px solid #bcc0cc;
+    border-radius: 0px;
+}
+
+#SettingsDialogHeader, #NewVaultHeader, #RecoveryDialogHeader {
+    background-color: #e6e9ef;
+    border: 1px solid #bcc0cc;
+    border-radius: 0px;
+}
+
+/* 7. Notification & Message Dialogs */
+#NotificationDialogCard {
+    background-color: #ffffff;
+    border: 1px solid #bcc0cc;
+    border-radius: 0px;
+}
+
+#NotificationDialogHeader {
+    background-color: #f4f5f8;
+    border: 1px solid #bcc0cc;
+    border-radius: 0px;
+}
+
+#NotificationDialogTitle {
+    color: #1e1e2e;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+#NotificationIconContainer {
+    background-color: #f4f5f8;
+    border: 1px solid #ccd0da;
+    border-radius: 8px;
+}
+
+#NotificationDialogMessage {
+    color: #313244;
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+#NotificationCancelBtn {
+    background-color: #eaedf3;
+    border: 1px solid #ccd0da;
+    border-radius: 6px;
+    color: #4c4f69;
+    padding: 0 16px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+#NotificationCancelBtn:hover {
+    background-color: #dce0e8;
+    border-color: #acb0be;
+    color: #1e1e2e;
+}
+
+#NotificationCancelBtn:pressed {
+    background-color: #bcc0cc;
+}
+
+#NotificationPrimaryBtn {
+    background-color: #1e1e2e;
+    border: 1px solid #1e1e2e;
+    border-radius: 6px;
+    color: #ffffff;
+    padding: 0 18px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+#NotificationPrimaryBtn:hover {
+    background-color: #313244;
+    border-color: #313244;
+}
+
+#NotificationPrimaryBtn:pressed {
+    background-color: #45475a;
+    border-color: #45475a;
+}
+
+#NotificationPrimaryBtn:disabled {
+    background-color: #dce0e8;
+    border-color: #ccd0da;
+    color: #9ca0b0;
+}
+
+/* Revision History Dialog */
+#RevisionHistoryList {
+    background-color: #f4f5f8;
+    border: 1px solid #ccd0da;
+    border-radius: 8px;
+    padding: 4px;
+    outline: none;
+}
+
+#RevisionHistoryList::item {
+    background: transparent;
+    border: none;
+}
+
+#RevisionEmptyBox {
+    background-color: #f4f5f8;
+    border: 1px solid #ccd0da;
+    border-radius: 8px;
+}
+
+#RevisionPreviewCard {
+    background-color: #f4f5f8;
+    border: 1px solid #ccd0da;
+    border-radius: 8px;
+}
+
+#RevisionPreviewHeader {
+    color: #5c5f77;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+}
+
+#RevisionPreviewTitle {
+    color: #1e1e2e;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+#RevisionPreviewMeta {
+    color: #6c6f85;
+    font-size: 12px;
+}
+
+#NotificationDangerBtn {
+    background-color: #d20f39;
+    border: 1px solid #d20f39;
+    border-radius: 6px;
+    color: #ffffff;
+    padding: 0 18px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+#NotificationDangerBtn:hover {
+    background-color: #e64553;
+    border-color: #e64553;
+}
+
+#NotificationDangerBtn:pressed {
+    background-color: #8839ef;
+    border-color: #8839ef;
+}
+
+/* Confirm Delete Dialog */
+#ConfirmDeleteTrashBadge {
+    background-color: rgba(254, 100, 11, 0.12);
+    border: 1px solid rgba(254, 100, 11, 0.30);
+    border-radius: 10px;
+}
+
+#ConfirmDeletePermanentBadge {
+    background-color: rgba(210, 15, 57, 0.10);
+    border: 1px solid rgba(210, 15, 57, 0.30);
+    border-radius: 10px;
+}
+
+#ConfirmDeleteHeading {
+    color: #1e1e2e;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+#ConfirmDeleteDesc {
+    color: #5c5f77;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+#ConfirmDeleteItemPreview {
+    background-color: #f4f5f8;
+    border: 1px solid #dce0e8;
+    border-radius: 8px;
+}
+
+#ConfirmDeleteItemIconBox {
+    background-color: #ffffff;
+    border: 1px solid #ccd0da;
+    border-radius: 7px;
+}
+
+#ConfirmDeleteItemTitle {
+    color: #1e1e2e;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+#ConfirmDeleteItemSub {
+    color: #5c5f77;
+    font-size: 11.5px;
+}
+
+#SettingsDialogTitle, #NewVaultTitle, #RecoveryDialogTitle {
+    color: #4c4f69;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+#SettingsBodyWidget {
+    background-color: #e6e9ef;
+    border-left: 1px solid #bcc0cc;
+    border-right: 1px solid #bcc0cc;
+    border-bottom: 1px solid #bcc0cc;
+}
+
+#SettingsNavList {
+    background-color: #e6e9ef;
+    border: none;
+    border-left: 1px solid #bcc0cc;
+    border-bottom: 1px solid #bcc0cc;
+    padding: 8px 6px;
+    outline: none;
+}
+
+#SettingsNavList::item {
+    color: #5c5f77;
+    border-radius: 6px;
+    padding: 7px 10px;
+    margin-bottom: 2px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+#SettingsNavList::item:hover {
+    background-color: #dce0e8;
+    color: #4c4f69;
+}
+
+#SettingsNavList::item:selected {
+    background-color: #ffffff;
+    color: #1e1e2e;
+    font-weight: 600;
+}
+
+#SettingsRightPane {
+    background-color: #eff1f5;
+    background: #eff1f5;
+    border-top: none;
+    border-left: none;
+    border-right: 1px solid #bcc0cc;
+    border-bottom: 1px solid #bcc0cc;
+}
+
+#SettingsScrollArea,
+#SettingsScrollViewport,
+#SettingsTabStack,
+#SettingsTabStack > QWidget {
+    background-color: #eff1f5;
+    background: #eff1f5;
+    border: none;
+}
+
+#SettingSectionCard {
+    background-color: #ffffff;
+    border: 1px solid #ccd0da;
+    border-radius: 8px;
+}
+
+#SettingSectionCard QLabel {
+    background: transparent;
+}
+
+#SettingsVerticalDivider {
+    color: #bcc0cc;
+    background-color: #bcc0cc;
+}
+
+#SettingRowTitle {
+    font-size: 13px;
+    font-weight: 600;
+    color: #4c4f69;
+}
+
+#SettingRowDesc {
+    font-size: 11.5px;
+    color: #6c6f85;
+}
+
+#SettingSectionTitle {
+    font-size: 11px;
+    font-weight: 700;
+    color: #1e1e2e;
+    letter-spacing: 0.8px;
+    margin-bottom: 2px;
+}
+
+#SettingsListItemCard {
+    background-color: #f8f9fa;
+    border: 1px solid #ccd0da;
+    border-radius: 6px;
+    padding: 4px;
+}
+
+#SettingsListItemTitle {
+    font-size: 13px;
+    font-weight: 600;
+    color: #4c4f69;
+}
+
+#SettingsListItemDesc {
+    font-size: 11px;
+    color: #6c6f85;
+}
+
+#SettingsDefaultBadge {
+    background-color: #e2e8f0;
+    color: #334155;
+    border: 1px solid #cbd5e1;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 4px;
+    padding: 3px 8px;
+}
+
+#SshSnippetBox {
+    background-color: #e6e9ef;
+    border: 1px solid #ccd0da;
+    border-radius: 6px;
+    padding: 10px;
+}
+
+#SshSnippetHint {
+    font-size: 11px;
+    color: #6c6f85;
+}
+
+#SshSnippetCode {
+    font-family: monospace;
+    font-size: 12px;
+    color: #40a02b;
+}
+
+#DialogDescLabel, #LockSubtitleLabel, #AboutDescLabel {
+    color: #5c5f77;
+    font-size: 11.5px;
+}
+
+#DialogFieldLabel {
+    font-size: 11px;
+    font-weight: 600;
+    color: #4c4f69;
+}
+
+#DialogErrorLabel {
+    color: #d20f39;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+#LockForgotBtn {
+    color: #4c4f69;
+    font-size: 11.5px;
+    text-decoration: underline;
+    background: transparent;
+    border: none;
+}
+
+#LockForgotBtn:hover {
+    color: #1e1e2e;
+}
+
+#AboutTaglineLabel {
+    color: #4c4f69;
+    font-weight: 500;
+    font-size: 11px;
+}
+
+#AboutDividerLine {
+    background-color: #ccd0da;
+    max-height: 1px;
+}
+
+#IconPickerBtn {
+    background-color: #f8f9fa;
+    border: 1px solid #ccd0da;
+    border-radius: 6px;
+}
+
+#IconPickerBtn:hover {
+    background-color: #e6e9ef;
+    border-color: #bcc0cc;
+}
+
+#IconPickerBtn[selected="true"] {
+    background-color: #e6e9ef;
+    border: 2px solid #1e1e2e;
+    border-radius: 6px;
+}
+
+#DetailHeaderDeleteBtn {
+    background-color: #f8f9fa;
+    border: 1px solid #ccd0da;
+    border-radius: 6px;
+    padding: 0 10px;
+    color: #d20f39;
+    font-size: 12.5px;
+    font-weight: 500;
+}
+
+#DetailHeaderDeleteBtn:hover {
+    background-color: #ffdce0;
+    border-color: #d20f39;
+    color: #d20f39;
+}
+
+#DetailHeaderDeleteBtn:pressed {
+    background-color: #d20f39;
+    border-color: #d20f39;
+    color: #ffffff;
+}
+
+#DetailHeaderRestoreBtn {
+    background-color: #f8f9fa;
+    border: 1px solid #40a02b;
+    border-radius: 6px;
+    padding: 0 12px;
+    color: #40a02b;
+    font-size: 12.5px;
+    font-weight: 600;
+}
+
+#DetailHeaderRestoreBtn:hover {
+    background-color: rgba(64, 160, 43, 0.12);
+    border-color: #40a02b;
+}
+
+#DetailHeaderRestoreBtn:pressed {
+    background-color: #40a02b;
+    border-color: #40a02b;
+    color: #ffffff;
+}
+
+#FieldRowGenerateBtn {
+    background-color: #e6e9ef;
+    border: 1px solid #bcc0cc;
+    border-radius: 6px;
+    padding: 0 10px;
+    color: #1e1e2e;
+    font-size: 11.5px;
+    font-weight: 600;
+}
+
+#FieldRowGenerateBtn:hover {
+    background-color: #dce0e8;
+    border-color: #1e1e2e;
+    color: #1e1e2e;
+}
+
+#FieldRowGenerateBtn:pressed {
+    background-color: #ccd0da;
+    border-color: #1e1e2e;
+    color: #1e1e2e;
+}
+
+/* Browser Empty State */
+#BrowserEmptyCard {
+    background-color: #ffffff;
+    border: 1px dashed #ccd0da;
+    border-radius: 8px;
+}
+
+#BrowserEmptyTitle {
+    color: #4c4f69;
+    font-size: 13.5px;
+    font-weight: 700;
+}
+
+#BrowserEmptyDesc {
+    color: #6c6f85;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+/* Browser Integration Tab */
+#BrowserHintBox {
+    background-color: #f2f4f8;
+    border: 1px solid #ccd0da;
+    border-radius: 6px;
+    padding: 10px 14px;
+}
+
+#BrowserHintText {
+    color: #6c6f85;
+    font-size: 11.5px;
+    line-height: 1.45;
+}
+
+#BrowserItemCard {
+    background-color: #ffffff;
+    border: 1px solid #ccd0da;
+    border-radius: 6px;
+    padding: 8px 12px;
+}
+
+#BrowserItemCard:hover {
+    border-color: #bcc0cc;
+    background-color: #f7f8fa;
+}
+
+#BrowserItemTitle {
+    color: #4c4f69;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+#BrowserItemDesc {
+    color: #6c6f85;
+    font-size: 11px;
+}
+
+#BrowserConnectedBadge {
+    background-color: rgba(64, 160, 43, 0.12);
+    color: #40a02b;
+    border: 1px solid rgba(64, 160, 43, 0.3);
+    border-radius: 4px;
+    font-size: 10.5px;
+    font-weight: 600;
+    padding: 2px 7px;
+}
+
+#BrowserPendingBadge {
+    background-color: rgba(223, 142, 29, 0.12);
+    color: #df8e1d;
+    border: 1px solid rgba(223, 142, 29, 0.3);
+    border-radius: 4px;
+    font-size: 10.5px;
+    font-weight: 600;
+    padding: 2px 7px;
+}
+
+#BrowserInactiveBadge {
+    background-color: rgba(108, 111, 133, 0.1);
+    color: #6c6f85;
+    border: 1px solid rgba(108, 111, 133, 0.25);
+    border-radius: 4px;
+    font-size: 10.5px;
+    font-weight: 500;
+    padding: 2px 7px;
+}
+
+#BrowserUnsupportedBadge {
+    background-color: rgba(156, 160, 176, 0.15);
+    color: #7c7f93;
+    border: 1px solid rgba(156, 160, 176, 0.3);
+    border-radius: 4px;
+    font-size: 10.5px;
+    font-weight: 500;
+    padding: 2px 7px;
+}
+
+#BrowserInstallBtn {
+    background-color: #e6e9ef;
+    color: #4c4f69;
+    border: 1px solid #ccd0da;
+    border-radius: 5px;
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 4px 12px;
+}
+
+#BrowserInstallBtn:hover {
+    background-color: #dce0e8;
+    color: #202020;
+    border-color: #bcc0cc;
+}
+
+#BrowserConnectedBtn {
+    background-color: rgba(64, 160, 43, 0.08);
+    color: #40a02b;
+    border: 1px solid rgba(64, 160, 43, 0.25);
+    border-radius: 5px;
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 4px 12px;
+}
