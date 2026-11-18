@@ -8,6 +8,7 @@
 
 #include <QApplication>
 #include <QDebug>
+#include <QIcon>
 #include <QListWidget>
 #include <QPixmap>
 #include <QPushButton>
@@ -40,6 +41,8 @@ int main(int argc, char *argv[]) {
   QApplication app(argc, argv);
   Q_INIT_RESOURCE(svm);
   app.setApplicationName(QStringLiteral("Secure Vault Manager"));
+  app.setDesktopFileName(QStringLiteral("io.github.hephaestus.svm"));
+  app.setWindowIcon(QIcon(QStringLiteral(":/icons/brand/app_logo.svg")));
   app.setApplicationVersion(QStringLiteral("0.1.0"));
   app.setOrganizationName(QStringLiteral("Hephaestus Developers"));
   app.setOrganizationDomain(QStringLiteral("hephaestus.io"));
