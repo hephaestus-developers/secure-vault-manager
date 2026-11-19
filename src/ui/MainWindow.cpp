@@ -59,6 +59,12 @@ MainWindow::MainWindow(QWidget *parent) : FramelessWindow(parent) {
   m_itemListView->setItems({});
   m_detailView->clearItem();
 
+  setBorderDark(app::ThemeManager::instance().isDarkTheme());
+  connect(&app::ThemeManager::instance(), &app::ThemeManager::themeChanged,
+          this, [this](app::ThemeMode) {
+            setBorderDark(app::ThemeManager::instance().isDarkTheme());
+          });
+
   // Cài đặt Global Event Filter để bảo vệ tính Modal của các Dialog
   qApp->installEventFilter(this);
 }

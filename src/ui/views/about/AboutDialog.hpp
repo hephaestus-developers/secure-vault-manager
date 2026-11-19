@@ -1,6 +1,7 @@
 /**
- * @file ui/views/about/about_dialog.h
- * @brief Hộp thoại giới thiệu ứng dụng AboutDialog thẩm mỹ cao chuẩn Notera.
+ * @file src/ui/views/about/AboutDialog.hpp
+ * @brief Hộp thoại giới thiệu ứng dụng AboutDialog hiện đại, tích hợp thông tin
+ * ứng dụng, Qt Framework (LGPL v3) và License.
  * @author Hai Pham Ngoc <ngochai285nd@gmail.com>
  * @copyright (c) 2026 Hephaestus Developers. All rights reserved.
  */
@@ -10,17 +11,21 @@
 #include "ui/window/FramelessDialog.hpp"
 #include <QLabel>
 #include <QPlainTextEdit>
-#include <QPoint>
 #include <QPushButton>
 #include <QTabWidget>
 
 namespace svm::views {
 
+/**
+ * @class AboutDialog
+ * @brief Hộp thoại About 3 tab (Secure Vault Manager, Qt Framework, License)
+ * với thiết kế thẻ (Card) hiện đại.
+ */
 class AboutDialog : public FramelessDialog {
   Q_OBJECT
 
 public:
-  explicit AboutDialog(QWidget *parent = nullptr);
+  explicit AboutDialog(QWidget *parent = nullptr, int initialTab = 0);
   ~AboutDialog() override = default;
 
   void retranslateUi();
@@ -30,9 +35,13 @@ protected:
   void keyPressEvent(QKeyEvent *event) override;
 
 private:
-  void setupUI();
-  QWidget *createInfoTab();
+  void setupUI(int initialTab);
+  QWidget *createHeaderBar();
+  QWidget *createAppTab();
+  QWidget *createQtTab();
   QWidget *createLicenseTab();
+  void populateAppTabContent();
+  void populateQtTabContent();
 
   QWidget *m_cardWidget{nullptr};
   QWidget *m_headerWidget{nullptr};
@@ -40,26 +49,30 @@ private:
   QPushButton *m_closeIconBtn{nullptr};
 
   QTabWidget *m_tabWidget{nullptr};
-  QWidget *m_infoTab{nullptr};
+  QWidget *m_appTab{nullptr};
+  QWidget *m_qtTab{nullptr};
   QWidget *m_licenseTab{nullptr};
 
-  QLabel *m_appNameLabel{nullptr};
-  QLabel *m_versionLabel{nullptr};
-  QLabel *m_taglineLabel{nullptr};
-  QLabel *m_descLabel{nullptr};
+  // Tab 1: Secure Vault Manager
+  QLabel *m_appHeroTitle{nullptr};
+  QLabel *m_appHeroSub{nullptr};
+  QLabel *m_featuresTitle{nullptr};
+  QLabel *m_featuresDesc{nullptr};
+  QLabel *m_productTitle{nullptr};
+  QLabel *m_productDesc{nullptr};
 
-  QLabel *m_authorKeyLabel{nullptr};
-  QLabel *m_authorValLabel{nullptr};
-  QLabel *m_emailKeyLabel{nullptr};
-  QLabel *m_emailValLabel{nullptr};
-  QLabel *m_orgKeyLabel{nullptr};
-  QLabel *m_orgValLabel{nullptr};
-  QLabel *m_copyKeyLabel{nullptr};
-  QLabel *m_copyValLabel{nullptr};
-  QLabel *m_repoKeyLabel{nullptr};
-  QLabel *m_repoValLabel{nullptr};
+  // Tab 2: Qt Framework
+  QLabel *m_qtHeroTitle{nullptr};
+  QLabel *m_qtHeroSub{nullptr};
+  QLabel *m_qtDescLabel{nullptr};
+  QLabel *m_lgplTitle{nullptr};
+  QLabel *m_lgplDesc{nullptr};
+  QLabel *m_tmTitle{nullptr};
+  QLabel *m_tmDesc{nullptr};
 
+  // Tab 3: License
   QPlainTextEdit *m_licenseEdit{nullptr};
+
   QPushButton *m_bottomCloseBtn{nullptr};
 };
 

@@ -1,6 +1,7 @@
 /**
- * @file ui/views/about/about_dialog.cpp
- * @brief Hiện thực AboutDialog thẩm mỹ cao phong cách Notera.
+ * @file src/ui/views/about/AboutDialog.cpp
+ * @brief Hiện thực AboutDialog thiết kế theo kiến trúc Card + Multi-Tab hiện
+ * đại.
  * @author Hai Pham Ngoc <ngochai285nd@gmail.com>
  * @copyright (c) 2026 Hephaestus Developers. All rights reserved.
  */
@@ -12,139 +13,231 @@
 
 #include <QCoreApplication>
 #include <QEvent>
-#include <QGridLayout>
+#include <QFrame>
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QKeyEvent>
-#include <QMouseEvent>
+#include <QScrollArea>
 #include <QVBoxLayout>
 
 namespace svm::views {
 
-AboutDialog::AboutDialog(QWidget *parent)
+AboutDialog::AboutDialog(QWidget *parent, int initialTab)
     : FramelessDialog(parent, app::ThemeManager::instance().isDarkTheme()) {
   setObjectName(QStringLiteral("AboutDialog"));
   setModal(false);
   setWindowModality(Qt::NonModal);
-  setMinimumSize(480, 420);
-  resize(540, 480);
+  setMinimumSize(520, 460);
+  resize(580, 540);
 
-  setupUI();
+  setupUI(initialTab);
+
+  connect(&app::ThemeManager::instance(), &app::ThemeManager::themeChanged,
+          this, [this](app::ThemeMode) {
+            setDark(app::ThemeManager::instance().isDarkTheme());
+            if (m_closeIconBtn) {
+              m_closeIconBtn->setIcon(app::ThemeManager::instance().icon(
+                  QStringLiteral("win_close")));
+            }
+            populateAppTabContent();
+            populateQtTabContent();
+          });
 }
 
-void AboutDialog::setupUI() {
+void AboutDialog::setupUI(int initialTab) {
   m_cardWidget = new QWidget(this);
   m_cardWidget->setObjectName(QStringLiteral("AboutDialogCard"));
   m_cardWidget->setAttribute(Qt::WA_StyledBackground, true);
 
   auto *cardLayout = new QVBoxLayout(m_cardWidget);
-  cardLayout->setContentsMargins(0, 0, 0, 14);
+  cardLayout->setContentsMargins(0, 0, 0, 0);
   cardLayout->setSpacing(0);
 
-  // 1. Header Bar
-  m_headerWidget = new QWidget(m_cardWidget);
-  m_headerWidget->setObjectName(QStringLiteral("AboutDialogHeader"));
-  m_headerWidget->setAttribute(Qt::WA_StyledBackground, true);
-  m_headerWidget->setFixedHeight(38);
+  // 1. Unified Header Bar
+  m_headerWidget = createHeaderBar();
+  cardLayout->addWidget(m_headerWidget);
 
-  auto *headerLayout = new QHBoxLayout(m_headerWidget);
+  // 2. Central Tab Widget
+  auto *contentContainer = new QWidget(m_cardWidget);
+  contentContainer->setAttribute(Qt::WA_StyledBackground, true);
+  auto *contentLayout = new QVBoxLayout(contentContainer);
+  contentLayout->setContentsMargins(14, 10, 14, 10);
+  contentLayout->setSpacing(8);
+
+  m_tabWidget = new QTabWidget(contentContainer);
+  m_tabWidget->setObjectName(QStringLiteral("AboutTabWidget"));
+
+  m_appTab = createAppTab();
+  m_qtTab = createQtTab();
+  m_licenseTab = createLicenseTab();
+
+  m_tabWidget->addTab(m_appTab, QStringLiteral("Secure Vault Manager"));
+  m_tabWidget->addTab(m_qtTab, tr("Qt Framework"));
+  m_tabWidget->addTab(m_licenseTab, tr("License"));
+
+  if (initialTab >= 0 && initialTab < m_tabWidget->count()) {
+    m_tabWidget->setCurrentIndex(initialTab);
+  }
+
+  contentLayout->addWidget(m_tabWidget, 1);
+  cardLayout->addWidget(contentContainer, 1);
+
+  // 3. Bottom Action Bar
+  auto *bottomBar = new QFrame(m_cardWidget);
+  bottomBar->setObjectName(QStringLiteral("AboutBottomBar"));
+  bottomBar->setFixedHeight(50);
+  auto *bottomLayout = new QHBoxLayout(bottomBar);
+  bottomLayout->setContentsMargins(18, 10, 18, 10);
+  bottomLayout->setSpacing(10);
+  bottomLayout->setAlignment(Qt::AlignVCenter);
+
+  bottomLayout->addStretch(1);
+
+  m_bottomCloseBtn = new QPushButton(tr("Close"), bottomBar);
+  m_bottomCloseBtn->setObjectName(QStringLiteral("AboutBottomCloseBtn"));
+  m_bottomCloseBtn->setFixedHeight(30);
+  m_bottomCloseBtn->setMinimumWidth(88);
+  m_bottomCloseBtn->setDefault(true);
+  m_bottomCloseBtn->setCursor(Qt::PointingHandCursor);
+  connect(m_bottomCloseBtn, &QPushButton::clicked, this, &QDialog::accept);
+  bottomLayout->addWidget(m_bottomCloseBtn);
+
+  cardLayout->addWidget(bottomBar);
+
+  setHeaderBar(m_headerWidget);
+  setCardWidget(m_cardWidget);
+}
+
+QWidget *AboutDialog::createHeaderBar() {
+  auto *header = new QWidget(m_cardWidget);
+  header->setObjectName(QStringLiteral("AboutDialogHeader"));
+  header->setAttribute(Qt::WA_StyledBackground, true);
+  header->setFixedHeight(38);
+
+  auto *headerLayout = new QHBoxLayout(header);
   headerLayout->setContentsMargins(14, 0, 0, 0);
   headerLayout->setSpacing(8);
 
-  auto *logoIconLabel = new QLabel(m_headerWidget);
+  auto *logoIconLabel = new QLabel(header);
   logoIconLabel->setPixmap(
       QIcon(QStringLiteral(":/icons/brand/app_logo.svg")).pixmap(18, 18));
-  headerLayout->addWidget(logoIconLabel);
+  logoIconLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
+  headerLayout->addWidget(logoIconLabel, 0, Qt::AlignVCenter);
 
-  m_headerTitle = new QLabel(tr("About Secure Vault Manager"), m_headerWidget);
+  m_headerTitle = new QLabel(tr("About Secure Vault Manager"), header);
   m_headerTitle->setObjectName(QStringLiteral("AboutDialogTitle"));
-  headerLayout->addWidget(m_headerTitle);
+  m_headerTitle->setAttribute(Qt::WA_TransparentForMouseEvents);
+  headerLayout->addWidget(m_headerTitle, 0, Qt::AlignVCenter);
 
   headerLayout->addStretch(1);
 
-  m_closeIconBtn = new QPushButton(m_headerWidget);
+  m_closeIconBtn = new QPushButton(header);
   m_closeIconBtn->setObjectName(QStringLiteral("WinCloseBtn"));
   m_closeIconBtn->setFixedSize(46, 38);
   m_closeIconBtn->setIconSize(QSize(12, 12));
   m_closeIconBtn->setFlat(true);
   m_closeIconBtn->setFocusPolicy(Qt::NoFocus);
   m_closeIconBtn->setCursor(Qt::PointingHandCursor);
+  m_closeIconBtn->setToolTip(tr("Close"));
   m_closeIconBtn->setIcon(
       app::ThemeManager::instance().icon(QStringLiteral("win_close")));
   connect(m_closeIconBtn, &QPushButton::clicked, this, &QDialog::reject);
-  headerLayout->addWidget(m_closeIconBtn);
+  headerLayout->addWidget(m_closeIconBtn, 0, Qt::AlignVCenter);
 
-  cardLayout->addWidget(m_headerWidget);
-
-  // 2. Nội dung thân: QTabWidget
-  auto *contentContainer = new QWidget(m_cardWidget);
-  contentContainer->setAttribute(Qt::WA_StyledBackground, true);
-  auto *contentLayout = new QVBoxLayout(contentContainer);
-  contentLayout->setContentsMargins(14, 12, 14, 0);
-  contentLayout->setSpacing(10);
-
-  m_tabWidget = new QTabWidget(contentContainer);
-  m_tabWidget->setObjectName(QStringLiteral("AboutTabWidget"));
-
-  m_infoTab = createInfoTab();
-  m_licenseTab = createLicenseTab();
-
-  m_tabWidget->addTab(m_infoTab, tr("Information"));
-  m_tabWidget->addTab(m_licenseTab, tr("License"));
-
-  contentLayout->addWidget(m_tabWidget);
-
-  // 3. Bottom Action Bar
-  auto *bottomBar = new QWidget(contentContainer);
-  auto *bottomLayout = new QHBoxLayout(bottomBar);
-  bottomLayout->setContentsMargins(0, 4, 0, 0);
-
-  bottomLayout->addStretch(1);
-
-  m_bottomCloseBtn = new QPushButton(tr("Close"), bottomBar);
-  m_bottomCloseBtn->setObjectName(QStringLiteral("AboutBottomCloseBtn"));
-  m_bottomCloseBtn->setCursor(Qt::PointingHandCursor);
-  m_bottomCloseBtn->setFixedHeight(32);
-  connect(m_bottomCloseBtn, &QPushButton::clicked, this, &QDialog::accept);
-  bottomLayout->addWidget(m_bottomCloseBtn);
-
-  contentLayout->addWidget(bottomBar);
-  cardLayout->addWidget(contentContainer);
-
-  setHeaderBar(m_headerWidget);
-  setCardWidget(m_cardWidget);
+  return header;
 }
 
-QWidget *AboutDialog::createInfoTab() {
-  auto *tab = new QWidget(m_tabWidget);
+QWidget *AboutDialog::createAppTab() {
+  auto *scrollArea = new QScrollArea(m_tabWidget);
+  scrollArea->setWidgetResizable(true);
+  scrollArea->setFrameShape(QFrame::NoFrame);
+  scrollArea->setObjectName(QStringLiteral("AboutScrollArea"));
+  scrollArea->viewport()->setAutoFillBackground(false);
+
+  auto *tab = new QWidget(scrollArea);
+  tab->setAutoFillBackground(false);
   auto *layout = new QVBoxLayout(tab);
   layout->setContentsMargins(14, 14, 14, 14);
   layout->setSpacing(12);
 
-  // Top branding section
-  auto *brandWidget = new QWidget(tab);
-  auto *brandLayout = new QHBoxLayout(brandWidget);
-  brandLayout->setContentsMargins(0, 0, 0, 0);
-  brandLayout->setSpacing(14);
+  // Hero Banner
+  auto *heroLayout = new QHBoxLayout();
+  heroLayout->setSpacing(14);
 
-  auto *bigLogo = new QLabel(brandWidget);
-  bigLogo->setPixmap(
+  auto *appIcon = new QLabel(tab);
+  appIcon->setPixmap(
       QIcon(QStringLiteral(":/icons/brand/app_logo.svg")).pixmap(52, 52));
-  bigLogo->setFixedSize(56, 56);
-  bigLogo->setAlignment(Qt::AlignCenter);
-  brandLayout->addWidget(bigLogo);
+  appIcon->setFixedSize(56, 56);
+  appIcon->setAlignment(Qt::AlignCenter);
+  heroLayout->addWidget(appIcon, 0, Qt::AlignTop);
 
-  auto *titleCol = new QVBoxLayout();
-  titleCol->setContentsMargins(0, 0, 0, 0);
-  titleCol->setSpacing(2);
+  auto *heroTextLayout = new QVBoxLayout();
+  heroTextLayout->setSpacing(3);
 
-  m_appNameLabel =
-      new QLabel(QStringLiteral("Secure Vault Manager"), brandWidget);
-  QFont nameFont = m_appNameLabel->font();
-  nameFont.setPointSize(14);
-  nameFont.setBold(true);
-  m_appNameLabel->setFont(nameFont);
-  titleCol->addWidget(m_appNameLabel);
+  m_appHeroTitle = new QLabel(tab);
+  m_appHeroTitle->setObjectName(QStringLiteral("AboutHeroTitle"));
+  heroTextLayout->addWidget(m_appHeroTitle);
+
+  m_appHeroSub = new QLabel(tab);
+  m_appHeroSub->setObjectName(QStringLiteral("AboutHeroSubtitle"));
+  m_appHeroSub->setWordWrap(true);
+  heroTextLayout->addWidget(m_appHeroSub);
+
+  heroLayout->addLayout(heroTextLayout, 1);
+  layout->addLayout(heroLayout);
+
+  // Key Features Card
+  auto *featuresCard = new QFrame(tab);
+  featuresCard->setObjectName(QStringLiteral("AboutInfoCard"));
+  auto *featuresLayout = new QVBoxLayout(featuresCard);
+  featuresLayout->setContentsMargins(14, 12, 14, 12);
+  featuresLayout->setSpacing(8);
+
+  m_featuresTitle = new QLabel(featuresCard);
+  m_featuresTitle->setObjectName(QStringLiteral("AboutCardTitle"));
+  featuresLayout->addWidget(m_featuresTitle);
+
+  m_featuresDesc = new QLabel(featuresCard);
+  m_featuresDesc->setObjectName(QStringLiteral("AboutCardBody"));
+  m_featuresDesc->setWordWrap(true);
+  featuresLayout->addWidget(m_featuresDesc);
+
+  layout->addWidget(featuresCard);
+
+  // Product & Author Information Card
+  auto *infoCard = new QFrame(tab);
+  infoCard->setObjectName(QStringLiteral("AboutInfoCard"));
+  auto *infoLayout = new QVBoxLayout(infoCard);
+  infoLayout->setContentsMargins(14, 12, 14, 12);
+  infoLayout->setSpacing(8);
+
+  m_productTitle = new QLabel(infoCard);
+  m_productTitle->setObjectName(QStringLiteral("AboutCardTitle"));
+  infoLayout->addWidget(m_productTitle);
+
+  m_productDesc = new QLabel(infoCard);
+  m_productDesc->setObjectName(QStringLiteral("AboutCardBody"));
+  m_productDesc->setWordWrap(true);
+  m_productDesc->setOpenExternalLinks(true);
+  m_productDesc->setTextInteractionFlags(Qt::TextBrowserInteraction);
+  infoLayout->addWidget(m_productDesc);
+
+  layout->addWidget(infoCard);
+  layout->addStretch(1);
+
+  scrollArea->setWidget(tab);
+  populateAppTabContent();
+  return scrollArea;
+}
+
+void AboutDialog::populateAppTabContent() {
+  const bool isDark = app::ThemeManager::instance().isDarkTheme();
+  const QString textColor =
+      isDark ? QStringLiteral("#cdd6f4") : QStringLiteral("#4c4f69");
+  const QString subColor =
+      isDark ? QStringLiteral("#a6adc8") : QStringLiteral("#6c6f85");
+  const QString linkColor =
+      isDark ? QStringLiteral("#ffffff") : QStringLiteral("#1e1e2e");
 
   const QString appVer = QCoreApplication::applicationVersion().isEmpty()
                              ? QStringLiteral("0.1.0")
@@ -152,103 +245,256 @@ QWidget *AboutDialog::createInfoTab() {
   const QString coreVer = core::CoreBridge::instance().coreVersion().isEmpty()
                               ? appVer
                               : core::CoreBridge::instance().coreVersion();
-  m_versionLabel =
-      new QLabel(tr("Version %1 - Rust Core Engine v%2").arg(appVer, coreVer),
-                 brandWidget);
-  m_versionLabel->setObjectName(QStringLiteral("AboutMetaLabelVal"));
-  titleCol->addWidget(m_versionLabel);
 
-  m_taglineLabel =
-      new QLabel(tr("Private, Fast & Secure Password Manager"), brandWidget);
-  m_taglineLabel->setObjectName(QStringLiteral("AboutTaglineLabel"));
-  m_taglineLabel->setWordWrap(true);
-  titleCol->addWidget(m_taglineLabel);
+  if (m_appHeroTitle) {
+    m_appHeroTitle->setText(
+        QStringLiteral("Secure Vault Manager <span style='font-size:12px; "
+                       "font-weight:normal; color:%1;'>v%2 (Core v%3)</span>")
+            .arg(subColor, appVer, coreVer));
+  }
+  if (m_appHeroSub) {
+    m_appHeroSub->setText(tr(
+        "Zero-knowledge local password, passkey, and SSH credential manager."));
+  }
+  if (m_featuresTitle) {
+    m_featuresTitle->setText(tr("Key Features"));
+  }
+  if (m_featuresDesc) {
+    m_featuresDesc->setText(
+        QStringLiteral("<ul style='margin:0; padding-left:18px; "
+                       "line-height:1.5; color:%1;'>"
+                       "<li><b>%2:</b> %3</li>"
+                       "<li><b>%4:</b> %5</li>"
+                       "<li><b>%6:</b> %7</li>"
+                       "<li><b>%8:</b> %9</li>"
+                       "</ul>")
+            .arg(textColor, tr("Zero-Knowledge Encryption"),
+                 tr("ChaCha20-Poly1305 authenticated encryption with Argon2id "
+                    "key derivation and local-first storage."),
+                 tr("FIDO2 / WebAuthn Passkeys"),
+                 tr("Hardware-grade passwordless authentication synced "
+                    "seamlessly with Chrome, Edge, Brave, and Firefox."),
+                 tr("TOTP & OpenSSH Agent"),
+                 tr("Integrated RFC 6238 2FA authenticator codes and native "
+                    "Unix/Windows OpenSSH agent forwarding."),
+                 tr("Cross-Platform Architecture"),
+                 tr("High-performance Rust cryptographic core paired with a "
+                    "fast, modern Qt 6 desktop interface.")));
+  }
+  if (m_productTitle) {
+    m_productTitle->setText(tr("Product Information"));
+  }
+  if (m_productDesc) {
+    m_productDesc->setText(
+        QStringLiteral(
+            "<table style='margin:0; padding:0; border-collapse:collapse; "
+            "color:%1; line-height:1.5;'>"
+            "<tr>"
+            "<td style='padding:2px 14px 2px 0; font-weight:600;'>%2</td>"
+            "<td style='padding:2px 0;'>%3 (Rust Core v%4)</td>"
+            "</tr>"
+            "<tr>"
+            "<td style='padding:2px 14px 2px 0; font-weight:600;'>%5</td>"
+            "<td style='padding:2px 0;'>Hai Pham Ngoc &lt;<a "
+            "href='mailto:ngochai285nd@gmail.com' "
+            "style='color:%6; "
+            "text-decoration:underline;'>ngochai285nd@gmail.com</a>&gt;</td>"
+            "</tr>"
+            "<tr>"
+            "<td style='padding:2px 14px 2px 0; font-weight:600;'>%7</td>"
+            "<td style='padding:2px 0;'>Hephaestus Developers</td>"
+            "</tr>"
+            "<tr>"
+            "<td style='padding:2px 14px 2px 0; font-weight:600;'>%8</td>"
+            "<td style='padding:2px 0;'><a "
+            "href='https://opensource.org/licenses/MIT' "
+            "style='color:%6; text-decoration:underline;'>MIT License</a></td>"
+            "</tr>"
+            "<tr>"
+            "<td style='padding:2px 14px 2px 0; font-weight:600;'>%9</td>"
+            "<td style='padding:2px 0;'><a "
+            "href='https://github.com/hephaestus-developers/"
+            "secure-vault-manager' "
+            "style='color:%6; "
+            "text-decoration:underline;'>github.com/hephaestus-developers/"
+            "secure-vault-manager</a></td>"
+            "</tr>"
+            "</table>")
+            .arg(textColor, tr("Version:"), appVer, coreVer, tr("Author:"),
+                 linkColor, tr("Organization:"), tr("License:"),
+                 tr("Repository:")));
+  }
+}
 
-  brandLayout->addLayout(titleCol, 1);
-  layout->addWidget(brandWidget);
+QWidget *AboutDialog::createQtTab() {
+  auto *scrollArea = new QScrollArea(m_tabWidget);
+  scrollArea->setWidgetResizable(true);
+  scrollArea->setFrameShape(QFrame::NoFrame);
+  scrollArea->setObjectName(QStringLiteral("AboutScrollArea"));
+  scrollArea->viewport()->setAutoFillBackground(false);
 
-  // Description
-  m_descLabel = new QLabel(tr("Secure Vault Manager is crafted with high "
-                              "performance, minimal memory "
-                              "footprint, offline privacy, and "
-                              "native modern UI aesthetics "
-                              "across desktop platforms."),
-                           tab);
-  m_descLabel->setWordWrap(true);
-  m_descLabel->setObjectName(QStringLiteral("AboutDescLabel"));
-  layout->addWidget(m_descLabel);
+  auto *tab = new QWidget(scrollArea);
+  tab->setAutoFillBackground(false);
+  auto *layout = new QVBoxLayout(tab);
+  layout->setContentsMargins(14, 14, 14, 14);
+  layout->setSpacing(12);
 
-  // Divider
-  auto *line = new QFrame(tab);
-  line->setObjectName(QStringLiteral("AboutDividerLine"));
-  line->setFrameShape(QFrame::HLine);
-  line->setFrameShadow(QFrame::Plain);
-  layout->addWidget(line);
+  // Hero banner
+  auto *heroLayout = new QHBoxLayout();
+  heroLayout->setSpacing(14);
 
-  // Key-value metadata grid
-  auto *gridWidget = new QWidget(tab);
-  auto *gridLayout = new QGridLayout(gridWidget);
-  gridLayout->setContentsMargins(0, 0, 0, 0);
-  gridLayout->setHorizontalSpacing(12);
-  gridLayout->setVerticalSpacing(6);
+  auto *qtIcon = new QLabel(tab);
+  qtIcon->setPixmap(
+      QIcon(QStringLiteral(":/icons/brand/qt_logo.svg")).pixmap(52, 52));
+  qtIcon->setFixedSize(56, 56);
+  qtIcon->setAlignment(Qt::AlignCenter);
+  heroLayout->addWidget(qtIcon, 0, Qt::AlignTop);
 
-  m_authorKeyLabel = new QLabel(tr("Author:"), gridWidget);
-  m_authorKeyLabel->setObjectName(QStringLiteral("AboutMetaLabelKey"));
-  m_authorValLabel = new QLabel(QStringLiteral("Hai Pham Ngoc"), gridWidget);
-  m_authorValLabel->setObjectName(QStringLiteral("AboutMetaLabelVal"));
-  m_authorValLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
-  gridLayout->addWidget(m_authorKeyLabel, 0, 0);
-  gridLayout->addWidget(m_authorValLabel, 0, 1);
+  auto *heroTextLayout = new QVBoxLayout();
+  heroTextLayout->setSpacing(3);
 
-  m_emailKeyLabel = new QLabel(tr("Email:"), gridWidget);
-  m_emailKeyLabel->setObjectName(QStringLiteral("AboutMetaLabelKey"));
-  m_emailValLabel =
-      new QLabel(QStringLiteral("ngochai285nd@gmail.com"), gridWidget);
-  m_emailValLabel->setObjectName(QStringLiteral("AboutMetaLabelVal"));
-  m_emailValLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
-  gridLayout->addWidget(m_emailKeyLabel, 1, 0);
-  gridLayout->addWidget(m_emailValLabel, 1, 1);
+  m_qtHeroTitle = new QLabel(tab);
+  m_qtHeroTitle->setObjectName(QStringLiteral("AboutHeroTitle"));
+  heroTextLayout->addWidget(m_qtHeroTitle);
 
-  m_orgKeyLabel = new QLabel(tr("Organization:"), gridWidget);
-  m_orgKeyLabel->setObjectName(QStringLiteral("AboutMetaLabelKey"));
-  m_orgValLabel =
-      new QLabel(QStringLiteral("Hephaestus Developers"), gridWidget);
-  m_orgValLabel->setObjectName(QStringLiteral("AboutMetaLabelVal"));
-  m_orgValLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
-  gridLayout->addWidget(m_orgKeyLabel, 2, 0);
-  gridLayout->addWidget(m_orgValLabel, 2, 1);
+  m_qtHeroSub = new QLabel(tab);
+  m_qtHeroSub->setObjectName(QStringLiteral("AboutHeroSubtitle"));
+  m_qtHeroSub->setWordWrap(true);
+  heroTextLayout->addWidget(m_qtHeroSub);
 
-  m_copyKeyLabel = new QLabel(tr("Copyright:"), gridWidget);
-  m_copyKeyLabel->setObjectName(QStringLiteral("AboutMetaLabelKey"));
-  m_copyValLabel = new QLabel(
-      QStringLiteral("© 2026 Hephaestus Developers. All rights reserved."),
-      gridWidget);
-  m_copyValLabel->setObjectName(QStringLiteral("AboutMetaLabelVal"));
-  m_copyValLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
-  gridLayout->addWidget(m_copyKeyLabel, 3, 0);
-  gridLayout->addWidget(m_copyValLabel, 3, 1);
+  heroLayout->addLayout(heroTextLayout, 1);
+  layout->addLayout(heroLayout);
 
-  m_repoKeyLabel = new QLabel(tr("Repository:"), gridWidget);
-  m_repoKeyLabel->setObjectName(QStringLiteral("AboutMetaLabelKey"));
-  m_repoValLabel = new QLabel(
-      QStringLiteral(
-          "https://github.com/hephaestus-studio/secure-vault-manager"),
-      gridWidget);
-  m_repoValLabel->setObjectName(QStringLiteral("AboutMetaLabelVal"));
-  m_repoValLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
-  gridLayout->addWidget(m_repoKeyLabel, 4, 0);
-  gridLayout->addWidget(m_repoValLabel, 4, 1);
+  // Qt Description Card
+  auto *qtCard = new QFrame(tab);
+  qtCard->setObjectName(QStringLiteral("AboutInfoCard"));
+  auto *qtCardLayout = new QVBoxLayout(qtCard);
+  qtCardLayout->setContentsMargins(14, 12, 14, 12);
+  qtCardLayout->setSpacing(6);
 
-  layout->addWidget(gridWidget);
+  m_qtDescLabel = new QLabel(qtCard);
+  m_qtDescLabel->setObjectName(QStringLiteral("AboutCardBody"));
+  m_qtDescLabel->setWordWrap(true);
+  qtCardLayout->addWidget(m_qtDescLabel);
+
+  layout->addWidget(qtCard);
+
+  // LGPL Compliance Card
+  auto *lgplCard = new QFrame(tab);
+  lgplCard->setObjectName(QStringLiteral("AboutInfoCard"));
+  auto *lgplLayout = new QVBoxLayout(lgplCard);
+  lgplLayout->setContentsMargins(14, 12, 14, 12);
+  lgplLayout->setSpacing(6);
+
+  m_lgplTitle = new QLabel(lgplCard);
+  m_lgplTitle->setObjectName(QStringLiteral("AboutCardTitle"));
+  lgplLayout->addWidget(m_lgplTitle);
+
+  m_lgplDesc = new QLabel(lgplCard);
+  m_lgplDesc->setObjectName(QStringLiteral("AboutCardBody"));
+  m_lgplDesc->setWordWrap(true);
+  lgplLayout->addWidget(m_lgplDesc);
+
+  layout->addWidget(lgplCard);
+
+  // Copyright & Trademark Notice Card
+  auto *tmCard = new QFrame(tab);
+  tmCard->setObjectName(QStringLiteral("AboutInfoCard"));
+  auto *tmLayout = new QVBoxLayout(tmCard);
+  tmLayout->setContentsMargins(14, 12, 14, 12);
+  tmLayout->setSpacing(6);
+
+  m_tmTitle = new QLabel(tmCard);
+  m_tmTitle->setObjectName(QStringLiteral("AboutCardTitle"));
+  tmLayout->addWidget(m_tmTitle);
+
+  m_tmDesc = new QLabel(tmCard);
+  m_tmDesc->setObjectName(QStringLiteral("AboutCardBody"));
+  m_tmDesc->setWordWrap(true);
+  m_tmDesc->setOpenExternalLinks(true);
+  m_tmDesc->setTextInteractionFlags(Qt::TextBrowserInteraction);
+  tmLayout->addWidget(m_tmDesc);
+
+  layout->addWidget(tmCard);
   layout->addStretch(1);
 
-  return tab;
+  scrollArea->setWidget(tab);
+  populateQtTabContent();
+  return scrollArea;
+}
+
+void AboutDialog::populateQtTabContent() {
+  const bool isDark = app::ThemeManager::instance().isDarkTheme();
+  const QString textColor =
+      isDark ? QStringLiteral("#cdd6f4") : QStringLiteral("#4c4f69");
+  const QString subColor =
+      isDark ? QStringLiteral("#a6adc8") : QStringLiteral("#6c6f85");
+  const QString linkColor =
+      isDark ? QStringLiteral("#ffffff") : QStringLiteral("#1e1e2e");
+  const QString qtVer = QString::fromLatin1(qVersion());
+
+  if (m_qtHeroTitle) {
+    m_qtHeroTitle->setText(
+        QStringLiteral("Qt Framework <span style='font-size:12px; "
+                       "font-weight:normal; color:%1;'>v%2</span>")
+            .arg(subColor, qtVer));
+  }
+  if (m_qtHeroSub) {
+    m_qtHeroSub->setText(tr("Cross-platform C++ application and UI framework"));
+  }
+  if (m_qtDescLabel) {
+    m_qtDescLabel->setText(
+        QStringLiteral("<p style='margin:0 0 6px 0; color:%1;'>%2</p>"
+                       "<p style='margin:0 0 6px 0; color:%1;'>%3</p>"
+                       "<p style='margin:0; color:%1;'>%4</p>")
+            .arg(textColor,
+                 tr("This program uses <b>Qt version %1</b> for its desktop "
+                    "graphical user interface.")
+                     .arg(qtVer),
+                 tr("Qt is a C++ toolkit for cross-platform development "
+                    "providing single-source portability across Linux, macOS, "
+                    "Windows, and mobile platforms."),
+                 tr("Qt is available under multiple licenses: GNU LGPL v3, GNU "
+                    "GPL v2/v3, and commercial licenses.")));
+  }
+  if (m_lgplTitle) {
+    m_lgplTitle->setText(tr("GNU LGPL v3 Compliance Statement"));
+  }
+  if (m_lgplDesc) {
+    m_lgplDesc->setText(
+        QStringLiteral("<p style='margin:0 0 6px 0; color:%1;'>%2</p>"
+                       "<p style='margin:0; color:%1;'>%3</p>")
+            .arg(textColor,
+                 tr("The Qt framework libraries utilized by this application "
+                    "are free software licensed under the terms of the <b>GNU "
+                    "Lesser General Public License (LGPL v3)</b>."),
+                 tr("Qt runtime libraries are dynamically linked. You have the "
+                    "right and freedom to inspect, relink, or replace these "
+                    "libraries with compatible versions in accordance with GNU "
+                    "LGPL v3.")));
+  }
+  if (m_tmTitle) {
+    m_tmTitle->setText(tr("Copyright & Trademarks"));
+  }
+  if (m_tmDesc) {
+    m_tmDesc->setText(
+        QStringLiteral("<p style='margin:0 0 4px 0; color:%1;'>%2</p>"
+                       "<p style='margin:0; color:%1;'>%3 <a style='color:%4; "
+                       "text-decoration:underline;' "
+                       "href='https://www.qt.io/'>https://www.qt.io/</a>.</p>")
+            .arg(textColor,
+                 tr("Qt is a registered trademark of The Qt Company Ltd. "
+                    "and/or its subsidiaries."),
+                 tr("Copyright (C) 2026 The Qt Company Ltd. and other "
+                    "contributors. For more information, visit"),
+                 linkColor));
+  }
 }
 
 QWidget *AboutDialog::createLicenseTab() {
   auto *tab = new QWidget(m_tabWidget);
   auto *layout = new QVBoxLayout(tab);
-  layout->setContentsMargins(10, 10, 10, 10);
+  layout->setContentsMargins(12, 12, 12, 12);
 
   m_licenseEdit = new QPlainTextEdit(tab);
   m_licenseEdit->setObjectName(QStringLiteral("AboutLicenseView"));
@@ -293,45 +539,16 @@ void AboutDialog::retranslateUi() {
   if (m_headerTitle) {
     m_headerTitle->setText(tr("About Secure Vault Manager"));
   }
+  if (m_closeIconBtn) {
+    m_closeIconBtn->setToolTip(tr("Close"));
+  }
   if (m_tabWidget) {
-    m_tabWidget->setTabText(0, tr("Information"));
-    m_tabWidget->setTabText(1, tr("License"));
+    m_tabWidget->setTabText(0, QStringLiteral("Secure Vault Manager"));
+    m_tabWidget->setTabText(1, tr("Qt Framework"));
+    m_tabWidget->setTabText(2, tr("License"));
   }
-  if (m_versionLabel) {
-    const QString appVer = QCoreApplication::applicationVersion().isEmpty()
-                               ? QStringLiteral("0.1.0")
-                               : QCoreApplication::applicationVersion();
-    const QString coreVer = core::CoreBridge::instance().coreVersion().isEmpty()
-                                ? appVer
-                                : core::CoreBridge::instance().coreVersion();
-    m_versionLabel->setText(
-        tr("Version %1 - Rust Core Engine v%2").arg(appVer, coreVer));
-  }
-  if (m_taglineLabel) {
-    m_taglineLabel->setText(tr("Private, Fast & Secure Password Manager"));
-  }
-  if (m_descLabel) {
-    m_descLabel->setText(tr(
-        "Secure Vault Manager is crafted with high performance, minimal memory "
-        "footprint, offline privacy, and native modern UI "
-        "aesthetics "
-        "across desktop platforms."));
-  }
-  if (m_authorKeyLabel) {
-    m_authorKeyLabel->setText(tr("Author:"));
-  }
-  if (m_emailKeyLabel) {
-    m_emailKeyLabel->setText(tr("Email:"));
-  }
-  if (m_orgKeyLabel) {
-    m_orgKeyLabel->setText(tr("Organization:"));
-  }
-  if (m_copyKeyLabel) {
-    m_copyKeyLabel->setText(tr("Copyright:"));
-  }
-  if (m_repoKeyLabel) {
-    m_repoKeyLabel->setText(tr("Repository:"));
-  }
+  populateAppTabContent();
+  populateQtTabContent();
   if (m_bottomCloseBtn) {
     m_bottomCloseBtn->setText(tr("Close"));
   }

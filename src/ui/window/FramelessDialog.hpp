@@ -127,6 +127,7 @@ protected:
   QVBoxLayout *m_rootLayout{nullptr};
   QWidget *m_cardWidget{nullptr};
   QWidget *m_headerBar{nullptr};
+  FramelessUtil::RoundedBorderOverlay *m_borderOverlay{nullptr};
 
   int m_shakeOffset{0};
   static constexpr int MARGIN = 10;

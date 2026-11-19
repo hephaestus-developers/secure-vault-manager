@@ -4,6 +4,7 @@
         <file>icons/brand/app_logo.svg</file>
         <file>icons/brand/app_logo_dark.svg</file>
         <file>icons/brand/app_logo_light.svg</file>
+        <file>icons/brand/qt_logo.svg</file>
 
         <!-- Browser Logos -->
         <file>icons/browsers/browser_brave.svg</file>

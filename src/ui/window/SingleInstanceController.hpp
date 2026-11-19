@@ -14,8 +14,8 @@
 
 /**
  * @class SingleInstanceController
- * @brief Enforces single running instance of Calculator using QLocalServer /
- * QLocalSocket IPC.
+ * @brief Enforces single running instance of Secure Vault Manager using
+ * QLocalServer / QLocalSocket IPC.
  *
  * If an existing instance is running, forwards activation commands and
  * gracefully exits. If primary, listens for secondary activation signals to

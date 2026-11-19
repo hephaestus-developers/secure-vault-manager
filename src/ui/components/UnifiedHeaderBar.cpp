@@ -216,6 +216,12 @@ void UnifiedHeaderBar::resizeEvent(QResizeEvent *event) {
 void UnifiedHeaderBar::updateMaximizeState(bool isMaximized) {
   m_isMaximized = isMaximized;
   m_maxBtn->setToolTip(isMaximized ? tr("Restore") : tr("Maximize"));
+  if (m_closeBtn) {
+    m_closeBtn->setProperty("maximized", isMaximized);
+    m_closeBtn->style()->unpolish(m_closeBtn);
+    m_closeBtn->style()->polish(m_closeBtn);
+    m_closeBtn->update();
+  }
   updateThemeIcons(m_darkMode);
 }
 

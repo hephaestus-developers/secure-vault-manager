@@ -8,8 +8,13 @@
 #pragma once
 
 #include <QCursor>
+#include <QEvent>
+#include <QPainter>
+#include <QPainterPath>
+#include <QPen>
 #include <QPoint>
 #include <QRect>
+#include <QRectF>
 #include <QSize>
 #include <QWidget>
 #include <QWindow>
@@ -194,5 +199,93 @@ inline QRect calculateManualResize(ResizeEdge edge,
 
   return newGeom;
 }
+
+/**
+ * @class RoundedBorderOverlay
+ * @brief Lớp phủ trong suốt vẽ đường viền bo góc mượt mà bằng
+ * QPainter::Antialiasing nằm trên cùng các widget con để tránh bị cắt góc hoặc
+ * răng cưa QSS.
+ */
+class RoundedBorderOverlay : public QWidget {
+public:
+  explicit RoundedBorderOverlay(QWidget *parent, bool isDark = true,
+                                qreal radius = 8.0)
+      : QWidget(parent), m_isDark(isDark), m_radius(radius) {
+    setAttribute(Qt::WA_TransparentForMouseEvents, true);
+    setAttribute(Qt::WA_NoSystemBackground, true);
+    setAttribute(Qt::WA_TranslucentBackground, true);
+    setFocusPolicy(Qt::NoFocus);
+    if (parent) {
+      resize(parent->size());
+      parent->installEventFilter(this);
+      raise();
+    }
+  }
+
+  void setDark(bool isDark) {
+    if (m_isDark != isDark) {
+      m_isDark = isDark;
+      update();
+    }
+  }
+
+  void setRadius(qreal radius) {
+    if (m_radius != radius) {
+      m_radius = radius;
+      update();
+    }
+  }
+
+protected:
+  bool eventFilter(QObject *watched, QEvent *event) override {
+    if (watched == parentWidget()) {
+      if (event->type() == QEvent::Resize) {
+        resize(parentWidget()->size());
+        raise();
+      } else if (event->type() == QEvent::Show ||
+                 event->type() == QEvent::ChildAdded) {
+        raise();
+      }
+    }
+    return QWidget::eventFilter(watched, event);
+  }
+
+  void paintEvent(QPaintEvent *) override {
+    if (m_radius <= 0.0 || width() <= 2 || height() <= 2) {
+      return;
+    }
+    QPainter p(this);
+    p.setRenderHint(QPainter::Antialiasing, true);
+
+    const QRectF bounds(0.0, 0.0, static_cast<qreal>(width()),
+                        static_cast<qreal>(height()));
+
+    // 1. Xóa sạch phần pixel của widget con bị tràn ra ngoài 4 góc bo tròn (có
+    // anti-aliasing)
+    QPainterPath fullRect;
+    fullRect.addRect(bounds);
+
+    QPainterPath innerRounded;
+    innerRounded.addRoundedRect(bounds, m_radius, m_radius);
+
+    const QPainterPath outsideCorners = fullRect.subtracted(innerRounded);
+    p.setCompositionMode(QPainter::CompositionMode_Clear);
+    p.fillPath(outsideCorners, Qt::black);
+
+    // 2. Vẽ đường viền 1px bo góc mượt mà đè lên trên
+    p.setCompositionMode(QPainter::CompositionMode_SourceOver);
+    const QColor borderColor = m_isDark ? QColor(QStringLiteral("#45475a"))
+                                        : QColor(QStringLiteral("#bcc0cc"));
+    p.setPen(QPen(borderColor, 1.0));
+    p.setBrush(Qt::NoBrush);
+    const QRectF strokeRect(0.5, 0.5, static_cast<qreal>(width()) - 1.0,
+                            static_cast<qreal>(height()) - 1.0);
+    p.drawRoundedRect(strokeRect, m_radius, m_radius);
+  }
+
+private:
+  bool m_isDark{true};
+  qreal m_radius{8.0};
+};
 
 } // namespace FramelessUtil

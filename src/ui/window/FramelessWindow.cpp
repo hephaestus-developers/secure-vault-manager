@@ -8,6 +8,7 @@
 #include "WindowManager.hpp"
 
 #include <QEvent>
+#include <QLayout>
 #include <QMetaObject>
 #include <QMouseEvent>
 #include <QStyle>
@@ -36,8 +37,35 @@ void FramelessWindow::setHeaderBar(QWidget *headerBar) {
   }
 }
 
+void FramelessWindow::setBorderDark(bool isDark) {
+  m_isDark = isDark;
+  if (m_borderOverlay) {
+    m_borderOverlay->setDark(isDark);
+  }
+}
+
 void FramelessWindow::showEvent(QShowEvent *event) {
   QMainWindow::showEvent(event);
+  const bool isMax = isMaximized() || isFullScreen();
+  if (centralWidget() && !m_borderOverlay) {
+    m_borderOverlay = new FramelessUtil::RoundedBorderOverlay(
+        centralWidget(), m_isDark, isMax ? 0.0 : 8.0);
+    m_borderOverlay->show();
+  }
+  if (m_headerBar) {
+    m_headerBar->setProperty("maximized", isMax);
+    m_headerBar->style()->unpolish(m_headerBar);
+    m_headerBar->style()->polish(m_headerBar);
+  }
+  if (centralWidget()) {
+    centralWidget()->setProperty("maximized", isMax);
+    centralWidget()->style()->unpolish(centralWidget());
+    centralWidget()->style()->polish(centralWidget());
+    if (auto *l = centralWidget()->layout()) {
+      const int m = isMax ? 0 : 1;
+      l->setContentsMargins(m, m, m, m);
+    }
+  }
   if (auto *node = WindowManager::instance().findNode(this)) {
     node->refreshWindowHandle();
   }
@@ -45,14 +73,25 @@ void FramelessWindow::showEvent(QShowEvent *event) {
 
 void FramelessWindow::changeEvent(QEvent *event) {
   if (event->type() == QEvent::WindowStateChange) {
+    const bool isMax = isMaximized() || isFullScreen();
     if (m_headerBar) {
       QMetaObject::invokeMethod(m_headerBar, "updateMaximizeState",
-                                Q_ARG(bool, isMaximized()));
+                                Q_ARG(bool, isMax));
+      m_headerBar->setProperty("maximized", isMax);
+      m_headerBar->style()->unpolish(m_headerBar);
+      m_headerBar->style()->polish(m_headerBar);
     }
     if (centralWidget()) {
-      centralWidget()->setProperty("maximized", isMaximized());
+      centralWidget()->setProperty("maximized", isMax);
       centralWidget()->style()->unpolish(centralWidget());
       centralWidget()->style()->polish(centralWidget());
+      if (auto *l = centralWidget()->layout()) {
+        const int m = isMax ? 0 : 1;
+        l->setContentsMargins(m, m, m, m);
+      }
+    }
+    if (m_borderOverlay) {
+      m_borderOverlay->setRadius(isMax ? 0.0 : 8.0);
     }
   }
   QMainWindow::changeEvent(event);

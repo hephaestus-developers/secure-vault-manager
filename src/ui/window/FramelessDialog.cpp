@@ -53,6 +53,9 @@ bool FramelessDialog::isDark() const { return m_isDark; }
 
 void FramelessDialog::setDark(bool isDark) {
   m_isDark = isDark;
+  if (m_borderOverlay) {
+    m_borderOverlay->setDark(isDark);
+  }
   update();
 }
 
@@ -60,12 +63,21 @@ void FramelessDialog::setCardWidget(QWidget *cardWidget) {
   if (m_cardWidget && m_cardWidget != cardWidget) {
     m_cardWidget->removeEventFilter(this);
     m_rootLayout->removeWidget(m_cardWidget);
+    if (m_borderOverlay) {
+      m_borderOverlay->deleteLater();
+      m_borderOverlay = nullptr;
+    }
   }
   m_cardWidget = cardWidget;
   if (m_cardWidget) {
     m_cardWidget->setMouseTracking(true);
     m_cardWidget->installEventFilter(this);
     m_rootLayout->addWidget(m_cardWidget);
+    if (!m_borderOverlay) {
+      m_borderOverlay =
+          new FramelessUtil::RoundedBorderOverlay(m_cardWidget, m_isDark, 8.0);
+      m_borderOverlay->show();
+    }
   }
 }
 

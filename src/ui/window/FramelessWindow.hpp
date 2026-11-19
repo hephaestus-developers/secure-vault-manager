@@ -56,6 +56,11 @@ public:
    */
   void setResizeMargin(int margin) { m_resizeMargin = margin; }
 
+  /**
+   * @brief Updates the anti-aliased rounded border theme color.
+   */
+  void setBorderDark(bool isDark);
+
 protected:
   void showEvent(QShowEvent *event) override;
   void changeEvent(QEvent *event) override;
@@ -70,4 +75,6 @@ private:
   FramelessUtil::ResizeEdge m_resizingEdge{FramelessUtil::ResizeEdge::None};
   QPoint m_resizeStartPos;
   QRect m_resizeStartGeometry;
+  FramelessUtil::RoundedBorderOverlay *m_borderOverlay{nullptr};
+  bool m_isDark{true};
 };

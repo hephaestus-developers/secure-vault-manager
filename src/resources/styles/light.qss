@@ -4,14 +4,9 @@
 
 /* Cửa sổ gốc & font hệ thống */
 QMainWindow, QDialog {
-    background-color: #eff1f5;
+    background-color: transparent;
     color: #4c4f69;
-    border-radius: 0px;
-}
-
-QDialog {
-    border: 1px solid #bcc0cc;
-    border-radius: 0px;
+    border: none;
 }
 
 /* Toàn bộ nhãn văn bản mặc định trong suốt */
@@ -24,10 +19,12 @@ QLabel {
 #CentralWidget {
     background-color: #eff1f5;
     border: 1px solid #bcc0cc;
+    border-radius: 8px;
 }
 
 #CentralWidget[maximized="true"] {
     border: none;
+    border-radius: 0px;
 }
 
 /* ==============================================================================
@@ -37,7 +34,13 @@ QLabel {
     background-color: #e6e9ef;
     border: none;
     border-bottom: 1px solid #bcc0cc;
-    border-radius: 0px;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+}
+
+#UnifiedHeaderBar[maximized="true"] {
+    border-top-left-radius: 0px;
+    border-top-right-radius: 0px;
 }
 
 #HeaderLogo {
@@ -1361,14 +1364,16 @@ QCalendarWidget QHeaderView::section {
 #AboutDialogCard, #KeyboardShortcutsDialogCard {
     background-color: #ffffff;
     border: 1px solid #bcc0cc;
-    border-radius: 0px;
+    border-radius: 8px;
 }
 
 #AboutDialogHeader, #KeyboardShortcutsDialogHeader {
-    background-color: #e6e9ef;
-    border: 1px solid #bcc0cc;
-    border-radius: 0px;
-    padding: 8px 12px;
+    background-color: #f4f5f8;
+    border: none;
+    border-bottom: 1px solid #dce0e8;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    padding: 0px;
 }
 
 #AboutDialogTitle, #KeyboardShortcutsDialogTitle {
@@ -1434,36 +1439,96 @@ QCalendarWidget QHeaderView::section {
 }
 
 #AboutTabWidget::pane {
-    border: 1px solid #ccd0da;
-    border-radius: 8px;
-    background-color: #ffffff;
-    top: -1px;
+    border: none;
+    background-color: transparent;
 }
 
 #AboutTabWidget QTabBar::tab {
-    background-color: #f4f4f6;
+    background-color: transparent;
     color: #6c6f85;
-    border: 1px solid #ccd0da;
-    border-bottom: none;
-    border-top-left-radius: 6px;
-    border-top-right-radius: 6px;
-    padding: 6px 16px;
-    margin-right: 4px;
-    font-size: 12px;
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 8px 18px;
+    margin: 0px 4px;
+    font-size: 13px;
     font-weight: 500;
 }
 
 #AboutTabWidget QTabBar::tab:hover {
-    background-color: #e6e9ef;
-    color: #4c4f69;
+    color: #1e1e2e;
 }
 
 #AboutTabWidget QTabBar::tab:selected,
 #AboutTabWidget QTabBar::tab:selected:hover {
-    background-color: #ffffff;
     color: #1e1e2e;
-    border-color: #ccd0da;
+    border-bottom: 2px solid #1e1e2e;
     font-weight: 600;
+}
+
+#AboutScrollArea {
+    background-color: transparent;
+    border: none;
+}
+
+#AboutScrollArea > QWidget,
+#AboutScrollArea > QWidget > QWidget {
+    background-color: transparent;
+}
+
+#AboutScrollArea QScrollBar:vertical {
+    width: 6px;
+    background: transparent;
+    margin: 0px;
+}
+
+#AboutScrollArea QScrollBar::handle:vertical {
+    background: #bcc0cc;
+    border-radius: 3px;
+    min-height: 20px;
+}
+
+#AboutScrollArea QScrollBar::handle:vertical:hover {
+    background: #9ca0b0;
+}
+
+#AboutScrollArea QScrollBar::add-line:vertical,
+#AboutScrollArea QScrollBar::sub-line:vertical {
+    height: 0px;
+}
+
+#AboutHeroTitle {
+    color: #1e1e2e;
+    font-size: 17px;
+    font-weight: bold;
+}
+
+#AboutHeroSubtitle {
+    color: #6c6f85;
+    font-size: 12px;
+}
+
+#AboutInfoCard {
+    background-color: #f8f9fa;
+    border: 1px solid #dce0e8;
+    border-radius: 8px;
+}
+
+#AboutCardTitle {
+    color: #1e1e2e;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+#AboutCardBody {
+    color: #4c4f69;
+    font-size: 12px;
+}
+
+#AboutBottomBar {
+    background-color: #f4f5f8;
+    border-top: 1px solid #dce0e8;
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
 }
 
 #AboutMetaLabelKey {
@@ -1480,33 +1545,33 @@ QCalendarWidget QHeaderView::section {
 #AboutLicenseView {
     background-color: #f8f9fa;
     border: 1px solid #ccd0da;
-    border-radius: 6px;
+    border-radius: 8px;
     color: #4c4f69;
     font-family: monospace;
     font-size: 11px;
-    padding: 8px;
+    padding: 10px;
 }
 
 #AboutBottomCloseBtn {
-    background-color: #e6e9ef;
-    border: 1px solid #bcc0cc;
+    background-color: #1e1e2e;
+    border: 1px solid #1e1e2e;
     border-radius: 6px;
-    color: #4c4f69;
-    padding: 6px 20px;
+    color: #ffffff;
+    padding: 0px 18px;
     font-size: 12px;
-    font-weight: 500;
+    font-weight: 600;
 }
 
 #AboutBottomCloseBtn:hover {
-    background-color: #dce0e8;
-    border-color: #45475a;
-    color: #1e1e2e;
+    background-color: #313244;
+    border-color: #313244;
+    color: #ffffff;
 }
 
 #AboutBottomCloseBtn:pressed {
-    background-color: #ccd0da;
-    border-color: #45475a;
-    color: #1e1e2e;
+    background-color: #11111b;
+    border-color: #11111b;
+    color: #ffffff;
 }
 
 /* 6. Onboarding Wizard & Lock Screen Cards */
@@ -1523,7 +1588,7 @@ QCalendarWidget QHeaderView::section {
 #RecoveryDialogCard, #NewVaultCard {
     background-color: #ffffff;
     border: 1px solid #bcc0cc;
-    border-radius: 0px;
+    border-radius: 8px;
 }
 
 /* --- Onboarding Wizard (Split Card Design) --- */
@@ -1827,26 +1892,30 @@ QCalendarWidget QHeaderView::section {
 #SettingsDialogCard {
     background-color: #ffffff;
     border: 1px solid #bcc0cc;
-    border-radius: 0px;
+    border-radius: 8px;
 }
 
 #SettingsDialogHeader, #NewVaultHeader, #RecoveryDialogHeader {
     background-color: #e6e9ef;
-    border: 1px solid #bcc0cc;
-    border-radius: 0px;
+    border: none;
+    border-bottom: 1px solid #dce0e8;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
 }
 
 /* 7. Notification & Message Dialogs */
 #NotificationDialogCard {
     background-color: #ffffff;
     border: 1px solid #bcc0cc;
-    border-radius: 0px;
+    border-radius: 8px;
 }
 
 #NotificationDialogHeader {
     background-color: #f4f5f8;
-    border: 1px solid #bcc0cc;
-    border-radius: 0px;
+    border: none;
+    border-bottom: 1px solid #dce0e8;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
 }
 
 #NotificationDialogTitle {

@@ -4,14 +4,9 @@
 
 /* Cửa sổ gốc & font hệ thống */
 QMainWindow, QDialog {
-    background-color: #1e1e2e;
+    background-color: transparent;
     color: #cdd6f4;
-    border-radius: 0px;
-}
-
-QDialog {
-    border: 1px solid #45475a;
-    border-radius: 0px;
+    border: none;
 }
 
 /* Toàn bộ nhãn văn bản mặc định trong suốt */
@@ -24,10 +19,12 @@ QLabel {
 #CentralWidget {
     background-color: #1e1e2e;
     border: 1px solid #45475a;
+    border-radius: 8px;
 }
 
 #CentralWidget[maximized="true"] {
     border: none;
+    border-radius: 0px;
 }
 
 /* ==============================================================================
@@ -37,7 +34,13 @@ QLabel {
     background-color: #181825;
     border: none;
     border-bottom: 1px solid #45475a;
-    border-radius: 0px;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+}
+
+#UnifiedHeaderBar[maximized="true"] {
+    border-top-left-radius: 0px;
+    border-top-right-radius: 0px;
 }
 
 #HeaderLogo {
@@ -1360,16 +1363,18 @@ QCalendarWidget QHeaderView::section {
 
 /* 4. About & Keyboard Shortcuts Dialogs */
 #AboutDialogCard, #KeyboardShortcutsDialogCard {
-    background-color: #181825;
+    background-color: #1e1e2e;
     border: 1px solid #45475a;
-    border-radius: 0px;
+    border-radius: 8px;
 }
 
 #AboutDialogHeader, #KeyboardShortcutsDialogHeader {
-    background-color: #11111b;
-    border: 1px solid #45475a;
-    border-radius: 0px;
-    padding: 8px 12px;
+    background-color: #181825;
+    border: none;
+    border-bottom: 1px solid #313244;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    padding: 0px;
 }
 
 #AboutDialogTitle, #KeyboardShortcutsDialogTitle {
@@ -1435,36 +1440,96 @@ QCalendarWidget QHeaderView::section {
 }
 
 #AboutTabWidget::pane {
-    border: 1px solid #313244;
-    border-radius: 8px;
-    background-color: #181825;
-    top: -1px;
+    border: none;
+    background-color: transparent;
 }
 
 #AboutTabWidget QTabBar::tab {
-    background-color: #1e1e2e;
+    background-color: transparent;
     color: #a6adc8;
-    border: 1px solid #313244;
-    border-bottom: none;
-    border-top-left-radius: 6px;
-    border-top-right-radius: 6px;
-    padding: 6px 16px;
-    margin-right: 4px;
-    font-size: 12px;
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 8px 18px;
+    margin: 0px 4px;
+    font-size: 13px;
     font-weight: 500;
 }
 
 #AboutTabWidget QTabBar::tab:hover {
-    background-color: #26293b;
-    color: #bac2de;
+    color: #cdd6f4;
 }
 
 #AboutTabWidget QTabBar::tab:selected,
 #AboutTabWidget QTabBar::tab:selected:hover {
-    background-color: #181825;
-    color: #cdd6f4;
-    border-color: #45475a;
+    color: #ffffff;
+    border-bottom: 2px solid #ffffff;
     font-weight: 600;
+}
+
+#AboutScrollArea {
+    background-color: transparent;
+    border: none;
+}
+
+#AboutScrollArea > QWidget,
+#AboutScrollArea > QWidget > QWidget {
+    background-color: transparent;
+}
+
+#AboutScrollArea QScrollBar:vertical {
+    width: 6px;
+    background: transparent;
+    margin: 0px;
+}
+
+#AboutScrollArea QScrollBar::handle:vertical {
+    background: #45475a;
+    border-radius: 3px;
+    min-height: 20px;
+}
+
+#AboutScrollArea QScrollBar::handle:vertical:hover {
+    background: #585b70;
+}
+
+#AboutScrollArea QScrollBar::add-line:vertical,
+#AboutScrollArea QScrollBar::sub-line:vertical {
+    height: 0px;
+}
+
+#AboutHeroTitle {
+    color: #cdd6f4;
+    font-size: 17px;
+    font-weight: bold;
+}
+
+#AboutHeroSubtitle {
+    color: #a6adc8;
+    font-size: 12px;
+}
+
+#AboutInfoCard {
+    background-color: #181825;
+    border: 1px solid #313244;
+    border-radius: 8px;
+}
+
+#AboutCardTitle {
+    color: #cdd6f4;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+#AboutCardBody {
+    color: #bac2de;
+    font-size: 12px;
+}
+
+#AboutBottomBar {
+    background-color: #181825;
+    border-top: 1px solid #313244;
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
 }
 
 #AboutMetaLabelKey {
@@ -1481,33 +1546,33 @@ QCalendarWidget QHeaderView::section {
 #AboutLicenseView {
     background-color: #11111b;
     border: 1px solid #313244;
-    border-radius: 6px;
+    border-radius: 8px;
     color: #bac2de;
     font-family: monospace;
     font-size: 11px;
-    padding: 8px;
+    padding: 10px;
 }
 
 #AboutBottomCloseBtn {
-    background-color: #313244;
-    border: 1px solid #45475a;
+    background-color: #ffffff;
+    border: 1px solid #ffffff;
     border-radius: 6px;
-    color: #cdd6f4;
-    padding: 6px 20px;
+    color: #11111b;
+    padding: 0px 18px;
     font-size: 12px;
-    font-weight: 500;
+    font-weight: 600;
 }
 
 #AboutBottomCloseBtn:hover {
-    background-color: #45475a;
-    border-color: #585b70;
-    color: #ffffff;
+    background-color: #eff1f5;
+    border-color: #eff1f5;
+    color: #11111b;
 }
 
 #AboutBottomCloseBtn:pressed {
-    background-color: #585b70;
-    border-color: #585b70;
-    color: #ffffff;
+    background-color: #e6e9ef;
+    border-color: #e6e9ef;
+    color: #11111b;
 }
 
 /* 6. Onboarding Wizard & Lock Screen Cards */
@@ -1524,7 +1589,7 @@ QCalendarWidget QHeaderView::section {
 #RecoveryDialogCard, #NewVaultCard {
     background-color: #181825;
     border: 1px solid #45475a;
-    border-radius: 0px;
+    border-radius: 8px;
 }
 
 /* --- Onboarding Wizard (Split Card Design) --- */
@@ -1827,26 +1892,30 @@ QCalendarWidget QHeaderView::section {
 #SettingsDialogCard {
     background-color: #181825;
     border: 1px solid #45475a;
-    border-radius: 0px;
+    border-radius: 8px;
 }
 
 #SettingsDialogHeader, #NewVaultHeader, #RecoveryDialogHeader {
     background-color: #11111b;
-    border: 1px solid #45475a;
-    border-radius: 0px;
+    border: none;
+    border-bottom: 1px solid #313244;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
 }
 
 /* 7. Notification & Message Dialogs */
 #NotificationDialogCard {
     background-color: #181825;
     border: 1px solid #45475a;
-    border-radius: 0px;
+    border-radius: 8px;
 }
 
 #NotificationDialogHeader {
     background-color: #11111b;
-    border: 1px solid #45475a;
-    border-radius: 0px;
+    border: none;
+    border-bottom: 1px solid #313244;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
 }
 
 #NotificationDialogTitle {
