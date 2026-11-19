@@ -8,7 +8,6 @@
 
 #include <QDateTime>
 #include <cstdio>
-#include <iostream>
 
 Q_LOGGING_CATEGORY(logUI, "svm.ui")
 Q_LOGGING_CATEGORY(logWindow, "svm.window")
@@ -47,6 +46,12 @@ void customMessageHandler(QtMsgType type, const QMessageLogContext &context,
     color = "\033[35m"; // Magenta
     levelStr = "FATAL";
     break;
+  }
+
+  // Lọc bỏ cảnh báo nội bộ vô hại từ Qt 6 upstream
+  if (msg.contains(
+          QStringLiteral("The cached device pixel ratio value was stale"))) {
+    return;
   }
 
   const QString timeStr =

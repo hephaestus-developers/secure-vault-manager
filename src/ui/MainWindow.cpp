@@ -24,6 +24,7 @@
 #include "core/CoreBridge.hpp"
 #include "ui/views/settings/SettingsDialog.hpp"
 
+#include <QActionGroup>
 #include <QApplication>
 #include <QCloseEvent>
 #include <QDateTime>
@@ -418,21 +419,14 @@ void MainWindow::populateVaultMenu(QMenu &menu) {
   auto *switchMenu =
       menu.addMenu(tm.icon(QStringLiteral("vault_safe")), tr("Switch Vault"));
   const QString activeId = app::VaultManager::instance().activeVaultId();
-  auto *allAct = switchMenu->addAction(tr("All Vaults"));
-  allAct->setCheckable(true);
-  allAct->setChecked(activeId == QStringLiteral("all"));
-  connect(allAct, &QAction::triggered, this, []() {
-    app::VaultManager::instance().setActiveVaultId(QStringLiteral("all"));
-  });
-
   const auto vaults = app::VaultManager::instance().vaults();
-  if (!vaults.isEmpty()) {
-    switchMenu->addSeparator();
-  }
+  auto *vaultGroup = new QActionGroup(switchMenu);
+  vaultGroup->setExclusive(true);
   for (const auto &v : vaults) {
     auto *vaultAct = switchMenu->addAction(v.name);
     vaultAct->setCheckable(true);
     vaultAct->setChecked(activeId == v.id);
+    vaultGroup->addAction(vaultAct);
     connect(vaultAct, &QAction::triggered, this, [id = v.id]() {
       app::VaultManager::instance().setActiveVaultId(id);
     });

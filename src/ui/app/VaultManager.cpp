@@ -98,9 +98,7 @@ void VaultManager::refreshVaultsFromCore() {
   const QList<models::UiVault> coreVaults = bridge.fetchVaults(&coreConfigured);
   if (!coreVaults.isEmpty()) {
     m_vaults = coreVaults;
-    if (m_activeVaultId.isEmpty() ||
-        (m_activeVaultId != QStringLiteral("all") &&
-         vault(m_activeVaultId).id.isEmpty())) {
+    if (m_activeVaultId.isEmpty() || vault(m_activeVaultId).id.isEmpty()) {
       m_activeVaultId = defaultVault().id;
       emit activeVaultChanged(m_activeVaultId);
     }
@@ -494,7 +492,7 @@ QString VaultManager::primaryVaultId() const {
   if (!defId.isEmpty()) {
     return defId;
   }
-  if (!m_activeVaultId.isEmpty() && m_activeVaultId != QStringLiteral("all")) {
+  if (!m_activeVaultId.isEmpty()) {
     return m_activeVaultId;
   }
   return QStringLiteral("personal");
@@ -553,7 +551,7 @@ void VaultManager::loadSettings() {
     saveSettings();
   }
 
-  if (m_activeVaultId.isEmpty() || m_activeVaultId == QStringLiteral("all")) {
+  if (m_activeVaultId.isEmpty()) {
     m_activeVaultId = VaultManager::defaultVault().id;
   }
 }

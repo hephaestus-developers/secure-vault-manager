@@ -39,7 +39,7 @@ export function setNativeInputValue(input: HTMLInputElement, value: string): voi
     Object.getOwnPropertyDescriptor(prototype, "value") ||
     Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value");
 
-  if (descriptor && descriptor.set) {
+  if (descriptor?.set) {
     descriptor.set.call(input, value);
   } else {
     input.value = value;
@@ -47,6 +47,34 @@ export function setNativeInputValue(input: HTMLInputElement, value: string): voi
 
   input.dispatchEvent(new Event("input", { bubbles: true }));
   input.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+/**
+ * Tìm kiếm phần tử `<input>` khả dụng cho mã xác thực 2 bước (TOTP) ở các màn hình 2FA độc lập.
+ */
+function findStandaloneTotpInput(doc: Document): HTMLInputElement | null {
+  const active = doc.activeElement;
+  if (
+    active instanceof HTMLInputElement &&
+    !active.disabled &&
+    !active.readOnly &&
+    active.type !== "hidden" &&
+    active.type !== "submit" &&
+    active.type !== "button"
+  ) {
+    return active;
+  }
+
+  const inputs = Array.from(doc.querySelectorAll("input")).filter(
+    (inp) =>
+      !inp.disabled &&
+      !inp.readOnly &&
+      inp.type !== "hidden" &&
+      inp.type !== "submit" &&
+      inp.type !== "button",
+  ) as HTMLInputElement[];
+
+  return inputs.length === 1 ? inputs[0] : null;
 }
 
 /**
@@ -72,30 +100,11 @@ export function autofillCredentialsOnPage(data: {
     setNativeInputValue(fields.totpInput, data.totpCode);
     filled = true;
   } else if (data.totpCode && !fields.passwordInput) {
-    // Fallback khi ở màn hình 2FA chuyên biệt: nếu chưa map được totpInput qua classifier,
-    // ưu tiên điền vào ô input đang được focus (activeElement) hoặc ô input hiển thị duy nhất.
-    const active = document.activeElement;
-    if (
-      active instanceof HTMLInputElement &&
-      active.type !== "hidden" &&
-      active.type !== "submit" &&
-      active.type !== "button"
-    ) {
-      setNativeInputValue(active, data.totpCode);
+    // Fallback khi ở màn hình 2FA chuyên biệt
+    const standaloneInput = findStandaloneTotpInput(document);
+    if (standaloneInput) {
+      setNativeInputValue(standaloneInput, data.totpCode);
       filled = true;
-    } else {
-      const inputs = Array.from(document.querySelectorAll("input")).filter(
-        (inp) =>
-          !inp.disabled &&
-          !inp.readOnly &&
-          inp.type !== "hidden" &&
-          inp.type !== "submit" &&
-          inp.type !== "button",
-      ) as HTMLInputElement[];
-      if (inputs.length === 1) {
-        setNativeInputValue(inputs[0], data.totpCode);
-        filled = true;
-      }
     }
   }
 

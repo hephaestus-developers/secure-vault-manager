@@ -15,7 +15,7 @@ const INTERACTIVE_NATIVE_ACTIONS = new Set([
 
 export class NativeMessagingClient {
   private port: any = null;
-  private pending = new Map<
+  private readonly pending = new Map<
     string,
     { resolve: (resp: BridgeResponse<any>) => void; timer: ReturnType<typeof setTimeout> }
   >();
@@ -34,7 +34,7 @@ export class NativeMessagingClient {
     try {
       this.port = chromeApi.runtime.connectNative(NATIVE_HOST_NAME);
       this.port.onMessage.addListener((msg: BridgeResponse<any>) => {
-        if (msg && msg.requestId && this.pending.has(msg.requestId)) {
+        if (msg?.requestId && this.pending.has(msg.requestId)) {
           const entry = this.pending.get(msg.requestId)!;
           clearTimeout(entry.timer);
           this.pending.delete(msg.requestId);

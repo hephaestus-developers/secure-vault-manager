@@ -10,7 +10,7 @@ name = "svm_core"
 crate-type = ["cdylib", "rlib", "staticlib"]
 
 [dependencies]
-cxx = "1.0"
+cxx = "1.0.205"
 svm-domain = { path = "../svm-domain" }
 svm-crypto = { path = "../svm-crypto" }
 svm-storage = { path = "../svm-storage" }
@@ -22,8 +22,8 @@ svm-ipc = { path = "../svm-ipc" }
 svm-bridge = { path = "../svm-bridge" }
 svm-system = { path = "../svm-system" }
 svm-transfer = { path = "../svm-transfer" }
-ureq = { version = "3.5.1", default-features = false, features = ["rustls", "gzip"] }
+ureq = { version = "3.5.2", default-features = false, features = ["rustls", "gzip"] }
 
 [build-dependencies]
-cxx-build = "1.0"
+cxx-build = "1.0.205"
 

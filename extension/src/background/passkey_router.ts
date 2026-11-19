@@ -13,7 +13,7 @@ import {
 import { BridgeTransport } from "./transport";
 
 export class PasskeyRouter {
-  private transport: BridgeTransport;
+  private readonly transport: BridgeTransport;
 
   constructor(transport: BridgeTransport) {
     this.transport = transport;

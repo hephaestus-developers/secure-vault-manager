@@ -7,7 +7,7 @@ import { BridgeRequest, BridgeResponse, CredentialSummary } from "../services/pr
 import { NativeMessagingClient } from "./native_client";
 
 export class BridgeTransport {
-  private nativeClient = new NativeMessagingClient();
+  private readonly nativeClient = new NativeMessagingClient();
   private cachedItems: CredentialSummary[] = [];
   private unlocked = false;
 
@@ -22,10 +22,10 @@ export class BridgeTransport {
       return nativeResp;
     }
 
-    return this.handleOfflineFallback(request) as Promise<BridgeResponse<TPayload>>;
+    return this.handleOfflineFallback(request) as BridgeResponse<TPayload>;
   }
 
-  private async handleOfflineFallback(request: BridgeRequest<any>): Promise<BridgeResponse<any>> {
+  private handleOfflineFallback(request: BridgeRequest<any>): BridgeResponse<any> {
     this.unlocked = false;
     this.cachedItems = [];
 

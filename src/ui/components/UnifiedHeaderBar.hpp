@@ -33,7 +33,10 @@ public:
   /**
    * @brief Cập nhật trạng thái biểu tượng nút phóng to / khôi phục cửa sổ.
    */
-  void updateMaximizeIcon(bool isMaximized);
+  Q_INVOKABLE void updateMaximizeState(bool isMaximized);
+  void updateMaximizeIcon(bool isMaximized) {
+    updateMaximizeState(isMaximized);
+  }
 
   /**
    * @brief Cập nhật bộ biểu tượng các nút điều khiển theo chủ đề sáng hoặc tối.

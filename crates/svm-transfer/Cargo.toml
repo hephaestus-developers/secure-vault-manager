@@ -9,4 +9,4 @@ license.workspace = true
 svm-domain = { path = "../svm-domain" }
 svm-crypto = { path = "../svm-crypto" }
 svm-storage = { path = "../svm-storage" }
-zip = { version = "9.5.1", default-features = false, features = ["deflate"] }
+zip = { version = "9.7.0", default-features = false, features = ["deflate"] }

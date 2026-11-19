@@ -213,7 +213,7 @@ void UnifiedHeaderBar::resizeEvent(QResizeEvent *event) {
   repositionTitleOverlay();
 }
 
-void UnifiedHeaderBar::updateMaximizeIcon(bool isMaximized) {
+void UnifiedHeaderBar::updateMaximizeState(bool isMaximized) {
   m_isMaximized = isMaximized;
   m_maxBtn->setToolTip(isMaximized ? tr("Restore") : tr("Maximize"));
   updateThemeIcons(m_darkMode);

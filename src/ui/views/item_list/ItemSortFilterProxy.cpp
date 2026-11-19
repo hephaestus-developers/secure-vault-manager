@@ -67,7 +67,7 @@ bool ItemSortFilterProxy::filterAcceptsRow(
   const QString currentVault =
       m_vaultFilter.isEmpty() ? app::VaultManager::instance().activeVaultId()
                               : m_vaultFilter;
-  if (!currentVault.isEmpty() && currentVault != QStringLiteral("all")) {
+  if (!currentVault.isEmpty()) {
     const QString itemVaultId = idx.data(ItemListModel::VaultIdRole).toString();
     if (itemVaultId != currentVault) {
       return false;

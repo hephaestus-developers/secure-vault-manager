@@ -14,7 +14,7 @@
   "cmake.defaultBuildPreset": "debug",
   "cmake.sourceDirectory": "${workspaceFolder}",
   "rust-analyzer.linkedProjects": [
-    "${workspaceFolder}/core/Cargo.toml"
+    "${workspaceFolder}/Cargo.toml"
   ],
   "files.associations": {
     "*.qss": "css"
