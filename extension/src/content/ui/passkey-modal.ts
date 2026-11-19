@@ -38,30 +38,52 @@ export interface PasskeyConsentResult {
 
 const PASSKEY_MODAL_HOST_ID = "svm-passkey-modal-host";
 
+const PASSKEY_HOST_CSS =
+  "position: fixed !important; inset: 0 !important; width: 100vw !important; height: 100vh !important; " +
+  "z-index: 2147483647 !important; pointer-events: auto !important; margin: 0 !important; padding: 0 !important; " +
+  "border: none !important; display: block !important;";
+
 const PASSKEY_MODAL_CSS = `
+  :host {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    z-index: 2147483647 !important;
+    pointer-events: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    display: block !important;
+  }
   .svm-backdrop {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(2px);
-    z-index: 2147483646;
+    background: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(4px);
+    z-index: 2147483647;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
+    padding-top: 48px;
+    padding-bottom: 24px;
+    box-sizing: border-box;
+    overflow-y: auto;
   }
   .svm-overlay {
     position: relative;
     z-index: 2147483647;
-    width: 400px;
+    width: 420px;
     max-width: 92vw;
+    max-height: calc(100vh - 72px);
     background: #181825;
     color: #cdd6f4;
     border: 1px solid #313244;
     border-radius: 16px;
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.08);
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.12);
     overflow: hidden;
     animation: svmSlideIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
   }
@@ -255,7 +277,7 @@ export function promptPasskeyConsent(params: PasskeyModalParams): Promise<Passke
       host,
       shadow,
       cleanup: removeHost,
-    } = createShadowContainer(PASSKEY_MODAL_HOST_ID, PASSKEY_MODAL_CSS);
+    } = createShadowContainer(PASSKEY_MODAL_HOST_ID, PASSKEY_MODAL_CSS, PASSKEY_HOST_CSS);
 
     const backdrop = document.createElement("div");
     backdrop.className = "svm-backdrop";

@@ -15,10 +15,15 @@ export interface ShadowContainerResult {
  * Tạo một container Shadow DOM đóng (`mode: "closed"`) và tiêm toàn bộ reset style + theme.
  *
  * @param hostId Định danh duy nhất cho host element trong DOM (tránh hiển thị trùng lặp)
- * @param customCss CSS bổ sung dành riêng cho modal/overlay
+ * @param customCss CSS bổ sung dành riêng cho modal/overlay bên trong Shadow DOM
+ * @param hostCss CSS inline áp dụng trực tiếp cho Host element trong Light DOM để bảo đảm Stacking Context cao nhất
  * @returns Đối tượng chứa host, shadow root và hàm dọn dẹp cleanup()
  */
-export function createShadowContainer(hostId: string, customCss = ""): ShadowContainerResult {
+export function createShadowContainer(
+  hostId: string,
+  customCss = "",
+  hostCss = "",
+): ShadowContainerResult {
   // Gỡ bỏ instance cũ nếu đã tồn tại trước đó
   const existing = document.getElementById(hostId);
   if (existing) {
@@ -27,6 +32,9 @@ export function createShadowContainer(hostId: string, customCss = ""): ShadowCon
 
   const host = document.createElement("div");
   host.id = hostId;
+  if (hostCss) {
+    host.style.cssText = hostCss;
+  }
   const shadow = host.attachShadow({ mode: "closed" });
 
   const styleEl = document.createElement("style");

@@ -85,16 +85,31 @@ function renderInlinePopover(
   const rect = anchor.getBoundingClientRect();
   const host = document.createElement("div");
   host.id = "svm-inline-overlay-host";
+  host.style.cssText =
+    "position: fixed !important; top: 0 !important; left: 0 !important; width: 0 !important; height: 0 !important; " +
+    "z-index: 2147483647 !important; pointer-events: none !important; margin: 0 !important; padding: 0 !important; " +
+    "border: none !important; display: block !important;";
   const shadow = host.attachShadow({ mode: "closed" });
 
   const style = document.createElement("style");
   style.textContent = `
+    :host {
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 0 !important;
+      height: 0 !important;
+      z-index: 2147483647 !important;
+      pointer-events: none !important;
+      display: block !important;
+    }
     .svm-menu {
       position: fixed;
+      pointer-events: auto;
       top: ${Math.round(rect.bottom + 6)}px;
       left: ${Math.round(rect.left)}px;
       width: ${Math.max(260, Math.round(rect.width))}px;
-      z-index: 2147483646;
+      z-index: 2147483647;
       background: #181825;
       color: #cdd6f4;
       border: 1px solid #313244;
