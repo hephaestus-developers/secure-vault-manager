@@ -38,23 +38,9 @@ export interface PasskeyConsentResult {
 
 const PASSKEY_MODAL_HOST_ID = "svm-passkey-modal-host";
 
-const PASSKEY_HOST_CSS =
-  "position: fixed !important; inset: 0 !important; width: 100vw !important; height: 100vh !important; " +
-  "z-index: 2147483647 !important; pointer-events: auto !important; margin: 0 !important; padding: 0 !important; " +
-  "border: none !important; display: block !important;";
-
 const PASSKEY_MODAL_CSS = `
-  :host {
-    position: fixed !important;
-    inset: 0 !important;
-    width: 100vw !important;
-    height: 100vh !important;
-    z-index: 2147483647 !important;
-    pointer-events: auto !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    border: none !important;
-    display: block !important;
+  :host::backdrop {
+    background: transparent !important;
   }
   .svm-backdrop {
     position: fixed;
@@ -62,28 +48,23 @@ const PASSKEY_MODAL_CSS = `
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.65);
-    backdrop-filter: blur(4px);
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(2px);
     z-index: 2147483647;
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: center;
-    padding-top: 48px;
-    padding-bottom: 24px;
-    box-sizing: border-box;
-    overflow-y: auto;
   }
   .svm-overlay {
     position: relative;
     z-index: 2147483647;
-    width: 420px;
+    width: 400px;
     max-width: 92vw;
-    max-height: calc(100vh - 72px);
     background: #181825;
     color: #cdd6f4;
     border: 1px solid #313244;
     border-radius: 16px;
-    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.12);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.08);
     overflow: hidden;
     animation: svmSlideIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
   }
@@ -277,7 +258,14 @@ export function promptPasskeyConsent(params: PasskeyModalParams): Promise<Passke
       host,
       shadow,
       cleanup: removeHost,
-    } = createShadowContainer(PASSKEY_MODAL_HOST_ID, PASSKEY_MODAL_CSS, PASSKEY_HOST_CSS);
+    } = createShadowContainer(PASSKEY_MODAL_HOST_ID, PASSKEY_MODAL_CSS, true);
+
+    // Đặt host ở Top Layer & z-index tối đa để không bao giờ bị Modal của trang web (như Facebook/Meta) che khuất
+    host.style.cssText =
+      "all: initial !important; position: fixed !important; inset: 0 !important; " +
+      "width: 100vw !important; height: 100vh !important; max-width: none !important; max-height: none !important; " +
+      "margin: 0 !important; padding: 0 !important; border: none !important; background: transparent !important; " +
+      "overflow: visible !important; z-index: 2147483647 !important; pointer-events: auto !important; display: block !important;";
 
     const backdrop = document.createElement("div");
     backdrop.className = "svm-backdrop";
@@ -720,8 +708,25 @@ export function promptPasskeyConsent(params: PasskeyModalParams): Promise<Passke
       container.appendChild(body);
     }
 
+    host.addEventListener("cancel", (e) => {
+      e.preventDefault();
+      cleanup(false, undefined, false);
+    });
+
     shadow.appendChild(backdrop);
     document.documentElement.appendChild(host);
+
+    if (
+      typeof HTMLDialogElement !== "undefined" &&
+      host instanceof HTMLDialogElement &&
+      typeof host.showModal === "function"
+    ) {
+      try {
+        host.showModal();
+      } catch {
+        // Fallback sử dụng z-index tối đa nếu showModal bị từ chối
+      }
+    }
 
     void checkStatusAndRender();
   });

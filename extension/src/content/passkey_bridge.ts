@@ -5,7 +5,27 @@
 
 import { isValidWebAuthnRpId } from "../services/domain";
 import { sendExtensionBridgeMessage } from "../services/protocol";
-import { dismissPasskeyConsent, promptPasskeyConsent } from "./ui/passkey-modal";
+import {
+  dismissPasskeyConsent,
+  PasskeyConsentResult,
+  PasskeyModalParams,
+  promptPasskeyConsent,
+} from "./ui/passkey-modal";
+
+async function requestPasskeyConsent(
+  modalParams: PasskeyModalParams,
+): Promise<PasskeyConsentResult> {
+  if (window !== window.top) {
+    const topResp = await sendExtensionBridgeMessage<PasskeyConsentResult>(
+      "show_passkey_modal_top",
+      modalParams as unknown as Record<string, unknown>,
+    );
+    if (topResp.ok && topResp.payload) {
+      return topResp.payload;
+    }
+  }
+  return promptPasskeyConsent(modalParams);
+}
 
 export function setupPasskeyBridge(): void {
   window.addEventListener("message", async (event) => {
@@ -15,7 +35,11 @@ export function setupPasskeyBridge(): void {
 
     const { requestId, action, payload } = event.data;
     if (action === "passkey_cancel") {
-      dismissPasskeyConsent();
+      if (window !== window.top) {
+        void sendExtensionBridgeMessage("dismiss_passkey_modal_top", {});
+      } else {
+        dismissPasskeyConsent();
+      }
       return;
     }
 
@@ -60,94 +84,114 @@ export function setupPasskeyBridge(): void {
       credentialId: string;
     }> = [];
 
-    // Pre-flight check cho passkey_get: Kiểm tra xem kho có passkey phù hợp không
-    if (action === "passkey_get") {
-      const queryResp = await sendExtensionBridgeMessage<{
-        unlocked: boolean;
-        passkeys: Array<{ id: string; title: string; username: string; credentialId: string }>;
-      }>("passkey_query", {
+    try {
+      // Pre-flight check cho passkey_get: Kiểm tra xem kho có passkey phù hợp không
+      if (action === "passkey_get") {
+        const queryResp = await sendExtensionBridgeMessage<{
+          unlocked: boolean;
+          passkeys: Array<{ id: string; title: string; username: string; credentialId: string }>;
+        }>("passkey_query", {
+          rpId,
+          allowCredentials: payload?.allowCredentials || [],
+        });
+
+        // Nếu kho đã mở nhưng KHÔNG có passkey nào phù hợp -> SILENT FALLBACK về trình duyệt!
+        if (
+          queryResp.ok &&
+          queryResp.payload?.unlocked &&
+          (!queryResp.payload.passkeys || queryResp.payload.passkeys.length === 0)
+        ) {
+          window.postMessage(
+            {
+              source: "svm-passkey-content",
+              requestId,
+              response: {
+                ok: false,
+                error: { code: "NOT_FOUND", message: "No matching passkey found" },
+              },
+            },
+            origin,
+          );
+          return;
+        }
+
+        if (queryResp.ok && queryResp.payload?.passkeys) {
+          matchedPasskeys = queryResp.payload.passkeys;
+          if (matchedPasskeys.length > 0 && !userName) {
+            userName = matchedPasskeys[0].username || matchedPasskeys[0].title;
+          }
+        }
+      }
+
+      const consentResult = await requestPasskeyConsent({
+        action,
         rpId,
-        allowCredentials: payload?.allowCredentials || [],
+        rpName,
+        userName,
+        matchedPasskeys,
       });
 
-      // Nếu kho đã mở nhưng KHÔNG có passkey nào phù hợp -> SILENT FALLBACK về trình duyệt!
-      if (
-        queryResp.ok &&
-        queryResp.payload?.unlocked &&
-        (!queryResp.payload.passkeys || queryResp.payload.passkeys.length === 0)
-      ) {
+      if (!consentResult.consented) {
+        const errorCode = consentResult.useFallbackNative
+          ? "USE_NATIVE_FALLBACK"
+          : "USER_CANCELLED";
+        const errorMsg = consentResult.useFallbackNative
+          ? "User chose native authenticator method"
+          : "User cancelled passkey prompt";
+
         window.postMessage(
           {
             source: "svm-passkey-content",
             requestId,
             response: {
               ok: false,
-              error: { code: "NOT_FOUND", message: "No matching passkey found" },
+              error: { code: errorCode, message: errorMsg },
             },
           },
-          window.location.origin,
+          origin,
         );
         return;
       }
 
-      if (queryResp.ok && queryResp.payload?.passkeys) {
-        matchedPasskeys = queryResp.payload.passkeys;
-        if (matchedPasskeys.length > 0 && !userName) {
-          userName = matchedPasskeys[0].username || matchedPasskeys[0].title;
-        }
+      // Nếu người dùng chọn một passkey cụ thể từ danh sách tài khoản
+      const getPayload = { ...payload, rpId, origin };
+      if (consentResult.selectedCredentialId) {
+        getPayload.allowCredentials = [consentResult.selectedCredentialId];
       }
-    }
+      if (consentResult.selectedItemId) {
+        getPayload.selectedItemId = consentResult.selectedItemId;
+      } else if (matchedPasskeys.length === 1) {
+        getPayload.selectedItemId = matchedPasskeys[0].id;
+      }
+      if (consentResult.selectedVaultId) {
+        getPayload.vaultId = consentResult.selectedVaultId;
+      }
 
-    const consentResult = await promptPasskeyConsent({
-      action,
-      rpId,
-      rpName,
-      userName,
-      matchedPasskeys,
-    });
-
-    if (!consentResult.consented) {
-      const errorCode = consentResult.useFallbackNative ? "USE_NATIVE_FALLBACK" : "USER_CANCELLED";
-      const errorMsg = consentResult.useFallbackNative
-        ? "User chose native authenticator method"
-        : "User cancelled passkey prompt";
-
+      const response = await sendExtensionBridgeMessage(action, getPayload);
+      window.postMessage(
+        {
+          source: "svm-passkey-content",
+          requestId,
+          response,
+        },
+        origin,
+      );
+    } catch (err) {
+      // Đảm bảo luôn phản hồi để không làm treo Promise (khiến nút trên trang web bị disable 120s)
       window.postMessage(
         {
           source: "svm-passkey-content",
           requestId,
           response: {
             ok: false,
-            error: { code: errorCode, message: errorMsg },
+            error: {
+              code: "BRIDGE_ERROR",
+              message: err instanceof Error ? err.message : "Extension bridge unavailable",
+            },
           },
         },
-        window.location.origin,
+        origin,
       );
-      return;
     }
-
-    // Nếu người dùng chọn một passkey cụ thể từ danh sách tài khoản
-    const getPayload = { ...payload, rpId, origin };
-    if (consentResult.selectedCredentialId) {
-      getPayload.allowCredentials = [consentResult.selectedCredentialId];
-    }
-    if (consentResult.selectedItemId) {
-      getPayload.selectedItemId = consentResult.selectedItemId;
-    } else if (matchedPasskeys.length === 1) {
-      getPayload.selectedItemId = matchedPasskeys[0].id;
-    }
-    if (consentResult.selectedVaultId) {
-      getPayload.vaultId = consentResult.selectedVaultId;
-    }
-
-    const response = await sendExtensionBridgeMessage(action, getPayload);
-    window.postMessage(
-      {
-        source: "svm-passkey-content",
-        requestId,
-        response,
-      },
-      window.location.origin,
-    );
   });
 }

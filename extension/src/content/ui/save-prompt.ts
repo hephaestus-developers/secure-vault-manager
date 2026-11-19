@@ -27,28 +27,12 @@ export interface SavePromptOptions {
 
 const SAVE_PROMPT_HOST_ID = "svm-save-prompt-host";
 
-const SAVE_PROMPT_HOST_CSS =
-  "position: fixed !important; top: 0 !important; right: 0 !important; width: 0 !important; height: 0 !important; " +
-  "z-index: 2147483647 !important; pointer-events: none !important; margin: 0 !important; padding: 0 !important; " +
-  "border: none !important; display: block !important;";
-
 const SAVE_PROMPT_CSS = `
-  :host {
-    position: fixed !important;
-    top: 0 !important;
-    right: 0 !important;
-    width: 0 !important;
-    height: 0 !important;
-    z-index: 2147483647 !important;
-    pointer-events: none !important;
-    display: block !important;
-  }
   .svm-prompt {
     position: fixed;
     top: 16px;
     right: 16px;
     z-index: 2147483647;
-    pointer-events: auto;
     width: 360px;
     background: #181825;
     color: #cdd6f4;
@@ -280,11 +264,7 @@ export async function showSaveCredentialPrompt(data: SavePromptOptions): Promise
     // Dự phòng khi background chưa sẵn sàng
   }
 
-  const { host, shadow, cleanup } = createShadowContainer(
-    SAVE_PROMPT_HOST_ID,
-    SAVE_PROMPT_CSS,
-    SAVE_PROMPT_HOST_CSS,
-  );
+  const { host, shadow, cleanup } = createShadowContainer(SAVE_PROMPT_HOST_ID, SAVE_PROMPT_CSS);
   const container = document.createElement("div");
   container.className = "svm-prompt";
 

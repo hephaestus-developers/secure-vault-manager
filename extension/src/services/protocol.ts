@@ -26,7 +26,9 @@ export type BridgeAction =
   | "get_vaults"
   | "record_pending_login"
   | "get_pending_login"
-  | "clear_pending_login";
+  | "clear_pending_login"
+  | "show_passkey_modal_top"
+  | "dismiss_passkey_modal_top";
 
 export interface VaultProfileSummary {
   id: string;

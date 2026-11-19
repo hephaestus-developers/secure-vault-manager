@@ -239,6 +239,7 @@ pub fn launch_desktop_app() -> bool {
 /// Bộ điều phối yêu cầu từ Browser Extension theo đặc tả `docs/06. Extension Bridge Protocol.md`.
 pub struct NativeHostRouter {
     vault: VaultService,
+    allow_desktop_forward: bool,
 }
 
 impl NativeHostRouter {
@@ -249,14 +250,26 @@ impl NativeHostRouter {
             .or_else(|| env::var("SVM_DATA_DIR").ok())
             .unwrap_or_default();
         let vault = VaultService::with_storage(VaultStorage::new(dir));
-        Self { vault }
+        Self {
+            vault,
+            allow_desktop_forward: true,
+        }
+    }
+
+    #[cfg(test)]
+    pub fn new_isolated(data_dir: Option<&str>) -> Self {
+        let mut router = Self::new(data_dir);
+        router.allow_desktop_forward = false;
+        router
     }
 
     /// Xử lý một bản tin JSON nhận từ Extension và trả về bản tin JSON phản hồi.
     pub fn handle_message(&mut self, request_json: &str) -> String {
         // Ưu tiên chuyển tiếp tới ứng dụng Desktop nếu socket trực tuyến (Desktop là Single Source of Truth)
-        if let Some(forwarded) = try_forward_to_desktop_socket(request_json) {
-            return forwarded;
+        if self.allow_desktop_forward {
+            if let Some(forwarded) = try_forward_to_desktop_socket(request_json) {
+                return forwarded;
+            }
         }
 
         let req = match JsonValue::parse(request_json) {
@@ -795,7 +808,7 @@ mod tests {
 
     #[test]
     fn test_native_host_router_actions() {
-        let mut router = NativeHostRouter::new(Some("/tmp/svm-native-host-test"));
+        let mut router = NativeHostRouter::new_isolated(Some("/tmp/svm-native-host-test"));
 
         // Ở chế độ bảo mật nghiêm ngặt (Strict Security), khi Desktop chưa chạy kho mặc định phải khóa
         let status_resp =

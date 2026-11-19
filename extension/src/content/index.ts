@@ -8,6 +8,11 @@ import { attachFormSubmitCapture, checkPendingLoginAfterNavigation } from "./for
 import { setupPasskeyBridge } from "./passkey_bridge";
 import { setupInlineAutofillOverlay } from "./ui/autofill-overlay";
 import { QrCropResultToastParams, showQrResultToast, startQrCropOverlay } from "./ui/crop-overlay";
+import {
+  dismissPasskeyConsent,
+  PasskeyModalParams,
+  promptPasskeyConsent,
+} from "./ui/passkey-modal";
 import { getChromeApi } from "../services/protocol";
 
 setupInlineAutofillOverlay();
@@ -25,6 +30,7 @@ if (runtimeChrome?.runtime?.onMessage) {
         totpCode?: string;
         itemTitle?: string;
         toast?: QrCropResultToastParams;
+        params?: PasskeyModalParams;
       },
       _sender: unknown,
       sendResponse: (resp: Record<string, unknown>) => void,
@@ -45,6 +51,18 @@ if (runtimeChrome?.runtime?.onMessage) {
       } else if (message?.type === "SVM_CHECK_PENDING_LOGIN") {
         void checkPendingLoginAfterNavigation();
         sendResponse({ checked: true });
+      } else if (
+        message?.type === "SVM_SHOW_PASSKEY_MODAL" &&
+        message.params &&
+        window === window.top
+      ) {
+        void promptPasskeyConsent(message.params).then((result) => {
+          sendResponse({ result });
+        });
+        return true;
+      } else if (message?.type === "SVM_DISMISS_PASSKEY_MODAL" && window === window.top) {
+        dismissPasskeyConsent();
+        sendResponse({ dismissed: true });
       }
       return false;
     },

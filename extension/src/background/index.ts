@@ -128,7 +128,8 @@ if (chromeApi?.runtime?.onMessage) {
       void (async () => {
         const senderTab = (_sender as { tab?: { id?: number; url?: string }; url?: string })?.tab;
         const senderTabId = senderTab?.id;
-        const senderTabUrl = senderTab?.url || (_sender as { url?: string })?.url || "";
+        // Ưu tiên sender.url (URL thực tế của frame gửi yêu cầu, ví dụ iframe accounts.meta.com) trước sender.tab.url
+        const senderTabUrl = (_sender as { url?: string })?.url || senderTab?.url || "";
         const isContentScript = Boolean(senderTabId);
 
         let senderHostname = "";
@@ -185,6 +186,54 @@ if (chromeApi?.runtime?.onMessage) {
             await clearPendingLoginForTab(senderTabId);
           }
           sendResponse({ ok: true, type: "pending_login_cleared" });
+          return;
+        }
+
+        if (message.action === "show_passkey_modal_top") {
+          if (senderTabId && chromeApi?.tabs?.sendMessage) {
+            try {
+              const topResp = await chromeApi.tabs.sendMessage(
+                senderTabId,
+                {
+                  type: "SVM_SHOW_PASSKEY_MODAL",
+                  params: message.payload,
+                },
+                { frameId: 0 },
+              );
+              if (topResp?.result) {
+                sendResponse({
+                  requestId: message.requestId,
+                  type: "passkey_modal_result",
+                  ok: true,
+                  payload: topResp.result,
+                });
+                return;
+              }
+            } catch {
+              // Fallback về sub-frame nếu top frame không phản hồi
+            }
+          }
+          sendResponse({
+            requestId: message.requestId,
+            type: "passkey_modal_result",
+            ok: false,
+          });
+          return;
+        }
+
+        if (message.action === "dismiss_passkey_modal_top") {
+          if (senderTabId && chromeApi?.tabs?.sendMessage) {
+            try {
+              await chromeApi.tabs.sendMessage(
+                senderTabId,
+                { type: "SVM_DISMISS_PASSKEY_MODAL" },
+                { frameId: 0 },
+              );
+            } catch {
+              // ignore
+            }
+          }
+          sendResponse({ ok: true, type: "passkey_modal_dismissed" });
           return;
         }
         if (message.action === "unlock_vault") {
