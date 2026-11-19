@@ -72,6 +72,8 @@ protected:
   int m_resizeMargin{8};
 
 private:
+  void applyMaximizeState(bool isMax);
+
   FramelessUtil::ResizeEdge m_resizingEdge{FramelessUtil::ResizeEdge::None};
   QPoint m_resizeStartPos;
   QRect m_resizeStartGeometry;
