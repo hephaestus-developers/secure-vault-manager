@@ -1,73 +1,275 @@
 /**
  * @file extension/src/global.css
- * @brief Bảng màu Catppuccin Mocha (Dark) / Latte (Light) và biến thiết kế toàn cục cho Extension Popup.
+ * @brief Bảng màu Enterprise Design Tokens (Light / Dark) và biến thiết kế toàn cục cho Extension Popup.
  */
 
 :root,
-[data-theme="dark"] {
-  --bg-crust: #11111b;
-  --bg-base: #1e1e2e;
-  --bg-mantle: #181825;
-  --bg-surface0: #313244;
-  --bg-surface1: #45475a;
-  --text-primary: #cdd6f4;
-  --text-secondary: #a6adc8;
-  --text-muted: #6c7086;
-  --accent-primary: #89b4fa;
-  --accent-hover: #b4befe;
-  --btn-primary-fg: #11111b;
-  --status-success: #a6e3a1;
-  --status-warning: #f9e2af;
-  --status-danger: #f38ba8;
-  --border-subtle: #313244;
-  --border-hover: #45475a;
-  --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-}
+[data-theme="light"] {
+  color-scheme: light;
 
-@media (prefers-color-scheme: light) {
-  :root,
-  [data-theme="light"] {
-    --bg-crust: #dce0e8;
-    --bg-base: #eff1f5;
-    --bg-mantle: #ffffff;
-    --bg-surface0: #e6e9ef;
-    --bg-surface1: #ccd0da;
-    --text-primary: #1e1e2e;
-    --text-secondary: #5c5f77;
-    --text-muted: #7c7f93;
-    --accent-primary: #1e66f5;
-    --accent-hover: #04a5e5;
-    --btn-primary-fg: #ffffff;
-    --status-success: #40a02b;
-    --status-warning: #df8e1d;
-    --status-danger: #d20f39;
-    --border-subtle: #ccd0da;
-    --border-hover: #bcc0cc;
-    --card-shadow: 0 2px 8px rgba(30, 30, 46, 0.08);
-  }
+  /* 1. Nền, Bề mặt & Chữ */
+  --background: #f4f4f6;
+  --surface: #ffffff;
+  --surface-overlay: #ffffff;
+  --foreground: #2c2c2c;
+  --muted-foreground: #666666;
+
+  /* 2. Viền */
+  --border: #e4e4e7;
+  --border-strong: #d4d4d8;
+  --border-input: #8a8a93;
+  --border-focus: var(--info);
+  --tab-rail: color-mix(in srgb, var(--foreground) 10%, transparent);
+
+  /* 3. Màu nhấn & CTA */
+  --primary: #181818;
+  --primary-hover: #2e2e2e;
+  --primary-foreground: #ffffff;
+  --primary-light: #1818180d;
+  --link: var(--info);
+  --selection: #2563eb33;
+
+  /* 4. Tương tác */
+  --hover-1: #0000000a;
+  --hover-2: #00000012;
+  --hover-3: #0000001c;
+  --ring-focus: #1d4ed83f;
+  --disabled-bg: #0000000f;
+  --disabled-foreground: #2c2c2c73;
+  --scrim: #00000066;
+
+  /* 5. Semantic */
+  --danger: #c70036;
+  --danger-bg: #fff1f2;
+  --danger-border: #fecdd3;
+  --danger-foreground: #ffffff;
+
+  --success: #007a55;
+  --success-bg: #ecfdf5;
+  --success-border: #a4f4cf;
+
+  --warning: #bb4d00;
+  --warning-bg: #fffbeb;
+  --warning-border: #fee685;
+
+  --info: #1d4ed8;
+  --info-hover: #1e40af;
+  --info-bg: #eff6ff;
+  --info-border: #bfdbfe;
+
+  --neutral: #52525c;
+  --neutral-bg: #f4f4f5;
+  --neutral-border: #e4e4e7;
+
+  /* 6. Đổ bóng */
+  --shadow-sm: 0 1px 2px #0000000f;
+  --shadow-md: 0 4px 12px #00000014;
+  --shadow-lg: 0 12px 32px #0000001f;
+
+  /* 7. Category (Biểu đồ & Phân loại) */
+  --cat-1: #2563eb;
+  --cat-2: #0d9488;
+  --cat-3: #7c3aed;
+  --cat-4: #c026d3;
+  --cat-5: #d97706;
+  --cat-6: #e11d48;
+
+  /* Legacy aliases mapped to new tokens for seamless component compatibility */
+  --bg-crust: var(--background);
+  --bg-base: var(--background);
+  --bg-mantle: var(--surface);
+  --bg-surface0: #ececef;
+  --bg-surface1: var(--hover-2);
+  --text-primary: var(--foreground);
+  --text-secondary: var(--muted-foreground);
+  --text-muted: var(--muted-foreground);
+  --accent-primary: var(--info);
+  --accent-hover: var(--info-hover);
+  --btn-primary-fg: #ffffff;
+  --status-success: var(--success);
+  --status-warning: var(--warning);
+  --status-danger: var(--danger);
+  --border-subtle: var(--border);
+  --border-hover: var(--border-strong);
+  --card-shadow: var(--shadow-md);
 }
 
 @media (prefers-color-scheme: dark) {
-  :root,
-  [data-theme="dark"] {
-    --bg-crust: #11111b;
-    --bg-base: #1e1e2e;
-    --bg-mantle: #181825;
-    --bg-surface0: #313244;
-    --bg-surface1: #45475a;
-    --text-primary: #cdd6f4;
-    --text-secondary: #a6adc8;
-    --text-muted: #6c7086;
-    --accent-primary: #89b4fa;
-    --accent-hover: #b4befe;
-    --btn-primary-fg: #11111b;
-    --status-success: #a6e3a1;
-    --status-warning: #f9e2af;
-    --status-danger: #f38ba8;
-    --border-subtle: #313244;
-    --border-hover: #45475a;
-    --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  :root {
+    color-scheme: dark;
+
+    /* 1. Nền, Bề mặt & Chữ */
+    --background: #05060f;
+    --surface: #0f111a;
+    --surface-overlay: #171a26;
+    --foreground: #e9edf5;
+    --muted-foreground: #8b93a7;
+
+    /* 2. Viền */
+    --border: #a0b4dc1f;
+    --border-strong: #a0b4dc29;
+    --border-input: #5f6779;
+    --border-focus: #60a5fab3;
+    --tab-rail: color-mix(in srgb, var(--foreground) 10%, transparent);
+
+    /* 3. Màu nhấn & CTA */
+    --primary: #e9edf5;
+    --primary-hover: #cfd5e0;
+    --primary-foreground: #05060f;
+    --primary-light: #e9edf51a;
+    --link: var(--info);
+    --selection: #60a5fa40;
+
+    /* 4. Tương tác */
+    --hover-1: #ffffff0d;
+    --hover-2: #ffffff14;
+    --hover-3: #ffffff21;
+    --ring-focus: #60a5fa40;
+    --disabled-bg: #ffffff0f;
+    --disabled-foreground: #e9edf56b;
+    --scrim: #000000a6;
+
+    /* 5. Semantic */
+    --danger: #ff637e;
+    --danger-bg: #ff20561a;
+    --danger-border: #ff20564d;
+    --danger-foreground: #05060f;
+
+    --success: #00d492;
+    --success-bg: #00bc7d26;
+    --success-border: #00bc7d4d;
+
+    --warning: #ff8904;
+    --warning-bg: #fe9a0026;
+    --warning-border: #fe9a004d;
+
+    --info: #60a5fa;
+    --info-hover: #93c5fd;
+    --info-bg: #3b82f626;
+    --info-border: #3b82f64d;
+
+    --neutral: #9f9fa9;
+    --neutral-bg: #71717b26;
+    --neutral-border: #71717b4d;
+
+    /* 6. Đổ bóng */
+    --shadow-sm: 0 1px 2px #00000066;
+    --shadow-md: 0 4px 12px #00000080;
+    --shadow-lg: 0 12px 32px #000000a6;
+
+    /* 7. Category (Biểu đồ & Phân loại) */
+    --cat-1: #60a5fa;
+    --cat-2: #2dd4bf;
+    --cat-3: #a78bfa;
+    --cat-4: #e879f9;
+    --cat-5: #fbbf24;
+    --cat-6: #fb7185;
+
+    /* Legacy aliases mapped to new tokens */
+    --bg-crust: var(--background);
+    --bg-base: var(--background);
+    --bg-mantle: var(--surface);
+    --bg-surface0: var(--surface-overlay);
+    --bg-surface1: var(--hover-2);
+    --text-primary: var(--foreground);
+    --text-secondary: var(--muted-foreground);
+    --text-muted: var(--muted-foreground);
+    --accent-primary: var(--info);
+    --accent-hover: var(--info-hover);
+    --btn-primary-fg: #05060f;
+    --status-success: var(--success);
+    --status-warning: var(--warning);
+    --status-danger: var(--danger);
+    --border-subtle: var(--border);
+    --border-hover: var(--border-strong);
+    --card-shadow: var(--shadow-md);
   }
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --background: #05060f;
+  --surface: #0f111a;
+  --surface-overlay: #171a26;
+  --foreground: #e9edf5;
+  --muted-foreground: #8b93a7;
+
+  --border: #a0b4dc1f;
+  --border-strong: #a0b4dc29;
+  --border-input: #5f6779;
+  --border-focus: #60a5fab3;
+  --tab-rail: color-mix(in srgb, var(--foreground) 10%, transparent);
+
+  --primary: #e9edf5;
+  --primary-hover: #cfd5e0;
+  --primary-foreground: #05060f;
+  --primary-light: #e9edf51a;
+  --link: var(--info);
+  --selection: #60a5fa40;
+
+  --hover-1: #ffffff0d;
+  --hover-2: #ffffff14;
+  --hover-3: #ffffff21;
+  --ring-focus: #60a5fa40;
+  --disabled-bg: #ffffff0f;
+  --disabled-foreground: #e9edf56b;
+  --scrim: #000000a6;
+
+  --danger: #ff637e;
+  --danger-bg: #ff20561a;
+  --danger-border: #ff20564d;
+  --danger-foreground: #05060f;
+
+  --success: #00d492;
+  --success-bg: #00bc7d26;
+  --success-border: #00bc7d4d;
+
+  --warning: #ff8904;
+  --warning-bg: #fe9a0026;
+  --warning-border: #fe9a004d;
+
+  --info: #60a5fa;
+  --info-hover: #93c5fd;
+  --info-bg: #3b82f626;
+  --info-border: #3b82f64d;
+
+  --neutral: #9f9fa9;
+  --neutral-bg: #71717b26;
+  --neutral-border: #71717b4d;
+
+  --shadow-sm: 0 1px 2px #00000066;
+  --shadow-md: 0 4px 12px #00000080;
+  --shadow-lg: 0 12px 32px #000000a6;
+
+  --cat-1: #60a5fa;
+  --cat-2: #2dd4bf;
+  --cat-3: #a78bfa;
+  --cat-4: #e879f9;
+  --cat-5: #fbbf24;
+  --cat-6: #fb7185;
+
+  --bg-crust: var(--background);
+  --bg-base: var(--background);
+  --bg-mantle: var(--surface);
+  --bg-surface0: var(--surface-overlay);
+  --bg-surface1: var(--hover-2);
+  --text-primary: var(--foreground);
+  --text-secondary: var(--muted-foreground);
+  --text-muted: var(--muted-foreground);
+  --accent-primary: var(--info);
+  --accent-hover: var(--info-hover);
+  --btn-primary-fg: #05060f;
+  --status-success: var(--success);
+  --status-warning: var(--warning);
+  --status-danger: var(--danger);
+  --border-subtle: var(--border);
+  --border-hover: var(--border-strong);
+  --card-shadow: var(--shadow-md);
+}
+
+::selection {
+  background-color: var(--selection);
 }
 
 * {
@@ -79,8 +281,8 @@
 body {
   width: 360px;
   min-height: 480px;
-  background-color: var(--bg-base);
-  color: var(--text-primary);
+  background-color: var(--background);
+  color: var(--foreground);
   font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
   font-size: 13px;
   line-height: 1.45;
@@ -100,9 +302,9 @@ input[type="password"],
 input[type="search"],
 input[type="number"],
 input[type="tel"] {
-  background-color: var(--bg-mantle);
-  color: var(--text-primary);
-  border: 1px solid var(--border-subtle);
+  background-color: var(--surface);
+  color: var(--foreground);
+  border: 1px solid var(--border-input);
   border-radius: 8px;
   outline: none;
   transition:
@@ -116,7 +318,7 @@ input[type="password"]:hover,
 input[type="search"]:hover,
 input[type="number"]:hover,
 input[type="tel"]:hover {
-  border-color: var(--border-hover);
+  border-color: var(--border-strong);
 }
 
 input[type="text"]:focus,
@@ -124,12 +326,12 @@ input[type="password"]:focus,
 input[type="search"]:focus,
 input[type="number"]:focus,
 input[type="tel"]:focus {
-  border-color: var(--accent-primary);
-  box-shadow: 0 0 0 2px rgba(137, 180, 250, 0.25);
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 2px var(--ring-focus);
 }
 
 input::placeholder {
-  color: var(--text-muted);
+  color: var(--muted-foreground);
 }
 
 @keyframes spin {

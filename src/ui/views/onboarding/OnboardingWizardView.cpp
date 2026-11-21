@@ -844,54 +844,47 @@ void OnboardingWizardView::updateStepIndicator() {
                   ? QStringLiteral(":/icons/controls/checkbox_check_light.svg")
                   : QStringLiteral(":/icons/controls/checkbox_check_dark.svg"))
               .pixmap(12, 12));
+      const auto &pal = app::ThemeManager::instance().palette();
       item.badge->setStyleSheet(
-          isLight ? QStringLiteral("background-color: #1e1e2e; "
-                                   "border-radius: 12px;")
-                  : QStringLiteral("background-color: #ffffff; "
-                                   "border-radius: 12px;"));
-      item.title->setStyleSheet(
-          isLight ? QStringLiteral("color: #4c4f69; font-weight: 600;")
-                  : QStringLiteral("color: #cdd6f4; font-weight: 600;"));
+          QStringLiteral("background-color: %1; border-radius: 12px;")
+              .arg(pal.info.name()));
+      item.title->setStyleSheet(QStringLiteral("color: %1; font-weight: 600;")
+                                    .arg(pal.foreground.name()));
       item.subtitle->setStyleSheet(
-          isLight ? QStringLiteral("color: #5c5f77; font-weight: 500;")
-                  : QStringLiteral("color: #a6adc8; font-weight: 500;"));
+          QStringLiteral("color: %1; font-weight: 500;")
+              .arg(pal.mutedForeground.name()));
     } else if (i == m_currentStep) {
       // Đang active
+      const auto &pal = app::ThemeManager::instance().palette();
       item.container->setObjectName(QStringLiteral("OnboardingStepItemActive"));
       item.badge->setPixmap(QPixmap());
       item.badge->setText(QString::number(i + 1));
       item.badge->setStyleSheet(
-          isLight ? QStringLiteral("background-color: #1e1e2e; color: #ffffff; "
-                                   "border-radius: 12px; font-weight: 700; "
-                                   "font-size: 11px;")
-                  : QStringLiteral("background-color: #ffffff; color: #11111b; "
-                                   "border-radius: 12px; font-weight: 700; "
-                                   "font-size: 11px;"));
-      item.title->setStyleSheet(
-          isLight ? QStringLiteral("color: #1e1e2e; font-weight: 700;")
-                  : QStringLiteral("color: #ffffff; font-weight: 700;"));
+          QStringLiteral("background-color: %1; color: %2; "
+                         "border-radius: 12px; font-weight: 700; "
+                         "font-size: 11px;")
+              .arg(pal.info.name(), pal.infoForeground.name()));
+      item.title->setStyleSheet(QStringLiteral("color: %1; font-weight: 700;")
+                                    .arg(pal.foreground.name()));
       item.subtitle->setStyleSheet(
-          isLight ? QStringLiteral("color: #5c5f77; font-weight: 500;")
-                  : QStringLiteral("color: #a6adc8; font-weight: 500;"));
+          QStringLiteral("color: %1; font-weight: 500;")
+              .arg(pal.mutedForeground.name()));
     } else {
       // Chưa tới (Upcoming)
+      const auto &pal = app::ThemeManager::instance().palette();
       item.container->setObjectName(QStringLiteral("OnboardingStepItem"));
       item.badge->setPixmap(QPixmap());
       item.badge->setText(QString::number(i + 1));
       item.badge->setStyleSheet(
-          isLight ? QStringLiteral(
-                        "background-color: #e6e9ef; color: #8c8fa1; "
-                        "border: 1px solid #ccd0da; border-radius: 12px; "
-                        "font-weight: 600; font-size: 11px;")
-                  : QStringLiteral(
-                        "background-color: #1e1e2e; color: #6c7086; "
-                        "border: 1px solid #313244; border-radius: 12px; "
-                        "font-weight: 600; font-size: 11px;"));
-      item.title->setStyleSheet(
-          isLight ? QStringLiteral("color: #8c8fa1; font-weight: 500;")
-                  : QStringLiteral("color: #6c7086; font-weight: 500;"));
-      item.subtitle->setStyleSheet(isLight ? QStringLiteral("color: #bcc0cc;")
-                                           : QStringLiteral("color: #45475a;"));
+          QStringLiteral("background-color: %1; color: %2; "
+                         "border: 1px solid %3; border-radius: 12px; "
+                         "font-weight: 600; font-size: 11px;")
+              .arg(pal.surface.name(), pal.mutedForeground.name(),
+                   pal.border.name(QColor::HexArgb)));
+      item.title->setStyleSheet(QStringLiteral("color: %1; font-weight: 500;")
+                                    .arg(pal.mutedForeground.name()));
+      item.subtitle->setStyleSheet(
+          QStringLiteral("color: %1;").arg(pal.mutedForeground.name()));
     }
 
     item.container->style()->unpolish(item.container);

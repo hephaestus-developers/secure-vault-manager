@@ -38,6 +38,7 @@ void SidebarItemDelegate::paint(QPainter *painter,
   painter->save();
   painter->setRenderHint(QPainter::Antialiasing);
 
+  const auto &pal = app::ThemeManager::instance().palette();
   const bool isLight =
       (app::ThemeManager::instance().currentMode() == app::ThemeMode::Light);
   const bool isHeader = index.data(IsHeaderRole).toBool();
@@ -45,8 +46,7 @@ void SidebarItemDelegate::paint(QPainter *painter,
   // 1. Vẽ Tiêu đề Nhóm (Header: CATEGORIES)
   if (isHeader) {
     const QString headerText = index.data(Qt::DisplayRole).toString();
-    painter->setPen(isLight ? QColor(0x6C, 0x6F, 0x85)
-                            : QColor(0x6C, 0x70, 0x86));
+    painter->setPen(pal.mutedForeground);
     QFont headerFont = option.font;
     headerFont.setBold(true);
     headerFont.setPointSize(8);
@@ -70,23 +70,20 @@ void SidebarItemDelegate::paint(QPainter *painter,
   bgPath.addRoundedRect(rect, 6, 6);
 
   if (isSelected) {
-    painter->fillPath(bgPath, isLight ? QColor(0xFF, 0xFF, 0xFF)
-                                      : QColor(0x31, 0x32, 0x44));
+    painter->fillPath(bgPath, isLight ? pal.surface : pal.hover2);
     if (isLight) {
-      painter->setPen(QPen(QColor(0xCC, 0xD0, 0xDA), 1));
+      painter->setPen(QPen(pal.border, 1));
       painter->drawPath(bgPath);
     }
 
-    // Thanh chỉ thị than chì / slate bên mép trái
+    // Thanh chỉ thị xanh dương (--info) bên mép trái
     QPainterPath indicatorPath;
     indicatorPath.addRoundedRect(
         QRect(rect.left() + 2, rect.top() + (rect.height() - 16) / 2, 3, 16),
         1.5, 1.5);
-    painter->fillPath(indicatorPath, isLight ? QColor(0x2F, 0x35, 0x40)
-                                             : QColor(0x89, 0xB4, 0xFA));
+    painter->fillPath(indicatorPath, pal.info);
   } else if (isHovered) {
-    painter->fillPath(bgPath, isLight ? QColor(0x00, 0x00, 0x00, 0x0A)
-                                      : QColor(0xFF, 0xFF, 0xFF, 0x0C));
+    painter->fillPath(bgPath, pal.hover1);
   }
 
   // 3. Icon (18x18) căn đúng trục tâm x = 30px (rect.left = 10, offset 11px =>
@@ -117,20 +114,13 @@ void SidebarItemDelegate::paint(QPainter *painter,
 
     QPainterPath badgePath;
     badgePath.addRoundedRect(badgeRect, 9, 9);
-    painter->fillPath(badgePath,
-                      isLight ? (isSelected ? QColor(0xEE, 0xF1, 0xF5)
-                                            : QColor(0xDC, 0xE0, 0xE8))
-                              : (isSelected ? QColor(0x45, 0x47, 0x5A)
-                                            : QColor(0xFF, 0xFF, 0xFF, 0x14)));
+    painter->fillPath(badgePath, isSelected ? pal.hover2 : pal.hover1);
     if (isLight && isSelected) {
-      painter->setPen(QPen(QColor(0xCC, 0xD0, 0xDA), 1));
+      painter->setPen(QPen(pal.border, 1));
       painter->drawPath(badgePath);
     }
 
-    painter->setPen(isLight ? (isSelected ? QColor(0x1E, 0x1E, 0x2E)
-                                          : QColor(0x4C, 0x4F, 0x69))
-                            : (isSelected ? QColor(0xFF, 0xFF, 0xFF)
-                                          : QColor(0xCD, 0xD6, 0xF4)));
+    painter->setPen(isSelected ? pal.foreground : pal.mutedForeground);
     painter->setFont(badgeFont);
     painter->drawText(badgeRect, Qt::AlignCenter, countText);
   } else {
@@ -138,8 +128,7 @@ void SidebarItemDelegate::paint(QPainter *painter,
     const QRect badgeRect(rect.right() - badgeWidth - 8,
                           rect.top() + (rect.height() - 18) / 2, badgeWidth,
                           18);
-    painter->setPen(isLight ? QColor(0x9C, 0xA0, 0xB0)
-                            : QColor(0x58, 0x5B, 0x70));
+    painter->setPen(pal.mutedForeground);
     painter->setFont(badgeFont);
     painter->drawText(badgeRect, Qt::AlignCenter, QStringLiteral("0"));
   }
@@ -150,10 +139,7 @@ void SidebarItemDelegate::paint(QPainter *painter,
   const int textRight = rect.right() - badgeWidth - 10;
   const int availableWidth = textRight - textLeft;
 
-  painter->setPen(
-      isLight
-          ? (isSelected ? QColor(0x1E, 0x1E, 0x2E) : QColor(0x4C, 0x4F, 0x69))
-          : (isSelected ? QColor(0xFF, 0xFF, 0xFF) : QColor(0xCD, 0xD6, 0xF4)));
+  painter->setPen(pal.foreground);
   QFont textFont = option.font;
   textFont.setPointSize(9);
   textFont.setBold(isSelected);
@@ -212,6 +198,7 @@ void CompactSidebarDelegate::paint(QPainter *painter,
     return;
   }
 
+  const auto &pal = app::ThemeManager::instance().palette();
   const bool isSelected = (option.state & QStyle::State_Selected);
   const bool isHovered = (option.state & QStyle::State_MouseOver);
 
@@ -224,24 +211,21 @@ void CompactSidebarDelegate::paint(QPainter *painter,
   bgPath.addRoundedRect(cardRect, 6, 6);
 
   if (isSelected) {
-    painter->fillPath(bgPath, isLight ? QColor(0xFF, 0xFF, 0xFF)
-                                      : QColor(0x31, 0x32, 0x44));
+    painter->fillPath(bgPath, isLight ? pal.surface : pal.hover2);
     if (isLight) {
-      painter->setPen(QPen(QColor(0xCC, 0xD0, 0xDA), 1));
+      painter->setPen(QPen(pal.border, 1));
       painter->drawPath(bgPath);
     }
 
-    // Thanh chỉ thị than chì / slate bên mép trái
+    // Thanh chỉ thị xanh dương (--info) bên mép trái
     QPainterPath indicatorPath;
     indicatorPath.addRoundedRect(
         QRect(option.rect.left() + 2,
               cardRect.top() + (cardRect.height() - 16) / 2, 3, 16),
         1.5, 1.5);
-    painter->fillPath(indicatorPath, isLight ? QColor(0x2F, 0x35, 0x40)
-                                             : QColor(0x89, 0xB4, 0xFA));
+    painter->fillPath(indicatorPath, pal.info);
   } else if (isHovered) {
-    painter->fillPath(bgPath, isLight ? QColor(0x00, 0x00, 0x00, 0x0A)
-                                      : QColor(0xFF, 0xFF, 0xFF, 0x0C));
+    painter->fillPath(bgPath, pal.hover1);
   }
 
   // Vẽ icon 18x18 nằm chính giữa cardRect (tâm icon X = 30px, khớp với expanded

@@ -274,8 +274,8 @@ protected:
 
     // 2. Vẽ đường viền 1px bo góc mượt mà đè lên trên
     p.setCompositionMode(QPainter::CompositionMode_SourceOver);
-    const QColor borderColor = m_isDark ? QColor(QStringLiteral("#45475a"))
-                                        : QColor(QStringLiteral("#bcc0cc"));
+    const QColor borderColor =
+        m_isDark ? QColor(0xa0, 0xb4, 0xdc, 0x29) : QColor(0xd4, 0xd4, 0xd8);
     p.setPen(QPen(borderColor, 1.0));
     p.setBrush(Qt::NoBrush);
     const QRectF strokeRect(0.5, 0.5, static_cast<qreal>(width()) - 1.0,

@@ -57,6 +57,7 @@ public:
     const bool isLight =
         (app::ThemeManager::instance().currentMode() == app::ThemeMode::Light);
     const QRect rect = option.rect.adjusted(2, 3, -2, -3);
+    const auto &pal = app::ThemeManager::instance().palette();
     const bool isSelected = (option.state & QStyle::State_Selected);
     const bool isHovered = (option.state & QStyle::State_MouseOver);
 
@@ -64,23 +65,16 @@ public:
     cardPath.addRoundedRect(rect, 7, 7);
 
     if (isSelected) {
-      painter->fillPath(cardPath, isLight ? QColor(0xFF, 0xFF, 0xFF)
-                                          : QColor(0x89, 0xB4, 0xFA, 0x24));
-      painter->setPen(QPen(isLight ? QColor(0x1E, 0x66, 0xF5)
-                                   : QColor(0x89, 0xB4, 0xFA, 0xB0),
-                           1.5));
+      painter->fillPath(cardPath, isLight ? pal.surface : pal.selection);
+      painter->setPen(QPen(pal.info, 1.5));
       painter->drawPath(cardPath);
     } else if (isHovered) {
-      painter->fillPath(cardPath, isLight ? QColor(0xEF, 0xF1, 0xF5)
-                                          : QColor(0x31, 0x32, 0x44, 0xAA));
-      painter->setPen(QPen(
-          isLight ? QColor(0xBC, 0xC0, 0xCC) : QColor(0x45, 0x47, 0x5A), 1));
+      painter->fillPath(cardPath, isLight ? pal.hover1 : pal.surfaceOverlay);
+      painter->setPen(QPen(pal.borderStrong, 1));
       painter->drawPath(cardPath);
     } else {
-      painter->fillPath(cardPath, isLight ? QColor(0xFF, 0xFF, 0xFF)
-                                          : QColor(0x1E, 0x1E, 0x2E));
-      painter->setPen(QPen(
-          isLight ? QColor(0xDC, 0xE0, 0xE8) : QColor(0x31, 0x32, 0x44), 1));
+      painter->fillPath(cardPath, pal.surface);
+      painter->setPen(QPen(pal.border, 1));
       painter->drawPath(cardPath);
     }
 
@@ -103,10 +97,8 @@ public:
                           rect.top() + (rect.height() - 26) / 2, badgeW, 26);
     QPainterPath badgePath;
     badgePath.addRoundedRect(badgeRect, 6, 6);
-    painter->fillPath(badgePath, isLight ? QColor(0x1E, 0x66, 0xF5, 0x1A)
-                                         : QColor(0x89, 0xB4, 0xFA, 0x26));
-    painter->setPen(isLight ? QColor(0x1E, 0x66, 0xF5)
-                            : QColor(0x89, 0xB4, 0xFA));
+    painter->fillPath(badgePath, pal.infoBg);
+    painter->setPen(pal.info);
     painter->setFont(badgeFont);
     painter->drawText(badgeRect, Qt::AlignCenter, revBadgeText);
 
@@ -120,10 +112,8 @@ public:
       const QRect tagRect(rightEdge - tagW, rect.top() + 10, tagW, 18);
       QPainterPath tagPath;
       tagPath.addRoundedRect(tagRect, 4, 4);
-      painter->fillPath(tagPath, isLight ? QColor(0x40, 0xA0, 0x2B, 0x20)
-                                         : QColor(0xA6, 0xE3, 0xA1, 0x26));
-      painter->setPen(isLight ? QColor(0x40, 0xA0, 0x2B)
-                              : QColor(0xA6, 0xE3, 0xA1));
+      painter->fillPath(tagPath, pal.successBg);
+      painter->setPen(pal.success);
       painter->setFont(tagFont);
       painter->drawText(tagRect, Qt::AlignCenter, latestLabel);
       rightEdge = tagRect.left() - 6;
@@ -136,10 +126,10 @@ public:
       const QRect tagRect(rightEdge - tagW, rect.top() + 10, tagW, 18);
       QPainterPath tagPath;
       tagPath.addRoundedRect(tagRect, 4, 4);
-      painter->fillPath(tagPath, isLight ? QColor(0x88, 0x39, 0xEF, 0x1E)
-                                         : QColor(0x8B, 0x5C, 0xF6, 0x33));
-      painter->setPen(isLight ? QColor(0x88, 0x39, 0xEF)
-                              : QColor(0xA7, 0x8B, 0xFA));
+      QColor cat3Bg = pal.cat3;
+      cat3Bg.setAlpha(isLight ? 28 : 44);
+      painter->fillPath(tagPath, cat3Bg);
+      painter->setPen(pal.cat3);
       painter->setFont(tagFont);
       painter->drawText(tagRect, Qt::AlignCenter, totpLabel);
       rightEdge = tagRect.left() - 6;
@@ -154,9 +144,7 @@ public:
     tsFont.setBold(true);
     tsFont.setPointSize(10);
     painter->setFont(tsFont);
-    painter->setPen(isLight ? QColor(0x1E, 0x1E, 0x2E)
-                            : (isSelected ? QColor(0xFF, 0xFF, 0xFF)
-                                          : QColor(0xCD, 0xD6, 0xF4)));
+    painter->setPen(pal.foreground);
     const QString elidedTs =
         QFontMetrics(tsFont).elidedText(tsText, Qt::ElideRight, tsWidth);
     painter->drawText(QRect(textLeft, rect.top() + 9, tsWidth, 18),
@@ -166,8 +154,7 @@ public:
     subFont.setBold(false);
     subFont.setPointSize(9);
     painter->setFont(subFont);
-    painter->setPen(isLight ? QColor(0x6C, 0x6F, 0x85)
-                            : QColor(0x93, 0x99, 0xB2));
+    painter->setPen(pal.mutedForeground);
     const QString combinedSub =
         subText.isEmpty() ? titleText
                           : QStringLiteral("%1  •  %2").arg(titleText, subText);

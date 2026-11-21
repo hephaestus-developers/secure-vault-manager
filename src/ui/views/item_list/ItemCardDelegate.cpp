@@ -49,30 +49,23 @@ void ItemCardDelegate::paint(QPainter *painter,
   const bool isSelected = (option.state & QStyle::State_Selected);
   const bool isHovered = (option.state & QStyle::State_MouseOver);
 
-  // 1. Vẽ nền Card bo góc 8px (Elevated Surface cho Dark Theme, Pure White cho
-  // Light Theme)
+  const auto &pal = app::ThemeManager::instance().palette();
+
+  // 1. Vẽ nền Card bo góc 8px (Nền nhẹ + viền nhấn --info khi Selected)
   QPainterPath cardPath;
   cardPath.addRoundedRect(rect, 8, 8);
 
   if (isSelected) {
-    painter->fillPath(cardPath, isLight ? QColor(0xFF, 0xFF, 0xFF)
-                                        : QColor(0x89, 0xB4, 0xFA, 0x24));
-    painter->setPen(QPen(isLight ? QColor(0x2F, 0x35, 0x40)
-                                 : QColor(0x89, 0xB4, 0xFA, 0x88),
-                         1.5));
+    painter->fillPath(cardPath, isLight ? pal.surface : pal.selection);
+    painter->setPen(QPen(pal.info, 1.5));
     painter->drawPath(cardPath);
   } else if (isHovered) {
-    painter->fillPath(cardPath, isLight ? QColor(0xF4, 0xF5, 0xF8)
-                                        : QColor(0x31, 0x32, 0x44, 0xAA));
-    painter->setPen(
-        QPen(isLight ? QColor(0xBC, 0xC0, 0xCC) : QColor(0x45, 0x47, 0x5A), 1));
+    painter->fillPath(cardPath, isLight ? pal.hover1 : pal.surfaceOverlay);
+    painter->setPen(QPen(pal.borderStrong, 1));
     painter->drawPath(cardPath);
   } else {
-    painter->fillPath(cardPath, isLight ? QColor(0xFF, 0xFF, 0xFF)
-                                        : QColor(0x23, 0x26, 0x34, 0x88));
-    painter->setPen(QPen(isLight ? QColor(0xCC, 0xD0, 0xDA)
-                                 : QColor(0x36, 0x3A, 0x4F, 0x88),
-                         1));
+    painter->fillPath(cardPath, pal.surface);
+    painter->setPen(QPen(pal.border, 1));
     painter->drawPath(cardPath);
   }
 
@@ -83,10 +76,37 @@ void ItemCardDelegate::paint(QPainter *painter,
   const QRect iconRect(rect.left() + 12, rect.top() + (rect.height() - 36) / 2,
                        36, 36);
 
+  // Áp dụng màu --cat-1..6 làm nền nhạt (12% opacity) cho avatar danh mục
+  QColor catColor = pal.cat1;
+  switch (cat) {
+  case models::ItemCategory::Login:
+    catColor = pal.cat1;
+    break;
+  case models::ItemCategory::Passkey:
+  case models::ItemCategory::SecureNote:
+    catColor = pal.cat2;
+    break;
+  case models::ItemCategory::Card:
+    catColor = pal.cat5;
+    break;
+  case models::ItemCategory::Identity:
+    catColor = pal.cat3;
+    break;
+  case models::ItemCategory::SshKey:
+    catColor = pal.cat4;
+    break;
+  case models::ItemCategory::Database:
+  case models::ItemCategory::Server:
+  case models::ItemCategory::Wifi:
+    catColor = pal.cat6;
+    break;
+  }
+  QColor iconBgColor = catColor;
+  iconBgColor.setAlpha(isLight ? 24 : 32);
+
   QPainterPath iconBgPath;
   iconBgPath.addRoundedRect(iconRect, 8, 8);
-  painter->fillPath(iconBgPath, isLight ? QColor(0xEA, 0xED, 0xF3)
-                                        : QColor(0x18, 0x18, 0x25));
+  painter->fillPath(iconBgPath, iconBgColor);
 
   bool paintedFavicon = false;
   if (!websiteUrl.trimmed().isEmpty() &&
@@ -148,10 +168,7 @@ void ItemCardDelegate::paint(QPainter *painter,
   constexpr int kTotpBadgeH = 16;
   constexpr int kTotpBadgeGap = 6;
 
-  painter->setPen(
-      isLight
-          ? (isSelected ? QColor(0x1E, 0x1E, 0x2E) : QColor(0x31, 0x32, 0x44))
-          : (isSelected ? QColor(0xFF, 0xFF, 0xFF) : QColor(0xCD, 0xD6, 0xF4)));
+  painter->setPen(pal.foreground);
   QFont titleFont = option.font;
   titleFont.setBold(true);
   titleFont.setPointSize(10);
@@ -174,18 +191,17 @@ void ItemCardDelegate::paint(QPainter *painter,
                          kTotpBadgeH);
     QPainterPath badgePath;
     badgePath.addRoundedRect(totpRect, 4, 4);
-    painter->fillPath(badgePath, isLight ? QColor(0x88, 0x39, 0xEF, 0x22)
-                                         : QColor(0x8B, 0x5C, 0xF6, 0x33));
-    painter->setPen(isLight ? QColor(0x88, 0x39, 0xEF)
-                            : QColor(0xA7, 0x8B, 0xFA));
+    QColor badgeBg = pal.cat3;
+    badgeBg.setAlpha(isLight ? 28 : 42);
+    painter->fillPath(badgePath, badgeBg);
+    painter->setPen(pal.cat3);
     QFont badgeFont(QStringLiteral("sans-serif"), 7, QFont::Bold);
     painter->setFont(badgeFont);
     painter->drawText(totpRect, Qt::AlignCenter, QStringLiteral("2FA"));
   }
 
   // Dòng 2: Subtitle
-  painter->setPen(isLight ? QColor(0x6C, 0x6F, 0x85)
-                          : QColor(0x93, 0x99, 0xB2));
+  painter->setPen(pal.mutedForeground);
   QFont subFont = option.font;
   subFont.setBold(false);
   subFont.setPointSize(9);

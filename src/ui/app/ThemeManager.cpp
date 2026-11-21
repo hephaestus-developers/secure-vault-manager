@@ -167,6 +167,132 @@ void ThemeManager::applyTheme(ThemeMode mode) {
 
 ThemeMode ThemeManager::currentMode() const { return m_currentMode; }
 
+const ThemePalette &ThemeManager::palette() const {
+  static const ThemePalette kLightPalette{
+      // 1. Background, Surface & Foreground
+      QColor(0xf4, 0xf4, 0xf6), // background: #f4f4f6
+      QColor(0xff, 0xff, 0xff), // surface: #ffffff
+      QColor(0xff, 0xff, 0xff), // surfaceOverlay: #ffffff
+      QColor(0x2c, 0x2c, 0x2c), // foreground: #2c2c2c
+      QColor(0x66, 0x66, 0x66), // mutedForeground: #666666
+
+      // 2. Borders
+      QColor(0xe4, 0xe4, 0xe7),       // border: #e4e4e7
+      QColor(0xd4, 0xd4, 0xd8),       // borderStrong: #d4d4d8
+      QColor(0x8a, 0x8a, 0x93),       // borderInput: #8a8a93
+      QColor(0x1d, 0x4e, 0xd8),       // borderFocus: #1d4ed8
+      QColor(0x2c, 0x2c, 0x2c, 0x1a), // tabRail: 10% foreground
+
+      // 3. Primary & Selection
+      QColor(0x18, 0x18, 0x18),       // primary: #181818
+      QColor(0x2e, 0x2e, 0x2e),       // primaryHover: #2e2e2e
+      QColor(0xff, 0xff, 0xff),       // primaryForeground: #ffffff
+      QColor(0x25, 0x63, 0xeb, 0x33), // selection: #2563eb33
+
+      // 4. Interaction
+      QColor(0x00, 0x00, 0x00, 0x0a), // hover1
+      QColor(0x00, 0x00, 0x00, 0x12), // hover2
+      QColor(0x00, 0x00, 0x00, 0x1c), // hover3
+      QColor(0x00, 0x00, 0x00, 0x0f), // disabledBg
+      QColor(0x2c, 0x2c, 0x2c, 0x73), // disabledForeground
+
+      // 5. Semantic
+      QColor(0xc7, 0x00, 0x36), // danger: #c70036
+      QColor(0xff, 0xf1, 0xf2), // dangerBg: #fff1f2
+      QColor(0xfe, 0xcd, 0xd3), // dangerBorder: #fecdd3
+      QColor(0xff, 0xff, 0xff), // dangerForeground: #ffffff
+
+      QColor(0x00, 0x7a, 0x55), // success: #007a55
+      QColor(0xec, 0xfd, 0xf5), // successBg: #ecfdf5
+      QColor(0xa4, 0xf4, 0xcf), // successBorder: #a4f4cf
+
+      QColor(0xbb, 0x4d, 0x00), // warning: #bb4d00
+      QColor(0xff, 0xfb, 0xeb), // warningBg: #fffbeb
+      QColor(0xfe, 0xe6, 0x85), // warningBorder: #fee685
+
+      QColor(0x1d, 0x4e, 0xd8), // info: #1d4ed8
+      QColor(0x1e, 0x40, 0xaf), // infoHover: #1e40af
+      QColor(0xef, 0xf6, 0xff), // infoBg: #eff6ff
+      QColor(0xbf, 0xdb, 0xfe), // infoBorder: #bfdbfe
+      QColor(0xff, 0xff, 0xff), // infoForeground: #ffffff
+
+      QColor(0x52, 0x52, 0x5c), // neutral: #52525c
+      QColor(0xf4, 0xf4, 0xf5), // neutralBg: #f4f4f5
+      QColor(0xe4, 0xe4, 0xe7), // neutralBorder: #e4e4e7
+
+      // 6. Category
+      QColor(0x25, 0x63, 0xeb), // cat1: #2563eb
+      QColor(0x0d, 0x94, 0x88), // cat2: #0d9488
+      QColor(0x7c, 0x3a, 0xed), // cat3: #7c3aed
+      QColor(0xc0, 0x26, 0xd3), // cat4: #c026d3
+      QColor(0xd9, 0x77, 0x06), // cat5: #d97706
+      QColor(0xe1, 0x1d, 0x48), // cat6: #e11d48
+  };
+
+  static const ThemePalette kDarkPalette{
+      // 1. Background, Surface & Foreground
+      QColor(0x05, 0x06, 0x0f), // background: #05060f
+      QColor(0x0f, 0x11, 0x1a), // surface: #0f111a
+      QColor(0x17, 0x1a, 0x26), // surfaceOverlay: #171a26
+      QColor(0xe9, 0xed, 0xf5), // foreground: #e9edf5
+      QColor(0x8b, 0x93, 0xa7), // mutedForeground: #8b93a7
+
+      // 2. Borders
+      QColor(0xa0, 0xb4, 0xdc, 0x1f), // border: #a0b4dc1f
+      QColor(0xa0, 0xb4, 0xdc, 0x29), // borderStrong: #a0b4dc29
+      QColor(0x5f, 0x67, 0x79),       // borderInput: #5f6779
+      QColor(0x60, 0xa5, 0xfa, 0xb3), // borderFocus
+      QColor(0xe9, 0xed, 0xf5, 0x1a), // tabRail: 10% foreground
+
+      // 3. Primary & Selection
+      QColor(0xe9, 0xed, 0xf5),       // primary: #e9edf5
+      QColor(0xcf, 0xd5, 0xe0),       // primaryHover: #cfd5e0
+      QColor(0x05, 0x06, 0x0f),       // primaryForeground: #05060f
+      QColor(0x60, 0xa5, 0xfa, 0x40), // selection: #60a5fa40
+
+      // 4. Interaction
+      QColor(0xff, 0xff, 0xff, 0x0d), // hover1
+      QColor(0xff, 0xff, 0xff, 0x14), // hover2
+      QColor(0xff, 0xff, 0xff, 0x21), // hover3
+      QColor(0xff, 0xff, 0xff, 0x0f), // disabledBg
+      QColor(0xe9, 0xed, 0xf5, 0x6b), // disabledForeground
+
+      // 5. Semantic
+      QColor(0xff, 0x63, 0x7e),       // danger: #ff637e
+      QColor(0xff, 0x20, 0x56, 0x1a), // dangerBg: #ff20561a
+      QColor(0xff, 0x20, 0x56, 0x4d), // dangerBorder: #ff20564d
+      QColor(0x05, 0x06, 0x0f),       // dangerForeground: #05060f
+
+      QColor(0x00, 0xd4, 0x92),       // success: #00d492
+      QColor(0x00, 0xbc, 0x7d, 0x26), // successBg: #00bc7d26
+      QColor(0x00, 0xbc, 0x7d, 0x4d), // successBorder: #00bc7d4d
+
+      QColor(0xff, 0x89, 0x04),       // warning: #ff8904
+      QColor(0xfe, 0x9a, 0x00, 0x26), // warningBg: #fe9a0026
+      QColor(0xfe, 0x9a, 0x00, 0x4d), // warningBorder: #fe9a004d
+
+      QColor(0x60, 0xa5, 0xfa),       // info: #60a5fa
+      QColor(0x93, 0xc5, 0xfd),       // infoHover: #93c5fd
+      QColor(0x3b, 0x82, 0xf6, 0x26), // infoBg: #3b82f626
+      QColor(0x3b, 0x82, 0xf6, 0x4d), // infoBorder: #3b82f64d
+      QColor(0x05, 0x06, 0x0f),       // infoForeground: #05060f
+
+      QColor(0x9f, 0x9f, 0xa9),       // neutral: #9f9fa9
+      QColor(0x71, 0x71, 0x7b, 0x26), // neutralBg: #71717b26
+      QColor(0x71, 0x71, 0x7b, 0x4d), // neutralBorder: #71717b4d
+
+      // 6. Category
+      QColor(0x60, 0xa5, 0xfa), // cat1: #60a5fa
+      QColor(0x2d, 0xd4, 0xbf), // cat2: #2dd4bf
+      QColor(0xa7, 0x8b, 0xfa), // cat3: #a78bfa
+      QColor(0xe8, 0x79, 0xf9), // cat4: #e879f9
+      QColor(0xfb, 0xbf, 0x24), // cat5: #fbbf24
+      QColor(0xfb, 0x71, 0x85), // cat6: #fb7185
+  };
+
+  return (m_currentMode == ThemeMode::Dark) ? kDarkPalette : kLightPalette;
+}
+
 QString ThemeManager::iconPath(const QString &baseName) const {
   const QString key =
       baseName + ((m_currentMode == ThemeMode::Dark) ? QStringLiteral(":d")

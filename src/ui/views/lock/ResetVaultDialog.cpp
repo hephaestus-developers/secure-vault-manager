@@ -262,13 +262,17 @@ QWidget *ResetVaultDialog::createConfirmPage() {
   m_executeResetBtn->setFixedHeight(36);
   m_executeResetBtn->setEnabled(false);
   m_executeResetBtn->setCursor(Qt::PointingHandCursor);
+  const auto &pal = app::ThemeManager::instance().palette();
   m_executeResetBtn->setStyleSheet(
-      QStringLiteral("QPushButton { background-color: #f38ba8; color: #11111b; "
-                     "border: none; border-radius: 6px; padding: 0 16px; "
-                     "font-weight: 700; font-size: 12.5px; } "
-                     "QPushButton:hover { background-color: #eba0ac; } "
-                     "QPushButton:disabled { background-color: #45475a; color: "
-                     "#6c7086; }"));
+      QStringLiteral(
+          "QPushButton { background-color: %1; color: %2; "
+          "border: none; border-radius: 6px; padding: 0 16px; "
+          "font-weight: 700; font-size: 12.5px; } "
+          "QPushButton:hover { opacity: 0.9; } "
+          "QPushButton:disabled { background-color: %3; color: %4; }")
+          .arg(pal.danger.name(), pal.dangerForeground.name(),
+               pal.disabledBg.name(QColor::HexArgb),
+               pal.disabledForeground.name(QColor::HexArgb)));
   connect(m_executeResetBtn, &QPushButton::clicked, this,
           &ResetVaultDialog::onPerformReset);
   btnLayout->addWidget(m_executeResetBtn);

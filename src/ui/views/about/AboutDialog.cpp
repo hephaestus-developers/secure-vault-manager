@@ -231,13 +231,10 @@ QWidget *AboutDialog::createAppTab() {
 }
 
 void AboutDialog::populateAppTabContent() {
-  const bool isDark = app::ThemeManager::instance().isDarkTheme();
-  const QString textColor =
-      isDark ? QStringLiteral("#cdd6f4") : QStringLiteral("#4c4f69");
-  const QString subColor =
-      isDark ? QStringLiteral("#a6adc8") : QStringLiteral("#6c6f85");
-  const QString linkColor =
-      isDark ? QStringLiteral("#ffffff") : QStringLiteral("#1e1e2e");
+  const auto &pal = app::ThemeManager::instance().palette();
+  const QString textColor = pal.foreground.name();
+  const QString subColor = pal.mutedForeground.name();
+  const QString linkColor = pal.info.name();
 
   const QString appVer = QCoreApplication::applicationVersion().isEmpty()
                              ? QStringLiteral("0.1.0")
@@ -424,13 +421,10 @@ QWidget *AboutDialog::createQtTab() {
 }
 
 void AboutDialog::populateQtTabContent() {
-  const bool isDark = app::ThemeManager::instance().isDarkTheme();
-  const QString textColor =
-      isDark ? QStringLiteral("#cdd6f4") : QStringLiteral("#4c4f69");
-  const QString subColor =
-      isDark ? QStringLiteral("#a6adc8") : QStringLiteral("#6c6f85");
-  const QString linkColor =
-      isDark ? QStringLiteral("#ffffff") : QStringLiteral("#1e1e2e");
+  const auto &pal = app::ThemeManager::instance().palette();
+  const QString textColor = pal.foreground.name();
+  const QString subColor = pal.mutedForeground.name();
+  const QString linkColor = pal.info.name();
   const QString qtVer = QString::fromLatin1(qVersion());
 
   if (m_qtHeroTitle) {

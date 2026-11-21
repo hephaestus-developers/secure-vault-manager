@@ -7,6 +7,7 @@
 
 #include "ui/views/onboarding/PasswordEntropyMeter.hpp"
 #include "core/CoreBridge.hpp"
+#include "ui/app/ThemeManager.hpp"
 
 #include <QEvent>
 #include <QHBoxLayout>
@@ -109,7 +110,8 @@ PasswordEntropyMeter::calculateStrength(const QString &pwd) const {
 }
 
 void PasswordEntropyMeter::updateDisplay() {
-  QString activeColor = QStringLiteral("#313244");
+  const auto &pal = app::ThemeManager::instance().palette();
+  QString activeColor = pal.hover2.name(QColor::HexArgb);
   int activeCount = 0;
   QString text;
 
@@ -120,26 +122,27 @@ void PasswordEntropyMeter::updateDisplay() {
     break;
   case StrengthLevel::Weak:
     activeCount = 1;
-    activeColor = QStringLiteral("#EF4444"); // Đỏ
+    activeColor = pal.danger.name();
     text = tr("Weak - Use at least 8 characters with numbers & symbols");
     break;
   case StrengthLevel::Fair:
     activeCount = 2;
-    activeColor = QStringLiteral("#F59E0B"); // Vàng cam
+    activeColor = pal.warning.name();
     text = tr("Fair - Good, but can be stronger with more length");
     break;
   case StrengthLevel::Strong:
     activeCount = 3;
-    activeColor = QStringLiteral("#3B82F6"); // Xanh lam
+    activeColor = pal.info.name();
     text = tr("Strong - Safe and reliable master password");
     break;
   case StrengthLevel::Excellent:
     activeCount = 4;
-    activeColor = QStringLiteral("#10B981"); // Xanh ngọc
+    activeColor = pal.success.name();
     text = tr("Excellent - Highly secure and resilient");
     break;
   }
 
+  const QString inactiveBg = pal.hover2.name(QColor::HexArgb);
   for (int i = 0; i < 4; ++i) {
     if (i < activeCount) {
       m_segments[i]->setStyleSheet(
@@ -147,7 +150,8 @@ void PasswordEntropyMeter::updateDisplay() {
               .arg(activeColor));
     } else {
       m_segments[i]->setStyleSheet(
-          QStringLiteral("background-color: #313244; border-radius: 2px;"));
+          QStringLiteral("background-color: %1; border-radius: 2px;")
+              .arg(inactiveBg));
     }
   }
 

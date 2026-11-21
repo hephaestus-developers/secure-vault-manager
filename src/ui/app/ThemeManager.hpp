@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <QColor>
 #include <QHash>
 #include <QIcon>
 #include <QObject>
@@ -16,6 +17,61 @@
 namespace svm::app {
 
 enum class ThemeMode { Dark, Light };
+
+struct ThemePalette {
+  QColor background;
+  QColor surface;
+  QColor surfaceOverlay;
+  QColor foreground;
+  QColor mutedForeground;
+
+  QColor border;
+  QColor borderStrong;
+  QColor borderInput;
+  QColor borderFocus;
+  QColor tabRail;
+
+  QColor primary;
+  QColor primaryHover;
+  QColor primaryForeground;
+  QColor selection;
+
+  QColor hover1;
+  QColor hover2;
+  QColor hover3;
+  QColor disabledBg;
+  QColor disabledForeground;
+
+  QColor danger;
+  QColor dangerBg;
+  QColor dangerBorder;
+  QColor dangerForeground;
+
+  QColor success;
+  QColor successBg;
+  QColor successBorder;
+
+  QColor warning;
+  QColor warningBg;
+  QColor warningBorder;
+
+  QColor info;
+  QColor infoHover;
+  QColor infoBg;
+  QColor infoBorder;
+  QColor infoForeground;
+
+  QColor neutral;
+  QColor neutralBg;
+  QColor neutralBorder;
+
+  QColor cat1;
+  QColor cat2;
+  QColor cat3;
+  QColor cat4;
+  QColor cat5;
+  QColor cat6;
+};
 
 class ThemeManager : public QObject {
   Q_OBJECT
@@ -45,6 +101,11 @@ public:
   [[nodiscard]] bool isDarkTheme() const {
     return currentMode() == ThemeMode::Dark;
   }
+
+  /**
+   * @brief Lấy bảng màu thiết kế tương ứng với chủ đề hiện tại.
+   */
+  [[nodiscard]] const ThemePalette &palette() const;
 
   /**
    * @brief Lấy đường dẫn tài nguyên QRC của icon tương ứng với chủ đề hiện tại

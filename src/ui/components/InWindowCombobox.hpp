@@ -71,20 +71,14 @@ protected:
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
 
-    const bool isLight = (svm::app::ThemeManager::instance().currentMode() ==
-                          svm::app::ThemeMode::Light);
+    const auto &pal = svm::app::ThemeManager::instance().palette();
     const QRectF r = QRectF(rect()).adjusted(0.5, 0.5, -0.5, -0.5);
 
     QPainterPath path;
     path.addRoundedRect(r, 8, 8);
 
-    const QColor bgColor =
-        isLight ? QColor(0xFF, 0xFF, 0xFF) : QColor(0x18, 0x18, 0x25);
-    const QColor borderColor =
-        isLight ? QColor(0xBC, 0xC0, 0xCC) : QColor(0x45, 0x47, 0x5A);
-
-    painter.fillPath(path, bgColor);
-    painter.setPen(QPen(borderColor, 1));
+    painter.fillPath(path, pal.surfaceOverlay);
+    painter.setPen(QPen(pal.borderStrong, 1));
     painter.drawPath(path);
 
     Q_UNUSED(event);

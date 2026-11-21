@@ -48,6 +48,7 @@ public:
     painter->save();
     painter->setRenderHint(QPainter::Antialiasing);
 
+    const auto &pal = svm::app::ThemeManager::instance().palette();
     const bool isLight = (svm::app::ThemeManager::instance().currentMode() ==
                           svm::app::ThemeMode::Light);
     const bool isSelected = (option.state & QStyle::State_Selected);
@@ -59,25 +60,13 @@ public:
     if (isHovered) {
       QPainterPath bgPath;
       bgPath.addRoundedRect(rect, 6, 6);
-
-      if (isLight) {
-        painter->fillPath(bgPath, QColor(0xE6, 0xE9, 0xEF));
-        painter->setPen(QPen(QColor(0xBC, 0xC0, 0xCC), 1));
-        painter->drawPath(bgPath);
-      } else {
-        painter->fillPath(bgPath, QColor(0x31, 0x32, 0x44));
-        painter->setPen(QPen(QColor(0x45, 0x47, 0x5A), 1));
-        painter->drawPath(bgPath);
-      }
+      painter->fillPath(bgPath, pal.hover2);
+      painter->setPen(QPen(pal.borderStrong, 1));
+      painter->drawPath(bgPath);
     } else if (isSelected) {
       QPainterPath bgPath;
       bgPath.addRoundedRect(rect, 6, 6);
-
-      if (isLight) {
-        painter->fillPath(bgPath, QColor(0xF2, 0xF4, 0xF8));
-      } else {
-        painter->fillPath(bgPath, QColor(0x23, 0x26, 0x34));
-      }
+      painter->fillPath(bgPath, pal.hover1);
     }
 
     // 2. Vẽ Icon nếu có (căn giữa theo chiều dọc, lề trái 8px)
@@ -115,18 +104,12 @@ public:
 
     QFont font = option.font;
     font.setPointSize(9);
-    if (isSelected) {
+    if (isSelected || isHovered) {
       font.setBold(true);
-      painter->setPen(isLight ? QColor(0x1E, 0x1E, 0x2E)
-                              : QColor(0xFF, 0xFF, 0xFF));
-    } else if (isHovered) {
-      font.setBold(true);
-      painter->setPen(isLight ? QColor(0x1E, 0x1E, 0x2E)
-                              : QColor(0xFF, 0xFF, 0xFF));
+      painter->setPen(pal.foreground);
     } else {
       font.setBold(false);
-      painter->setPen(isLight ? QColor(0x4C, 0x4F, 0x69)
-                              : QColor(0xCD, 0xD6, 0xF4));
+      painter->setPen(pal.foreground);
     }
     painter->setFont(font);
     painter->drawText(textRect, Qt::AlignLeft | Qt::AlignVCenter, text);
