@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="ui/resources/icons/brand/app_logo.svg" alt="Secure Vault Manager Logo" width="112" height="112" />
+<img src="src/resources/icons/brand/app_logo.svg" alt="Secure Vault Manager Logo" width="112" height="112" />
 
 # Secure Vault Manager (SVM)
 
