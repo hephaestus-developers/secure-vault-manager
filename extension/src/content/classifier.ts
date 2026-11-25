@@ -8,6 +8,7 @@ export interface ClassifiedFormFields {
   passwordInput: HTMLInputElement | null;
   newPasswordInput: HTMLInputElement | null;
   totpInput: HTMLInputElement | null;
+  totpInputs: HTMLInputElement[];
 }
 
 const USERNAME_PATTERNS =
@@ -91,6 +92,7 @@ export function classifyDocumentFields(root: Document | Element = document): Cla
   let passwordInput: HTMLInputElement | null = null;
   let newPasswordInput: HTMLInputElement | null = null;
   let totpInput: HTMLInputElement | null = null;
+  const totpCandidates: HTMLInputElement[] = [];
 
   for (const input of inputs) {
     if (input.disabled || input.readOnly || input.type === "hidden" || !isElementVisible(input)) {
@@ -130,10 +132,11 @@ export function classifyDocumentFields(root: Document | Element = document): Cla
       (inputmode === "numeric" && input.maxLength >= 6 && input.maxLength <= 8);
 
     if (isTotpCandidate) {
+      totpCandidates.push(input);
       if (!totpInput) {
         totpInput = input;
-        continue;
       }
+      continue;
     }
 
     if (
@@ -193,31 +196,76 @@ export function classifyDocumentFields(root: Document | Element = document): Cla
     }
   }
 
+  const visibleTextInputs = inputs.filter(
+    (inp) =>
+      !inp.disabled &&
+      !inp.readOnly &&
+      inp.type !== "hidden" &&
+      inp.type !== "submit" &&
+      inp.type !== "button" &&
+      inp.type !== "checkbox" &&
+      inp.type !== "radio" &&
+      !isSearchOrFilterInput(inp) &&
+      isElementVisible(inp),
+  );
+
+  // Phát hiện nhóm ô OTP tách rời (Segmented OTP: 4-8 ô nhập 1 ký tự nằm cạnh nhau)
+  let totpInputs: HTMLInputElement[] = [];
+  if (totpCandidates.length >= 4 && totpCandidates.length <= 8) {
+    totpInputs = totpCandidates;
+  } else {
+    const seed =
+      totpInput ||
+      (visibleTextInputs.length >= 4 && visibleTextInputs.length <= 8
+        ? visibleTextInputs[0]
+        : null);
+    if (seed) {
+      const container =
+        seed.parentElement?.parentElement || seed.parentElement || seed.closest("form") || root;
+      const group = visibleTextInputs.filter(
+        (inp) => inp.type !== "password" && container.contains(inp),
+      );
+      const isSingleCharGroup =
+        group.length >= 4 &&
+        group.length <= 8 &&
+        group.every((inp) => inp.maxLength === 1 || inp.getBoundingClientRect().width <= 72);
+      if (isSingleCharGroup) {
+        totpInputs = group;
+        totpInput = group[0];
+        if (usernameInput && group.includes(usernameInput)) {
+          usernameInput = null;
+        }
+      }
+    }
+  }
+
   // Heuristic dự phòng: Nếu không tìm thấy totpInput nhưng trang là màn hình Two-Factor Authentication
   if (!totpInput && !passwordInput) {
     const pageText = `${document.title} ${window.location.href} ${document.body?.innerText?.slice(0, 800) || ""}`;
-    const is2FaPage = /two-factor|2fa|mfa|verification|verify|authenticator|checkpoint/i.test(
-      pageText,
-    );
-    const visibleTextInputs = inputs.filter(
-      (inp) =>
-        !inp.disabled &&
-        !inp.readOnly &&
-        inp.type !== "hidden" &&
-        inp.type !== "submit" &&
-        inp.type !== "button" &&
-        !isSearchOrFilterInput(inp) &&
-        isElementVisible(inp),
-    );
+    const is2FaPage =
+      /two-factor|2fa|mfa|verification|verify|authenticator|checkpoint|xác thực hai bước/i.test(
+        pageText,
+      );
     if (is2FaPage && visibleTextInputs.length === 1) {
       totpInput = visibleTextInputs[0];
+      totpInputs = [totpInput];
       if (usernameInput === totpInput) {
+        usernameInput = null;
+      }
+    } else if (is2FaPage && visibleTextInputs.length >= 4 && visibleTextInputs.length <= 8) {
+      totpInputs = visibleTextInputs;
+      totpInput = visibleTextInputs[0];
+      if (usernameInput && totpInputs.includes(usernameInput)) {
         usernameInput = null;
       }
     }
   }
 
-  return { usernameInput, passwordInput, newPasswordInput, totpInput };
+  if (totpInput && totpInputs.length === 0) {
+    totpInputs = [totpInput];
+  }
+
+  return { usernameInput, passwordInput, newPasswordInput, totpInput, totpInputs };
 }
 
 /**

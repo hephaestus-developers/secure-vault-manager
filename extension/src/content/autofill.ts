@@ -78,6 +78,35 @@ function findStandaloneTotpInput(doc: Document): HTMLInputElement | null {
 }
 
 /**
+ * Điền mã xác thực 2FA/TOTP vào 1 ô đơn hoặc tự động tách từng ký tự vào nhóm ô OTP (4-8 ô).
+ */
+export function fillTotpCode(
+  targets: HTMLInputElement | HTMLInputElement[],
+  code: string,
+): boolean {
+  const inputs = Array.isArray(targets) ? targets : [targets];
+  const cleanCode = code.replace(/\s+/g, "").trim();
+  if (inputs.length === 0 || !cleanCode) {
+    return false;
+  }
+
+  if (inputs.length >= 4 && inputs.length <= 8) {
+    const count = Math.min(inputs.length, cleanCode.length);
+    for (let i = 0; i < count; i++) {
+      const box = inputs[i];
+      const ch = cleanCode[i];
+      box.focus();
+      setNativeInputValue(box, ch);
+      box.dispatchEvent(new KeyboardEvent("keyup", { key: ch, bubbles: true }));
+    }
+    return count > 0;
+  }
+
+  setNativeInputValue(inputs[0], cleanCode);
+  return true;
+}
+
+/**
  * Điền thông tin tài khoản, mật khẩu và mã xác thực 2 bước (nếu có) vào biểu mẫu hiện tại.
  */
 export function autofillCredentialsOnPage(data: {
@@ -96,15 +125,15 @@ export function autofillCredentialsOnPage(data: {
     setNativeInputValue(fields.passwordInput, data.password);
     filled = true;
   }
-  if (fields.totpInput && data.totpCode) {
-    setNativeInputValue(fields.totpInput, data.totpCode);
-    filled = true;
-  } else if (data.totpCode && !fields.passwordInput) {
-    // Fallback khi ở màn hình 2FA chuyên biệt
-    const standaloneInput = findStandaloneTotpInput(document);
-    if (standaloneInput) {
-      setNativeInputValue(standaloneInput, data.totpCode);
-      filled = true;
+  if (data.totpCode) {
+    if (fields.totpInputs.length > 0) {
+      filled = fillTotpCode(fields.totpInputs, data.totpCode) || filled;
+    } else if (!fields.passwordInput) {
+      // Fallback khi ở màn hình 2FA chuyên biệt
+      const standaloneInput = findStandaloneTotpInput(document);
+      if (standaloneInput) {
+        filled = fillTotpCode(standaloneInput, data.totpCode) || filled;
+      }
     }
   }
 

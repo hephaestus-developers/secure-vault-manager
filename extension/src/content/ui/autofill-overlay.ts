@@ -9,7 +9,7 @@ import {
   CredentialsListPayload,
   sendExtensionBridgeMessage,
 } from "../../services/protocol";
-import { autofillCredentialsOnPage, setNativeInputValue } from "../autofill";
+import { autofillCredentialsOnPage, fillTotpCode } from "../autofill";
 import { classifyDocumentFields } from "../classifier";
 
 let suppressedInput: HTMLInputElement | null = null;
@@ -23,7 +23,7 @@ export function setupInlineAutofillOverlay(): void {
     }
 
     const fields = classifyDocumentFields(document);
-    const isTotp = target === fields.totpInput;
+    const isTotp = target === fields.totpInput || fields.totpInputs.includes(target);
     let isUserOrPass = target === fields.usernameInput || target === fields.passwordInput;
 
     // Dự phòng bổ sung: nếu target là ô text/email hiển thị đứng trước passwordInput trong form
@@ -208,11 +208,16 @@ function renderInlinePopover(
   const rows: HTMLButtonElement[] = [];
   let activeIndex = -1;
 
+  const currentFields = classifyDocumentFields(document);
+  const totpTargets = currentFields.totpInputs.length > 1 ? currentFields.totpInputs : [anchor];
+
   const triggerFill = (cred: CredentialSummary) => {
     cleanup();
     void (async () => {
+      let filledCode = "";
       if (isTotpField && cred.totpCode) {
-        setNativeInputValue(anchor, cred.totpCode);
+        fillTotpCode(totpTargets, cred.totpCode);
+        filledCode = cred.totpCode;
       }
       const secretResp = await sendExtensionBridgeMessage<CredentialSecretPayload>(
         "fill_credential",
@@ -220,7 +225,9 @@ function renderInlinePopover(
       );
       const code = secretResp.payload?.totpCode || cred.totpCode;
       if (isTotpField && code) {
-        setNativeInputValue(anchor, code);
+        if (code !== filledCode) {
+          fillTotpCode(totpTargets, code);
+        }
       } else {
         autofillCredentialsOnPage({
           username: secretResp.payload?.username || cred.username,
