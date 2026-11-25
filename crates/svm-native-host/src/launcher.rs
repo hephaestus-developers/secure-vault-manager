@@ -295,7 +295,7 @@ impl NativeHostRouter {
                 data.insert("unlocked", JsonValue::Bool(false));
                 data.insert("desktopRunning", JsonValue::Bool(false));
                 data.insert("configured", JsonValue::Bool(self.vault.is_configured()));
-                data.insert("version", JsonValue::String("0.1.0".to_string()));
+                data.insert("version", JsonValue::String("2026.11.0".to_string()));
                 data.insert("bridgeListening", JsonValue::Bool(false));
                 data.insert("biometricAvailable", JsonValue::Bool(false));
                 Self::ok_envelope(request_id, "vault_status", data)

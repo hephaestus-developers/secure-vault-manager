@@ -9,7 +9,7 @@ setlocal enabledelayedexpansion
 
 set "APP_NAME=secure-vault-manager"
 set "PKG_BASE_NAME=SecureVaultManager"
-set "VERSION=0.1.0"
+set "VERSION=2026.11.0"
 set "SCRIPT_DIR=%~dp0"
 set "PROJECT_ROOT=%SCRIPT_DIR%..\.."
 set "DIST_DIR=%PROJECT_ROOT%\dist"

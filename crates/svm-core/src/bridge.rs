@@ -195,7 +195,7 @@ pub fn create_context(data_dir: &str) -> Box<FfiContext> {
 }
 
 pub fn core_version() -> String {
-    "0.1.0".to_string()
+    "2026.11.0".to_string()
 }
 
 pub fn abi_version() -> u32 {

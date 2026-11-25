@@ -16,5 +16,5 @@
         <pkg-ref id="io.github.hephaestus.svm.pkg"/>
     </choice>
 
-    <pkg-ref id="io.github.hephaestus.svm.pkg" version="0.1.0" onConclusion="none">SecureVaultManager-component.pkg</pkg-ref>
+    <pkg-ref id="io.github.hephaestus.svm.pkg" version="2026.11.0" onConclusion="none">SecureVaultManager-component.pkg</pkg-ref>
 </installer-gui-script>

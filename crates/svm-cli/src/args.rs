@@ -4,7 +4,7 @@ use svm_transfer::TransferFormat;
 
 /// In thông điệp hướng dẫn sử dụng chi tiết ra luồng `stdout`.
 pub fn print_help() {
-    println!("svm-cli 0.1.0 - Secure Vault Manager Command Line Interface");
+    println!("svm-cli 2026.11.0 - Secure Vault Manager Command Line Interface");
     println!();
     println!("USAGE:");
     println!("  svm-cli [--data-dir <DIR>] [--password <PW>] <COMMAND> [ARGS...]");

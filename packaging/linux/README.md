@@ -33,11 +33,11 @@ Gói `.deb` được đóng gói chuẩn quy cách Debian/Ubuntu với dependenc
 ```bash
 # 1. Đóng gói Release Native (.deb dùng dependencies hệ thống):
 ./packaging/linux/build-deb.sh
-# File đầu ra: build/packages/secure-vault-manager_0.1.0_amd64.deb
+# File đầu ra: build/packages/secure-vault-manager_2026.11.0_amd64.deb
 
 # 2. Đóng gói bản Debug (chứa debug info gỡ lỗi):
 ./packaging/linux/build-deb.sh --debug
-# File đầu ra: build/packages/secure-vault-manager-debug_0.1.0_amd64.deb
+# File đầu ra: build/packages/secure-vault-manager-debug_2026.11.0_amd64.deb
 ```
 
 - Cấu trúc cài đặt chuẩn Enterprise:
@@ -47,7 +47,7 @@ Gói `.deb` được đóng gói chuẩn quy cách Debian/Ubuntu với dependenc
 - Lệnh cài đặt thử nghiệm:
 
   ```bash
-  sudo apt install ./build/packages/secure-vault-manager_0.1.0_amd64.deb
+  sudo apt install ./build/packages/secure-vault-manager_2026.11.0_amd64.deb
   ```
 
 ---
@@ -59,12 +59,12 @@ AppImage được tạo ra với đầy đủ Qt6, ICU, Qt platform plugins và 
 ```bash
 # Đóng gói bản Release AppImage tự chứa:
 ./packaging/linux/build-appimage.sh
-# File đầu ra: build/packages/SecureVaultManager-0.1.0-x86_64.AppImage
+# File đầu ra: build/packages/SecureVaultManager-2026.11.0-x86_64.AppImage
 # (và thư mục thực thi sẵn: build/packages/AppDir-release)
 
 # Đóng gói bản Debug (chứa debug symbols):
 ./packaging/linux/build-appimage.sh --debug
-# File đầu ra: build/packages/SecureVaultManager-0.1.0-debug-x86_64.AppImage
+# File đầu ra: build/packages/SecureVaultManager-2026.11.0-debug-x86_64.AppImage
 ```
 
 ---
@@ -76,9 +76,9 @@ Gói `.rpm` được đóng gói chuẩn quy cách RPM với dependencies của 
 ```bash
 # Đóng gói bản Release Native (.rpm dùng dependencies hệ thống):
 ./packaging/linux/build-rpm.sh
-# File đầu ra: build/packages/secure-vault-manager-0.1.0-1.x86_64.rpm
+# File đầu ra: build/packages/secure-vault-manager-2026.11.0-1.x86_64.rpm
 
 # Đóng gói bản Debug:
 ./packaging/linux/build-rpm.sh --debug
-# File đầu ra: build/packages/secure-vault-manager-debug-0.1.0-1.x86_64.rpm
+# File đầu ra: build/packages/secure-vault-manager-debug-2026.11.0-1.x86_64.rpm
 ```

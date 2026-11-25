@@ -13,7 +13,7 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 cd "$PROJECT_ROOT"
 
 APP_NAME="secure-vault-manager"
-VERSION="0.1.0"
+VERSION="2026.11.0"
 ARCH="x86_64"
 DIST_DIR="$PROJECT_ROOT/dist"
 BUILD_MODE="release"
@@ -255,6 +255,7 @@ fi
 # -----------------------------------------------------------------------------
 if [[ "${BUILD_DEB}" == true ]]; then
     echo "-> Building Debian (.deb) package (native system dependencies)..."
+    rm -f "$PROJECT_ROOT/build/packages"/*.deb "$DIST_DIR"/*.deb
     "$SCRIPT_DIR/build-deb.sh" "--${BUILD_MODE}"
 
     # Copy to dist/
@@ -271,6 +272,7 @@ fi
 # -----------------------------------------------------------------------------
 if [[ "${BUILD_RPM}" == true ]]; then
     echo "-> Building RPM (.rpm) package (native system dependencies)..."
+    rm -f "$PROJECT_ROOT/build/packages"/*.rpm "$DIST_DIR"/*.rpm
     "$SCRIPT_DIR/build-rpm.sh" "--${BUILD_MODE}" 2>/dev/null || true
 
     # Copy to dist/

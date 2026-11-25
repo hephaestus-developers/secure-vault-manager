@@ -21,7 +21,7 @@ cd "$PROJECT_ROOT"
 APP_NAME="Secure Vault Manager"
 APP_DIR_NAME="Secure Vault Manager.app"
 PKG_BASE_NAME="SecureVaultManager"
-VERSION="0.1.0"
+VERSION="2026.11.0"
 DIST_DIR="$PROJECT_ROOT/dist"
 BUILD_MODE="release"
 

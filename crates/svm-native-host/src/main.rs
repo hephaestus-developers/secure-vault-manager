@@ -17,7 +17,7 @@ use crate::launcher::NativeHostRouter;
 use crate::stdio::{read_native_message, write_native_message};
 
 fn print_usage() {
-    println!("svm-native-host v0.1.0 - Secure Vault Manager Native Messaging Host");
+    println!("svm-native-host v2026.11.0 - Secure Vault Manager Native Messaging Host");
     println!("Usage:");
     println!("  svm-native-host                  Run in WebExtension Native Messaging stdio mode");
     println!("  svm-native-host --version        Print version information");
@@ -31,7 +31,7 @@ fn main() -> ExitCode {
     if args.len() > 1 {
         match args[1].as_str() {
             "--version" | "-v" => {
-                println!("svm-native-host 0.1.0");
+                println!("svm-native-host 2026.11.0");
                 return ExitCode::SUCCESS;
             }
             "--help" | "-h" => {

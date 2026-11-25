@@ -1,6 +1,6 @@
 {
   "name": "@svm/extension",
-  "version": "0.1.0",
+  "version": "2026.11.0",
   "description": "Secure Vault Manager Browser Extension (Manifest V3) for Chrome, Brave, Edge & Firefox",
   "private": true,
   "type": "module",

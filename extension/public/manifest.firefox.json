@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Secure Vault Manager",
-  "version": "0.1.0",
+  "version": "2026.11.0",
   "description": "Autofill logins, verification codes, and passkeys securely from Secure Vault Manager.",
   "browser_specific_settings": {
     "gecko": {

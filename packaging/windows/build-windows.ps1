@@ -54,7 +54,7 @@ if (Get-Command windeployqt -ErrorAction SilentlyContinue) {
 if (Get-Command iscc -ErrorAction SilentlyContinue) {
     Write-Host "==> [Windows Build] Đang tạo file cài đặt Setup.exe qua Inno Setup..."
     $IssFile = Join-Path $ScriptDir "svm.iss"
-    $SetupOutName = "SecureVaultManager-0.1.0$PkgSuffix-Setup"
+    $SetupOutName = "SecureVaultManager-2026.11.0$PkgSuffix-Setup"
     & iscc "/DAppMode=$ConfigName" "/DOutputBaseFilename=$SetupOutName" $IssFile
     Write-Host "  ✓ Đã tạo thành công bộ cài Setup.exe trong: $PackageDir"
 }
@@ -64,7 +64,7 @@ if (Get-Command candle -ErrorAction SilentlyContinue) {
     Write-Host "==> [Windows Build] Đang tạo Enterprise MSI qua WiX Toolset..."
     $WxsFile = Join-Path $ScriptDir "svm.wxs"
     $WixObj = Join-Path $BuildDir "svm.wixobj"
-    $MsiOut = Join-Path $PackageDir "SecureVaultManager-0.1.0$PkgSuffix-x64.msi"
+    $MsiOut = Join-Path $PackageDir "SecureVaultManager-2026.11.0$PkgSuffix-x64.msi"
     & candle -nologo -out $WixObj $WxsFile
     & light -nologo -ext WixUIExtension -out $MsiOut $WixObj
     Write-Host "  ✓ Đã tạo thành công Enterprise MSI trong: $MsiOut"

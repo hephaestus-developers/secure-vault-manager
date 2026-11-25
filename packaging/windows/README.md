@@ -57,15 +57,15 @@ packaging\windows\package_windows.bat /DEBUG
 
 Toàn bộ sản phẩm phân phối xuất xưởng sẽ được tập trung tại thư mục `dist\`:
 
-- `dist\SecureVaultManager-0.1.0-Setup.exe` (Inno Setup Installer cho End User)
-- `dist\SecureVaultManager-0.1.0-windows-x64.msi` (WiX Toolset Installer cho Enterprise IT / GPO)
-- `dist\SecureVaultManager-0.1.0-windows-x64-portable.zip` (Portable Archive)
+- `dist\SecureVaultManager-2026.11.0-Setup.exe` (Inno Setup Installer cho End User)
+- `dist\SecureVaultManager-2026.11.0-windows-x64.msi` (WiX Toolset Installer cho Enterprise IT / GPO)
+- `dist\SecureVaultManager-2026.11.0-windows-x64-portable.zip` (Portable Archive)
 - `dist\SHA256SUMS` (Bảng mã băm tính toàn vẹn)
 - `dist\release-manifest.json` (Metadata phiên bản phát hành)
 
 - **Bản Release**:
-  - `SecureVaultManager-0.1.0-Setup.exe` (Inno Setup)
-  - `SecureVaultManager-0.1.0-x64.msi` (Enterprise MSI)
+  - `SecureVaultManager-2026.11.0-Setup.exe` (Inno Setup)
+  - `SecureVaultManager-2026.11.0-x64.msi` (Enterprise MSI)
 - **Bản Debug**:
-  - `SecureVaultManager-0.1.0-debug-Setup.exe` (Inno Setup)
-  - `SecureVaultManager-0.1.0-debug-x64.msi` (Enterprise MSI)
+  - `SecureVaultManager-2026.11.0-debug-Setup.exe` (Inno Setup)
+  - `SecureVaultManager-2026.11.0-debug-x64.msi` (Enterprise MSI)

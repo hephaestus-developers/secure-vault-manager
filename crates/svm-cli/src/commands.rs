@@ -39,7 +39,7 @@ pub fn execute_cli(args: &[String]) -> Result<String, String> {
     let positionals = extract_positionals(args);
 
     if has_flag(args, "--version") || has_flag(args, "-v") {
-        return Ok("svm-cli 0.1.0".to_string());
+        return Ok("svm-cli 2026.11.0".to_string());
     }
     if has_flag(args, "--help") || has_flag(args, "-h") || positionals.is_empty() {
         print_help();
@@ -48,7 +48,7 @@ pub fn execute_cli(args: &[String]) -> Result<String, String> {
 
     let cmd = positionals[0].as_str();
     match cmd {
-        "version" => Ok("svm-cli 0.1.0".to_string()),
+        "version" => Ok("svm-cli 2026.11.0".to_string()),
         "help" => {
             print_help();
             Ok(String::new())

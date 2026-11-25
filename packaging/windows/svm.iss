@@ -1,12 +1,12 @@
 ; Inno Setup Script for Secure Vault Manager
 #define MyAppName "Secure Vault Manager"
-#define MyAppVersion "0.1.0"
+#define MyAppVersion "2026.11.0"
 #define MyAppPublisher "Hephaestus Developers"
 #define MyAppURL "https://github.com/hephaestus-developers/secure-vault-manager"
 #define MyAppExeName "svm.exe"
 
 #ifndef SourceBundleDir
-  #define SourceBundleDir "..\..\dist\secure-vault-manager-0.1.0-windows-x64"
+  #define SourceBundleDir "..\..\dist\secure-vault-manager-2026.11.0-windows-x64"
 #endif
 
 [Setup]

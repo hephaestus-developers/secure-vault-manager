@@ -237,7 +237,7 @@ void AboutDialog::populateAppTabContent() {
   const QString linkColor = pal.info.name();
 
   const QString appVer = QCoreApplication::applicationVersion().isEmpty()
-                             ? QStringLiteral("0.1.0")
+                             ? QStringLiteral("2026.11.0")
                              : QCoreApplication::applicationVersion();
   const QString coreVer = core::CoreBridge::instance().coreVersion().isEmpty()
                               ? appVer

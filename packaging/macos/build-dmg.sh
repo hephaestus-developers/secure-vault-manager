@@ -12,7 +12,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 PKG_NAME="SecureVaultManager"
-PKG_VERSION="0.1.0"
+PKG_VERSION="2026.11.0"
 BUILD_MODE="release"
 
 usage() {
@@ -25,8 +25,8 @@ Tùy chọn đóng gói macOS DMG:
   -h, --help         Hiển thị hướng dẫn này
 
 Ví dụ:
-  ./packaging/macos/build-dmg.sh            # Tạo SecureVaultManager-0.1.0.dmg (Release)
-  ./packaging/macos/build-dmg.sh --debug    # Tạo SecureVaultManager-0.1.0-debug.dmg
+  ./packaging/macos/build-dmg.sh            # Tạo SecureVaultManager-2026.11.0.dmg (Release)
+  ./packaging/macos/build-dmg.sh --debug    # Tạo SecureVaultManager-2026.11.0-debug.dmg
 EOF
     exit 0
 }

@@ -40,7 +40,7 @@ export class BridgeTransport {
             unlocked: false,
             desktopRunning: false,
             configured: false,
-            version: "0.1.0",
+            version: "2026.11.0",
             bridgeListening: false,
           },
         };

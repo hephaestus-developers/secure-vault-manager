@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
   <?ifndef SourceDir?>
-    <?define SourceDir = "..\..\dist\secure-vault-manager-0.1.0-windows-x64"?>
+    <?define SourceDir = "..\..\dist\secure-vault-manager-2026.11.0-windows-x64"?>
   <?endif?>
 
   <Product Id="*" 
            Name="Secure Vault Manager" 
            Language="1033" 
-           Version="0.1.0.0" 
+           Version="26.11.0.0" 
            Manufacturer="Hephaestus Developers" 
            UpgradeCode="9D86F972-35F9-4BFB-A6AE-E6930AE46E4C">
            

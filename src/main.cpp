@@ -43,7 +43,7 @@ int main(int argc, char *argv[]) {
   app.setApplicationName(QStringLiteral("Secure Vault Manager"));
   app.setDesktopFileName(QStringLiteral("io.github.hephaestus.svm"));
   app.setWindowIcon(QIcon(QStringLiteral(":/icons/brand/app_logo.svg")));
-  app.setApplicationVersion(QStringLiteral("0.1.0"));
+  app.setApplicationVersion(QStringLiteral("2026.11.0"));
   app.setOrganizationName(QStringLiteral("Hephaestus Developers"));
   app.setOrganizationDomain(QStringLiteral("hephaestus.io"));
 

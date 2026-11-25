@@ -456,7 +456,7 @@ pub(crate) fn dispatch_bridge_request(ctx_raw: usize, req_json: &str) -> String 
             data.insert("unlocked", JsonValue::Bool(is_unlocked && is_configured));
             data.insert("desktopRunning", JsonValue::Bool(true));
             data.insert("configured", JsonValue::Bool(is_configured));
-            data.insert("version", JsonValue::String("0.1.0".to_string()));
+            data.insert("version", JsonValue::String("2026.11.0".to_string()));
             data.insert("bridgeListening", JsonValue::Bool(true));
             data.insert("biometricAvailable", JsonValue::Bool(bio_available));
 

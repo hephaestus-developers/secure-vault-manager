@@ -25,7 +25,7 @@ pub extern "C" fn svm_abi_version() -> u32 {
 /// Lấy chuỗi phiên bản tĩnh của lõi SVM Core (Caller KHÔNG giải phóng con trỏ này).
 #[no_mangle]
 pub extern "C" fn svm_core_version() -> *const c_char {
-    static VERSION: &[u8] = b"0.1.0\0";
+    static VERSION: &[u8] = b"2026.11.0\0";
     VERSION.as_ptr() as *const c_char
 }
 

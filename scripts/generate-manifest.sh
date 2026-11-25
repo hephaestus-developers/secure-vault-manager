@@ -19,7 +19,7 @@ fi
 cd "${DIST_DIR}"
 
 APP_NAME="secure-vault-manager"
-VERSION="0.1.0"
+VERSION="2026.11.0"
 GIT_COMMIT="$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")"
 BUILD_TIME="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 

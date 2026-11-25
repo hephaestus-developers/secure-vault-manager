@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(svm VERSION 0.1.0 LANGUAGES C CXX)
+project(svm VERSION 2026.11.0 LANGUAGES C CXX)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 20)
@@ -235,8 +235,8 @@ if(APPLE)
         MACOSX_BUNDLE_ICON_FILE "svm.icns"
         MACOSX_BUNDLE_BUNDLE_NAME "Secure Vault Manager"
         MACOSX_BUNDLE_GUI_IDENTIFIER "io.github.hephaestus.svm"
-        MACOSX_BUNDLE_BUNDLE_VERSION "0.1.0"
-        MACOSX_BUNDLE_SHORT_VERSION_STRING "0.1.0"
+        MACOSX_BUNDLE_BUNDLE_VERSION "2026.11.0"
+        MACOSX_BUNDLE_SHORT_VERSION_STRING "2026.11.0"
         BUILD_WITH_INSTALL_RPATH TRUE
         INSTALL_RPATH "@executable_path/../Frameworks;@executable_path/../lib"
     )

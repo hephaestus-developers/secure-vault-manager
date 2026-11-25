@@ -5,7 +5,7 @@
 
 .DESCRIPTION
     1. Compiles the build using CMake Presets (Release or Debug).
-    2. Gathers binaries, DLLs, assets, and native messaging manifests into dist/secure-vault-manager-0.1.0-windows-x64.
+    2. Gathers binaries, DLLs, assets, and native messaging manifests into dist/secure-vault-manager-2026.11.0-windows-x64.
     3. Runs windeployqt to bundle all required Qt 6 runtime libraries.
     4. Compiles Setup Executable (.exe) using Inno Setup.
     5. Compiles Windows Installer (.msi) using WiX Toolset.
@@ -31,7 +31,7 @@ $ErrorActionPreference = "Stop"
 
 $AppName = "secure-vault-manager"
 $PkgBaseName = "SecureVaultManager"
-$Version = "0.1.0"
+$Version = "2026.11.0"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectRoot = (Resolve-Path "$ScriptDir\..\..").Path
 $DistDir = Join-Path $ProjectRoot "dist"

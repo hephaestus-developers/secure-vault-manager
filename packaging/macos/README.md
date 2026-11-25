@@ -47,11 +47,11 @@ Tất cả các script đều hỗ trợ cờ `-r, --release` (mặc định) v�
 ```bash
 # Tạo file DMG Release:
 ./packaging/macos/build-dmg.sh
-# File đầu ra: build/packages/SecureVaultManager-0.1.0.dmg
+# File đầu ra: build/packages/SecureVaultManager-2026.11.0.dmg
 
 # Tạo file DMG Debug:
 ./packaging/macos/build-dmg.sh --debug
-# File đầu ra: build/packages/SecureVaultManager-0.1.0-debug.dmg
+# File đầu ra: build/packages/SecureVaultManager-2026.11.0-debug.dmg
 ```
 
 ---
@@ -61,9 +61,9 @@ Tất cả các script đều hỗ trợ cờ `-r, --release` (mặc định) v�
 ```bash
 # Tạo file PKG Release:
 ./packaging/macos/build-pkg.sh
-# File đầu ra: build/packages/SecureVaultManager-0.1.0.pkg
+# File đầu ra: build/packages/SecureVaultManager-2026.11.0.pkg
 
 # Tạo file PKG Debug:
 ./packaging/macos/build-pkg.sh --debug
-# File đầu ra: build/packages/SecureVaultManager-0.1.0-debug.pkg
+# File đầu ra: build/packages/SecureVaultManager-2026.11.0-debug.pkg
 ```

@@ -1302,7 +1302,7 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 
 [[package]]
 name = "svm-bridge"
-version = "0.1.0"
+version = "2026.11.0"
 dependencies = [
  "svm-crypto",
  "svm-domain",
@@ -1315,7 +1315,7 @@ dependencies = [
 
 [[package]]
 name = "svm-cli"
-version = "0.1.0"
+version = "2026.11.0"
 dependencies = [
  "svm-bridge",
  "svm-crypto",
@@ -1329,7 +1329,7 @@ dependencies = [
 
 [[package]]
 name = "svm-core"
-version = "0.1.0"
+version = "2026.11.0"
 dependencies = [
  "cxx",
  "cxx-build",
@@ -1349,7 +1349,7 @@ dependencies = [
 
 [[package]]
 name = "svm-crypto"
-version = "0.1.0"
+version = "2026.11.0"
 dependencies = [
  "ring",
  "svm-domain",
@@ -1358,18 +1358,18 @@ dependencies = [
 
 [[package]]
 name = "svm-domain"
-version = "0.1.0"
+version = "2026.11.0"
 
 [[package]]
 name = "svm-ipc"
-version = "0.1.0"
+version = "2026.11.0"
 dependencies = [
  "svm-domain",
 ]
 
 [[package]]
 name = "svm-native-host"
-version = "0.1.0"
+version = "2026.11.0"
 dependencies = [
  "svm-bridge",
  "svm-crypto",
@@ -1384,7 +1384,7 @@ dependencies = [
 
 [[package]]
 name = "svm-ssh-agent"
-version = "0.1.0"
+version = "2026.11.0"
 dependencies = [
  "ring",
  "svm-crypto",
@@ -1393,7 +1393,7 @@ dependencies = [
 
 [[package]]
 name = "svm-storage"
-version = "0.1.0"
+version = "2026.11.0"
 dependencies = [
  "svm-crypto",
  "svm-domain",
@@ -1402,7 +1402,7 @@ dependencies = [
 
 [[package]]
 name = "svm-system"
-version = "0.1.0"
+version = "2026.11.0"
 dependencies = [
  "keyring",
  "svm-domain",
@@ -1411,7 +1411,7 @@ dependencies = [
 
 [[package]]
 name = "svm-totp"
-version = "0.1.0"
+version = "2026.11.0"
 dependencies = [
  "rqrr",
  "svm-crypto",
@@ -1420,7 +1420,7 @@ dependencies = [
 
 [[package]]
 name = "svm-transfer"
-version = "0.1.0"
+version = "2026.11.0"
 dependencies = [
  "svm-crypto",
  "svm-domain",
@@ -1430,7 +1430,7 @@ dependencies = [
 
 [[package]]
 name = "svm-vault"
-version = "0.1.0"
+version = "2026.11.0"
 dependencies = [
  "svm-crypto",
  "svm-domain",
@@ -1440,7 +1440,7 @@ dependencies = [
 
 [[package]]
 name = "svm-webauthn"
-version = "0.1.0"
+version = "2026.11.0"
 dependencies = [
  "ring",
  "svm-crypto",
