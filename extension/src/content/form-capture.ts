@@ -11,6 +11,7 @@ import {
 import {
   CredentialSecretPayload,
   CredentialsListPayload,
+  VaultStatusPayload,
   sendExtensionBridgeMessage,
 } from "../services/protocol";
 import { isRecentlyAutofilled } from "./autofill";
@@ -20,11 +21,15 @@ import {
   isSearchOrFilterInput,
   isSubmitElement,
 } from "./classifier";
-import { showSaveCredentialPrompt } from "./ui/save-prompt";
+import {
+  isDomainIgnored,
+  showCompactSaveStateToast,
+  showSaveCredentialPrompt,
+} from "./ui/save-prompt";
 
 export { cleanActionWords, extractBrandOrServiceName, generateSmartCredentialTitle };
 
-const PENDING_LOGIN_TTL_MS = 60000; // 60 giây
+const PENDING_LOGIN_TTL_MS = 180000; // 3 phút
 const LAST_TYPED_TTL_MS = 60000; // 60 giây
 
 export interface PendingLoginData {
@@ -303,10 +308,59 @@ function observeSpaFormRemoval(pwdInput: HTMLInputElement, pending: PendingLogin
   }, 10000);
 }
 
+async function verifyAndPromptIfNeeded(pending: PendingLoginData): Promise<void> {
+  const resp = await sendExtensionBridgeMessage<CredentialsListPayload>("get_credentials", {
+    domain: pending.domain,
+  });
+
+  if (resp.ok && resp.payload?.credentials?.length) {
+    const match = resp.payload.credentials.find(
+      (c) => c.username.trim().toLowerCase() === pending.username.toLowerCase(),
+    );
+
+    if (match) {
+      if (match.password && match.password === pending.password) {
+        return;
+      }
+
+      const secretResp = await sendExtensionBridgeMessage<CredentialSecretPayload>(
+        "fill_credential",
+        { itemId: match.id },
+      );
+      if (secretResp.ok && secretResp.payload?.password === pending.password) {
+        return;
+      }
+
+      await showSaveCredentialPrompt({
+        itemId: match.id,
+        title: match.title || pending.title || generateSmartCredentialTitle(pending.username),
+        username: pending.username,
+        password: pending.password,
+        websiteUrl: pending.origin,
+        isUpdate: true,
+      });
+      return;
+    }
+  }
+
+  await showSaveCredentialPrompt({
+    title: pending.title || generateSmartCredentialTitle(pending.username),
+    username: pending.username,
+    password: pending.password,
+    websiteUrl: pending.origin,
+    isUpdate: false,
+  });
+}
+
 /**
  * Xác minh và hiển thị Save Prompt nếu thông tin hợp lệ và chưa tồn tại trong Vault.
  */
 async function verifyAndPrompt(pending: PendingLoginData): Promise<void> {
+  if (await isDomainIgnored(pending.domain)) {
+    await clearPendingLogin();
+    return;
+  }
+
   // Chống kích hoạt trùng lặp làm nhấp nháy giao diện
   if (isPromptProcessing || Date.now() - lastPromptTimestamp < 3500) {
     return;
@@ -331,69 +385,51 @@ async function verifyAndPrompt(pending: PendingLoginData): Promise<void> {
     activeFallbackTimer = null;
   }
 
-  // Xóa ngay bộ nhớ đệm phiên đăng nhập để tránh race condition từ các sự kiện khác
-  await clearPendingLogin();
-
   try {
     // Kiểm tra lỗi hiển thị trên trang
     if (hasVisibleLoginError()) {
+      await clearPendingLogin();
       return;
     }
 
-    const resp = await sendExtensionBridgeMessage<CredentialsListPayload>("get_credentials", {
-      domain: pending.domain,
-    });
+    const statusResp = await sendExtensionBridgeMessage<VaultStatusPayload>("get_vault_status");
+    const desktopRunning = Boolean(statusResp.ok && statusResp.payload?.desktopRunning);
+    const unlocked = Boolean(
+      desktopRunning && statusResp.payload?.configured && statusResp.payload?.unlocked,
+    );
+    const biometricAvailable = Boolean(statusResp.payload?.biometricAvailable);
 
-    if (resp.ok && resp.payload?.credentials?.length) {
-      const match = resp.payload.credentials.find(
-        (c) => c.username.trim().toLowerCase() === pending.username.toLowerCase(),
-      );
-
-      if (match) {
-        // Mật khẩu trùng khớp -> đã lưu trước đó, bỏ qua
-        if (match.password && match.password === pending.password) {
-          return;
-        }
-
-        // Truy vấn mật khẩu giải mã để đối chiếu
-        const secretResp = await sendExtensionBridgeMessage<CredentialSecretPayload>(
-          "fill_credential",
-          { itemId: match.id },
-        );
-        if (secretResp.ok && secretResp.payload?.password === pending.password) {
-          return;
-        }
-
-        // Người dùng đổi mật khẩu mới -> Hỏi cập nhật
-        await showSaveCredentialPrompt({
-          itemId: match.id,
-          title: match.title || pending.title || generateSmartCredentialTitle(pending.username),
-          username: pending.username,
-          password: pending.password,
-          websiteUrl: pending.origin,
-          isUpdate: true,
-        });
-        return;
-      }
+    if (!desktopRunning || !unlocked) {
+      // Giữ pending trong session để đối chiếu tự động ngay khi người dùng mở/mở khóa app
+      showCompactSaveStateToast({
+        domain: pending.domain,
+        username: pending.username,
+        desktopRunning,
+        biometricAvailable,
+        onResolvedUnlocked: async () => {
+          await clearPendingLogin();
+          await verifyAndPromptIfNeeded(pending);
+        },
+        onManualUnlockRequested: () => {
+          void (async () => {
+            await clearPendingLogin();
+            await showSaveCredentialPrompt({
+              title: pending.title || generateSmartCredentialTitle(pending.username),
+              username: pending.username,
+              password: pending.password,
+              websiteUrl: pending.origin,
+              isUpdate: false,
+            });
+          })();
+        },
+      });
+      return;
     }
 
-    // Tài khoản mới hoàn toàn -> Hỏi lưu mới
-    await showSaveCredentialPrompt({
-      title: pending.title || generateSmartCredentialTitle(pending.username),
-      username: pending.username,
-      password: pending.password,
-      websiteUrl: pending.origin,
-      isUpdate: false,
-    });
+    await clearPendingLogin();
+    await verifyAndPromptIfNeeded(pending);
   } catch {
-    // Nếu có lỗi kết nối backend, vẫn hiển thị Save Prompt để người dùng không bị lỡ
-    await showSaveCredentialPrompt({
-      title: pending.title || generateSmartCredentialTitle(pending.username),
-      username: pending.username,
-      password: pending.password,
-      websiteUrl: pending.origin,
-      isUpdate: false,
-    });
+    await clearPendingLogin();
   } finally {
     lastPromptTimestamp = Date.now();
     isPromptProcessing = false;
